@@ -21,7 +21,7 @@ type DescriptorSet1 =
 type DescriptorSet2 = AllocatedUniform<Camera, Lights, Materials>;
 type DescriptorSet3 = wgpu::BindGroup;
 
-pub struct Raytracer {
+pub struct Strolle {
     width: u32,
     height: u32,
     pipeline: wgpu::RenderPipeline,
@@ -31,7 +31,7 @@ pub struct Raytracer {
     ds3: DescriptorSet3,
 }
 
-impl Raytracer {
+impl Strolle {
     pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
