@@ -1,0 +1,8 @@
+[package]
+name = "bevy-strolle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.9" # TODO use default-features = false
+strolle = { path = "../strolle" }
