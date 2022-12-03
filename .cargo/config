@@ -1,0 +1,2 @@
+[alias]
+build-shader = "run -p strolle-shader-builder --target-dir target/shader-builder --release"

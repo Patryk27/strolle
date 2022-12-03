@@ -1,0 +1,9 @@
+[package]
+name = "strolle-shader-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
+glam = { version = "0.22", default-features = false, features = ["bytemuck"] }
+spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", features = ["glam"] }
