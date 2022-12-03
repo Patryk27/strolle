@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::camera::CameraRenderGraph;
 
 fn main() {
     App::new()
@@ -36,6 +37,7 @@ fn setup(
     });
 
     commands.spawn(Camera3dBundle {
+        camera_render_graph: CameraRenderGraph::new(bevy_strolle::graph::NAME),
         transform: Transform::from_xyz(-2.0, 2.5, 5.0)
             .looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
