@@ -1,19 +1,12 @@
-use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::prelude::*;
-use bevy::render::camera::ExtractedCamera;
 use bevy::render::render_graph::{Node, SlotInfo, SlotType};
-use bevy::render::render_resource::{LoadOp, Operations, RenderPassDescriptor};
+use bevy::render::render_resource::{
+    LoadOp, Operations, RenderPassColorAttachment,
+};
 use bevy::render::view::{ExtractedView, ViewTarget};
 
 pub struct MainPass {
-    query: QueryState<
-        (
-            &'static ExtractedCamera,
-            &'static Camera3d,
-            &'static ViewTarget,
-        ),
-        With<ExtractedView>,
-    >,
+    query: QueryState<&'static ViewTarget, With<ExtractedView>>,
 }
 
 impl MainPass {
@@ -43,24 +36,20 @@ impl Node for MainPass {
     ) -> Result<(), bevy::render::render_graph::NodeRunError> {
         let entity = graph.get_input_entity(Self::IN_VIEW)?;
 
-        let Ok((_, camera_3d, target)) = self.query.get_manual(world, entity) else {
+        let Ok(target) = self.query.get_manual(world, entity) else {
             return Ok(())
         };
 
         let strolle = world.resource::<super::Strolle>();
 
-        let color_op = Operations {
-            load: match camera_3d.clear_color {
-                ClearColorConfig::Default => {
-                    LoadOp::Clear(world.resource::<ClearColor>().0.into())
-                }
-                ClearColorConfig::Custom(color) => LoadOp::Clear(color.into()),
-                ClearColorConfig::None => LoadOp::Load,
+        let color_attachment = RenderPassColorAttachment {
+            view: target.out_texture(),
+            resolve_target: None,
+            ops: Operations {
+                load: LoadOp::Clear(Default::default()),
+                store: true,
             },
-            store: true,
         };
-
-        let color_attachment = target.get_unsampled_color_attachment(color_op);
 
         strolle
             .0

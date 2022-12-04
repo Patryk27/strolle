@@ -22,13 +22,13 @@ type DescriptorSet2 = AllocatedUniform<Camera, Lights, Materials>;
 type DescriptorSet3 = wgpu::BindGroup;
 
 pub struct Strolle {
-    width: u32,
-    height: u32,
-    pipeline: wgpu::RenderPipeline,
-    ds0: DescriptorSet0,
-    ds1: DescriptorSet1,
-    ds2: DescriptorSet2,
-    ds3: DescriptorSet3,
+    pub width: u32,
+    pub height: u32,
+    pub pipeline: wgpu::RenderPipeline,
+    pub ds0: DescriptorSet0,
+    pub ds1: DescriptorSet1,
+    pub ds2: DescriptorSet2,
+    pub ds3: DescriptorSet3,
 }
 
 impl Strolle {
@@ -167,7 +167,10 @@ impl Strolle {
                     module: &shader,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                        // TODO: Either we say that output is always Rgba8UnormSrgb
+                        //       and has to be further upscaled by the user, or we
+                        //       find a way to make this configurable.
+                        format: wgpu::TextureFormat::Bgra8UnormSrgb,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
