@@ -45,13 +45,14 @@ impl Plugin for StrollePlugin {
             materials: Default::default(),
         });
 
-        let mut sub_graph = RenderGraph::default();
-
         render_app.add_system_to_stage(RenderStage::Extract, extract::geometry);
         render_app.add_system_to_stage(RenderStage::Extract, extract::lights);
         render_app.add_system_to_stage(RenderStage::Extract, extract::camera);
 
         render_app.add_system_to_stage(RenderStage::Queue, queue);
+
+        // TODO: Add Upscaling from bevy_core_pipelines
+        let mut sub_graph = RenderGraph::default();
 
         let input_node_id = sub_graph.set_input(vec![SlotInfo::new(
             core_3d::graph::input::VIEW_ENTITY,
