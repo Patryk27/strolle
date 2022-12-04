@@ -3,6 +3,7 @@ use std::f32::consts::PI;
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 use bevy::render::Extract;
+use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::State;
@@ -21,6 +22,32 @@ pub(super) fn geometry(
         let transform = transform.compute_matrix();
 
         state.geometry.builder().add(entity, mesh, transform);
+    }
+}
+
+// TODO: We also need to sync mesh data with appropriate assigned materials
+pub(super) fn materials(
+    mut state: ResMut<State>,
+    materials: Extract<Res<Assets<StandardMaterial>>>,
+    material_instances: Extract<Query<&Handle<StandardMaterial>>>,
+) {
+    let state = &mut *state;
+
+    state.materials = Default::default();
+
+    let mut unique_materials = HashSet::new();
+
+    for material in material_instances.iter() {
+        unique_materials.insert(material);
+    }
+
+    for (idx, material) in unique_materials.into_iter().enumerate() {
+        let material = materials.get(material).unwrap();
+
+        state.materials.set(
+            st::MaterialId::new(idx),
+            st::Material::none().with_color(color_to_vec3(material.base_color)),
+        );
     }
 }
 

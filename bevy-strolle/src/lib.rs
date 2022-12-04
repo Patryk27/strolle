@@ -48,10 +48,13 @@ impl Plugin for StrollePlugin {
         render_app.add_system_to_stage(RenderStage::Extract, extract::geometry);
         render_app.add_system_to_stage(RenderStage::Extract, extract::lights);
         render_app.add_system_to_stage(RenderStage::Extract, extract::camera);
+        render_app
+            .add_system_to_stage(RenderStage::Extract, extract::materials);
 
         render_app.add_system_to_stage(RenderStage::Queue, queue);
 
-        // TODO: Add Upscaling from bevy_core_pipelines
+        let main_pass = MainPass::new(&mut render_app.world);
+
         let mut sub_graph = RenderGraph::default();
 
         let input_node_id = sub_graph.set_input(vec![SlotInfo::new(
@@ -59,10 +62,7 @@ impl Plugin for StrollePlugin {
             SlotType::Entity,
         )]);
 
-        sub_graph.add_node(
-            graph::node::RENDER,
-            MainPass::new(&mut render_app.world),
-        );
+        sub_graph.add_node(graph::node::RENDER, main_pass);
 
         sub_graph
             .add_slot_edge(
