@@ -189,16 +189,16 @@ impl Strolle {
     pub fn update(
         &self,
         queue: &wgpu::Queue,
-        static_geo: &StaticGeometry,
-        static_geo_index: &StaticGeometryIndex,
+        // static_geo: &StaticGeometry,
+        // static_geo_index: &StaticGeometryIndex,
         dynamic_geo: &DynamicGeometry,
         uvs: &TriangleUvs,
         camera: &Camera,
         lights: &Lights,
         materials: &Materials,
     ) {
-        self.ds0.write0(queue, static_geo);
-        self.ds1.write0(queue, static_geo_index);
+        // self.ds0.write0(queue, static_geo);
+        // self.ds1.write0(queue, static_geo_index);
         self.ds1.write1(queue, dynamic_geo);
         self.ds1.write2(queue, uvs);
         self.ds2.write0(queue, camera);
@@ -210,19 +210,12 @@ impl Strolle {
     pub fn render(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        output_texture: &wgpu::TextureView,
+        color_attachment: wgpu::RenderPassColorAttachment,
     ) {
         let mut rpass =
             encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("raytracer_render_pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: output_texture,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
-                    },
-                })],
+                color_attachments: &[Some(color_attachment)],
                 depth_stencil_attachment: None,
             });
 

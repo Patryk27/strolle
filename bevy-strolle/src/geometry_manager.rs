@@ -4,12 +4,12 @@ pub use self::geometry_builder::*;
 use crate::*;
 
 pub struct GeometryManager {
-    static_geo: Box<st::StaticGeometry>,
-    static_geo_index: Option<Box<st::StaticGeometryIndex>>,
+    pub static_geo: Box<st::StaticGeometry>,
+    pub static_geo_index: Option<Box<st::StaticGeometryIndex>>,
     static_geo_owners: Vec<Option<Entity>>,
-    dynamic_geo: Box<st::DynamicGeometry>,
+    pub dynamic_geo: Box<st::DynamicGeometry>,
     dynamic_geo_owners: Vec<Entity>,
-    uvs: Box<st::TriangleUvs>,
+    pub uvs: Box<st::TriangleUvs>,
 }
 
 impl GeometryManager {
