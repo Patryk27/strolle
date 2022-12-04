@@ -1,3 +1,4 @@
+mod extract;
 mod geometry_manager;
 mod main_pass;
 
@@ -75,72 +76,6 @@ impl Plugin for StrollePlugin {
             .world
             .resource_mut::<RenderGraph>()
             .add_sub_graph(graph::NAME, sub_graph);
-    }
-}
-
-mod extract {
-    use std::f32::consts::PI;
-
-    use bevy::math::{vec2, vec3};
-    use bevy::pbr::LightEntity;
-    use bevy::prelude::*;
-    use bevy::render::Extract;
-    use strolle as st;
-
-    use crate::State;
-
-    pub(super) fn geometry(
-        mut state: ResMut<State>,
-        meshes: Extract<Res<Assets<Mesh>>>,
-        models: Extract<
-            Query<(Entity, &Handle<Mesh>, &Transform), Added<Handle<Mesh>>>,
-        >,
-    ) {
-        let state = &mut *state;
-
-        for (entity, mesh, &transform) in models.iter() {
-            let mesh = meshes.get(mesh).unwrap();
-            let transform = transform.compute_matrix();
-
-            state.geometry.builder().add(entity, mesh, transform);
-        }
-    }
-
-    pub(super) fn lights(
-        mut state: ResMut<State>,
-        lights: Extract<Query<(&LightEntity, &GlobalTransform)>>,
-    ) {
-        let state = &mut *state;
-
-        state.lights = Default::default();
-
-        for (_, transform) in lights.iter() {
-            state.lights.push(st::Light::point(
-                transform.translation(),
-                vec3(1.0, 1.0, 1.0),
-                1.0,
-            ));
-        }
-    }
-
-    pub(super) fn camera(
-        mut state: ResMut<State>,
-        cameras: Extract<Query<(&Camera, &GlobalTransform)>>,
-    ) {
-        for (camera, transform) in cameras.iter() {
-            if !camera.is_active {
-                continue;
-            }
-
-            state.camera = st::Camera::new(
-                transform.translation(),
-                transform.translation() + transform.forward(),
-                transform.up(),
-                1.0,
-                vec2(256.0, 256.0),
-                PI / 2.0,
-            );
-        }
     }
 }
 
