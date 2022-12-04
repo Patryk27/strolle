@@ -7,3 +7,6 @@ edition = "2021"
 bevy = "0.9" # TODO use default-features = false
 log = "0.4"
 strolle = { path = "../strolle" }
+
+[dev-dependencies]
+smooth-bevy-cameras = "0.6.0"
