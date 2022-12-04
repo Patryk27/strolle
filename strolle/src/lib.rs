@@ -22,13 +22,13 @@ type DescriptorSet2 = AllocatedUniform<Camera, Lights, Materials>;
 type DescriptorSet3 = wgpu::BindGroup;
 
 pub struct Strolle {
-    width: u32,
-    height: u32,
-    pipeline: wgpu::RenderPipeline,
-    ds0: DescriptorSet0,
-    ds1: DescriptorSet1,
-    ds2: DescriptorSet2,
-    ds3: DescriptorSet3,
+    pub width: u32,
+    pub height: u32,
+    pub pipeline: wgpu::RenderPipeline,
+    pub ds0: DescriptorSet0,
+    pub ds1: DescriptorSet1,
+    pub ds2: DescriptorSet2,
+    pub ds3: DescriptorSet3,
 }
 
 impl Strolle {
@@ -167,7 +167,10 @@ impl Strolle {
                     module: &shader,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                        // TODO: Either we say that output is always Rgba8UnormSrgb
+                        //       and has to be further upscaled by the user, or we
+                        //       find a way to make this configurable.
+                        format: wgpu::TextureFormat::Bgra8UnormSrgb,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -186,39 +189,36 @@ impl Strolle {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn render(
+    pub fn update(
         &self,
         queue: &wgpu::Queue,
-        encoder: &mut wgpu::CommandEncoder,
-        static_geo: &StaticGeometry,
-        static_geo_index: &StaticGeometryIndex,
+        // static_geo: &StaticGeometry,
+        // static_geo_index: &StaticGeometryIndex,
         dynamic_geo: &DynamicGeometry,
         uvs: &TriangleUvs,
         camera: &Camera,
         lights: &Lights,
         materials: &Materials,
-        output_texture: &wgpu::TextureView,
     ) {
-        self.ds0.write0(queue, static_geo);
-        self.ds1.write0(queue, static_geo_index);
+        // self.ds0.write0(queue, static_geo);
+        // self.ds1.write0(queue, static_geo_index);
         self.ds1.write1(queue, dynamic_geo);
         self.ds1.write2(queue, uvs);
         self.ds2.write0(queue, camera);
         self.ds2.write1(queue, lights);
         self.ds2.write2(queue, materials);
+    }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn render(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        color_attachment: wgpu::RenderPassColorAttachment,
+    ) {
         let mut rpass =
             encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("raytracer_render_pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: output_texture,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
-                    },
-                })],
+                color_attachments: &[Some(color_attachment)],
                 depth_stencil_attachment: None,
             });
 
