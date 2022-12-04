@@ -125,50 +125,50 @@ impl Ray {
         let mut hit = Hit::none();
 
         // Check static geometry
-        let mut ptr = 0;
+        // let mut ptr = 0;
 
-        loop {
-            let v1 = world.static_geo_index.read(ptr);
-            let v2 = world.static_geo_index.read(ptr + 1);
+        // loop {
+        //     let v1 = world.static_geo_index.read(ptr);
+        //     let v2 = world.static_geo_index.read(ptr + 1);
 
-            let info = v1.w.to_bits();
-            let is_leaf = info & 1 == 1;
-            let i1 = info << 16 >> 17;
-            let i2 = info >> 16;
+        //     let info = v1.w.to_bits();
+        //     let is_leaf = info & 1 == 1;
+        //     let i1 = info << 16 >> 17;
+        //     let i2 = info >> 16;
 
-            if is_leaf {
-                let tri_id = TriangleId::new_static(i1 as usize);
-                let tri = world.static_geo.get(tri_id);
-                let curr_hit = tri.hit(self, culling);
+        //     if is_leaf {
+        //         let tri_id = TriangleId::new_static(i1 as usize);
+        //         let tri = world.static_geo.get(tri_id);
+        //         let curr_hit = tri.hit(self, culling);
 
-                if curr_hit.is_closer_than(hit) {
-                    let got_hit = if tri.has_uv_transparency() {
-                        world.atlas_sample(tri_id.into_any(), curr_hit).w > 0.5
-                    } else {
-                        true
-                    };
+        //         if curr_hit.is_closer_than(hit) {
+        //             let got_hit = if tri.has_uv_transparency() {
+        //                 world.atlas_sample(tri_id.into_any(), curr_hit).w > 0.5
+        //             } else {
+        //                 true
+        //             };
 
-                    if got_hit {
-                        hit = curr_hit;
-                        hit.tri_id = tri_id.into_any();
-                    }
-                }
+        //             if got_hit {
+        //                 hit = curr_hit;
+        //                 hit.tri_id = tri_id.into_any();
+        //             }
+        //         }
 
-                ptr = i2 as usize;
-            } else {
-                let at = self.hits_box_at(v1.xyz(), v2.xyz());
+        //         ptr = i2 as usize;
+        //     } else {
+        //         let at = self.hits_box_at(v1.xyz(), v2.xyz());
 
-                if at < hit.t {
-                    ptr = i1 as usize;
-                } else {
-                    ptr = i2 as usize;
-                }
-            }
+        //         if at < hit.t {
+        //             ptr = i1 as usize;
+        //         } else {
+        //             ptr = i2 as usize;
+        //         }
+        //     }
 
-            if ptr == 0 {
-                break;
-            }
-        }
+        //     if ptr == 0 {
+        //         break;
+        //     }
+        // }
 
         // Check dynamic geometry
         let mut tri_idx = 0;
