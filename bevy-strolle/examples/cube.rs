@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
+use bevy_strolle::StrollePlugin;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(StrollePlugin)
         .add_startup_system(setup)
         .run();
 }

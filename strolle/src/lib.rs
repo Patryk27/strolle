@@ -186,11 +186,9 @@ impl Strolle {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn render(
+    pub fn update(
         &self,
         queue: &wgpu::Queue,
-        encoder: &mut wgpu::CommandEncoder,
         static_geo: &StaticGeometry,
         static_geo_index: &StaticGeometryIndex,
         dynamic_geo: &DynamicGeometry,
@@ -198,7 +196,6 @@ impl Strolle {
         camera: &Camera,
         lights: &Lights,
         materials: &Materials,
-        output_texture: &wgpu::TextureView,
     ) {
         self.ds0.write0(queue, static_geo);
         self.ds1.write0(queue, static_geo_index);
@@ -207,7 +204,14 @@ impl Strolle {
         self.ds2.write0(queue, camera);
         self.ds2.write1(queue, lights);
         self.ds2.write2(queue, materials);
+    }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn render(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        output_texture: &wgpu::TextureView,
+    ) {
         let mut rpass =
             encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("raytracer_render_pass"),
