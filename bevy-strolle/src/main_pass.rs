@@ -43,9 +43,11 @@ impl Node for MainPass {
     ) -> Result<(), bevy::render::render_graph::NodeRunError> {
         let entity = graph.get_input_entity(Self::IN_VIEW)?;
 
-        let Ok((camera, camera_3d, target)) = self.query.get_manual(world, entity) else {
+        let Ok((_, camera_3d, target)) = self.query.get_manual(world, entity) else {
             return Ok(())
         };
+
+        let strolle = world.resource::<super::Strolle>();
 
         let color_op = Operations {
             load: match camera_3d.clear_color {
@@ -58,17 +60,11 @@ impl Node for MainPass {
             store: true,
         };
 
-        let mut rpass = render_context.command_encoder.begin_render_pass(
-            &RenderPassDescriptor {
-                label: Some("strolle_main_pass"),
-                color_attachments: &[Some(
-                    target.get_unsampled_color_attachment(color_op),
-                )],
-                depth_stencil_attachment: None,
-            },
-        );
+        let color_attachment = target.get_unsampled_color_attachment(color_op);
 
-        rpass.draw(0..3, 0..1);
+        strolle
+            .0
+            .render(&mut render_context.command_encoder, color_attachment);
 
         Ok(())
     }
