@@ -54,33 +54,33 @@ impl Material {
                 1.0
             };
 
-            if cone_factor > 0.0 {
-                let diffuse_factor = if ray.hits_anything_up_to(world, distance)
-                {
+            let diffuse_factor = if cone_factor > 0.0 {
+                if ray.hits_anything_up_to(world, distance) {
                     0.0
                 } else {
                     ray.direction().dot(hit.normal).max(0.0)
-                };
+                }
+            } else {
+                0.0
+            };
 
-                // TODO: Add range (or range squared?) as light param
-                //       for now this is the default bevy value for point lights
-                const LIGHT_RANGE: f32 = 20.0;
+            // TODO: Add range (or range squared?) as light param
+            //       for now this is the default bevy value for point lights
+            const LIGHT_RANGE: f32 = 20.0;
 
-                let distance_attenuation = distance_attenuation(
-                    distance_squared,
-                    1.0 / LIGHT_RANGE.powf(2.0),
-                );
+            let distance_attenuation = distance_attenuation(
+                distance_squared,
+                1.0 / LIGHT_RANGE.powf(2.0),
+            );
 
-                let light_radiance = cone_factor
-                    * diffuse_factor
-                    * light.color()
-                    * light.intensity()
-                    * distance_attenuation
-                    * color.xyz();
+            let light_radiance = cone_factor
+                * diffuse_factor
+                * light.color()
+                * light.intensity()
+                * distance_attenuation
+                * color.xyz();
 
-                radiance += light_radiance.extend(0.0);
-            }
-
+            radiance += light_radiance.extend(0.0);
             light_idx += 1;
         }
 
