@@ -1,7 +1,7 @@
 use crate::*;
 
 #[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
+#[derive(Copy, Clone, Default, Pod, Zeroable)]
 pub struct Camera {
     pub origin: Vec4,
     pub look_at: Vec4,
@@ -62,6 +62,7 @@ impl Camera {
         viewport_size: Vec2,
         viewport_fov: f32,
     ) -> Self {
+        // TODO is there some way to re-use Bevy's calculations here?
         let (onb_u, onb_v, onb_w) =
             OrthonormalBasis::build(origin, look_at, up);
 
@@ -74,24 +75,6 @@ impl Camera {
             onb_v,
             onb_w,
         }
-    }
-
-    pub fn update(&mut self, f: impl FnOnce(&mut Vec3, &mut Vec3, &mut Vec3)) {
-        let mut origin = self.origin.xyz();
-        let mut look_at = self.look_at.xyz();
-        let mut up = self.up.xyz();
-
-        f(&mut origin, &mut look_at, &mut up);
-
-        let (onb_u, onb_v, onb_w) =
-            OrthonormalBasis::build(origin, look_at, up);
-
-        self.origin = origin.extend(self.origin.w);
-        self.look_at = look_at.extend(0.0);
-        self.up = up.extend(0.0);
-        self.onb_u = onb_u;
-        self.onb_v = onb_v;
-        self.onb_w = onb_w;
     }
 }
 

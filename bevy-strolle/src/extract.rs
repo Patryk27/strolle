@@ -2,14 +2,15 @@ use std::f32::consts::PI;
 
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
+use bevy::render::camera::CameraRenderGraph;
 use bevy::render::Extract;
 use bevy::utils::HashSet;
 use strolle as st;
 
-use crate::State;
+use crate::ExtractedState;
 
 pub(super) fn geometry(
-    mut state: ResMut<State>,
+    mut state: ResMut<ExtractedState>,
     meshes: Extract<Res<Assets<Mesh>>>,
     models: Extract<
         Query<(Entity, &Handle<Mesh>, &Transform), Added<Handle<Mesh>>>,
@@ -27,7 +28,7 @@ pub(super) fn geometry(
 
 // TODO: We also need to sync mesh data with appropriate assigned materials
 pub(super) fn materials(
-    mut state: ResMut<State>,
+    mut state: ResMut<ExtractedState>,
     materials: Extract<Res<Assets<StandardMaterial>>>,
     material_instances: Extract<Query<&Handle<StandardMaterial>>>,
 ) {
@@ -46,13 +47,14 @@ pub(super) fn materials(
 
         state.materials.set(
             st::MaterialId::new(idx),
-            st::Material::none().with_color(color_to_vec3(material.base_color)),
+            st::Material::default()
+                .with_color(color_to_vec3(material.base_color)),
         );
     }
 }
 
 pub(super) fn lights(
-    mut state: ResMut<State>,
+    mut state: ResMut<ExtractedState>,
     lights: Extract<Query<(&PointLight, &GlobalTransform)>>,
 ) {
     let state = &mut *state;
@@ -73,21 +75,22 @@ fn color_to_vec3(color: Color) -> Vec3 {
 }
 
 pub(super) fn camera(
-    mut state: ResMut<State>,
-    cameras: Extract<Query<(&Camera, &GlobalTransform)>>,
+    mut state: ResMut<ExtractedState>,
+    cameras: Extract<Query<(&Camera, &CameraRenderGraph, &GlobalTransform)>>,
 ) {
-    for (camera, transform) in cameras.iter() {
-        if !camera.is_active {
-            continue;
-        }
+    let camera = cameras.iter().find(|(camera, camera_render_graph, _)| {
+        camera.is_active && ***camera_render_graph == crate::graph::NAME
+    });
 
-        state.camera = st::Camera::new(
-            transform.translation(),
-            transform.translation() + transform.forward(),
-            transform.up(),
-            1.0,
-            vec2(256.0, 256.0),
-            PI / 2.0,
-        );
-    }
+    let Some((camera, _, transform)) = camera else { return };
+    let size = camera.physical_viewport_size().unwrap();
+
+    state.camera = st::Camera::new(
+        transform.translation(),
+        transform.translation() + transform.forward(),
+        transform.up(),
+        1.0, // TODO shouldn't be hard-coded
+        vec2(size.x as _, size.y as _),
+        PI / 2.0, // TODO shouldn't be hard-coded
+    );
 }
