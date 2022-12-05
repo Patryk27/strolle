@@ -1,7 +1,6 @@
 mod geometry;
 mod materials;
 
-use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::prelude::*;
 use bevy::render::renderer::RenderQueue;
 use strolle as st;
@@ -15,7 +14,6 @@ pub struct ExtractedState {
     pub camera: st::Camera,
     pub lights: st::Lights,
     pub materials: Materials,
-    pub clear_color: ClearColorConfig,
 }
 
 impl ExtractedState {

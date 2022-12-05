@@ -42,6 +42,7 @@ pub fn fs_main(
         static_geo_index,
         dynamic_geo,
         uvs,
+        camera,
         lights,
         materials,
         atlas_tex,

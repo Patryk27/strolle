@@ -1,3 +1,4 @@
+use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
@@ -24,14 +25,13 @@ pub(super) fn geometry(
     for (entity, &transform, mesh, material) in models.iter() {
         let transform = transform.compute_matrix();
         let mesh = meshes.get(mesh).unwrap();
+        let std_material = materials.get(material).unwrap();
 
         let material_id = {
-            let material = materials.get(material).unwrap();
-
             state.materials.alloc(
                 entity,
                 st::Material::default()
-                    .with_color(color_to_vec3(material.base_color)),
+                    .with_color(color_to_vec3(std_material.base_color)),
             )
         };
 
@@ -56,11 +56,10 @@ pub(super) fn geometry(
                 vec3(v2[0], v2[1], v2[2]),
                 material_id,
             )
-            .with_alpha(1.0)
+            .with_alpha(std_material.base_color.a())
             .with_transform(transform)
             .with_casts_shadows(true)
             .with_uv_transparency(false)
-            .with_double_sided(true)
             .with_uv_divisor(1, 1)
         });
 
@@ -90,14 +89,9 @@ pub(super) fn lights(
     }
 }
 
-fn color_to_vec3(color: Color) -> Vec3 {
-    let [r, g, b, _] = color.as_linear_rgba_f32();
-
-    vec3(r, g, b)
-}
-
 pub(super) fn camera(
     mut state: ResMut<ExtractedState>,
+    default_clear_color: Option<Res<ClearColor>>,
     cameras: Extract<
         Query<(
             &Camera,
@@ -122,13 +116,26 @@ pub(super) fn camera(
     //      but I can't come up with anything working at the moment
     let Projection::Perspective(projection) = projection else { return };
 
+    let clear_color = match &camera_3d.clear_color {
+        ClearColorConfig::Default => default_clear_color
+            .map(|cc| cc.0.into())
+            .unwrap_or(Color::BLACK),
+        ClearColorConfig::Custom(color) => (*color).into(),
+        ClearColorConfig::None => Color::BLACK,
+    };
+
     state.camera = st::Camera::new(
         transform.translation(),
         transform.translation() + transform.forward(),
         transform.up(),
         size,
         projection.fov,
+        color_to_vec3(clear_color),
     );
+}
 
-    state.clear_color = camera_3d.clear_color.clone();
+fn color_to_vec3(color: Color) -> Vec3 {
+    let [r, g, b, _] = color.as_linear_rgba_f32();
+
+    vec3(r, g, b)
 }

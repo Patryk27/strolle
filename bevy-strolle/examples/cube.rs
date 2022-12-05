@@ -33,7 +33,7 @@ fn setup(
     commands
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            material: materials.add(Color::rgba(0.8, 0.7, 0.6, 0.75).into()),
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
             ..default()
         })
@@ -81,10 +81,10 @@ fn animate(
     let tt = time.elapsed_seconds();
 
     for mut object in objects.iter_mut() {
-        object.translation.y = 0.5 + tt.sin().abs() * 2.5;
+        object.translation.y = 0.5 + tt.sin().abs() * 1.8;
 
         object.rotation =
-            Quat::from_rotation_x(tt / 2.5) * Quat::from_rotation_y(tt / 3.5);
+            Quat::from_rotation_x(tt) * Quat::from_rotation_y(tt / 1.5);
     }
 }
 

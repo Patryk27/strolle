@@ -5,6 +5,7 @@ pub struct World<'a> {
     pub static_geo_index: &'a StaticGeometryIndex,
     pub dynamic_geo: &'a DynamicGeometry,
     pub uvs: &'a TriangleUvs,
+    pub camera: &'a Camera,
     pub lights: &'a Lights,
     pub materials: &'a Materials,
     pub atlas_tex: &'a Image!(2D, type=f32, sampled),
