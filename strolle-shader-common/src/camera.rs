@@ -8,6 +8,7 @@ pub struct Camera {
     onb_u: Vec4,
     onb_v: Vec4,
     onb_w: Vec4,
+    clear_color: Vec4,
 }
 
 impl Camera {
@@ -44,6 +45,10 @@ impl Camera {
 
         Ray::new(origin, direction)
     }
+
+    pub fn clear_color(&self) -> Vec3 {
+        self.clear_color.xyz()
+    }
 }
 
 impl Camera {
@@ -53,6 +58,7 @@ impl Camera {
         up: Vec3,
         viewport_size: UVec2,
         viewport_fov: f32,
+        clear_color: Vec3,
     ) -> Self {
         let (onb_u, onb_v, onb_w) =
             OrthonormalBasis::build(origin, look_at, up);
@@ -63,6 +69,7 @@ impl Camera {
             onb_u,
             onb_v,
             onb_w,
+            clear_color: clear_color.extend(0.0),
         }
     }
 }

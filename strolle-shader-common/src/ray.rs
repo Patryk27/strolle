@@ -217,16 +217,12 @@ impl Ray {
                 hit_color = hit_mat.radiance(world, hit);
             } else {
                 hit_mat = Material::none();
-                hit_color = Default::default();
+                hit_color = world.camera.clear_color();
             }
 
             match state {
                 ST_FIRST_HIT => {
-                    *color = if hit.is_some() {
-                        hit_color.extend(1.0)
-                    } else {
-                        hit_color.extend(0.0)
-                    };
+                    *color = hit_color.extend(1.0);
 
                     if hit_mat.reflectivity() > 0.0 {
                         state = ST_REFLECTED;
