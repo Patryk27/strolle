@@ -217,14 +217,21 @@ impl Ray {
                 hit_color = hit_mat.radiance(world, hit);
             } else {
                 hit_mat = Material::none();
-                hit_color = world.camera.clear_color();
+                hit_color = world.camera.clear_color().extend(1.0);
             }
 
             match state {
                 ST_FIRST_HIT => {
-                    *color = hit_color.extend(1.0);
+                    *color = hit_color;
 
-                    if hit_mat.reflectivity() > 0.0 {
+                    if hit_color.w < 1.0 {
+                        state = ST_TRANSPARENT;
+
+                        // TODO that's already stored in *color
+                        state_vars.x_axis = vec4(hit_color.w, 0.0, 0.0, 0.0);
+
+                        self.origin = hit.point + 0.1 * self.direction;
+                    } else if hit_mat.reflectivity() > 0.0 {
                         state = ST_REFLECTED;
 
                         state_vars.x_axis = hit_mat
@@ -244,21 +251,17 @@ impl Ray {
 
                         self.origin = hit.point;
                         self.direction = reflection_dir.normalize();
-                    } else if hit.alpha < 1.0 {
-                        state = ST_TRANSPARENT;
-                        state_vars.x_axis = vec4(hit.alpha, 0.0, 0.0, 0.0);
-
-                        self.origin = hit.point + 0.1 * self.direction;
                     } else {
                         break;
                     }
                 }
 
                 ST_REFLECTED => {
-                    *color += (hit_color
+                    let reflection_color = hit_color.xyz()
                         * state_vars.x_axis.xyz()
-                        * state_vars.x_axis.w)
-                        .extend(0.0);
+                        * state_vars.x_axis.w;
+
+                    *color += reflection_color.extend(0.0);
 
                     break;
                 }
@@ -267,7 +270,7 @@ impl Ray {
                     let alpha = state_vars.x_axis.x;
 
                     *color = (color.truncate() * alpha
-                        + hit_color * (1.0 - alpha))
+                        + hit_color.truncate() * (1.0 - alpha))
                         .extend(1.0);
 
                     break;

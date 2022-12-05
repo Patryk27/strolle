@@ -142,18 +142,12 @@ impl Triangle {
             normal,
             tri_id: TriangleId::new_static(0).into_any(),
             mat_id: self.material_id(),
-            alpha: self.alpha(),
         }
     }
 }
 
 #[cfg(not(target_arch = "spirv"))]
 impl Triangle {
-    pub fn with_alpha(mut self, val: f32) -> Self {
-        self.v1.w = val;
-        self
-    }
-
     pub fn with_transform(mut self, val: Mat4) -> Self {
         fn transform(v: Vec3, xform: Mat4) -> Vec3 {
             let v = xform * v.extend(1.0);
