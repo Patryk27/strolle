@@ -1,10 +1,9 @@
 use bevy::core_pipeline::core_3d;
-use bevy::input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy_strolle::StrollePlugin;
 use smooth_bevy_cameras::controllers::orbit::{
-    ControlEvent, OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
+    OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
 };
 use smooth_bevy_cameras::LookTransformPlugin;
 
@@ -49,7 +48,6 @@ fn setup(
 
     commands
         .spawn(Camera3dBundle {
-            // camera_render_graph: CameraRenderGraph::new(bevy_strolle::graph::NAME),
             transform: Transform::from_xyz(-2.0, 2.5, 5.0)
                 .looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
@@ -60,7 +58,6 @@ fn setup(
 
                 controller.mouse_rotate_sensitivity = Vec2::ONE * 0.2;
                 controller.mouse_translate_sensitivity = Vec2::ONE * 0.5;
-
                 controller
             },
             Vec3::new(-20.0, 10.0, 20.0),
@@ -73,6 +70,7 @@ pub fn switch_camera_render_graphs(
     keys: Res<Input<KeyCode>>,
 ) {
     let default_render_graph = CameraRenderGraph::new(core_3d::graph::NAME);
+
     let strolle_render_graph =
         CameraRenderGraph::new(bevy_strolle::graph::NAME);
 

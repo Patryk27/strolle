@@ -22,21 +22,17 @@ type DescriptorSet2 = AllocatedUniform<Camera, Lights, Materials>;
 type DescriptorSet3 = wgpu::BindGroup;
 
 pub struct Strolle {
-    pub width: u32,
-    pub height: u32,
-    pub pipeline: wgpu::RenderPipeline,
-    pub ds0: DescriptorSet0,
-    pub ds1: DescriptorSet1,
-    pub ds2: DescriptorSet2,
-    pub ds3: DescriptorSet3,
+    ds0: DescriptorSet0,
+    ds1: DescriptorSet1,
+    ds2: DescriptorSet2,
+    ds3: DescriptorSet3,
+    pipeline: wgpu::RenderPipeline,
 }
 
 impl Strolle {
     pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
         atlas_data: &[u8],
     ) -> Self {
         let shader = device.create_shader_module(wgpu::include_spirv!(
@@ -54,7 +50,7 @@ impl Strolle {
         };
 
         let tex = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("atlas_tex"),
+            label: Some("strolle_atlas_tex"),
             size: tex_size,
             mip_level_count: 1,
             sample_count: 1,
@@ -84,7 +80,7 @@ impl Strolle {
         let tex_view = tex.create_view(&wgpu::TextureViewDescriptor::default());
 
         let tex_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("atlas_tex_sampler"),
+            label: Some("strolle_atlas_tex_sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -99,6 +95,7 @@ impl Strolle {
 
         let ds3_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("strolle_tex_bind_group_layout"),
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
@@ -121,11 +118,10 @@ impl Strolle {
                         count: None,
                     },
                 ],
-                label: Some("tex_bind_group_layout"),
             });
 
         let ds3 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("ds3"),
+            label: Some("strolle_ds3"),
             layout: &ds3_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -141,7 +137,7 @@ impl Strolle {
 
         let pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("raytracer_pipeline_layout"),
+                label: Some("strolle_pipeline_layout"),
                 bind_group_layouts: &[
                     ds0.bind_group_layout(),
                     ds1.bind_group_layout(),
@@ -153,7 +149,7 @@ impl Strolle {
 
         let pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("raytracer_pipeline"),
+                label: Some("strolle_pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
@@ -179,13 +175,11 @@ impl Strolle {
             });
 
         Self {
-            width,
-            height,
-            pipeline,
             ds0,
             ds1,
             ds2,
             ds3,
+            pipeline,
         }
     }
 
@@ -209,7 +203,6 @@ impl Strolle {
         self.ds2.write2(queue, materials);
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn render(
         &self,
         encoder: &mut wgpu::CommandEncoder,
@@ -217,12 +210,13 @@ impl Strolle {
     ) {
         let mut rpass =
             encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("raytracer_render_pass"),
+                label: Some("strolle_render_pass"),
                 color_attachments: &[Some(color_attachment)],
                 depth_stencil_attachment: None,
             });
 
-        rpass.set_scissor_rect(0, 0, self.width as _, self.height as _);
+        // TODO?
+        // rpass.set_scissor_rect(0, 0, 500, 500);
         rpass.set_pipeline(&self.pipeline);
 
         rpass.set_bind_group(0, self.ds0.bind_group(), &[]);
