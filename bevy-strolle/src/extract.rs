@@ -85,26 +85,37 @@ pub(super) fn lights(
         state.lights.push(st::Light::point(
             transform.translation(),
             color_to_vec3(point_light.color),
-            point_light.intensity / 6000.0,
+            point_light.intensity / 3500.0, // TODO most likely inaccurate
         ));
     }
 }
 
 fn color_to_vec3(color: Color) -> Vec3 {
-    vec3(color.r(), color.g(), color.b())
+    let [r, g, b, _] = color.as_linear_rgba_f32();
+
+    vec3(r, g, b)
 }
 
 pub(super) fn camera(
     mut state: ResMut<ExtractedState>,
     cameras: Extract<
-        Query<(&Camera, &CameraRenderGraph, &Projection, &GlobalTransform)>,
+        Query<(
+            &Camera,
+            &CameraRenderGraph,
+            &Camera3d,
+            &Projection,
+            &GlobalTransform,
+        )>,
     >,
 ) {
-    let camera = cameras.iter().find(|(camera, camera_render_graph, _, _)| {
-        camera.is_active && ***camera_render_graph == crate::graph::NAME
-    });
+    let camera =
+        cameras
+            .iter()
+            .find(|(camera, camera_render_graph, _, _, _)| {
+                camera.is_active && ***camera_render_graph == crate::graph::NAME
+            });
 
-    let Some((camera, _, projection, transform)) = camera else { return };
+    let Some((camera, _, camera_3d, projection, transform)) = camera else { return };
     let size = camera.physical_viewport_size().unwrap();
 
     // TODO it feels like we should be able to reuse `.get_projection_matrix()`,
@@ -118,4 +129,6 @@ pub(super) fn camera(
         size,
         projection.fov,
     );
+
+    state.clear_color = camera_3d.clear_color.clone();
 }
