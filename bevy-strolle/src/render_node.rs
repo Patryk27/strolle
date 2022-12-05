@@ -1,3 +1,4 @@
+use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::prelude::*;
 use bevy::render::render_graph::{
     Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType,
@@ -7,6 +8,9 @@ use bevy::render::render_resource::{
 };
 use bevy::render::renderer::RenderContext;
 use bevy::render::view::{ExtractedView, ViewTarget};
+
+use crate::state::ExtractedState;
+use crate::StrolleRes;
 
 pub struct RenderNode {
     query: QueryState<&'static ViewTarget, With<ExtractedView>>,
@@ -43,15 +47,21 @@ impl Node for RenderNode {
             return Ok(())
         };
 
-        let strolle = world.resource::<super::StrolleRes>();
+        let strolle = world.resource::<StrolleRes>();
+        let state = world.resource::<ExtractedState>();
+
+        let load = match state.clear_color {
+            ClearColorConfig::Default => {
+                LoadOp::Clear(world.resource::<ClearColor>().0.into())
+            }
+            ClearColorConfig::Custom(color) => LoadOp::Clear(color.into()),
+            ClearColorConfig::None => LoadOp::Load,
+        };
 
         let color_attachment = RenderPassColorAttachment {
             view: target.out_texture(),
             resolve_target: None,
-            ops: Operations {
-                load: LoadOp::Clear(Default::default()),
-                store: true,
-            },
+            ops: Operations { load, store: true },
         };
 
         strolle

@@ -222,7 +222,11 @@ impl Ray {
 
             match state {
                 ST_FIRST_HIT => {
-                    *color = hit_color.extend(1.0);
+                    *color = if hit.is_some() {
+                        hit_color.extend(1.0)
+                    } else {
+                        hit_color.extend(0.0)
+                    };
 
                     if hit_mat.reflectivity() > 0.0 {
                         state = ST_REFLECTED;

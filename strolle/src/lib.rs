@@ -167,7 +167,7 @@ impl Strolle {
                         //       and has to be further upscaled by the user, or we
                         //       find a way to make this configurable.
                         format: wgpu::TextureFormat::Bgra8UnormSrgb,
-                        blend: Some(wgpu::BlendState::REPLACE),
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                 }),
