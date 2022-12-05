@@ -21,11 +21,17 @@ impl<'a> GeometryBuilder<'a> {
             .and_then(VertexAttributeValues::as_float3)
             .unwrap();
 
-        let tris = positions.chunks_exact(3).map(|vs| {
+        let indices: Vec<_> = mesh.indices().unwrap().iter().collect();
+
+        let tris = indices.chunks(3).map(|vs| {
+            let v0 = positions[vs[0]];
+            let v1 = positions[vs[1]];
+            let v2 = positions[vs[2]];
+
             st::Triangle::new(
-                vec3(vs[0][0], vs[0][1], vs[0][2]),
-                vec3(vs[1][0], vs[1][1], vs[1][2]),
-                vec3(vs[2][0], vs[2][1], vs[2][2]),
+                vec3(v0[0], v0[1], v0[2]),
+                vec3(v1[0], v1[1], v1[2]),
+                vec3(v2[0], v2[1], v2[2]),
                 st::MaterialId::new(0),
             )
             .with_alpha(1.0)
