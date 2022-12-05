@@ -18,6 +18,10 @@ impl Bvh {
         Self { root }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.root.triangles.is_empty() && self.root.children.is_none()
+    }
+
     pub fn into_root(self) -> BvhNode {
         self.root
     }

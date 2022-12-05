@@ -1,8 +1,9 @@
 use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
+use bevy::render::mesh::VertexAttributeValues;
+use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::Extract;
-use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::ExtractedState;
@@ -10,44 +11,65 @@ use crate::ExtractedState;
 pub(super) fn geometry(
     mut state: ResMut<ExtractedState>,
     meshes: Extract<Res<Assets<Mesh>>>,
+    materials: Extract<Res<Assets<StandardMaterial>>>,
     models: Extract<
-        Query<(Entity, &Handle<Mesh>, &Transform), Added<Handle<Mesh>>>,
+        Query<(Entity, &Transform, &Handle<Mesh>, &Handle<StandardMaterial>)>,
     >,
 ) {
     let state = &mut *state;
 
-    for (entity, mesh, &transform) in models.iter() {
-        let mesh = meshes.get(mesh).unwrap();
+    // TODO
+    state.geometry = Default::default();
+
+    for (entity, &transform, mesh, material) in models.iter() {
         let transform = transform.compute_matrix();
+        let mesh = meshes.get(mesh).unwrap();
 
-        state.geometry.builder().add(entity, mesh, transform);
-    }
-}
+        let material_id = {
+            let material = materials.get(material).unwrap();
 
-// TODO: We also need to sync mesh data with appropriate assigned materials
-pub(super) fn materials(
-    mut state: ResMut<ExtractedState>,
-    materials: Extract<Res<Assets<StandardMaterial>>>,
-    material_instances: Extract<Query<&Handle<StandardMaterial>>>,
-) {
-    let state = &mut *state;
+            state.materials.alloc(
+                entity,
+                st::Material::default()
+                    .with_color(color_to_vec3(material.base_color)),
+            )
+        };
 
-    state.materials = Default::default();
+        // TODO we could support more, if we wanted
+        assert_eq!(mesh.primitive_topology(), PrimitiveTopology::TriangleList);
 
-    let mut unique_materials = HashSet::new();
+        let positions = mesh
+            .attribute(Mesh::ATTRIBUTE_POSITION)
+            .and_then(VertexAttributeValues::as_float3)
+            .unwrap();
 
-    for material in material_instances.iter() {
-        unique_materials.insert(material);
-    }
+        let indices: Vec<_> = mesh.indices().unwrap().iter().collect();
 
-    for (idx, material) in unique_materials.into_iter().enumerate() {
-        let material = materials.get(material).unwrap();
+        let tris = indices.chunks(3).map(|vs| {
+            let v0 = positions[vs[0]];
+            let v1 = positions[vs[1]];
+            let v2 = positions[vs[2]];
 
-        state.materials.set(
-            st::MaterialId::new(idx),
-            st::Material::default()
-                .with_color(color_to_vec3(material.base_color)),
-        );
+            st::Triangle::new(
+                vec3(v0[0], v0[1], v0[2]),
+                vec3(v1[0], v1[1], v1[2]),
+                vec3(v2[0], v2[1], v2[2]),
+                material_id,
+            )
+            .with_alpha(1.0)
+            .with_transform(transform)
+            .with_casts_shadows(true)
+            .with_uv_transparency(false)
+            .with_double_sided(true)
+            .with_uv_divisor(1, 1)
+        });
+
+        for tri in tris {
+            // TODO
+            let tri_uv = Default::default();
+
+            state.geometry.alloc(entity, tri, tri_uv);
+        }
     }
 }
 
@@ -63,7 +85,7 @@ pub(super) fn lights(
         state.lights.push(st::Light::point(
             transform.translation(),
             color_to_vec3(point_light.color),
-            point_light.intensity,
+            point_light.intensity / 6000.0,
         ));
     }
 }

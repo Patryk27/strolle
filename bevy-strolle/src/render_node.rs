@@ -43,7 +43,7 @@ impl Node for RenderNode {
             return Ok(())
         };
 
-        let strolle = world.resource::<super::Strolle>();
+        let strolle = world.resource::<super::StrolleRes>();
 
         let color_attachment = RenderPassColorAttachment {
             view: target.out_texture(),
