@@ -1,6 +1,4 @@
-use std::f32::consts::PI;
-
-use bevy::math::{vec2, vec3};
+use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::Extract;
@@ -76,21 +74,26 @@ fn color_to_vec3(color: Color) -> Vec3 {
 
 pub(super) fn camera(
     mut state: ResMut<ExtractedState>,
-    cameras: Extract<Query<(&Camera, &CameraRenderGraph, &GlobalTransform)>>,
+    cameras: Extract<
+        Query<(&Camera, &CameraRenderGraph, &Projection, &GlobalTransform)>,
+    >,
 ) {
-    let camera = cameras.iter().find(|(camera, camera_render_graph, _)| {
+    let camera = cameras.iter().find(|(camera, camera_render_graph, _, _)| {
         camera.is_active && ***camera_render_graph == crate::graph::NAME
     });
 
-    let Some((camera, _, transform)) = camera else { return };
+    let Some((camera, _, projection, transform)) = camera else { return };
     let size = camera.physical_viewport_size().unwrap();
+
+    // TODO it feels like we should be able to reuse `.get_projection_matrix()`,
+    //      but I can't come up with anything working at the moment
+    let Projection::Perspective(projection) = projection else { return };
 
     state.camera = st::Camera::new(
         transform.translation(),
         transform.translation() + transform.forward(),
-        -transform.up(),
-        1.0, // TODO shouldn't be hard-coded
-        vec2(size.x as _, size.y as _),
-        PI / 2.0, // TODO shouldn't be hard-coded
+        transform.up(),
+        size,
+        projection.fov,
     );
 }

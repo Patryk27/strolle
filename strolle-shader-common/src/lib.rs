@@ -10,7 +10,6 @@ mod light;
 mod lights;
 mod material;
 mod materials;
-pub mod math;
 mod ray;
 mod static_geometry;
 mod static_geometry_index;
@@ -26,7 +25,9 @@ use core::mem;
 
 use bytemuck::{Pod, Zeroable};
 pub use constants::*;
-use spirv_std::glam::{vec2, vec3, vec4, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
+use spirv_std::glam::{
+    vec2, vec3, vec4, Mat4, UVec2, Vec2, Vec3, Vec4, Vec4Swizzles,
+};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::real::Real;
 use spirv_std::{Image, Sampler};

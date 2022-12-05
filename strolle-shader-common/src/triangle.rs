@@ -155,9 +155,14 @@ impl Triangle {
     }
 
     pub fn with_transform(mut self, val: Mat4) -> Self {
-        self.v0 = math::transform(self.v0.xyz(), val).extend(self.v0.w);
-        self.v1 = math::transform(self.v1.xyz(), val).extend(self.v1.w);
-        self.v2 = math::transform(self.v2.xyz(), val).extend(self.v2.w);
+        fn transform(v: Vec3, xform: Mat4) -> Vec3 {
+            let v = xform * v.extend(1.0);
+            Vec3::new(v.x, v.y, v.z)
+        }
+
+        self.v0 = transform(self.v0.xyz(), val).extend(self.v0.w);
+        self.v1 = transform(self.v1.xyz(), val).extend(self.v1.w);
+        self.v2 = transform(self.v2.xyz(), val).extend(self.v2.w);
         self
     }
 
