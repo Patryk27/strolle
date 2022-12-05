@@ -183,19 +183,19 @@ impl Strolle {
         }
     }
 
-    pub fn update(
+    pub fn enqueue(
         &self,
         queue: &wgpu::Queue,
-        // static_geo: &StaticGeometry,
-        // static_geo_index: &StaticGeometryIndex,
+        static_geo: &StaticGeometry,
+        static_geo_index: &StaticGeometryIndex,
         dynamic_geo: &DynamicGeometry,
         uvs: &TriangleUvs,
         camera: &Camera,
         lights: &Lights,
         materials: &Materials,
     ) {
-        // self.ds0.write0(queue, static_geo);
-        // self.ds1.write0(queue, static_geo_index);
+        self.ds0.write0(queue, static_geo);
+        self.ds1.write0(queue, static_geo_index);
         self.ds1.write1(queue, dynamic_geo);
         self.ds1.write2(queue, uvs);
         self.ds2.write0(queue, camera);

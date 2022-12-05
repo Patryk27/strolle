@@ -34,10 +34,6 @@ impl GeometryIndexer {
 
         log::info!("Indexing geometry; triangles = {}", len);
 
-        if len == 0 {
-            return None;
-        }
-
         let (bvh, tt_bvh) = Self::measure(|| Bvh::build(geometry));
         let (rbvh, tt_rbvh) = Self::measure(|| RopedBvh::build(bvh));
 

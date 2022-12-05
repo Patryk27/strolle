@@ -15,7 +15,10 @@ impl RopedBvh {
     pub fn build(bvh: Bvh) -> Self {
         let mut this = Self::default();
 
-        this.add(bvh.into_root().deconstruct(), None);
+        if !bvh.is_empty() {
+            this.add(bvh.into_root().deconstruct(), None);
+        }
+
         this
     }
 

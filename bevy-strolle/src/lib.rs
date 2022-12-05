@@ -1,6 +1,14 @@
 mod extract;
-mod geometry_manager;
 mod render_node;
+mod state;
+
+pub mod graph {
+    pub const NAME: &str = "strolle";
+
+    pub mod node {
+        pub const RENDER: &str = "strolle_render";
+    }
+}
 
 use std::ops;
 
@@ -11,16 +19,8 @@ use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::{RenderApp, RenderStage};
 use strolle as st;
 
-use self::geometry_manager::*;
-use crate::render_node::*;
-
-pub mod graph {
-    pub const NAME: &str = "strolle";
-
-    pub mod node {
-        pub const RENDER: &str = "strolle_render";
-    }
-}
+use self::render_node::*;
+use self::state::*;
 
 pub struct StrollePlugin;
 
@@ -36,7 +36,7 @@ impl Plugin for StrollePlugin {
             &[0; 2048 * 2048 * 4],
         );
 
-        render_app.insert_resource(Strolle(strolle));
+        render_app.insert_resource(StrolleRes(strolle));
         render_app.insert_resource(ExtractedState::default());
 
         // -----
@@ -44,9 +44,6 @@ impl Plugin for StrollePlugin {
         render_app.add_system_to_stage(RenderStage::Extract, extract::geometry);
         render_app.add_system_to_stage(RenderStage::Extract, extract::lights);
         render_app.add_system_to_stage(RenderStage::Extract, extract::camera);
-        render_app
-            .add_system_to_stage(RenderStage::Extract, extract::materials);
-
         render_app.add_system_to_stage(RenderStage::Queue, queue);
 
         // -----
@@ -78,9 +75,9 @@ impl Plugin for StrollePlugin {
 }
 
 #[derive(Resource)]
-struct Strolle(st::Strolle);
+struct StrolleRes(st::Strolle);
 
-impl ops::Deref for Strolle {
+impl ops::Deref for StrolleRes {
     type Target = st::Strolle;
 
     fn deref(&self) -> &Self::Target {
@@ -88,33 +85,16 @@ impl ops::Deref for Strolle {
     }
 }
 
-impl ops::DerefMut for Strolle {
+impl ops::DerefMut for StrolleRes {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-#[derive(Default, Resource)]
-struct ExtractedState {
-    geometry: GeometryManager,
-    camera: st::Camera,
-    lights: st::Lights,
-    materials: st::Materials,
-}
-
 fn queue(
-    strolle: Res<Strolle>,
-    state: Res<ExtractedState>,
-    render_queue: Res<RenderQueue>,
+    strolle: Res<StrolleRes>,
+    mut state: ResMut<ExtractedState>,
+    queue: Res<RenderQueue>,
 ) {
-    strolle.update(
-        render_queue.0.as_ref(),
-        // &state.geometry.static_geo,
-        // state.geometry.static_geo_index.as_ref().unwrap(),
-        &state.geometry.dynamic_geo,
-        &state.geometry.uvs,
-        &state.camera,
-        &state.lights,
-        &state.materials,
-    );
+    state.enqueue(&strolle, &*queue);
 }

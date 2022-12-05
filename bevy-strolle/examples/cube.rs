@@ -14,7 +14,8 @@ fn main() {
         .add_plugin(OrbitCameraPlugin::default())
         .add_plugin(StrollePlugin)
         .add_startup_system(setup)
-        .add_system(switch_camera_render_graphs)
+        .add_system(animate)
+        .add_system(toggle_raytracing)
         .run();
 }
 
@@ -24,17 +25,19 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 5.0 })),
+        mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
         ..default()
     });
 
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-        transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    });
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            transform: Transform::from_xyz(0.0, 0.5, 0.0),
+            ..default()
+        })
+        .insert(Animated);
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -47,11 +50,7 @@ fn setup(
     });
 
     commands
-        .spawn(Camera3dBundle {
-            transform: Transform::from_xyz(-2.0, 2.5, 5.0)
-                .looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        })
+        .spawn(Camera3dBundle::default())
         .insert(OrbitCameraBundle::new(
             {
                 let mut controller = OrbitCameraController::default();
@@ -60,12 +59,26 @@ fn setup(
                 controller.mouse_translate_sensitivity = Vec2::ONE * 0.5;
                 controller
             },
-            Vec3::new(-20.0, 10.0, 20.0),
+            Vec3::new(-10.0, 5.0, 10.0),
             Vec3::ZERO,
         ));
 }
 
-pub fn switch_camera_render_graphs(
+fn animate(
+    time: Res<Time>,
+    mut objects: Query<&mut Transform, With<Animated>>,
+) {
+    let tt = time.elapsed_seconds();
+
+    for mut object in objects.iter_mut() {
+        object.translation.y = 0.5 + tt.sin().abs() * 2.5;
+
+        object.rotation =
+            Quat::from_rotation_x(tt / 2.5) * Quat::from_rotation_y(tt / 3.5);
+    }
+}
+
+fn toggle_raytracing(
     mut camera: Query<&mut CameraRenderGraph>,
     keys: Res<Input<KeyCode>>,
 ) {
@@ -84,3 +97,6 @@ pub fn switch_camera_render_graphs(
         }
     }
 }
+
+#[derive(Component)]
+struct Animated;
