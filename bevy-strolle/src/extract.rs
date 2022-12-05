@@ -88,7 +88,7 @@ pub(super) fn camera(
     state.camera = st::Camera::new(
         transform.translation(),
         transform.translation() + transform.forward(),
-        transform.up(),
+        -transform.up(),
         1.0, // TODO shouldn't be hard-coded
         vec2(size.x as _, size.y as _),
         PI / 2.0, // TODO shouldn't be hard-coded
