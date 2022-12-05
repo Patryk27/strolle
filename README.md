@@ -7,10 +7,9 @@ Status: work in progress, no official release yet.
 
 ## Examples
 
-Note that the `cube` example doesn't actually use raytracing just yet -- but the
-command is most likely going to be:
-
 ``` shell
 $ cargo build-shader
 $ cargo run --example cube
 ```
+
+... then use `G` to switch between the rasterized & raytraced view.
