@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::math::vec3;
 use bevy::prelude::*;
@@ -84,7 +86,7 @@ pub(super) fn lights(
         state.lights.push(st::Light::point(
             transform.translation(),
             color_to_vec3(point_light.color),
-            point_light.intensity / 3500.0, // TODO most likely inaccurate
+            point_light.intensity / (4.0 * PI),
         ));
     }
 }

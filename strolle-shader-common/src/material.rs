@@ -37,6 +37,16 @@ impl Material {
         (w & 0x0000ff00) == 0x0000ff00
     }
 
+    fn distance_attenuation(
+        distance_square: f32,
+        inverse_range_squared: f32,
+    ) -> f32 {
+        let factor = distance_square * inverse_range_squared;
+        let smooth_factor = (1.0 - factor * factor).clamp(0.0, 1.0);
+        let attenuation = smooth_factor * smooth_factor;
+        return attenuation * 1.0 / f32::max(distance_square, 0.0001);
+    }
+
     pub fn radiance(&self, world: &World, hit: Hit) -> Vec3 {
         let color = if self.has_texture() {
             (world.atlas_sample(hit.tri_id, hit) * self.color).truncate()
@@ -54,10 +64,12 @@ impl Material {
         while light_idx < world.lights.len() {
             let light = world.lights.get(light_idx);
             let ray = Ray::new(hit.point, light.pos() - hit.point);
-            let distance = light.pos().distance(hit.point);
+            let dir_light_to_hit = hit.point - light.pos();
+
+            let distance_squared = dir_light_to_hit.dot(dir_light_to_hit);
+            let distance = distance_squared.sqrt(); // TODO: sqrt is expensive
 
             let cone_factor = if light.is_spot() {
-                let dir_light_to_hit = hit.point - light.pos();
                 let dir_light_to_point = light.point_at() - light.pos();
                 let angle = dir_light_to_point.angle_between(dir_light_to_hit);
 
@@ -74,10 +86,20 @@ impl Material {
                     ray.direction().dot(hit.normal).max(0.0)
                 };
 
+                // TODO: Add range (or range squared?) as light param
+                //       for now this is the default bevy value for point lights
+                const LIGHT_RANGE: f32 = 20.0;
+
+                let distance_attenuation = Self::distance_attenuation(
+                    distance_squared,
+                    1.0 / LIGHT_RANGE.powf(2.0),
+                );
+
                 radiance += cone_factor
                     * diffuse_factor
                     * light.color()
                     * light.intensity()
+                    * distance_attenuation
                     * color;
             }
 

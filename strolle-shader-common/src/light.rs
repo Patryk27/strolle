@@ -12,6 +12,8 @@ pub struct Light {
     // x,y,z is position light is looking at
     // w is angle of light
     point_at: Vec4,
+    // x,y,z is color
+    // w is intensity
     color: Vec4,
 }
 
