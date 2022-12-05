@@ -3,7 +3,6 @@ use crate::*;
 pub struct Geometry {
     static_geo: Box<st::StaticGeometry>,
     static_geo_index: Option<Box<st::StaticGeometryIndex>>,
-    static_geo_owners: Vec<Option<Entity>>,
     dynamic_geo: Box<st::DynamicGeometry>,
     dynamic_geo_owners: Vec<Entity>,
     uvs: Box<st::TriangleUvs>,
@@ -30,6 +29,34 @@ impl Geometry {
 
         self.dynamic_geo_owners.push(entity);
         self.uvs.set(id.into_any(), tri_uv);
+    }
+
+    // TODO inefficient
+    pub fn update(
+        &mut self,
+        entity: Entity,
+        mut next_tri: impl FnMut() -> st::Triangle,
+    ) {
+        // TODO missing feature: UVs
+
+        log::trace!("Updating: {:?}", entity);
+
+        for id in 0..self.dynamic_geo.len() {
+            if self.dynamic_geo_owners[id] == entity {
+                let tri_id = st::TriangleId::new_dynamic(id);
+                let tri = next_tri();
+
+                *self.dynamic_geo.get_mut(tri_id) = tri;
+            }
+        }
+    }
+
+    // TODO inefficient
+    pub fn count(&self, entity: Entity) -> usize {
+        self.dynamic_geo_owners
+            .iter()
+            .filter(|entity2| **entity2 == entity)
+            .count()
     }
 
     pub fn free(&mut self, entity: Entity) {
@@ -81,7 +108,6 @@ impl Default for Geometry {
         Self {
             static_geo: Default::default(),
             static_geo_index: Default::default(),
-            static_geo_owners: vec![None; st::MAX_STATIC_TRIANGLES],
             dynamic_geo: Default::default(),
             dynamic_geo_owners: Vec::with_capacity(st::MAX_DYNAMIC_TRIANGLES),
             uvs: Default::default(),

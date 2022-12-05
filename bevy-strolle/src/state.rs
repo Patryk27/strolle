@@ -37,3 +37,11 @@ impl ExtractedState {
         );
     }
 }
+
+/// A tag-component inserted into entities that have been extracted by us.
+///
+/// Later, when a synchronized entity dies, this component allows us to
+/// garbage-collect leftover stuff (say, when a mesh is deallocated, we have to
+/// release its material etc.).
+#[derive(Component)]
+pub struct Synchronized;

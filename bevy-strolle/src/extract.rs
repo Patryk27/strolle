@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use bevy::core_pipeline::clear_color::ClearColorConfig;
-use bevy::math::vec3;
+use bevy::math::{vec3, vec4};
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::mesh::VertexAttributeValues;
@@ -9,32 +9,75 @@ use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::Extract;
 use strolle as st;
 
-use crate::ExtractedState;
+use crate::{ExtractedState, Synchronized};
+
+type ModelComponents = (
+    With<Transform>,
+    With<Handle<Mesh>>,
+    With<Handle<StandardMaterial>>,
+);
+
+type AddedModelComponents = (
+    Added<Transform>,
+    Added<Handle<Mesh>>,
+    Added<Handle<StandardMaterial>>,
+);
+
+type ChangedModelComponents = (
+    Changed<Transform>,
+    Changed<Handle<Mesh>>,
+    Changed<Handle<StandardMaterial>>,
+);
 
 pub(super) fn geometry(
+    mut commands: Extract<Commands>,
     mut state: ResMut<ExtractedState>,
     meshes: Extract<Res<Assets<Mesh>>>,
     materials: Extract<Res<Assets<StandardMaterial>>>,
     models: Extract<
-        Query<(Entity, &Transform, &Handle<Mesh>, &Handle<StandardMaterial>)>,
+        Query<(&Transform, &Handle<Mesh>, &Handle<StandardMaterial>)>,
+    >,
+    deleted_geo: Extract<RemovedComponents<Synchronized>>,
+    created_geo: Extract<
+        Query<Entity, (Or<AddedModelComponents>, ModelComponents)>,
+    >,
+    updated_geo: Extract<
+        // TODO if only the material was changed, we don't have to rebuild the
+        //      mesh
+        //
+        // TODO this should piggy-back on `Synchronized`, but seems not to work
+        Query<Entity, (Or<ChangedModelComponents>, ModelComponents)>,
     >,
 ) {
     let state = &mut *state;
 
-    // TODO
-    state.geometry = Default::default();
+    for entity in deleted_geo.iter() {
+        state.geometry.free(entity);
+        state.materials.free(entity);
+    }
 
-    for (entity, &transform, mesh, material) in models.iter() {
+    // -----
+
+    for entity in created_geo.iter().chain(updated_geo.iter()) {
+        let (transform, mesh, material) =
+            models.get(entity).unwrap_or_else(|_| {
+                panic!(
+                    "Entity {:?} looks like a model, but it's missing some of \
+                     the components we expect models to have - this is a bug \
+                     in bevy-strolle",
+                    entity
+                );
+            });
+
         let transform = transform.compute_matrix();
         let mesh = meshes.get(mesh).unwrap();
-        let std_material = materials.get(material).unwrap();
+        let material = materials.get(material).unwrap();
 
         let material_id = {
-            state.materials.alloc(
-                entity,
-                st::Material::default()
-                    .with_color(color_to_vec3(std_material.base_color)),
-            )
+            let material = st::Material::default()
+                .with_base_color(color_to_vec4(material.base_color));
+
+            state.materials.alloc(entity, material)
         };
 
         // TODO we could support more, if we wanted
@@ -43,7 +86,9 @@ pub(super) fn geometry(
         let positions = mesh
             .attribute(Mesh::ATTRIBUTE_POSITION)
             .and_then(VertexAttributeValues::as_float3)
-            .unwrap();
+            .unwrap_or_else(|| {
+                panic!("Entity {:?}'s mesh has no positions", entity);
+            });
 
         let indices: Vec<_> = mesh.indices().unwrap().iter().collect();
 
@@ -58,18 +103,31 @@ pub(super) fn geometry(
                 vec3(v2[0], v2[1], v2[2]),
                 material_id,
             )
-            .with_alpha(std_material.base_color.a())
             .with_transform(transform)
             .with_casts_shadows(true)
-            .with_uv_transparency(false)
-            .with_uv_divisor(1, 1)
         });
 
-        for tri in tris {
-            // TODO
-            let tri_uv = Default::default();
+        // TODO this can be done without allocating
+        let tris: Vec<_> = tris.collect();
 
-            state.geometry.alloc(entity, tri, tri_uv);
+        if state.geometry.count(entity) == tris.len() {
+            // It's a known object
+
+            let mut tris = tris.iter();
+
+            state.geometry.update(entity, || *tris.next().unwrap());
+        } else {
+            // It's a new object or the object's mesh had been changed
+            state.geometry.free(entity);
+
+            for tri in tris {
+                // TODO misising feature
+                let tri_uv = Default::default();
+
+                state.geometry.alloc(entity, tri, tri_uv);
+            }
+
+            commands.entity(entity).insert(Synchronized);
         }
     }
 }
@@ -140,4 +198,10 @@ fn color_to_vec3(color: Color) -> Vec3 {
     let [r, g, b, _] = color.as_linear_rgba_f32();
 
     vec3(r, g, b)
+}
+
+fn color_to_vec4(color: Color) -> Vec4 {
+    let [r, g, b, a] = color.as_linear_rgba_f32();
+
+    vec4(r, g, b, a)
 }
