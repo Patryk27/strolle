@@ -13,7 +13,6 @@ pub struct Light {
     // w is angle of light
     point_at: Vec4,
     // x,y,z is color
-    // w is intensity
     color: Vec4,
 }
 
@@ -38,10 +37,6 @@ impl Light {
         self.color.truncate()
     }
 
-    pub fn intensity(&self) -> f32 {
-        self.color.w
-    }
-
     pub fn is_spot(&self) -> bool {
         self.kind() == SPOT_LIGHT
     }
@@ -53,29 +48,11 @@ impl Light {
 
 #[cfg(not(target_arch = "spirv"))]
 impl Light {
-    pub fn point(pos: Vec3, color: Vec3, intensity: f32) -> Self {
+    pub fn point(pos: Vec3, color: Vec3) -> Self {
         Self {
             pos: pos.extend(POINT_LIGHT),
             point_at: Vec4::ZERO,
-            color: color.extend(intensity),
+            color: color.extend(0.0),
         }
-    }
-
-    pub fn spot(
-        pos: Vec3,
-        point_at: Vec3,
-        cone_angle: f32,
-        color: Vec3,
-        intensity: f32,
-    ) -> Self {
-        Self {
-            pos: pos.extend(SPOT_LIGHT),
-            point_at: point_at.extend(cone_angle),
-            color: color.extend(intensity),
-        }
-    }
-
-    pub fn pos_mut(&mut self) -> &mut Vec4 {
-        &mut self.pos
     }
 }

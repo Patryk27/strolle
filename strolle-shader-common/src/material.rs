@@ -1,3 +1,5 @@
+use core::f32::consts::PI;
+
 use crate::*;
 
 /// # Memory model
@@ -33,54 +35,47 @@ impl Material {
     }
 
     pub fn radiance(&self, world: &World, hit: Hit) -> Vec4 {
-        let color = self.base_color;
-        let mut radiance = color;
+        let mut radiance = vec4(0.0, 0.0, 0.0, self.base_color.w);
+
+        let diffuse_color = self.base_color;
         let mut light_idx = 0;
 
         while light_idx < world.lights.len() {
-            let light = world.lights.get(light_idx);
-            let ray = Ray::new(hit.point, light.pos() - hit.point);
-            let dir_light_to_hit = hit.point - light.pos();
+            // TODO should be configurable (per light)
+            let perceptual_roughness = 0.089;
 
-            let distance_squared = dir_light_to_hit.dot(dir_light_to_hit);
+            // TODO should be configurable (per light)
+            let range = 20.0f32;
+
+            let light = world.lights.get(light_idx);
+            let vec = light.pos() - hit.point;
+            let distance_squared = vec.length_squared();
             let distance = distance_squared.sqrt(); // TODO: sqrt is expensive
 
-            let cone_factor = if light.is_spot() {
-                let dir_light_to_point = light.point_at() - light.pos();
-                let angle = dir_light_to_point.angle_between(dir_light_to_hit);
+            let ray = Ray::new(hit.point, vec);
+            let l = vec.normalize();
+            let h = (l + ray.direction()).normalize();
+            let n_dot_v = hit.normal.dot(ray.direction()).max(0.0001);
+            let n_o_l = hit.normal.dot(l).clamp(0.0, 1.0);
+            let l_o_h = l.dot(h).clamp(0.0, 1.0);
+            let roughness = perceptual_roughness * perceptual_roughness;
 
-                map_quadratic_clamped(angle, light.cone_angle())
-            } else {
-                1.0
-            };
-
-            let diffuse_factor = if cone_factor > 0.0 {
-                if ray.hits_anything_up_to(world, distance) {
-                    0.0
-                } else {
-                    ray.direction().dot(hit.normal).max(0.0)
-                }
-            } else {
+            let diffuse_factor = if ray.hits_anything_up_to(world, distance) {
                 0.0
+            } else {
+                fd_burley(roughness, n_dot_v, n_o_l, l_o_h)
             };
 
-            // TODO: Add range (or range squared?) as light param
-            //       for now this is the default bevy value for point lights
-            const LIGHT_RANGE: f32 = 20.0;
+            let distance_attenuation =
+                distance_attenuation(distance_squared, 1.0 / range.powf(2.0));
 
-            let distance_attenuation = distance_attenuation(
-                distance_squared,
-                1.0 / LIGHT_RANGE.powf(2.0),
-            );
-
-            let light_radiance = cone_factor
+            let contribution = light.color()
+                * diffuse_color.xyz()
                 * diffuse_factor
-                * light.color()
-                * light.intensity()
                 * distance_attenuation
-                * color.xyz();
+                * n_o_l;
 
-            radiance += light_radiance.extend(0.0);
+            radiance += contribution.extend(0.0);
             light_idx += 1;
         }
 
@@ -88,15 +83,20 @@ impl Material {
     }
 }
 
-/// Remaps given value with a quadratic formula so that the result is between
-/// 0.0 and 1.0
-///
-/// 1.0 is at v == 0.0
-/// 0.0 is at abs(v) == span
-fn map_quadratic_clamped(v: f32, span: f32) -> f32 {
-    f32::clamp(1.0 - (v / span).powf(2.0), 0.0, 1.0)
+// Thanks to https://google.github.io/filament/Filament.html
+fn fd_burley(roughness: f32, n_o_v: f32, n_o_l: f32, l_o_h: f32) -> f32 {
+    fn f_schlick(f0: f32, f90: f32, v_o_h: f32) -> f32 {
+        f0 + (f90 - f0) * (1.0 - v_o_h).powf(5.0)
+    }
+
+    let f90 = 0.5 + 2.0 * roughness * l_o_h * l_o_h;
+    let light_scatter = f_schlick(1.0, f90, n_o_l);
+    let view_scatter = f_schlick(1.0, f90, n_o_v);
+
+    light_scatter * view_scatter * (1.0 / PI)
 }
 
+// Thanks to Bevy's `pbr_lightning.wgsl`
 fn distance_attenuation(
     distance_square: f32,
     inverse_range_squared: f32,
@@ -105,7 +105,7 @@ fn distance_attenuation(
     let smooth_factor = (1.0 - factor * factor).clamp(0.0, 1.0);
     let attenuation = smooth_factor * smooth_factor;
 
-    attenuation * 1.0 / f32::max(distance_square, 0.0001)
+    attenuation * 1.0 / distance_square.max(0.0001)
 }
 
 #[cfg(not(target_arch = "spirv"))]

@@ -140,11 +140,12 @@ pub(super) fn lights(
 
     state.lights = Default::default();
 
-    for (point_light, transform) in lights.iter() {
+    for (light, transform) in lights.iter() {
+        let lum_intensity = light.intensity / (4.0 * PI);
+
         state.lights.push(st::Light::point(
             transform.translation(),
-            color_to_vec3(point_light.color),
-            point_light.intensity / (4.0 * PI),
+            color_to_vec3(light.color) * lum_intensity,
         ));
     }
 }
