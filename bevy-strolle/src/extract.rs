@@ -74,7 +74,10 @@ pub(super) fn geometry(
 
         let material_id = {
             let material = st::Material::default()
-                .with_base_color(color_to_vec4(material.base_color));
+                .with_base_color(color_to_vec4(material.base_color))
+                .with_perceptual_roughness(material.perceptual_roughness)
+                .with_metallic(material.metallic)
+                .with_reflectance(material.reflectance);
 
             state.materials.alloc(entity, material)
         };
@@ -145,6 +148,7 @@ pub(super) fn lights(
         state.lights.push(st::Light::point(
             transform.translation(),
             color_to_vec3(light.color) * lum_intensity,
+            light.range,
         ));
     }
 }

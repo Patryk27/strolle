@@ -13,6 +13,7 @@ pub struct Light {
     // w is angle of light
     point_at: Vec4,
     // x,y,z is color
+    // w is range
     color: Vec4,
 }
 
@@ -37,6 +38,15 @@ impl Light {
         self.color.truncate()
     }
 
+    pub fn range(&self) -> f32 {
+        self.color.w
+    }
+
+    // TODO: Make configurable
+    pub fn radius(&self) -> f32 {
+        0.0 // default value for bevy
+    }
+
     pub fn is_spot(&self) -> bool {
         self.kind() == SPOT_LIGHT
     }
@@ -48,11 +58,11 @@ impl Light {
 
 #[cfg(not(target_arch = "spirv"))]
 impl Light {
-    pub fn point(pos: Vec3, color: Vec3) -> Self {
+    pub fn point(pos: Vec3, color: Vec3, range: f32) -> Self {
         Self {
             pos: pos.extend(POINT_LIGHT),
             point_at: Vec4::ZERO,
-            color: color.extend(0.0),
+            color: color.extend(range),
         }
     }
 }
