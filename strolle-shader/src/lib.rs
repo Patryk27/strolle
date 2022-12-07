@@ -1,6 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{vec2, Vec2, Vec4, Vec4Swizzles};
+use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec4, Vec4Swizzles};
 use spirv_std::{spirv, Image, Sampler};
 use strolle_shader_common::*;
 
@@ -50,4 +50,22 @@ pub fn fs_main(
     };
 
     camera.ray(pos.xy()).shade(color, &world);
+
+    *color = deband(pos.xy(), *color);
+}
+
+fn deband(pos: Vec2, color: Vec4) -> Vec4 {
+    /// Thanks to https://media.steampowered.com/apps/valve/2015/Alex_Vlachos_Advanced_VR_Rendering_GDC2015.pdf (slide 49)
+    fn screen_space_dither(pos: Vec2) -> Vec3 {
+        let dither = Vec3::splat(vec2(171.0, 231.0).dot(pos));
+        let dither = (dither / vec3(103.0, 71.0, 97.0)).fract();
+
+        (dither - 0.5) / 255.0
+    }
+
+    let color = color.xyz().powf(1.0 / 2.2);
+    let color = color + screen_space_dither(pos);
+    let color = color.powf(2.2);
+
+    color.extend(1.0)
 }

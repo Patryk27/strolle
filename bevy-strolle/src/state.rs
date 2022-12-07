@@ -1,7 +1,10 @@
 mod geometry;
 mod materials;
 
+use std::collections::HashMap;
+
 use bevy::prelude::*;
+use bevy::render::render_resource::TextureFormat;
 use bevy::render::renderer::RenderQueue;
 use strolle as st;
 
@@ -14,10 +17,11 @@ pub struct ExtractedState {
     pub camera: st::Camera,
     pub lights: st::Lights,
     pub materials: Materials,
+    pub renderers: HashMap<TextureFormat, st::StrolleRenderer>,
 }
 
 impl ExtractedState {
-    pub fn enqueue(&mut self, strolle: &st::Strolle, queue: &RenderQueue) {
+    pub fn update(&mut self, strolle: &st::Strolle, queue: &RenderQueue) {
         let Some((
             static_geo,
             static_geo_index,
@@ -25,7 +29,7 @@ impl ExtractedState {
             uvs,
         )) = self.geometry.inner() else { return };
 
-        strolle.enqueue(
+        strolle.update(
             queue.0.as_ref(),
             static_geo,
             static_geo_index,
