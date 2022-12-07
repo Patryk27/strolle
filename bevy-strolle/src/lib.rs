@@ -1,4 +1,5 @@
 mod extract;
+mod queue;
 mod render_node;
 mod state;
 
@@ -13,9 +14,10 @@ pub mod graph {
 use std::ops;
 
 use bevy::core_pipeline::core_3d;
+use bevy::core_pipeline::upscaling::UpscalingNode;
 use bevy::prelude::*;
 use bevy::render::render_graph::{RenderGraph, SlotInfo, SlotType};
-use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::renderer::RenderDevice;
 use bevy::render::{RenderApp, RenderStage};
 use strolle as st;
 
@@ -28,13 +30,7 @@ impl Plugin for StrollePlugin {
     fn build(&self, app: &mut App) {
         let render_app = app.sub_app_mut(RenderApp);
         let render_device = render_app.world.resource::<RenderDevice>();
-        let render_queue = render_app.world.resource::<RenderQueue>();
-
-        let strolle = st::Strolle::new(
-            render_device.wgpu_device(),
-            render_queue.0.as_ref(),
-            &[0; 2048 * 2048 * 4],
-        );
+        let strolle = st::Strolle::new(render_device.wgpu_device());
 
         render_app.insert_resource(StrolleRes(strolle));
         render_app.insert_resource(ExtractedState::default());
@@ -44,11 +40,13 @@ impl Plugin for StrollePlugin {
         render_app.add_system_to_stage(RenderStage::Extract, extract::geometry);
         render_app.add_system_to_stage(RenderStage::Extract, extract::lights);
         render_app.add_system_to_stage(RenderStage::Extract, extract::camera);
-        render_app.add_system_to_stage(RenderStage::Queue, queue);
+        render_app.add_system_to_stage(RenderStage::Queue, queue::view);
+        render_app.add_system_to_stage(RenderStage::Queue, queue::submit);
 
         // -----
 
         let render_node = RenderNode::new(&mut render_app.world);
+        let upscaling_node = UpscalingNode::new(&mut render_app.world);
         let mut sub_graph = RenderGraph::default();
 
         let input_node_id = sub_graph.set_input(vec![SlotInfo::new(
@@ -57,6 +55,7 @@ impl Plugin for StrollePlugin {
         )]);
 
         sub_graph.add_node(graph::node::RENDER, render_node);
+        sub_graph.add_node(core_3d::graph::node::UPSCALING, upscaling_node);
 
         sub_graph
             .add_slot_edge(
@@ -65,6 +64,19 @@ impl Plugin for StrollePlugin {
                 graph::node::RENDER,
                 RenderNode::IN_VIEW,
             )
+            .unwrap();
+
+        sub_graph
+            .add_slot_edge(
+                input_node_id,
+                core_3d::graph::input::VIEW_ENTITY,
+                core_3d::graph::node::UPSCALING,
+                UpscalingNode::IN_VIEW,
+            )
+            .unwrap();
+
+        sub_graph
+            .add_node_edge(graph::node::RENDER, core_3d::graph::node::UPSCALING)
             .unwrap();
 
         render_app
@@ -89,12 +101,4 @@ impl ops::DerefMut for StrolleRes {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
-}
-
-fn queue(
-    strolle: Res<StrolleRes>,
-    mut state: ResMut<ExtractedState>,
-    queue: Res<RenderQueue>,
-) {
-    state.enqueue(&strolle, &*queue);
 }

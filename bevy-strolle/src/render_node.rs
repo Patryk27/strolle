@@ -2,13 +2,10 @@ use bevy::prelude::*;
 use bevy::render::render_graph::{
     Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType,
 };
-use bevy::render::render_resource::{
-    LoadOp, Operations, RenderPassColorAttachment,
-};
 use bevy::render::renderer::RenderContext;
 use bevy::render::view::{ExtractedView, ViewTarget};
 
-use crate::StrolleRes;
+use crate::state::ExtractedState;
 
 pub struct RenderNode {
     query: QueryState<&'static ViewTarget, With<ExtractedView>>,
@@ -45,20 +42,20 @@ impl Node for RenderNode {
             return Ok(())
         };
 
-        let strolle = world.resource::<StrolleRes>();
+        let state = world.resource::<ExtractedState>();
 
-        let color_attachment = RenderPassColorAttachment {
-            view: target.out_texture(),
-            resolve_target: None,
-            ops: Operations {
-                load: LoadOp::Clear(Default::default()),
-                store: true,
-            },
-        };
+        let renderer = state
+            .renderers
+            .get(&target.main_texture_format())
+            .unwrap_or_else(|| {
+                panic!(
+                    "Found no renderer for texture_format={:?}",
+                    target.main_texture_format(),
+                )
+            });
 
-        strolle
-            .0
-            .render(&mut render_context.command_encoder, color_attachment);
+        renderer
+            .render(&mut render_context.command_encoder, target.main_texture());
 
         Ok(())
     }

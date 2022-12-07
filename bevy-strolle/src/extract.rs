@@ -63,8 +63,7 @@ pub(super) fn geometry(
             models.get(entity).unwrap_or_else(|_| {
                 panic!(
                     "Entity {:?} looks like a model, but it's missing some of \
-                     the components we expect models to have - this is a bug \
-                     in bevy-strolle",
+                     the components we expect models to have",
                     entity
                 );
             });
@@ -117,7 +116,7 @@ pub(super) fn geometry(
 
             state.geometry.update(entity, || *tris.next().unwrap());
         } else {
-            // It's a new object or the object's mesh had been changed
+            // It's a new object or the object's mesh has been changed
             state.geometry.free(entity);
 
             for tri in tris {
