@@ -65,11 +65,11 @@ impl Material {
     }
 
     fn pbr(&self, world: &World, light: Light, hit: Hit) -> Vec4 {
-        // TODO: There's something weird going on in bevy's PBR shader
-        //       there appears to be a concept of world space normal and normal mapped normal
-        //       we should validate that we're using the normal correctly here
-
         // TODO: Optimize a lot of these calculations can be done once per material
+
+        // TODO: I think we're using hit.normal incorrectly here.
+        //       in pbr_lighting.wgsl point_light there's an N argument but it's not the normal
+        //       instead it's the normal mapped into tangent space.
 
         let roughness =
             perceptual_roughness_to_roughness(self.params.perceptual_roughness);
@@ -77,8 +77,9 @@ impl Material {
         let diffuse_color =
             self.base_color.xyz() * (1.0 - self.params.metallic);
 
-        // Normalized view vector in world space, pointing from the fragment world position toward the
-        // view world position
+        // TODO: I'm not sure about this value, in Bevy pbr_functions.wgsl:129 it's described like so:
+        //       Normalized view vector in world space, pointing from the fragment world position toward the
+        //       view world position
         let v = hit.ray.direction();
 
         let n_dot_v = hit.normal.dot(v).max(0.0001);
