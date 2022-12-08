@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::core_pipeline::core_3d;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
@@ -27,20 +29,43 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let mut cubes = StandardMaterial::default();
+    cubes.base_color = Color::rgb(0.8, 0.7, 0.6);
+    cubes.reflectance = 0.5;
+    cubes.perceptual_roughness = 0.2;
+
+    let reflective = materials.add(cubes);
+
+    let mut floor = StandardMaterial::default();
+    floor.base_color = Color::rgb(0.2, 0.2, 0.2);
+    floor.reflectance = 1.0;
+    floor.perceptual_roughness = 0.0;
+
+    let floor = materials.add(floor);
+
     commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
-        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+        material: floor,
         ..default()
     });
 
     commands
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            material: reflective.clone(),
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
             ..default()
         })
-        .insert(Animated);
+        .insert(Animated { phase: 0.0 });
+
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+            material: reflective,
+            transform: Transform::from_xyz(0.0, 0.5, 0.0),
+            ..default()
+        })
+        .insert(Animated { phase: PI });
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -77,16 +102,18 @@ fn setup(
         ));
 }
 
-fn animate(
-    time: Res<Time>,
-    mut objects: Query<&mut Transform, With<Animated>>,
-) {
+const RADIUS: f32 = 4.0;
+
+fn animate(time: Res<Time>, mut objects: Query<(&mut Transform, &Animated)>) {
     let tt = time.elapsed_seconds();
 
-    for mut object in objects.iter_mut() {
-        object.translation.y = 0.5 + tt.sin().abs() * 1.8;
+    for (mut transform, animated) in objects.iter_mut() {
+        transform.translation.x = RADIUS * (animated.phase + tt).sin();
+        transform.translation.z = RADIUS * (animated.phase + tt).cos();
 
-        object.rotation =
+        transform.translation.y = 0.5 + tt.sin().abs() * 1.8;
+
+        transform.rotation =
             Quat::from_rotation_x(tt) * Quat::from_rotation_y(tt / 1.5);
     }
 }
@@ -112,4 +139,6 @@ fn toggle_raytracing(
 }
 
 #[derive(Component)]
-struct Animated;
+struct Animated {
+    phase: f32,
+}

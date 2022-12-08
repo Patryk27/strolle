@@ -261,7 +261,7 @@ impl Ray {
                         * state_vars.x_axis.xyz()
                         * state_vars.x_axis.w;
 
-                    *color += reflection_color.extend(0.0);
+                    *color += reflection_color.extend(1.0);
 
                     break;
                 }

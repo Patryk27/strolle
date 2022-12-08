@@ -36,14 +36,13 @@ impl Material {
         }
     }
 
-    // TODO
     pub fn reflectivity(&self) -> f32 {
-        0.0
+        self.params.reflectance
     }
 
-    // TODO
+    // TODO: Is this still needed? Shouldn't it just be base color?
     pub fn reflectivity_color(&self) -> Vec3 {
-        vec3(0.0, 0.0, 0.0)
+        vec3(1.0, 1.0, 1.0)
     }
 
     pub fn radiance(&self, world: &World, hit: Hit) -> Vec4 {
