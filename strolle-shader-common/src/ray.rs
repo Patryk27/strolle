@@ -197,7 +197,7 @@ impl Ray {
         hit
     }
 
-    pub fn shade(mut self, color: &mut Vec4, world: &World) {
+    pub fn shade(mut self, world: &World, color: &mut Vec4) {
         const ST_FIRST_HIT: usize = 0;
         const ST_REFLECTED: usize = 1;
         const ST_TRANSPARENT: usize = 2;

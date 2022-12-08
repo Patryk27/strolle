@@ -1,7 +1,7 @@
 #![feature(type_alias_impl_trait)]
 
 mod allocated_buffer;
-mod allocated_uniform;
+mod allocated_buffers;
 mod geometry_indexer;
 
 use std::sync::Arc;
@@ -9,16 +9,16 @@ use std::sync::Arc;
 pub use strolle_shader_common::*;
 
 use self::allocated_buffer::*;
-use self::allocated_uniform::*;
+use self::allocated_buffers::*;
 pub use self::geometry_indexer::*;
 
 pub const ATLAS_WIDTH: u32 = 2048;
 pub const ATLAS_HEIGHT: u32 = 512;
 
-type DescriptorSet0 = AllocatedUniform<StaticGeometry>;
+type DescriptorSet0 = AllocatedBuffers<StaticGeometry>;
 type DescriptorSet1 =
-    AllocatedUniform<StaticGeometryIndex, DynamicGeometry, TriangleUvs>;
-type DescriptorSet2 = AllocatedUniform<Camera, Lights, Materials>;
+    AllocatedBuffers<StaticGeometryIndex, DynamicGeometry, TriangleUvs>;
+type DescriptorSet2 = AllocatedBuffers<Camera, Lights, Materials>;
 type DescriptorSet3 = wgpu::BindGroup;
 
 pub struct Strolle {
@@ -36,9 +36,18 @@ impl Strolle {
             "../../target/shader.spv"
         ));
 
-        let ds0 = AllocatedUniform::create(device, "ds0");
-        let ds1 = AllocatedUniform::create(device, "ds1");
-        let ds2 = AllocatedUniform::create(device, "ds2");
+        let uniform = wgpu::BufferBindingType::Uniform;
+
+        #[cfg(feature = "wasm")]
+        let uniform_or_storage = wgpu::BufferBindingType::Uniform;
+
+        #[cfg(not(feature = "wasm"))]
+        let uniform_or_storage =
+            wgpu::BufferBindingType::Storage { read_only: false };
+
+        let ds0 = AllocatedBuffers::create(device, "ds0", uniform_or_storage);
+        let ds1 = AllocatedBuffers::create(device, "ds1", uniform_or_storage);
+        let ds2 = AllocatedBuffers::create(device, "ds2", uniform);
 
         let atlas_tex = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("strolle_atlas_tex"),
@@ -169,6 +178,12 @@ impl Strolle {
     ) -> StrolleRenderer {
         log::debug!("Creating renderer (texture_format={:?})", texture_format);
 
+        #[cfg(feature = "wasm")]
+        let fs_entry_point = "fs_main_wasm";
+
+        #[cfg(not(feature = "wasm"))]
+        let fs_entry_point = "fs_main";
+
         let pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("strolle_pipeline"),
@@ -183,7 +198,7 @@ impl Strolle {
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(wgpu::FragmentState {
                     module: &self.shader_module,
-                    entry_point: "fs_main",
+                    entry_point: fs_entry_point,
                     targets: &[Some(wgpu::ColorTargetState {
                         format: texture_format,
                         blend: Some(wgpu::BlendState::REPLACE),
