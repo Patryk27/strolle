@@ -102,7 +102,7 @@ fn setup(
         ));
 }
 
-const RADIUS: f32 = 4.0;
+const RADIUS: f32 = 3.0;
 
 fn animate(time: Res<Time>, mut objects: Query<(&mut Transform, &Animated)>) {
     let tt = time.elapsed_seconds();
