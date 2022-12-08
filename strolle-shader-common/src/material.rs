@@ -67,23 +67,14 @@ impl Material {
     fn pbr(&self, world: &World, light: Light, hit: Hit) -> Vec4 {
         // TODO: Optimize a lot of these calculations can be done once per material
 
-        // TODO: I think we're using hit.normal incorrectly here.
-        //       in pbr_lighting.wgsl point_light there's an N argument but it's not the normal
-        //       instead it's the normal mapped into tangent space.
-
         let roughness =
             perceptual_roughness_to_roughness(self.params.perceptual_roughness);
 
         let diffuse_color =
             self.base_color.xyz() * (1.0 - self.params.metallic);
 
-        // TODO: I'm not sure about this value, in Bevy pbr_functions.wgsl:129 it's described like so:
-        //       Normalized view vector in world space, pointing from the fragment world position toward the
-        //       view world position
-        let v = hit.ray.direction();
-
+        let v = -hit.ray.direction();
         let n_dot_v = hit.normal.dot(v).max(0.0001);
-
         let r = reflect(-v, hit.normal);
 
         let f0 = 0.16
@@ -110,10 +101,12 @@ impl Material {
             let diffuse = diffuse_light(l, ray, hit, roughness, n_o_l);
 
             let center_to_ray = hit_to_light.dot(r) * r - hit_to_light;
+
             let closest_point = hit_to_light
                 + center_to_ray
                     * sat(light.radius()
                         * inverse_sqrt(center_to_ray.dot(center_to_ray)));
+
             let l_spec_length_inverse =
                 inverse_sqrt(closest_point.dot(closest_point));
 
@@ -125,11 +118,11 @@ impl Material {
             let specular_intensity =
                 normalization_factor * normalization_factor;
 
-            let l: Vec3 = closest_point * l_spec_length_inverse; // normalize() equivalent?
-            let h: Vec3 = (l + v).normalize();
-            let n_o_l: f32 = sat(hit.normal.dot(l));
-            let n_o_h: f32 = sat(hit.normal.dot(h));
-            let l_o_h: f32 = sat(l.dot(h));
+            let l = closest_point * l_spec_length_inverse;
+            let h = (l + v).normalize();
+            let n_o_l = sat(hit.normal.dot(l));
+            let n_o_h = sat(hit.normal.dot(h));
+            let l_o_h = sat(l.dot(h));
 
             let specular = specular(
                 f0,

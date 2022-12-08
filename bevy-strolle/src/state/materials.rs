@@ -17,6 +17,7 @@ impl Materials {
             let id = st::MaterialId::new(id);
 
             if self.materials.get(id) == material {
+                // TODO remove `entity` as owner from the previous material
                 self.owners[id.get()].insert(entity);
                 return id;
             }
