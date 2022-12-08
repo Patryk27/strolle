@@ -2,7 +2,7 @@ use bytemuck::Pod;
 
 use crate::AllocatedBuffer;
 
-pub struct AllocatedUniform<B0, B1 = (), B2 = ()> {
+pub struct AllocatedBuffers<B0, B1 = (), B2 = ()> {
     buffer0: Option<AllocatedBuffer<B0>>,
     buffer1: Option<AllocatedBuffer<B1>>,
     buffer2: Option<AllocatedBuffer<B2>>,
@@ -10,30 +10,34 @@ pub struct AllocatedUniform<B0, B1 = (), B2 = ()> {
     bind_group_layout: wgpu::BindGroupLayout,
 }
 
-impl<B0, B1, B2> AllocatedUniform<B0, B1, B2>
+impl<B0, B1, B2> AllocatedBuffers<B0, B1, B2>
 where
     B0: Pod,
     B1: Pod,
     B2: Pod,
 {
-    pub fn create(device: &wgpu::Device, name: &str) -> Self {
+    pub fn create(
+        device: &wgpu::Device,
+        name: &str,
+        ty: wgpu::BufferBindingType,
+    ) -> Self {
         log::debug!("Allocating uniform `{}`", name);
 
         let buffer0 =
-            AllocatedBuffer::create(device, format!("{}_buffer0", name));
+            AllocatedBuffer::create(device, format!("{}_buffer0", name), ty);
 
         let buffer1 =
-            AllocatedBuffer::create(device, format!("{}_buffer1", name));
+            AllocatedBuffer::create(device, format!("{}_buffer1", name), ty);
 
         let buffer2 =
-            AllocatedBuffer::create(device, format!("{}_buffer2", name));
+            AllocatedBuffer::create(device, format!("{}_buffer2", name), ty);
 
         if buffer2.is_some() {
-            assert!(buffer1.is_some(), "Cannot allocate uniform with binding=2, since binding=1 is not set");
+            assert!(buffer1.is_some(), "Cannot allocate buffers with binding=2, since binding=1 is not set");
         }
 
         if buffer1.is_some() {
-            assert!(buffer0.is_some(), "Cannot allocate uniform with binding=1, since binding=0 is not set");
+            assert!(buffer0.is_some(), "Cannot allocate buffers with binding=1, since binding=0 is not set");
         }
 
         let buffer_bindings: Vec<_> = {
@@ -52,7 +56,7 @@ where
                     binding: binding as _,
                     visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                        ty,
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -83,7 +87,7 @@ where
             })
         };
 
-        AllocatedUniform {
+        AllocatedBuffers {
             buffer0,
             buffer1,
             buffer2,

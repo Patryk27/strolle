@@ -15,6 +15,7 @@ where
     pub fn create(
         device: &wgpu::Device,
         label: impl AsRef<str>,
+        ty: wgpu::BufferBindingType,
     ) -> Option<Self> {
         if mem::size_of::<T>() == 0 {
             return None;
@@ -30,9 +31,17 @@ where
             size,
         );
 
+        let usage = wgpu::BufferUsages::COPY_DST;
+
+        let usage = if matches!(ty, wgpu::BufferBindingType::Uniform) {
+            usage | wgpu::BufferUsages::UNIFORM
+        } else {
+            usage | wgpu::BufferUsages::STORAGE
+        };
+
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label.as_ref()),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage,
             size: size as _,
             mapped_at_creation: false,
         });

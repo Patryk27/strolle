@@ -1,4 +1,5 @@
 use bevy::core_pipeline::core_3d;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy_strolle::StrollePlugin;
@@ -11,6 +12,8 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(LookTransformPlugin)
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(OrbitCameraPlugin::default())
         .add_plugin(StrollePlugin)
         .add_startup_system(setup)
