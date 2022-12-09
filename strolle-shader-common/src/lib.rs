@@ -21,7 +21,6 @@ mod world;
 
 #[cfg(not(target_arch = "spirv"))]
 use core::fmt;
-use core::mem;
 
 use bytemuck::{Pod, Zeroable};
 pub use constants::*;
@@ -48,14 +47,8 @@ pub use self::triangle_uvs::*;
 use self::utils::*;
 pub use self::world::*;
 
-// WebGL 2's limit
-pub const MAX_BUFFER_BINDING_SIZE: usize = 65536;
-
-pub const MAX_STATIC_TRIANGLES: usize = (MAX_BUFFER_BINDING_SIZE
-    - mem::size_of::<PadU32>())
-    / mem::size_of::<Triangle>();
-
-pub const MAX_DYNAMIC_TRIANGLES: usize = 256;
+pub const MAX_STATIC_TRIANGLES: usize = 1024;
+pub const MAX_DYNAMIC_TRIANGLES: usize = 1024;
 pub const MAX_LIGHTS: usize = 64;
 pub const MAX_MATERIALS: usize = 64;
 pub const STATIC_GEOMETRY_INDEX_SIZE: usize = 4096;

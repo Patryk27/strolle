@@ -1,3 +1,5 @@
+//! TODO just a temporary thing
+
 use std::f32::consts::PI;
 
 use bevy::core_pipeline::core_3d;
@@ -29,43 +31,38 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let cube_mat = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.8, 0.7, 0.6),
-        reflectance: 0.5,
-        perceptual_roughness: 0.2,
+    let floor_mat = materials.add(StandardMaterial {
+        base_color: Color::rgb(0.2, 0.2, 0.2),
+        reflectance: 0.0,
         ..default()
     });
 
-    let floor_mat = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.2, 0.2, 0.2),
-        reflectance: 1.0,
-        perceptual_roughness: 0.0,
+    let cube_mat = materials.add(StandardMaterial {
+        base_color: Color::rgb(0.8, 0.7, 0.6),
+        reflectance: 0.0,
         ..default()
     });
 
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
+        mesh: meshes.add(Mesh::from(shape::Plane { size: 50.0 })),
         material: floor_mat,
         ..default()
     });
 
-    commands
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: cube_mat.clone(),
-            transform: Transform::from_xyz(0.0, 0.5, 0.0),
-            ..default()
-        })
-        .insert(Animated { phase: 0.0 });
-
-    commands
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: cube_mat,
-            transform: Transform::from_xyz(0.0, 0.5, 0.0),
-            ..default()
-        })
-        .insert(Animated { phase: PI });
+    for y in 0..3 {
+        for i in 0..8 {
+            commands
+                .spawn(PbrBundle {
+                    mesh: meshes.add(Mesh::from(shape::Cube { size: 0.5 })),
+                    material: cube_mat.clone(),
+                    ..default()
+                })
+                .insert(Animated {
+                    y: y as _,
+                    phase: (i as f32) * (PI / 4.0),
+                });
+        }
+    }
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -73,17 +70,7 @@ fn setup(
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
-
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            intensity: 1500.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(-4.0, 8.0, -4.0),
+        transform: Transform::from_xyz(0.0, 5.5, 0.0),
         ..default()
     });
 
@@ -102,19 +89,20 @@ fn setup(
         ));
 }
 
-const RADIUS: f32 = 3.0;
+const RADIUS: f32 = 1.5;
 
 fn animate(time: Res<Time>, mut objects: Query<(&mut Transform, &Animated)>) {
     let tt = time.elapsed_seconds();
 
     for (mut transform, animated) in objects.iter_mut() {
+        let ttp = tt + animated.phase;
+
         transform.translation.x = RADIUS * (animated.phase + tt).sin();
         transform.translation.z = RADIUS * (animated.phase + tt).cos();
-
-        transform.translation.y = 0.5 + tt.sin().abs() * 1.8;
+        transform.translation.y = 0.5 + tt.sin().abs() * 1.8 + animated.y;
 
         transform.rotation =
-            Quat::from_rotation_x(tt) * Quat::from_rotation_y(tt / 1.5);
+            Quat::from_rotation_x(ttp) * Quat::from_rotation_y(ttp / 1.5);
     }
 }
 
@@ -140,5 +128,6 @@ fn toggle_raytracing(
 
 #[derive(Component)]
 struct Animated {
+    y: f32,
     phase: f32,
 }
