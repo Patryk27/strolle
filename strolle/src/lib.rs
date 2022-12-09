@@ -37,16 +37,10 @@ impl Strolle {
         ));
 
         let uniform = wgpu::BufferBindingType::Uniform;
+        let storage = wgpu::BufferBindingType::Storage { read_only: false };
 
-        #[cfg(feature = "wasm")]
-        let uniform_or_storage = wgpu::BufferBindingType::Uniform;
-
-        #[cfg(not(feature = "wasm"))]
-        let uniform_or_storage =
-            wgpu::BufferBindingType::Storage { read_only: false };
-
-        let ds0 = AllocatedBuffers::create(device, "ds0", uniform_or_storage);
-        let ds1 = AllocatedBuffers::create(device, "ds1", uniform_or_storage);
+        let ds0 = AllocatedBuffers::create(device, "ds0", storage);
+        let ds1 = AllocatedBuffers::create(device, "ds1", storage);
         let ds2 = AllocatedBuffers::create(device, "ds2", uniform);
 
         let atlas_tex = device.create_texture(&wgpu::TextureDescriptor {
@@ -178,12 +172,6 @@ impl Strolle {
     ) -> StrolleRenderer {
         log::debug!("Creating renderer (texture_format={:?})", texture_format);
 
-        #[cfg(feature = "wasm")]
-        let fs_entry_point = "fs_main_wasm";
-
-        #[cfg(not(feature = "wasm"))]
-        let fs_entry_point = "fs_main";
-
         let pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("strolle_pipeline"),
@@ -198,7 +186,7 @@ impl Strolle {
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(wgpu::FragmentState {
                     module: &self.shader_module,
-                    entry_point: fs_entry_point,
+                    entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: texture_format,
                         blend: Some(wgpu::BlendState::REPLACE),
