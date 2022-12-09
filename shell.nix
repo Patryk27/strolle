@@ -13,9 +13,7 @@ pkgs.mkShell {
     pkg-config
     spirv-tools
     udev
-    udev
     vulkan-loader
-    wasm-bindgen-cli
     xorg.libxcb
   ];
 

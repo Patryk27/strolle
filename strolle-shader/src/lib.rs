@@ -32,40 +32,6 @@ pub fn fs_main(
     #[spirv(storage_buffer, descriptor_set = 1, binding = 2)] uvs: &TriangleUvs,
     #[spirv(uniform, descriptor_set = 2, binding = 0)] camera: &Camera,
     #[spirv(uniform, descriptor_set = 2, binding = 1)] lights: &Lights,
-    #[spirv(uniform, descriptor_set = 2, binding = 2)]
-    materials: &Materials,
-    #[spirv(descriptor_set = 3, binding = 0)] atlas_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 3, binding = 1)] atlas_sampler: &Sampler,
-    color: &mut Vec4,
-) {
-    let world = World {
-        static_geo,
-        static_geo_index,
-        dynamic_geo,
-        uvs,
-        camera,
-        lights,
-        materials,
-        atlas_tex,
-        atlas_sampler,
-    };
-
-    fs_main_inner(&world, pos, color);
-}
-
-#[allow(clippy::too_many_arguments)]
-#[spirv(fragment)]
-pub fn fs_main_wasm(
-    #[spirv(frag_coord)] pos: Vec4,
-    #[spirv(uniform, descriptor_set = 0, binding = 0)]
-    static_geo: &StaticGeometry,
-    #[spirv(uniform, descriptor_set = 1, binding = 0)]
-    static_geo_index: &StaticGeometryIndex,
-    #[spirv(uniform, descriptor_set = 1, binding = 1)]
-    dynamic_geo: &DynamicGeometry,
-    #[spirv(uniform, descriptor_set = 1, binding = 2)] uvs: &TriangleUvs,
-    #[spirv(uniform, descriptor_set = 2, binding = 0)] camera: &Camera,
-    #[spirv(uniform, descriptor_set = 2, binding = 1)] lights: &Lights,
     #[spirv(uniform, descriptor_set = 2, binding = 2)] materials: &Materials,
     #[spirv(descriptor_set = 3, binding = 0)] atlas_tex: &Image!(2D, type=f32, sampled),
     #[spirv(descriptor_set = 3, binding = 1)] atlas_sampler: &Sampler,
@@ -83,11 +49,7 @@ pub fn fs_main_wasm(
         atlas_sampler,
     };
 
-    fs_main_inner(&world, pos, color);
-}
-
-fn fs_main_inner(world: &World<'_>, pos: Vec4, color: &mut Vec4) {
-    world.camera.ray(pos.xy()).shade(world, color);
+    world.camera.ray(pos.xy()).shade(&world, color);
 
     *color = deband(pos.xy(), *color);
 }
