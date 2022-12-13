@@ -5,7 +5,7 @@ use bevy::render::render_graph::{
 use bevy::render::renderer::RenderContext;
 use bevy::render::view::{ExtractedView, ViewTarget};
 
-use crate::state::ExtractedState;
+use crate::SyncedState;
 
 pub struct RenderNode {
     query: QueryState<&'static ViewTarget, With<ExtractedView>>,
@@ -39,22 +39,16 @@ impl Node for RenderNode {
         let entity = graph.get_input_entity(Self::IN_VIEW)?;
 
         let Ok(target) = self.query.get_manual(world, entity) else {
-            return Ok(())
+            return Ok(());
         };
 
-        let state = world.resource::<ExtractedState>();
+        let state = world.resource::<SyncedState>();
 
-        let renderer = state
-            .renderers
-            .get(&target.main_texture_format())
-            .unwrap_or_else(|| {
-                panic!(
-                    "Found no renderer for texture_format={:?}",
-                    target.main_texture_format(),
-                )
-            });
+        let Some(view) = state.views.get(&entity) else {
+            return Ok(());
+        };
 
-        renderer
+        view.viewport
             .render(&mut render_context.command_encoder, target.main_texture());
 
         Ok(())

@@ -14,7 +14,16 @@ use smooth_bevy_cameras::LookTransformPlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            window: WindowDescriptor {
+                title: "Doomé".into(),
+                width: 1280.0,
+                height: 720.0,
+                mode: WindowMode::Windowed,
+                ..default()
+            },
+            ..default()
+        }))
         .add_plugin(LookTransformPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
@@ -75,7 +84,12 @@ fn setup(
     });
 
     commands
-        .spawn(Camera3dBundle::default())
+        .spawn(Camera3dBundle {
+            camera_render_graph: CameraRenderGraph::new(
+                bevy_strolle::graph::NAME,
+            ),
+            ..default()
+        })
         .insert(OrbitCameraBundle::new(
             {
                 let mut controller = OrbitCameraController::default();

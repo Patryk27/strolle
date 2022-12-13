@@ -50,14 +50,6 @@ impl Materials {
         id
     }
 
-    pub fn free(&mut self, entity: Entity) {
-        log::trace!("Freeing: {:?}", entity);
-
-        for id in 0..st::MAX_MATERIALS {
-            self.owners[id].remove(&entity);
-        }
-    }
-
     pub fn inner(&self) -> &st::Materials {
         &self.materials
     }

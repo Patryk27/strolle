@@ -1,7 +1,7 @@
-mod extract;
-mod queue;
 mod render_node;
+mod stages;
 mod state;
+mod utils;
 
 pub mod graph {
     pub const NAME: &str = "strolle";
@@ -30,18 +30,33 @@ impl Plugin for StrollePlugin {
     fn build(&self, app: &mut App) {
         let render_app = app.sub_app_mut(RenderApp);
         let render_device = render_app.world.resource::<RenderDevice>();
-        let strolle = st::Strolle::new(render_device.wgpu_device());
+        let engine = st::Engine::new(render_device.wgpu_device());
 
-        render_app.insert_resource(StrolleRes(strolle));
-        render_app.insert_resource(ExtractedState::default());
+        render_app.insert_resource(EngineRes(engine));
+        render_app.insert_resource(SyncedState::default());
 
         // -----
 
-        render_app.add_system_to_stage(RenderStage::Extract, extract::geometry);
-        render_app.add_system_to_stage(RenderStage::Extract, extract::lights);
-        render_app.add_system_to_stage(RenderStage::Extract, extract::camera);
-        render_app.add_system_to_stage(RenderStage::Queue, queue::view);
-        render_app.add_system_to_stage(RenderStage::Queue, queue::submit);
+        render_app.add_system_to_stage(
+            RenderStage::Extract,
+            stages::extract::geometry,
+        );
+
+        render_app
+            .add_system_to_stage(RenderStage::Extract, stages::extract::lights);
+
+        render_app.add_system_to_stage(
+            RenderStage::Extract,
+            stages::extract::cameras,
+        );
+
+        render_app
+            .add_system_to_stage(RenderStage::Queue, stages::queue::viewports);
+
+        render_app.add_system_to_stage(
+            RenderStage::Queue,
+            stages::queue::submit.after(stages::queue::viewports),
+        );
 
         // -----
 
@@ -87,17 +102,17 @@ impl Plugin for StrollePlugin {
 }
 
 #[derive(Resource)]
-struct StrolleRes(st::Strolle);
+struct EngineRes(st::Engine);
 
-impl ops::Deref for StrolleRes {
-    type Target = st::Strolle;
+impl ops::Deref for EngineRes {
+    type Target = st::Engine;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl ops::DerefMut for StrolleRes {
+impl ops::DerefMut for EngineRes {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }

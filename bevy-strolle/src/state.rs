@@ -1,51 +1,53 @@
 mod geometry;
 mod materials;
 
-use std::collections::HashMap;
-
 use bevy::prelude::*;
-use bevy::render::render_resource::TextureFormat;
 use bevy::render::renderer::RenderQueue;
+use bevy::utils::HashMap;
 use strolle as st;
 
 pub use self::geometry::*;
 pub use self::materials::*;
 
 #[derive(Default, Resource)]
-pub struct ExtractedState {
+pub struct SyncedState {
     pub geometry: Geometry,
-    pub camera: st::Camera,
     pub lights: st::Lights,
     pub materials: Materials,
-    pub renderers: HashMap<TextureFormat, st::StrolleRenderer>,
+    pub views: HashMap<Entity, SyncedView>,
 }
 
-impl ExtractedState {
-    pub fn update(&mut self, strolle: &st::Strolle, queue: &RenderQueue) {
-        let Some((
-            static_geo,
-            static_geo_index,
-            dynamic_geo,
-            uvs,
-        )) = self.geometry.inner() else { return };
+impl SyncedState {
+    pub fn is_active(&self) -> bool {
+        !self.views.is_empty()
+    }
 
-        strolle.update(
+    pub fn submit(&self, engine: &st::Engine, queue: &RenderQueue) {
+        let (geometry_tris, geometry_uvs, geometry_bvh) = self.geometry.inner();
+
+        engine.submit(
             queue.0.as_ref(),
-            static_geo,
-            static_geo_index,
-            dynamic_geo,
-            uvs,
-            &self.camera,
+            geometry_tris,
+            geometry_uvs,
+            geometry_bvh,
             &self.lights,
             self.materials.inner(),
         );
+
+        for view in self.views.values() {
+            view.viewport.submit(queue, &view.camera);
+        }
     }
 }
 
-/// A tag-component inserted into entities that have been extracted by us.
-///
-/// Later, when a synchronized entity dies, this component allows us to
-/// garbage-collect leftover stuff (say, when a mesh is deallocated, we have to
-/// release its material etc.).
+pub struct SyncedView {
+    pub camera: st::Camera,
+    pub viewport: st::Viewport,
+}
+
 #[derive(Component)]
-pub struct Synchronized;
+pub struct ExtractedCamera {
+    pub transform: GlobalTransform,
+    pub projection: PerspectiveProjection,
+    pub clear_color: Color,
+}

@@ -1,17 +1,14 @@
 [package]
-name = "strolle"
+name = "strolle-renderer"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["dylib"]
+
 [dependencies]
 # Workspace
-strolle-raytracer-models = { path = "../strolle-raytracer-models" }
 strolle-renderer-models = { path = "../strolle-renderer-models" }
 
 # Crates.io
-bytemuck = "1"
-instant = "0.1"
-log = "0.4"
-naga = { version = "0.10", features = ["deserialize"] }
 spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", features = ["glam"] }
-wgpu = { version = "0.14", features = ["spirv"] }
