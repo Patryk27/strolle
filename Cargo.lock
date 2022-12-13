@@ -2843,16 +2843,41 @@ dependencies = [
  "log",
  "naga",
  "spirv-std",
- "strolle-shader-common",
+ "strolle-raytracer-models",
+ "strolle-renderer-models",
  "wgpu",
 ]
 
 [[package]]
-name = "strolle-shader"
+name = "strolle-raytracer"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
- "strolle-shader-common",
+ "strolle-raytracer-models",
+]
+
+[[package]]
+name = "strolle-raytracer-models"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "spirv-std",
+]
+
+[[package]]
+name = "strolle-renderer"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-renderer-models",
+]
+
+[[package]]
+name = "strolle-renderer-models"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
 ]
 
 [[package]]
@@ -2860,15 +2885,6 @@ name = "strolle-shader-builder"
 version = "0.1.0"
 dependencies = [
  "spirv-builder",
-]
-
-[[package]]
-name = "strolle-shader-common"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "glam",
- "spirv-std",
 ]
 
 [[package]]

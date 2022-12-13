@@ -4,7 +4,9 @@ resolver = "2"
 members = [
     "bevy-strolle",
     "strolle",
-    "strolle-shader",
+    "strolle-raytracer",
+    "strolle-raytracer-models",
+    "strolle-renderer",
+    "strolle-renderer-models",
     "strolle-shader-builder",
-    "strolle-shader-common",
 ]
