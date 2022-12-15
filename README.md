@@ -8,8 +8,8 @@ Status: work in progress, no official release yet.
 ## Examples
 
 ``` shell
-$ cargo build-shader
+$ cargo build-shaders
 $ cargo run --example cube
 ```
 
-... then use `G` to switch between the rasterized & raytraced view.
+... then use `g` to switch between the rasterized (default) & raytraced view.
