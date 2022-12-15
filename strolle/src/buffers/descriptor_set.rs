@@ -1,4 +1,4 @@
-use super::Bufferable;
+use super::Bindable;
 
 pub struct DescriptorSet {
     bind_group: wgpu::BindGroup,
@@ -6,7 +6,7 @@ pub struct DescriptorSet {
 }
 
 impl DescriptorSet {
-    pub fn builder<'name, 'ctx>(
+    pub(crate) fn builder<'name, 'ctx>(
         name: &'name str,
     ) -> DescriptorSetBuilder<'name, 'ctx> {
         DescriptorSetBuilder::new(name)
@@ -21,42 +21,43 @@ impl DescriptorSet {
     }
 }
 
-pub struct DescriptorSetBuilder<'name, 'ctx> {
+pub(crate) struct DescriptorSetBuilder<'name, 'ctx> {
     name: &'name str,
-    bindings: Vec<wgpu::BindingResource<'ctx>>,
-    entries: Vec<wgpu::BindGroupLayoutEntry>,
+    layouts: Vec<wgpu::BindGroupLayoutEntry>,
+    resources: Vec<wgpu::BindingResource<'ctx>>,
 }
 
 impl<'name, 'ctx> DescriptorSetBuilder<'name, 'ctx> {
     fn new(name: &'name str) -> Self {
         Self {
             name,
-            bindings: Default::default(),
-            entries: Default::default(),
+            layouts: Default::default(),
+            resources: Default::default(),
         }
     }
 
-    pub fn add(mut self, buffer: &'ctx dyn Bufferable) -> Self {
-        let (binding, entry) = buffer.layout(self.bindings.len() as _);
+    pub(crate) fn add(mut self, item: &'ctx dyn Bindable) -> Self {
+        for (layout, resource) in item.bind(self.resources.len() as _) {
+            self.layouts.push(layout);
+            self.resources.push(resource);
+        }
 
-        self.bindings.push(binding);
-        self.entries.push(entry);
         self
     }
 
-    pub fn build(self, device: &wgpu::Device) -> DescriptorSet {
+    pub(crate) fn build(self, device: &wgpu::Device) -> DescriptorSet {
         let name = self.name;
 
         let bind_group_layout = {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some(&format!("{name}_layout")),
-                entries: &self.entries,
+                entries: &self.layouts,
             })
         };
 
         let bind_group = {
             let entries: Vec<_> = self
-                .bindings
+                .resources
                 .into_iter()
                 .enumerate()
                 .map(|(binding, resource)| wgpu::BindGroupEntry {

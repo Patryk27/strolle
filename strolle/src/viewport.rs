@@ -1,10 +1,8 @@
-use std::mem;
-
 use spirv_std::glam::UVec2;
 use strolle_raytracer_models::Camera;
 use strolle_renderer_models::Params;
 
-use crate::buffers::{DescriptorSet, StorageBuffer, UniformBuffer};
+use crate::buffers::{DescriptorSet, Texture, UniformBuffer};
 use crate::Engine;
 
 pub struct Viewport {
@@ -70,19 +68,14 @@ impl Viewport {
         size: UVec2,
     ) -> (
         UniformBuffer<Camera>,
-        StorageBuffer<Vec<f32>>,
+        Texture,
         DescriptorSet,
         DescriptorSet,
         DescriptorSet,
         wgpu::ComputePipeline,
     ) {
         let camera = UniformBuffer::new(device, "strolle_camera");
-
-        let image = StorageBuffer::new(
-            device,
-            "strolle_image",
-            ((size.x * size.y * 3) as usize) * mem::size_of::<f32>(),
-        );
+        let image = Texture::new(device, "strolle_image", size);
 
         let ds0 = DescriptorSet::builder("strolle_raytracer_ds0")
             .add(&*engine.geometry_tris)
@@ -97,7 +90,7 @@ impl Viewport {
             .build(device);
 
         let ds2 = DescriptorSet::builder("strolle_raytracer_ds2")
-            .add(&image)
+            .add(&image.writable())
             .build(device);
 
         let pipeline_layout =
@@ -126,13 +119,13 @@ impl Viewport {
         engine: &Engine,
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
-        image: &StorageBuffer<Vec<f32>>,
+        image: &Texture,
     ) -> (UniformBuffer<Params>, DescriptorSet, wgpu::RenderPipeline) {
         let params = UniformBuffer::new(device, "strolle_renderer_params");
 
         let ds0 = DescriptorSet::builder("strolle_renderer_ds0")
             .add(&params)
-            .add(image)
+            .add(&image.readable())
             .build(device);
 
         let pipeline_layout =
@@ -187,10 +180,10 @@ impl Viewport {
         self.renderer_params.write(
             queue,
             &Params {
-                x: self.pos.x,
-                y: self.pos.y,
-                w: self.size.x,
-                h: self.size.y,
+                x: self.pos.x as f32,
+                y: self.pos.y as f32,
+                w: self.size.x as f32,
+                h: self.size.y as f32,
             },
         );
     }

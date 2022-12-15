@@ -1,7 +1,7 @@
 #![no_std]
 
 use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec4, Vec4Swizzles};
-use spirv_std::spirv;
+use spirv_std::{spirv, Image, Sampler};
 use strolle_renderer_models::*;
 
 #[spirv(vertex)]
@@ -23,20 +23,20 @@ pub fn main_vs(
 pub fn main_fs(
     #[spirv(frag_coord)] pos: Vec4,
     #[spirv(uniform, descriptor_set = 0, binding = 0)] params: &Params,
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] image: &[f32],
+    #[spirv(descriptor_set = 0, binding = 1)] image_tex: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 2)] image_sampler: &Sampler,
     color: &mut Vec4,
 ) {
-    let texel = {
-        let x = (pos.x as u32) - params.x;
-        let y = (pos.y as u32) - params.y;
-        let idx = ((x + y * params.w) * 3) as usize;
+    let texel_xy = {
+        let x = (pos.x - params.x) / (params.w);
+        let y = (pos.y - params.y) / (params.h);
 
-        vec3(image[idx], image[idx + 1], image[idx + 2])
+        vec2(x, y)
     };
 
-    let texel = deband(pos.xy(), texel);
+    let texel: Vec4 = image_tex.sample(*image_sampler, texel_xy);
 
-    *color = texel.extend(1.0);
+    *color = deband(pos.xy(), texel.xyz()).extend(1.0);
 }
 
 fn deband(pos: Vec2, color: Vec3) -> Vec3 {

@@ -1,14 +1,16 @@
 mod descriptor_set;
 mod storage_buffer;
+mod texture;
 mod uniform_buffer;
 
 pub use self::descriptor_set::*;
 pub use self::storage_buffer::*;
+pub use self::texture::*;
 pub use self::uniform_buffer::*;
 
-pub trait Bufferable {
-    fn layout(
+pub(crate) trait Bindable {
+    fn bind(
         &self,
         binding: u32,
-    ) -> (wgpu::BindingResource, wgpu::BindGroupLayoutEntry);
+    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)>;
 }

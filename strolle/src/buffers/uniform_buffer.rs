@@ -3,7 +3,7 @@ use std::{any, mem, slice};
 
 use bytemuck::Pod;
 
-use super::Bufferable;
+use super::Bindable;
 
 pub struct UniformBuffer<T> {
     buffer: wgpu::Buffer,
@@ -47,14 +47,12 @@ where
     }
 }
 
-impl<T> Bufferable for UniformBuffer<T> {
-    fn layout(
+impl<T> Bindable for UniformBuffer<T> {
+    fn bind(
         &self,
         binding: u32,
-    ) -> (wgpu::BindingResource, wgpu::BindGroupLayoutEntry) {
-        let resource = self.buffer.as_entire_binding();
-
-        let entry = wgpu::BindGroupLayoutEntry {
+    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
+        let layout = wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::VERTEX_FRAGMENT
                 | wgpu::ShaderStages::COMPUTE,
@@ -66,6 +64,8 @@ impl<T> Bufferable for UniformBuffer<T> {
             count: None,
         };
 
-        (resource, entry)
+        let resource = self.buffer.as_entire_binding();
+
+        vec![(layout, resource)]
     }
 }

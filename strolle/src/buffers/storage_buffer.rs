@@ -1,13 +1,12 @@
 use std::any;
 use std::marker::PhantomData;
-use std::sync::Arc;
 
 use bytemuck::Pod;
 
-use super::Bufferable;
+use super::Bindable;
 
 pub struct StorageBuffer<T> {
-    buffer: Arc<wgpu::Buffer>,
+    buffer: wgpu::Buffer,
     _marker: PhantomData<T>,
 }
 
@@ -35,7 +34,7 @@ where
         });
 
         Self {
-            buffer: Arc::new(buffer),
+            buffer,
             _marker: PhantomData,
         }
     }
@@ -45,14 +44,12 @@ where
     }
 }
 
-impl<T> Bufferable for StorageBuffer<T> {
-    fn layout(
+impl<T> Bindable for StorageBuffer<T> {
+    fn bind(
         &self,
         binding: u32,
-    ) -> (wgpu::BindingResource, wgpu::BindGroupLayoutEntry) {
-        let resource = self.buffer.as_entire_binding();
-
-        let entry = wgpu::BindGroupLayoutEntry {
+    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
+        let layout = wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::VERTEX_FRAGMENT
                 | wgpu::ShaderStages::COMPUTE,
@@ -69,7 +66,9 @@ impl<T> Bufferable for StorageBuffer<T> {
             count: None,
         };
 
-        (resource, entry)
+        let resource = self.buffer.as_entire_binding();
+
+        vec![(layout, resource)]
     }
 }
 

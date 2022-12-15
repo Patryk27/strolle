@@ -1,7 +1,7 @@
 #![no_std]
 
-use spirv_std::glam::{vec2, UVec3, Vec4};
-use spirv_std::spirv;
+use spirv_std::glam::{vec2, UVec3, Vec3Swizzles, Vec4};
+use spirv_std::{spirv, Image};
 use strolle_raytracer_models::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -17,8 +17,7 @@ pub fn main(
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
     #[spirv(uniform, descriptor_set = 1, binding = 1)] lights: &Lights,
     #[spirv(uniform, descriptor_set = 1, binding = 2)] materials: &Materials,
-    #[spirv(storage_buffer, descriptor_set = 2, binding = 0)]
-    image: &mut [f32],
+    #[spirv(descriptor_set = 2, binding = 0)] image_tex: &Image!(2D, format=rgba16f, sampled=false),
 ) {
     let world = World {
         geometry_tris: GeometryTrisView::new(geometry_tris),
@@ -34,9 +33,7 @@ pub fn main(
         .ray(vec2(id.x as f32, id.y as f32))
         .shade(&world);
 
-    let idx = ((id.x + id.y * camera.viewport_size().x) * 3) as usize;
-
-    image[idx] = color.x;
-    image[idx + 1] = color.y;
-    image[idx + 2] = color.z;
+    unsafe {
+        image_tex.write(id.xy().as_ivec2(), color);
+    }
 }
