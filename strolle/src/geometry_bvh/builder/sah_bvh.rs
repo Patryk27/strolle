@@ -1,4 +1,11 @@
+//! This module implements a SAH-based BVH-tree builder.
+//!
+//! Special thanks to:
+//! - https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/,
+//! - https://github.com/svenstaro/bvh.
+
 use std::fmt;
+use std::ops::{Index, IndexMut};
 
 use spirv_std::glam::Vec3;
 use strolle_raytracer_models::{Triangle, TriangleId};
@@ -7,40 +14,29 @@ use super::*;
 use crate::GeometryTris;
 
 #[derive(Clone)]
-pub struct Bvh {
-    root: BvhNode,
-}
+pub struct SahBvh;
 
-impl Bvh {
-    pub fn new(tris: &GeometryTris) -> Self {
-        let mut root = BvhNode::default();
+impl SahBvh {
+    pub fn build(tris: &GeometryTris) -> BvhNode {
+        let mut root = SahBvhNode::default();
 
         for (tri_id, tri) in tris.iter() {
             root.add(tri_id, tri);
         }
 
         root.balance();
-
-        Self { root }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.root.triangles.is_empty() && self.root.children.is_none()
-    }
-
-    pub fn into_root(self) -> BvhNode {
-        self.root
+        root.build()
     }
 }
 
 #[derive(Clone, Default)]
-pub struct BvhNode {
+struct SahBvhNode {
     bb: BoundingBox,
     triangles: Vec<(TriangleId, Triangle)>,
     children: Option<[Box<Self>; 2]>,
 }
 
-impl BvhNode {
+impl SahBvhNode {
     fn add(&mut self, tri_id: TriangleId, tri: Triangle) {
         for vertex in tri.vertices() {
             self.bb.grow(vertex);
@@ -123,26 +119,22 @@ impl BvhNode {
         self.children = Some([Box::new(left), Box::new(right)]);
     }
 
-    pub fn deconstruct(self) -> DeconstructedBvhNode {
+    fn build(self) -> BvhNode {
         if let Some([left, right]) = self.children {
-            DeconstructedBvhNode::NonLeaf {
+            BvhNode::Node {
                 bb: self.bb,
-                left: Box::new(left.deconstruct()),
-                right: Box::new(right.deconstruct()),
+                left: Box::new(left.build()),
+                right: Box::new(right.build()),
             }
         } else {
-            DeconstructedBvhNode::Leaf {
-                triangles: self
-                    .triangles
-                    .into_iter()
-                    .map(|(id, _)| id)
-                    .collect(),
+            BvhNode::Leaf {
+                tris: self.triangles.into_iter().map(|(id, _)| id).collect(),
             }
         }
     }
 }
 
-impl fmt::Display for BvhNode {
+impl fmt::Display for SahBvhNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} .. {}", self.bb.min(), self.bb.max())?;
 
@@ -181,14 +173,31 @@ impl fmt::Display for BvhNode {
     }
 }
 
-pub enum DeconstructedBvhNode {
-    Leaf {
-        triangles: Vec<TriangleId>,
-    },
+#[derive(Clone, Copy, Debug)]
+enum Axis {
+    X,
+    Y,
+    Z,
+}
 
-    NonLeaf {
-        bb: BoundingBox,
-        left: Box<Self>,
-        right: Box<Self>,
-    },
+impl Index<Axis> for Vec3 {
+    type Output = f32;
+
+    fn index(&self, index: Axis) -> &Self::Output {
+        match index {
+            Axis::X => &self.x,
+            Axis::Y => &self.y,
+            Axis::Z => &self.z,
+        }
+    }
+}
+
+impl IndexMut<Axis> for Vec3 {
+    fn index_mut(&mut self, index: Axis) -> &mut Self::Output {
+        match index {
+            Axis::X => &mut self.x,
+            Axis::Y => &mut self.y,
+            Axis::Z => &mut self.z,
+        }
+    }
 }

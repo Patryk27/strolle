@@ -51,10 +51,11 @@ impl Ray {
             let v1 = world.geometry_bvh.read(ptr);
             let v2 = world.geometry_bvh.read(ptr + 1);
 
-            let info = v1.w.to_bits();
-            let is_leaf = info & 1 == 1;
-            let i1 = info << 16 >> 17;
-            let i2 = info >> 16;
+            let i1 = v1.w.to_bits();
+            let i2 = v2.w.to_bits();
+
+            let is_leaf = i1 & 1 == 1;
+            let i1 = i1 >> 1;
 
             if is_leaf {
                 let tri_id = TriangleId::new(i1 as usize);
@@ -93,10 +94,11 @@ impl Ray {
             let v1 = world.geometry_bvh.read(ptr);
             let v2 = world.geometry_bvh.read(ptr + 1);
 
-            let info = v1.w.to_bits();
-            let is_leaf = info & 1 == 1;
-            let i1 = info << 16 >> 17;
-            let i2 = info >> 16;
+            let i1 = v1.w.to_bits();
+            let i2 = v2.w.to_bits();
+
+            let is_leaf = i1 & 1 == 1;
+            let i1 = i1 >> 1;
 
             if is_leaf {
                 let tri_id = TriangleId::new(i1 as usize);

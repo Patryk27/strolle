@@ -1,11 +1,9 @@
-//! Roped BVH.
-//!
-//! Note that I've basically implemented the algorithm from scratch, merely
-//! imagining how it should work, so the naming nomenclature might be a bit off
-//! as compared to other implementations / whitepapers.
+//! This module implements roped BVH which allows for stackless tree traversal
+//! later in the shader.
 
 use std::fmt;
 
+use spirv_std::glam::{vec4, Vec4};
 use strolle_raytracer_models::TriangleId;
 
 use super::*;
@@ -16,28 +14,21 @@ pub struct RopedBvh {
 }
 
 impl RopedBvh {
-    pub fn new(bvh: Bvh) -> Self {
+    pub fn build(root: &BvhNode) -> Self {
         let mut this = Self::default();
 
-        if !bvh.is_empty() {
-            this.add(bvh.into_root().deconstruct(), None);
-        }
-
+        this.add(root, None);
         this
     }
 
-    fn add(
-        &mut self,
-        bvh: DeconstructedBvhNode,
-        backtrack_to: Option<usize>,
-    ) -> usize {
-        match bvh {
-            DeconstructedBvhNode::Leaf { triangles } => {
+    fn add(&mut self, node: &BvhNode, backtrack_to: Option<usize>) -> usize {
+        match node {
+            BvhNode::Leaf { tris } => {
                 let mut id = None;
                 let mut prev_node_id = None;
 
-                for triangle in triangles {
-                    let node_id = self.add_leaf(triangle);
+                for tri in tris {
+                    let node_id = self.add_leaf(*tri);
 
                     if id.is_none() {
                         id = Some(node_id);
@@ -57,12 +48,12 @@ impl RopedBvh {
                 id.unwrap()
             }
 
-            DeconstructedBvhNode::NonLeaf { bb, left, right } => {
-                let id = self.add_non_leaf(bb);
-                let right_id = self.add(*right, backtrack_to);
-                let left_id = self.add(*left, Some(right_id));
+            BvhNode::Node { bb, left, right } => {
+                let id = self.add_node(*bb);
+                let right_id = self.add(right, backtrack_to);
+                let left_id = self.add(left, Some(right_id));
 
-                self.fixup_non_leaf(id, left_id, backtrack_to);
+                self.fixup_node(id, left_id, backtrack_to);
 
                 id
             }
@@ -89,10 +80,10 @@ impl RopedBvh {
         }
     }
 
-    fn add_non_leaf(&mut self, bb: BoundingBox) -> usize {
+    fn add_node(&mut self, bb: BoundingBox) -> usize {
         let id = self.nodes.len();
 
-        self.nodes.push(RopedBvhNode::NonLeaf {
+        self.nodes.push(RopedBvhNode::Node {
             bb,
             on_hit_goto_id: None,
             on_miss_goto_id: None,
@@ -101,14 +92,14 @@ impl RopedBvh {
         id
     }
 
-    fn fixup_non_leaf(
+    fn fixup_node(
         &mut self,
         id: usize,
         on_hit_goto_id_val: usize,
         on_miss_goto_it_val: Option<usize>,
     ) {
         match &mut self.nodes[id] {
-            RopedBvhNode::NonLeaf {
+            RopedBvhNode::Node {
                 on_hit_goto_id,
                 on_miss_goto_id,
                 ..
@@ -119,24 +110,59 @@ impl RopedBvh {
             _ => unreachable!(),
         }
     }
+
+    pub fn serialize_into(&self, out: &mut Vec<Vec4>) {
+        for node in &self.nodes {
+            let v1;
+            let v2;
+
+            match node {
+                RopedBvhNode::Leaf { triangle, goto_id } => {
+                    let goto_ptr = goto_id.map(|id| id * 2).unwrap_or_default();
+
+                    let i1 = 1 | ((triangle.get() as u32) << 1);
+                    let i2 = goto_ptr as u32;
+
+                    v1 = vec4(0.0, 0.0, 0.0, f32::from_bits(i1));
+                    v2 = vec4(0.0, 0.0, 0.0, f32::from_bits(i2));
+                }
+
+                RopedBvhNode::Node {
+                    bb,
+                    on_hit_goto_id,
+                    on_miss_goto_id,
+                } => {
+                    let on_hit_goto_ptr =
+                        on_hit_goto_id.map(|id| id * 2).unwrap_or_default();
+
+                    let on_miss_goto_ptr =
+                        on_miss_goto_id.map(|id| id * 2).unwrap_or_default();
+
+                    let i1 = (on_hit_goto_ptr as u32) << 1;
+                    let i2 = on_miss_goto_ptr as u32;
+
+                    v1 = bb.min().extend(f32::from_bits(i1));
+                    v2 = bb.max().extend(f32::from_bits(i2));
+                }
+            }
+
+            out.push(v1);
+            out.push(v2);
+        }
+    }
 }
 
 impl fmt::Display for RopedBvh {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "digraph G {{")?;
+
         for (node_id, node) in self.nodes.iter().enumerate() {
-            writeln!(f, "[{}]: {}", node_id, node)?;
+            writeln!(f, "{}", node.print(node_id))?;
         }
 
+        writeln!(f, "}}")?;
+
         Ok(())
-    }
-}
-
-impl IntoIterator for RopedBvh {
-    type Item = RopedBvhNode;
-    type IntoIter = impl Iterator<Item = Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.nodes.into_iter()
     }
 }
 
@@ -146,41 +172,67 @@ pub enum RopedBvhNode {
         goto_id: Option<usize>,
     },
 
-    NonLeaf {
+    Node {
         bb: BoundingBox,
         on_hit_goto_id: Option<usize>,
         on_miss_goto_id: Option<usize>,
     },
 }
 
-impl fmt::Display for RopedBvhNode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl RopedBvhNode {
+    fn print(&self, id: usize) -> String {
+        use std::fmt::Write;
+
+        let mut out = String::new();
+
         match self {
             RopedBvhNode::Leaf { triangle, goto_id } => {
-                write!(f, "match-triangle {}", triangle)?;
+                _ = writeln!(
+                    &mut out,
+                    "  n{} [label=\"leaf({})\"]",
+                    id, triangle
+                );
 
-                if let Some(id) = goto_id {
-                    write!(f, ", goto {}", id)?;
+                if let Some(id2) = goto_id {
+                    _ = writeln!(
+                        &mut out,
+                        "  n{} -> n{} [label=\"goto\"]",
+                        id, id2
+                    );
                 }
             }
 
-            RopedBvhNode::NonLeaf {
+            RopedBvhNode::Node {
                 bb,
                 on_hit_goto_id,
                 on_miss_goto_id,
             } => {
-                write!(f, "match-aabb {}..{}", bb.min(), bb.max())?;
+                _ = writeln!(
+                    &mut out,
+                    "  n{} [label=\"node({} .. {})\"]",
+                    id,
+                    bb.min(),
+                    bb.max()
+                );
 
-                if let Some(id) = on_hit_goto_id {
-                    write!(f, ", on-hit-goto {}", id)?;
+                if let Some(id2) = on_hit_goto_id {
+                    _ = writeln!(
+                        &mut out,
+                        "  n{} -> n{} [label=\"on-hit\"]",
+                        id, id2
+                    );
                 }
 
-                if let Some(id) = on_miss_goto_id {
-                    write!(f, ", on-miss-goto {}", id)?;
+                if let Some(id2) = on_miss_goto_id {
+                    _ = writeln!(
+                        &mut out,
+                        "  n{} -> n{} [label=\"on-miss\"]",
+                        id, id2
+                    );
                 }
             }
         }
 
-        Ok(())
+        out
     }
 }

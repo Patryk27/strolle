@@ -202,6 +202,7 @@ name = "bevy-strolle"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_obj",
  "log",
  "smooth-bevy-cameras",
  "strolle",
@@ -539,6 +540,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbfb5908d33fd613069be516180b8f138aaaf6e41c36b1fd98c6c29c00c24a13"
 dependencies = [
  "glam",
+]
+
+[[package]]
+name = "bevy_obj"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4debeed864b621ce409b6a5273c80ab9a33106289d1f0beca374a3aaea1b0cc"
+dependencies = [
+ "anyhow",
+ "bevy_app",
+ "bevy_asset",
+ "bevy_math",
+ "bevy_render",
+ "bevy_utils",
+ "obj-rs",
+ "thiserror",
 ]
 
 [[package]]
@@ -2201,6 +2218,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "obj-rs"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c90a2f645433dba5c609451d3fa847282b0f23ee8d8fa75491a946af53cb1db4"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "objc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2839,7 +2865,6 @@ name = "strolle"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
- "instant",
  "log",
  "naga",
  "spirv-std",

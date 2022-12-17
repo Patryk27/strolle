@@ -1,11 +1,9 @@
-//! TODO just a temporary thing
-
-use std::f32::consts::PI;
-
 use bevy::core_pipeline::core_3d;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
+use bevy_obj::ObjPlugin;
 use bevy_strolle::StrollePlugin;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
@@ -16,6 +14,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
+                // TODO
                 width: 1280.0,
                 height: 720.0,
                 mode: WindowMode::Windowed,
@@ -27,50 +26,41 @@ fn main() {
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(OrbitCameraPlugin::default())
+        .add_plugin(ObjPlugin)
         .add_plugin(StrollePlugin)
         .add_startup_system(setup)
-        .add_system(animate)
         .add_system(toggle_raytracing)
         .run();
 }
 
 fn setup(
     mut commands: Commands,
+    assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let floor_mat = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.2, 0.2, 0.2),
-        reflectance: 0.0,
-        ..default()
-    });
-
-    let cube_mat = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.8, 0.7, 0.6),
-        reflectance: 0.0,
+    commands.spawn(PbrBundle {
+        mesh: meshes.add(Mesh::from(shape::Plane { size: 20.0 })),
+        material: materials.add(StandardMaterial {
+            base_color: Color::rgb(0.2, 0.2, 0.2),
+            reflectance: 0.0,
+            perceptual_roughness: 0.0,
+            ..default()
+        }),
         ..default()
     });
 
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 50.0 })),
-        material: floor_mat,
+        mesh: assets.load("bunny.obj"),
+        material: materials.add(StandardMaterial {
+            base_color: Color::rgb(0.8, 0.7, 0.6),
+            reflectance: 0.0,
+            ..default()
+        }),
+        transform: Transform::from_scale(Vec3::splat(35.0))
+            .with_translation(vec3(0.0, -1.0, 0.0)),
         ..default()
     });
-
-    for y in 0..3 {
-        for i in 0..8 {
-            commands
-                .spawn(PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Cube { size: 0.5 })),
-                    material: cube_mat.clone(),
-                    ..default()
-                })
-                .insert(Animated {
-                    y: y as _,
-                    phase: (i as f32) * (PI / 4.0),
-                });
-        }
-    }
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -78,7 +68,7 @@ fn setup(
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(0.0, 5.5, 0.0),
+        transform: Transform::from_xyz(0.0, 5.0, 6.0),
         ..default()
     });
 
@@ -102,23 +92,6 @@ fn setup(
         ));
 }
 
-const RADIUS: f32 = 1.5;
-
-fn animate(time: Res<Time>, mut objects: Query<(&mut Transform, &Animated)>) {
-    let tt = time.elapsed_seconds();
-
-    for (mut transform, animated) in objects.iter_mut() {
-        let ttp = tt + animated.phase;
-
-        transform.translation.x = RADIUS * (animated.phase + tt).sin();
-        transform.translation.z = RADIUS * (animated.phase + tt).cos();
-        transform.translation.y = 0.5 + tt.sin().abs() * 1.8 + animated.y;
-
-        transform.rotation =
-            Quat::from_rotation_x(ttp) * Quat::from_rotation_y(ttp / 1.5);
-    }
-}
-
 fn toggle_raytracing(
     mut camera: Query<&mut CameraRenderGraph>,
     keys: Res<Input<KeyCode>>,
@@ -137,10 +110,4 @@ fn toggle_raytracing(
             *camera = default_render_graph;
         }
     }
-}
-
-#[derive(Component)]
-struct Animated {
-    y: f32,
-    phase: f32,
 }
