@@ -1,6 +1,8 @@
+use std::ops::Add;
+
 use spirv_std::glam::Vec3;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BoundingBox {
     min: Option<Vec3>,
     max: Option<Vec3>,
@@ -25,6 +27,11 @@ impl BoundingBox {
         }
     }
 
+    pub fn with(mut self, p: Vec3) -> Self {
+        self.grow(p);
+        self
+    }
+
     pub fn min(&self) -> Vec3 {
         self.min.unwrap()
     }
@@ -43,5 +50,21 @@ impl BoundingBox {
         } else {
             0.0
         }
+    }
+}
+
+impl Add<Self> for BoundingBox {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self::Output {
+        if let Some(min) = rhs.min {
+            self.grow(min);
+        }
+
+        if let Some(max) = rhs.max {
+            self.grow(max);
+        }
+
+        self
     }
 }

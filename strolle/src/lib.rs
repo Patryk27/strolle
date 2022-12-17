@@ -30,7 +30,7 @@ pub struct Engine {
 impl Engine {
     pub fn new(device: &wgpu::Device) -> Self {
         // TODO support dynamic buffers
-        const BUF_SIZE: usize = 2 * 1024 * 1024;
+        const BUF_SIZE: usize = 32 * 1024 * 1024;
 
         log::info!("Initializing");
 

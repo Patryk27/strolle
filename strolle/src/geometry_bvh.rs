@@ -10,11 +10,30 @@ pub struct GeometryBvh {
 }
 
 impl GeometryBvh {
-    pub fn rebuild(&mut self, tris: &GeometryTris) {
-        let bvh = builder::Bvh::new(tris);
-        let rbvh = builder::RopedBvh::new(bvh);
+    pub fn rebuild(&mut self, scene: &GeometryTris) {
+        self.data.clear();
 
-        builder::serialize(&mut self.data, rbvh);
+        if scene.is_empty() {
+            return;
+        }
+
+        // {
+        //     let root = builder::SahBvh::build(scene);
+        //     let rbvh = builder::RopedBvh::build(&root);
+
+        //     std::fs::write("/tmp/bvh.old.dot", rbvh.to_string()).unwrap();
+
+        //     rbvh.serialize_into(&mut self.data);
+        // }
+
+        {
+            let root = builder::LinearBvh::build(scene);
+            let rbvh = builder::RopedBvh::build(&root);
+
+            // std::fs::write("/tmp/bvh.new.dot", rbvh.to_string()).unwrap();
+
+            rbvh.serialize_into(&mut self.data);
+        }
     }
 }
 
