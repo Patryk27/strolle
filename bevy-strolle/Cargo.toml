@@ -10,4 +10,6 @@ strolle = { path = "../strolle" }
 
 [dev-dependencies]
 bevy_obj = "0.9.1"
+lazy_static = "1.4"
 smooth-bevy-cameras = "0.6.0"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }

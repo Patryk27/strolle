@@ -203,9 +203,11 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_obj",
+ "lazy_static",
  "log",
  "smooth-bevy-cameras",
  "strolle",
+ "zip",
 ]
 
 [[package]]
@@ -2868,21 +2870,20 @@ dependencies = [
  "log",
  "naga",
  "spirv-std",
- "strolle-raytracer-models",
- "strolle-renderer-models",
+ "strolle-models",
  "wgpu",
 ]
 
 [[package]]
-name = "strolle-raytracer"
+name = "strolle-materializer"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
- "strolle-raytracer-models",
+ "strolle-models",
 ]
 
 [[package]]
-name = "strolle-raytracer-models"
+name = "strolle-models"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
@@ -2891,18 +2892,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-renderer"
+name = "strolle-printer"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
- "strolle-renderer-models",
-]
-
-[[package]]
-name = "strolle-renderer-models"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
+ "strolle-models",
 ]
 
 [[package]]
@@ -2910,6 +2904,14 @@ name = "strolle-shader-builder"
 version = "0.1.0"
 dependencies = [
  "spirv-builder",
+]
+
+[[package]]
+name = "strolle-tracer"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-models",
 ]
 
 [[package]]
@@ -3568,3 +3570,15 @@ name = "xi-unicode"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a67300977d3dc3f8034dae89778f502b6ba20b269527b3223ba59c0cf393bb8a"
+
+[[package]]
+name = "zip"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "537ce7411d25e54e8ae21a7ce0b15840e7bfcff15b51d697ec3266cc76bdf080"
+dependencies = [
+ "byteorder",
+ "crc32fast",
+ "crossbeam-utils",
+ "flate2",
+]

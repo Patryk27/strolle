@@ -5,8 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Workspace
-strolle-raytracer-models = { path = "../strolle-raytracer-models" }
-strolle-renderer-models = { path = "../strolle-renderer-models" }
+strolle-models = { path = "../strolle-models" }
 
 # Crates.io
 bytemuck = "1"

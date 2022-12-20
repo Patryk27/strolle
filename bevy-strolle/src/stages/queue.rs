@@ -83,6 +83,7 @@ pub(crate) fn viewports(
             ext_camera.transform.translation(),
             ext_camera.transform.translation() + ext_camera.transform.forward(),
             ext_camera.transform.up(),
+            viewport_pos,
             viewport_size,
             ext_camera.projection.fov,
             color_to_vec3(ext_camera.clear_color),
@@ -124,9 +125,7 @@ pub(crate) fn viewports(
 pub(crate) fn submit(
     queue: Res<RenderQueue>,
     engine: Res<EngineRes>,
-    state: Res<SyncedState>,
+    mut state: ResMut<SyncedState>,
 ) {
-    if state.is_active() {
-        state.submit(&engine, &queue);
-    }
+    state.write(&engine, &queue);
 }

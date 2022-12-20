@@ -21,14 +21,29 @@ pub(crate) fn geometry(
     models: Extract<
         Query<(Entity, &Transform, &Handle<Mesh>, &Handle<StandardMaterial>)>,
     >,
+    changed_models: Extract<
+        Query<
+            (Entity, &Transform, &Handle<Mesh>, &Handle<StandardMaterial>),
+            Or<(
+                Changed<Handle<Mesh>>,
+                Changed<Transform>,
+                Changed<Handle<StandardMaterial>>,
+            )>,
+        >,
+    >,
+    assets_rx: Extract<EventReader<AssetEvent<Mesh>>>,
 ) {
     if !state.is_active() {
         return;
     }
 
+    if changed_models.is_empty() && assets_rx.is_empty() {
+        return;
+    }
+
     let state = &mut *state;
 
-    // TODO
+    // TODO we shouldn't have to extract the entire geometry each time
     state.geometry = Default::default();
 
     for (entity, transform, mesh, material) in models.iter() {
@@ -56,22 +71,34 @@ pub(crate) fn geometry(
                 panic!("Entity {:?}'s mesh has no positions", entity);
             });
 
+        let normals = mesh
+            .attribute(Mesh::ATTRIBUTE_NORMAL)
+            .and_then(VertexAttributeValues::as_float3)
+            .unwrap_or_else(|| {
+                panic!("Entity {:?}'s mesh has no normals", entity);
+            });
+
         let indices: Vec<_> = mesh.indices().unwrap().iter().collect();
 
-        // TODO parsing the mesh each frame is probably a bad approach
         let tris = indices.chunks(3).map(|vs| {
             let v0 = positions[vs[0]];
             let v1 = positions[vs[1]];
             let v2 = positions[vs[2]];
 
+            let n0 = normals[vs[0]];
+            let n1 = normals[vs[1]];
+            let n2 = normals[vs[2]];
+
             st::Triangle::new(
                 vec3(v0[0], v0[1], v0[2]),
                 vec3(v1[0], v1[1], v1[2]),
                 vec3(v2[0], v2[1], v2[2]),
+                vec3(n0[0], n0[1], n0[2]),
+                vec3(n1[0], n1[1], n1[2]),
+                vec3(n2[0], n2[1], n2[2]),
                 material_id,
             )
             .with_transform(transform)
-            .with_casts_shadows(true)
         });
 
         for tri in tris {

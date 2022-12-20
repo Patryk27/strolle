@@ -1,5 +1,5 @@
 use spirv_std::glam::Vec4;
-use strolle_raytracer_models::{Triangle, TriangleId};
+use strolle_models::{Triangle, TriangleId};
 
 use crate::StorageBufferable;
 
@@ -14,16 +14,22 @@ impl GeometryTris {
         self.data.push(tri.v0);
         self.data.push(tri.v1);
         self.data.push(tri.v2);
+        self.data.push(tri.n0);
+        self.data.push(tri.n1);
+        self.data.push(tri.n2);
         self.len += 1;
     }
 
     pub fn get(&self, id: TriangleId) -> Triangle {
-        let id = id.get() * 3;
+        let id = id.get() * 6;
 
         Triangle {
             v0: self.data[id],
             v1: self.data[id + 1],
             v2: self.data[id + 2],
+            n0: self.data[id + 3],
+            n1: self.data[id + 4],
+            n2: self.data[id + 5],
         }
     }
 

@@ -27,14 +27,12 @@ fn setup(
 ) {
     let cube_mat = materials.add(StandardMaterial {
         base_color: Color::rgb(0.8, 0.7, 0.6),
-        reflectance: 0.5,
         perceptual_roughness: 0.2,
         ..default()
     });
 
     let floor_mat = materials.add(StandardMaterial {
         base_color: Color::rgb(0.2, 0.2, 0.2),
-        reflectance: 1.0,
         perceptual_roughness: 0.0,
         ..default()
     });
