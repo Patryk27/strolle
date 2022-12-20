@@ -1,1 +1,3 @@
 /target
+/bevy-strolle/assets/*.obj
+/bevy-strolle/examples/bench.rs

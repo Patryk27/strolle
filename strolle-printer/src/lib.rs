@@ -2,7 +2,7 @@
 
 use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec4, Vec4Swizzles};
 use spirv_std::{spirv, Image, Sampler};
-use strolle_renderer_models::*;
+use strolle_models::*;
 
 #[spirv(vertex)]
 pub fn main_vs(
@@ -22,14 +22,17 @@ pub fn main_vs(
 #[spirv(fragment)]
 pub fn main_fs(
     #[spirv(frag_coord)] pos: Vec4,
-    #[spirv(uniform, descriptor_set = 0, binding = 0)] params: &Params,
+    #[spirv(uniform, descriptor_set = 0, binding = 0)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)] image_tex: &Image!(2D, type=f32, sampled),
     #[spirv(descriptor_set = 0, binding = 2)] image_sampler: &Sampler,
     color: &mut Vec4,
 ) {
     let texel_xy = {
-        let x = (pos.x - params.x) / (params.w);
-        let y = (pos.y - params.y) / (params.h);
+        let viewport_pos = camera.viewport_pos();
+        let viewport_size = camera.viewport_size();
+
+        let x = (pos.x - viewport_pos.x) / (viewport_size.x);
+        let y = (pos.y - viewport_pos.y) / (viewport_size.y);
 
         vec2(x, y)
     };

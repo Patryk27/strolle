@@ -1,5 +1,5 @@
 [package]
-name = "strolle-renderer"
+name = "strolle-materializer"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,7 +8,7 @@ crate-type = ["dylib"]
 
 [dependencies]
 # Workspace
-strolle-renderer-models = { path = "../strolle-renderer-models" }
+strolle-models = { path = "../strolle-models" }
 
 # Crates.io
 spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", features = ["glam"] }

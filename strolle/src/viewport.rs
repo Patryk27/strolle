@@ -1,8 +1,9 @@
-use spirv_std::glam::UVec2;
-use strolle_raytracer_models::Camera;
-use strolle_renderer_models::Params;
+use std::mem;
 
-use crate::buffers::{DescriptorSet, Texture, UniformBuffer};
+use spirv_std::glam::UVec2;
+use strolle_models::Camera;
+
+use crate::buffers::{DescriptorSet, StorageBuffer, Texture, UniformBuffer};
 use crate::Engine;
 
 pub struct Viewport {
@@ -10,13 +11,14 @@ pub struct Viewport {
     size: UVec2,
     format: wgpu::TextureFormat,
     camera: UniformBuffer<Camera>,
-    raytracer_ds0: DescriptorSet,
-    raytracer_ds1: DescriptorSet,
-    raytracer_ds2: DescriptorSet,
-    raytracer_pipeline: wgpu::ComputePipeline,
-    renderer_params: UniformBuffer<Params>,
-    renderer_ds0: DescriptorSet,
-    renderer_pipeline: wgpu::RenderPipeline,
+    tracer_ds0: DescriptorSet,
+    tracer_ds1: DescriptorSet,
+    tracer_pipeline: wgpu::ComputePipeline,
+    materializer_ds0: DescriptorSet,
+    materializer_ds1: DescriptorSet,
+    materializer_pipeline: wgpu::ComputePipeline,
+    printer_ds0: DescriptorSet,
+    printer_pipeline: wgpu::RenderPipeline,
 }
 
 impl Viewport {
@@ -35,112 +37,148 @@ impl Viewport {
         assert!(size.x > 0);
         assert!(size.y > 0);
 
-        let (
-            camera,
-            image,
-            raytracer_ds0,
-            raytracer_ds1,
-            raytracer_ds2,
-            raytracer_pipeline,
-        ) = Self::build_raytracer(engine, device, size);
+        let camera = UniformBuffer::new(device, "strolle_camera");
 
-        let (renderer_params, renderer_ds0, renderer_pipeline) =
-            Self::build_renderer(engine, device, format, &image);
+        let hits = StorageBuffer::new(
+            device,
+            "strolle_hits",
+            (size.x * size.y) as usize * mem::size_of::<u32>(),
+        );
+
+        let image = Texture::new(device, "strolle_image", size);
+
+        let (tracer_ds0, tracer_ds1, tracer_pipeline) =
+            Self::build_tracer(engine, device, &camera, &hits);
+
+        let (materializer_ds0, materializer_ds1, materializer_pipeline) =
+            Self::build_materializer(engine, device, &camera, &hits, &image);
+
+        let (printer_ds0, printer_pipeline) =
+            Self::build_printer(engine, device, format, &camera, &image);
 
         Self {
             pos,
             size,
             format,
             camera,
-            raytracer_ds0,
-            raytracer_ds1,
-            raytracer_ds2,
-            raytracer_pipeline,
-            renderer_params,
-            renderer_ds0,
-            renderer_pipeline,
+            tracer_ds0,
+            tracer_ds1,
+            tracer_pipeline,
+            materializer_ds0,
+            materializer_ds1,
+            materializer_pipeline,
+            printer_ds0,
+            printer_pipeline,
         }
     }
 
-    fn build_raytracer(
+    fn build_tracer(
         engine: &Engine,
         device: &wgpu::Device,
-        size: UVec2,
-    ) -> (
-        UniformBuffer<Camera>,
-        Texture,
-        DescriptorSet,
-        DescriptorSet,
-        DescriptorSet,
-        wgpu::ComputePipeline,
-    ) {
-        let camera = UniformBuffer::new(device, "strolle_camera");
-        let image = Texture::new(device, "strolle_image", size);
-
-        let ds0 = DescriptorSet::builder("strolle_raytracer_ds0")
+        camera: &UniformBuffer<Camera>,
+        hits: &StorageBuffer<u32>,
+    ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline) {
+        let ds0 = DescriptorSet::builder("strolle_tracer_ds0")
             .add(&*engine.geometry_tris)
             .add(&*engine.geometry_uvs)
             .add(&*engine.geometry_bvh)
-            .build(device);
-
-        let ds1 = DescriptorSet::builder("strolle_raytracer_ds1")
-            .add(&camera)
             .add(&*engine.lights)
             .add(&*engine.materials)
             .build(device);
 
-        let ds2 = DescriptorSet::builder("strolle_raytracer_ds2")
-            .add(&image.writable())
+        let ds1 = DescriptorSet::builder("strolle_tracer_ds1")
+            .add(camera)
+            .add(hits)
             .build(device);
 
         let pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_raytracer_pipeline_layout"),
+                label: Some("strolle_tracer_pipeline_layout"),
                 bind_group_layouts: &[
                     ds0.bind_group_layout(),
                     ds1.bind_group_layout(),
-                    ds2.bind_group_layout(),
                 ],
                 push_constant_ranges: &[],
             });
 
         let pipeline =
             device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("strolle_raytracer_pipeline"),
+                label: Some("strolle_tracer_pipeline"),
                 layout: Some(&pipeline_layout),
-                module: &engine.raytracer,
+                module: &engine.tracer,
                 entry_point: "main",
             });
 
-        (camera, image, ds0, ds1, ds2, pipeline)
+        (ds0, ds1, pipeline)
     }
 
-    fn build_renderer(
+    fn build_materializer(
+        engine: &Engine,
+        device: &wgpu::Device,
+        camera: &UniformBuffer<Camera>,
+        hits: &StorageBuffer<u32>,
+        image: &Texture,
+    ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline) {
+        let ds0 = DescriptorSet::builder("strolle_materializer_ds0")
+            .add(&*engine.geometry_tris)
+            .add(&*engine.geometry_uvs)
+            .add(&*engine.geometry_bvh)
+            .add(&*engine.lights)
+            .add(&*engine.materials)
+            .build(device);
+
+        let ds1 = DescriptorSet::builder("strolle_materializer_ds1")
+            .add(camera)
+            .add(hits)
+            .add(&image.writable())
+            .build(device);
+
+        let pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("strolle_materializer_pipeline_layout"),
+                bind_group_layouts: &[
+                    ds0.bind_group_layout(),
+                    ds1.bind_group_layout(),
+                ],
+                push_constant_ranges: &[],
+            });
+
+        let pipeline =
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("strolle_materializer_pipeline"),
+                layout: Some(&pipeline_layout),
+                module: &engine.materializer,
+                entry_point: "main",
+            });
+
+        (ds0, ds1, pipeline)
+    }
+
+    fn build_printer(
         engine: &Engine,
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
+        camera: &UniformBuffer<Camera>,
         image: &Texture,
-    ) -> (UniformBuffer<Params>, DescriptorSet, wgpu::RenderPipeline) {
-        let params = UniformBuffer::new(device, "strolle_renderer_params");
-
-        let ds0 = DescriptorSet::builder("strolle_renderer_ds0")
-            .add(&params)
+    ) -> (DescriptorSet, wgpu::RenderPipeline) {
+        let ds0 = DescriptorSet::builder("strolle_printer_ds0")
+            .add(camera)
             .add(&image.readable())
             .build(device);
 
         let pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_renderer_pipeline_layout"),
+                label: Some("strolle_printer_pipeline_layout"),
                 bind_group_layouts: &[ds0.bind_group_layout()],
                 push_constant_ranges: &[],
             });
 
         let pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("strolle_renderer_pipeline"),
+                label: Some("strolle_printer_pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &engine.renderer,
+                    module: &engine.printer,
                     entry_point: "main_vs",
                     buffers: &[],
                 },
@@ -148,7 +186,7 @@ impl Viewport {
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(wgpu::FragmentState {
-                    module: &engine.renderer,
+                    module: &engine.printer,
                     entry_point: "main_fs",
                     targets: &[Some(wgpu::ColorTargetState {
                         format,
@@ -159,7 +197,7 @@ impl Viewport {
                 multiview: None,
             });
 
-        (params, ds0, pipeline)
+        (ds0, pipeline)
     }
 
     pub fn pos(&self) -> UVec2 {
@@ -174,18 +212,8 @@ impl Viewport {
         self.format
     }
 
-    pub fn submit(&self, queue: &wgpu::Queue, camera: &Camera) {
+    pub fn write(&self, queue: &wgpu::Queue, camera: &Camera) {
         self.camera.write(queue, camera);
-
-        self.renderer_params.write(
-            queue,
-            &Params {
-                x: self.pos.x as f32,
-                y: self.pos.y as f32,
-                w: self.size.x as f32,
-                h: self.size.y as f32,
-            },
-        );
     }
 
     pub fn render(
@@ -195,13 +223,26 @@ impl Viewport {
     ) {
         let mut pass =
             encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("strolle_raytracer_pass"),
+                label: Some("strolle_tracer_pass"),
             });
 
-        pass.set_pipeline(&self.raytracer_pipeline);
-        pass.set_bind_group(0, self.raytracer_ds0.bind_group(), &[]);
-        pass.set_bind_group(1, self.raytracer_ds1.bind_group(), &[]);
-        pass.set_bind_group(2, self.raytracer_ds2.bind_group(), &[]);
+        pass.set_pipeline(&self.tracer_pipeline);
+        pass.set_bind_group(0, self.tracer_ds0.bind_group(), &[]);
+        pass.set_bind_group(1, self.tracer_ds1.bind_group(), &[]);
+        pass.dispatch_workgroups(self.size.x / 8, self.size.y / 8, 1);
+
+        drop(pass);
+
+        // -----
+
+        let mut pass =
+            encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("strolle_materializer_pass"),
+            });
+
+        pass.set_pipeline(&self.materializer_pipeline);
+        pass.set_bind_group(0, self.materializer_ds0.bind_group(), &[]);
+        pass.set_bind_group(1, self.materializer_ds1.bind_group(), &[]);
         pass.dispatch_workgroups(self.size.x / 8, self.size.y / 8, 1);
 
         drop(pass);
@@ -209,7 +250,7 @@ impl Viewport {
         // -----
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("strolle_renderer_pass"),
+            label: Some("strolle_printer_pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: target,
                 resolve_target: None,
@@ -222,8 +263,8 @@ impl Viewport {
         });
 
         pass.set_scissor_rect(self.pos.x, self.pos.y, self.size.x, self.size.y);
-        pass.set_pipeline(&self.renderer_pipeline);
-        pass.set_bind_group(0, self.renderer_ds0.bind_group(), &[]);
+        pass.set_pipeline(&self.printer_pipeline);
+        pass.set_bind_group(0, self.printer_ds0.bind_group(), &[]);
         pass.draw(0..3, 0..1);
     }
 

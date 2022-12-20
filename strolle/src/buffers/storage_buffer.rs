@@ -1,5 +1,5 @@
-use std::any;
 use std::marker::PhantomData;
+use std::{any, slice};
 
 use bytemuck::Pod;
 
@@ -74,6 +74,12 @@ impl<T> Bindable for StorageBuffer<T> {
 
 pub trait StorageBufferable {
     fn data(&self) -> &[u8];
+}
+
+impl StorageBufferable for u32 {
+    fn data(&self) -> &[u8] {
+        bytemuck::cast_slice(slice::from_ref(self))
+    }
 }
 
 impl<T> StorageBufferable for Vec<T>

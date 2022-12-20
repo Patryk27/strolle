@@ -22,20 +22,17 @@ impl SyncedState {
         !self.views.is_empty()
     }
 
-    pub fn submit(&self, engine: &st::Engine, queue: &RenderQueue) {
-        let (geometry_tris, geometry_uvs, geometry_bvh) = self.geometry.inner();
+    pub fn write(&mut self, engine: &st::Engine, queue: &RenderQueue) {
+        if !self.is_active() {
+            return;
+        }
 
-        engine.submit(
-            queue.0.as_ref(),
-            geometry_tris,
-            geometry_uvs,
-            geometry_bvh,
-            &self.lights,
-            self.materials.inner(),
-        );
+        self.geometry.write(engine, queue);
+        engine.write_lights(queue.0.as_ref(), &self.lights);
+        engine.write_materials(queue.0.as_ref(), self.materials.inner());
 
         for view in self.views.values() {
-            view.viewport.submit(queue, &view.camera);
+            view.viewport.write(queue, &view.camera);
         }
     }
 }

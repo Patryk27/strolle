@@ -9,7 +9,7 @@ mod viewport;
 use std::sync::Arc;
 
 use spirv_std::glam::UVec2;
-pub use strolle_raytracer_models::*;
+pub use strolle_models::*;
 
 pub(crate) use self::buffers::*;
 pub use self::geometry_bvh::*;
@@ -18,8 +18,9 @@ pub use self::geometry_uvs::*;
 pub use self::viewport::*;
 
 pub struct Engine {
-    raytracer: wgpu::ShaderModule,
-    renderer: wgpu::ShaderModule,
+    tracer: wgpu::ShaderModule,
+    materializer: wgpu::ShaderModule,
+    printer: wgpu::ShaderModule,
     geometry_tris: Arc<StorageBuffer<GeometryTris>>,
     geometry_uvs: Arc<StorageBuffer<GeometryUvs>>,
     geometry_bvh: Arc<StorageBuffer<GeometryBvh>>,
@@ -30,16 +31,20 @@ pub struct Engine {
 impl Engine {
     pub fn new(device: &wgpu::Device) -> Self {
         // TODO support dynamic buffers
-        const BUF_SIZE: usize = 32 * 1024 * 1024;
+        const BUF_SIZE: usize = (128 + 64) * 1024 * 1024;
 
         log::info!("Initializing");
 
-        let raytracer = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/raytracer.spv"
+        let tracer = device.create_shader_module(wgpu::include_spirv!(
+            "../../target/tracer.spv"
         ));
 
-        let renderer = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/renderer.spv"
+        let materializer = device.create_shader_module(wgpu::include_spirv!(
+            "../../target/materializer.spv"
+        ));
+
+        let printer = device.create_shader_module(wgpu::include_spirv!(
+            "../../target/printer.spv"
         ));
 
         let geometry_tris =
@@ -55,8 +60,9 @@ impl Engine {
         let materials = UniformBuffer::new(device, "strolle_materials");
 
         Self {
-            raytracer,
-            renderer,
+            tracer,
+            materializer,
+            printer,
             geometry_tris: Arc::new(geometry_tris),
             geometry_uvs: Arc::new(geometry_uvs),
             geometry_bvh: Arc::new(geometry_bvh),
@@ -65,19 +71,23 @@ impl Engine {
         }
     }
 
-    pub fn submit(
+    pub fn write_geometry(
         &self,
         queue: &wgpu::Queue,
         geometry_tris: &GeometryTris,
         geometry_uvs: &GeometryUvs,
         geometry_bvh: &GeometryBvh,
-        lights: &Lights,
-        materials: &Materials,
     ) {
         self.geometry_tris.write(queue, geometry_tris);
         self.geometry_uvs.write(queue, geometry_uvs);
         self.geometry_bvh.write(queue, geometry_bvh);
+    }
+
+    pub fn write_lights(&self, queue: &wgpu::Queue, lights: &Lights) {
         self.lights.write(queue, lights);
+    }
+
+    pub fn write_materials(&self, queue: &wgpu::Queue, materials: &Materials) {
         self.materials.write(queue, materials);
     }
 

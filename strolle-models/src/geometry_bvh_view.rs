@@ -1,4 +1,4 @@
-use crate::*;
+use glam::Vec4;
 
 pub struct GeometryBvhView<'a> {
     data: &'a [Vec4],

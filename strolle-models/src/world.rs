@@ -1,6 +1,7 @@
 use crate::*;
 
 pub struct World<'a> {
+    pub local_idx: u32,
     pub geometry_tris: GeometryTrisView<'a>,
     pub geometry_uvs: GeometryUvsView<'a>,
     pub geometry_bvh: GeometryBvhView<'a>,

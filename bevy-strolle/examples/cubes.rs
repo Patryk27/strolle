@@ -1,6 +1,5 @@
 use std::f32::consts::PI;
 
-use bevy::core_pipeline::core_3d;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
@@ -20,7 +19,6 @@ fn main() {
         .add_plugin(StrollePlugin)
         .add_startup_system(setup)
         .add_system(animate)
-        .add_system(toggle_raytracing)
         .run();
 }
 
@@ -31,14 +29,12 @@ fn setup(
 ) {
     let cube_mat = materials.add(StandardMaterial {
         base_color: Color::rgb(0.8, 0.7, 0.6),
-        reflectance: 0.5,
         perceptual_roughness: 0.2,
         ..default()
     });
 
     let floor_mat = materials.add(StandardMaterial {
         base_color: Color::rgb(0.2, 0.2, 0.2),
-        reflectance: 1.0,
         perceptual_roughness: 0.0,
         ..default()
     });
@@ -88,7 +84,12 @@ fn setup(
     });
 
     commands
-        .spawn(Camera3dBundle::default())
+        .spawn(Camera3dBundle {
+            camera_render_graph: CameraRenderGraph::new(
+                bevy_strolle::graph::NAME,
+            ),
+            ..default()
+        })
         .insert(OrbitCameraBundle::new(
             {
                 let mut controller = OrbitCameraController::default();
@@ -102,39 +103,18 @@ fn setup(
         ));
 }
 
-const RADIUS: f32 = 3.0;
-
 fn animate(time: Res<Time>, mut objects: Query<(&mut Transform, &Animated)>) {
+    const RADIUS: f32 = 3.0;
+
     let tt = time.elapsed_seconds();
 
     for (mut transform, animated) in objects.iter_mut() {
         transform.translation.x = RADIUS * (animated.phase + tt).sin();
         transform.translation.z = RADIUS * (animated.phase + tt).cos();
-
         transform.translation.y = 0.5 + tt.sin().abs() * 1.8;
 
         transform.rotation =
             Quat::from_rotation_x(tt) * Quat::from_rotation_y(tt / 1.5);
-    }
-}
-
-fn toggle_raytracing(
-    mut camera: Query<&mut CameraRenderGraph>,
-    keys: Res<Input<KeyCode>>,
-) {
-    let default_render_graph = CameraRenderGraph::new(core_3d::graph::NAME);
-
-    let strolle_render_graph =
-        CameraRenderGraph::new(bevy_strolle::graph::NAME);
-
-    if keys.just_pressed(KeyCode::G) {
-        let mut camera = camera.single_mut();
-
-        if camera.as_ref().as_ref() == default_render_graph.as_ref() {
-            *camera = strolle_render_graph;
-        } else {
-            *camera = default_render_graph;
-        }
     }
 }
 

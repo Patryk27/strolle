@@ -16,11 +16,8 @@ impl Camera {
         let origin = self.origin.xyz();
 
         let direction = {
-            let viewport_fov = self.viewport.z;
-            let viewport_aspect_ratio = self.viewport.y / self.viewport.x;
-
             // Map from viewport's size to 0..1
-            let pos = pos / self.viewport.xy();
+            let pos = pos / self.viewport_size();
 
             // Map to -1..1
             let pos = 2.0 * pos - 1.0;
@@ -29,10 +26,10 @@ impl Camera {
             let pos = vec2(pos.x, -pos.y);
 
             // Adjust for aspect ratio
-            let pos = vec2(pos.x / viewport_aspect_ratio, pos.y);
+            let pos = vec2(pos.x / self.viewport_aspect_ratio(), pos.y);
 
             // Adjust for the field of view
-            let pos = pos * (viewport_fov / 2.0).tan();
+            let pos = pos * (self.viewport_fov() / 2.0).tan();
 
             OrthonormalBasis::trace(
                 self.onb_u,
@@ -50,8 +47,22 @@ impl Camera {
         self.clear_color.xyz()
     }
 
-    pub fn viewport_size(&self) -> UVec2 {
-        self.viewport.xy().as_uvec2()
+    pub fn viewport_fov(&self) -> f32 {
+        self.origin.w
+    }
+
+    pub fn viewport_pos(&self) -> Vec2 {
+        self.viewport.xy()
+    }
+
+    pub fn viewport_size(&self) -> Vec2 {
+        self.viewport.zw()
+    }
+
+    pub fn viewport_aspect_ratio(&self) -> f32 {
+        let size = self.viewport_size();
+
+        size.y / size.x
     }
 }
 
@@ -60,6 +71,7 @@ impl Camera {
         origin: Vec3,
         look_at: Vec3,
         up: Vec3,
+        viewport_pos: UVec2,
         viewport_size: UVec2,
         viewport_fov: f32,
         clear_color: Vec3,
@@ -68,8 +80,11 @@ impl Camera {
             OrthonormalBasis::build(origin, look_at, up);
 
         Self {
-            origin: origin.extend(0.0),
-            viewport: viewport_size.as_vec2().extend(viewport_fov).extend(0.0),
+            origin: origin.extend(viewport_fov),
+            viewport: viewport_pos
+                .as_vec2()
+                .extend(viewport_size.x as f32)
+                .extend(viewport_size.y as f32),
             onb_u,
             onb_v,
             onb_w,

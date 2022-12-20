@@ -45,25 +45,32 @@ impl Material {
         vec3(1.0, 1.0, 1.0)
     }
 
-    pub fn radiance(&self, world: &World, hit: Hit) -> Vec4 {
+    pub fn shade(
+        &self,
+        world: &World,
+        stack: RayTraversingStack,
+        hit: Hit,
+    ) -> Vec4 {
         let mut radiance = vec4(0.0, 0.0, 0.0, self.base_color.w);
-
         let mut light_idx = 0;
 
         while light_idx < world.lights.len() {
             let light = world.lights.get(light_idx);
 
-            let contribution = self.pbr(world, light, hit);
-
-            radiance += contribution;
-
+            radiance += self.radiance(world, stack, light, hit);
             light_idx += 1;
         }
 
         radiance
     }
 
-    fn pbr(&self, world: &World, light: Light, hit: Hit) -> Vec4 {
+    fn radiance(
+        &self,
+        world: &World,
+        stack: RayTraversingStack,
+        light: Light,
+        hit: Hit,
+    ) -> Vec4 {
         // TODO: Optimize a lot of these calculations can be done once per material
 
         let roughness =
@@ -94,7 +101,10 @@ impl Material {
         let l = hit_to_light.normalize();
         let n_o_l = sat(hit.normal.dot(l));
 
-        let (diffuse, specular) = if ray.hits_anything_up_to(world, distance) {
+        // TODO move above?
+        let is_occluded = ray.hits_anything(world, stack, distance);
+
+        let (diffuse, specular) = if is_occluded {
             (0.0, Vec3::ZERO)
         } else {
             let diffuse = diffuse_light(l, ray, hit, roughness, n_o_l);

@@ -21,8 +21,10 @@ mod world;
 use core::fmt;
 
 use bytemuck::{Pod, Zeroable};
+#[cfg(not(target_arch = "spirv"))]
+use spirv_std::glam::Mat4;
 use spirv_std::glam::{
-    vec2, vec3, vec4, Mat4, UVec2, Vec2, Vec3, Vec4, Vec4Swizzles,
+    vec2, vec3, vec4, UVec2, Vec2, Vec3, Vec4, Vec4Swizzles,
 };
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::real::Real;
@@ -39,8 +41,22 @@ pub use self::materials::*;
 pub use self::ray::*;
 pub use self::triangle::*;
 pub use self::triangle_uv::*;
-use self::utils::*;
+pub use self::utils::*;
 pub use self::world::*;
 
 pub const MAX_LIGHTS: usize = 256;
 pub const MAX_MATERIALS: usize = 256;
+
+/// Contains ids of nodes yet to be visited, for the entire workgroup at once.
+///
+/// Usually this would be modelled as `let mut stack = [0; 16];`, but using
+/// workgroup memory makes the code slightly faster.
+pub type RayTraversingStack<'a> = &'a mut [usize; 16 * 8 * 8];
+
+pub mod debug {
+    /// Instead of rendering triangles, shows the BVH's bounding boxes and
+    /// hierarchy.
+    ///
+    /// The brighter the color, the more nested given node is.
+    pub const ENABLE_AABB: bool = false;
+}

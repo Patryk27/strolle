@@ -2,32 +2,30 @@ use crate::*;
 
 #[derive(Copy, Clone)]
 pub struct Hit {
-    pub t: f32,
-    pub uv: Vec4,
+    pub dist: f32,
+    pub uv: Vec2,
     pub ray: Ray,
     pub point: Vec3,
     pub normal: Vec3,
-    pub tri_id: TriangleId,
     pub mat_id: MaterialId,
 }
 
 impl Hit {
-    const MAX_T: f32 = 1000.0;
+    const MAX_DIST: f32 = f32::MAX;
 
     pub fn none() -> Self {
         Self {
-            t: Self::MAX_T,
+            dist: Self::MAX_DIST,
             uv: Default::default(),
             ray: Default::default(),
             point: Default::default(),
             normal: Default::default(),
-            tri_id: TriangleId::new(0),
             mat_id: MaterialId::new(0),
         }
     }
 
     pub fn is_some(&self) -> bool {
-        self.t < Self::MAX_T
+        self.dist < Self::MAX_DIST
     }
 
     pub fn is_none(&self) -> bool {
@@ -35,6 +33,6 @@ impl Hit {
     }
 
     pub fn is_closer_than(&self, other: Self) -> bool {
-        self.t < other.t
+        self.dist < other.dist
     }
 }
