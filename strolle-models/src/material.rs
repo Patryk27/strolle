@@ -4,7 +4,7 @@ use crate::*;
 
 /// # Memory model
 ///
-/// ```
+/// ```ignore
 /// base_color.x = base color's red component
 /// base_color.y = base color's green component
 /// base_color.z = base color's blue component

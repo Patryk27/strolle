@@ -39,3 +39,6 @@ fn unzip_asset(name: &str) {
         panic!("Couldn't extract asset {}: {}", name, err)
     });
 }
+
+#[allow(dead_code)]
+fn main() {}
