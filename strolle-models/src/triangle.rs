@@ -2,7 +2,7 @@ use crate::*;
 
 /// # Memory model
 ///
-/// ```
+/// ```ignore
 /// v0.x = vertex 0 (x; f32)
 /// v0.y = vertex 0 (y; f32)
 /// v0.z = vertex 0 (z; f32)

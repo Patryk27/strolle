@@ -8,8 +8,11 @@
 use spirv_std::glam::Vec3;
 use strolle_models::TriangleId;
 
+use self::morton_code::MortonCode;
 use super::*;
 use crate::GeometryTris;
+
+mod morton_code;
 
 #[derive(Clone)]
 pub struct LinearBvh;
@@ -20,7 +23,7 @@ impl LinearBvh {
         /// Transforms given point into a Morton code.
         ///
         /// Point's coordinates should be within range 0.0..=1.0.
-        fn vec3_to_morton(vec: Vec3) -> u64 {
+        fn vec3_to_morton(vec: Vec3) -> MortonCode {
             /// Expands a 21-bit number into a 64-bit one by inserting zeros
             /// between bits.
             fn expand_bits(mut x: u64) -> u64 {
@@ -58,7 +61,7 @@ impl LinearBvh {
             let ys = expand_bits(ys) << 2;
             let zs = expand_bits(zs) << 1;
 
-            xs | ys | zs
+            MortonCode(xs | ys | zs)
         }
 
         let scene_bb = BoundingBox::for_scene(scene);
@@ -85,7 +88,7 @@ impl LinearBvh {
         // -----
 
         fn generate(
-            tris: &[(u64, TriangleId)],
+            tris: &[(MortonCode, TriangleId)],
             left: usize,
             right: usize,
         ) -> LinearBvhNode {
@@ -111,7 +114,7 @@ impl LinearBvh {
         }
 
         fn find_split(
-            tris: &[(u64, TriangleId)],
+            tris: &[(MortonCode, TriangleId)],
             left: usize,
             right: usize,
         ) -> usize {
