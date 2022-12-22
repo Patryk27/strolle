@@ -19,14 +19,24 @@ pub(crate) fn geometry(
     meshes: Extract<Res<Assets<Mesh>>>,
     materials: Extract<Res<Assets<StandardMaterial>>>,
     models: Extract<
-        Query<(Entity, &Transform, &Handle<Mesh>, &Handle<StandardMaterial>)>,
+        Query<(
+            Entity,
+            &GlobalTransform,
+            &Handle<Mesh>,
+            &Handle<StandardMaterial>,
+        )>,
     >,
     changed_models: Extract<
         Query<
-            (Entity, &Transform, &Handle<Mesh>, &Handle<StandardMaterial>),
+            (
+                Entity,
+                &GlobalTransform,
+                &Handle<Mesh>,
+                &Handle<StandardMaterial>,
+            ),
             Or<(
                 Changed<Handle<Mesh>>,
-                Changed<Transform>,
+                Changed<GlobalTransform>,
                 Changed<Handle<StandardMaterial>>,
             )>,
         >,
