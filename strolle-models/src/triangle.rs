@@ -109,6 +109,8 @@ impl Triangle {
             //     + v * self.n2.xyz()
             //     + (1.0 - u - v) * self.n0.xyz();
 
+            // n.normalize()
+
             v0v1.cross(v0v2).normalize()
         };
 
