@@ -17,15 +17,25 @@ use smooth_bevy_cameras::LookTransformPlugin;
 
 lazy_static! {
     static ref MODELS: Vec<(&'static str, Transform)> = vec![
-        ("buddha.obj", Transform::from_scale(Vec3::splat(35.0))),
+        (
+            "ferris.obj",
+            Transform::from_scale(Vec3::splat(7.5))
+                .with_translation(vec3(0.0, 2.0, 0.0))
+                .with_rotation(Quat::from_rotation_y(-0.5))
+        ),
+        (
+            "buddha.obj",
+            Transform::from_scale(Vec3::splat(50.0))
+                .with_translation(vec3(0.0, -2.5, 0.0))
+        ),
         (
             "bunny.obj",
-            Transform::from_scale(Vec3::splat(35.0))
-                .with_translation(vec3(0.0, 2.5, 0.0))
+            Transform::from_scale(Vec3::splat(50.0))
+                .with_translation(vec3(0.0, 0.5, 0.0))
         ),
         (
             "dragon.obj",
-            Transform::from_scale(Vec3::splat(0.02))
+            Transform::from_scale(Vec3::splat(0.06))
                 .with_translation(vec3(0.0, 5.0, 0.0))
                 .with_rotation(Quat::from_rotation_y(PI)),
         ),
