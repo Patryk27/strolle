@@ -54,7 +54,7 @@ impl Engine {
             StorageBuffer::new(device, "strolle_geometry_uvs", BUF_SIZE);
 
         let geometry_bvh =
-            StorageBuffer::new(device, "strolle_geometry_bvh", BUF_SIZE);
+            StorageBuffer::new(device, "strolle_geometry_bvh", 2 * BUF_SIZE);
 
         let lights = UniformBuffer::new(device, "strolle_lights");
         let materials = UniformBuffer::new(device, "strolle_materials");

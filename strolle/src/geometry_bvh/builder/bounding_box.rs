@@ -51,23 +51,28 @@ impl BoundingBox {
 
     /// Maps `p` from `self.min() ..= self.max()` to `0.0 ..= 1.0`.
     pub fn map(&self, mut p: Vec3) -> Vec3 {
+        let clip = |n: &mut f32| {
+            if n.is_nan() {
+                // This can happen if our extent is a 2D (e.g. a plane) - in
+                // that case it doesn't matter what value gets assigned here,
+                // since all of the vectors will get the same value
+                *n = 0.0;
+            }
+
+            if *n < 0.0 && *n > -0.001 {
+                *n = 0.0;
+            }
+
+            if *n > 1.0 && *n < 1.001 {
+                *n = 1.0;
+            }
+        };
+
         p = (p - self.min()) / self.extent();
 
-        // This can happen if our extent is a 2D (e.g. a plane) - in that case
-        // it doesn't matter which particular x/y/z gets assigned here, since
-        // all of the vectors will get the same value:
-
-        if p.x.is_nan() {
-            p.x = 0.0;
-        }
-
-        if p.y.is_nan() {
-            p.y = 0.0;
-        }
-
-        if p.z.is_nan() {
-            p.z = 0.0;
-        }
+        clip(&mut p.x);
+        clip(&mut p.y);
+        clip(&mut p.z);
 
         p
     }
