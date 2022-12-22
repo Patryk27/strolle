@@ -36,15 +36,6 @@ impl Material {
         }
     }
 
-    pub fn reflectivity(&self) -> f32 {
-        self.params.reflectance
-    }
-
-    // TODO: Is this still needed? Shouldn't it just be base color?
-    pub fn reflectivity_color(&self) -> Vec3 {
-        vec3(1.0, 1.0, 1.0)
-    }
-
     pub fn shade(
         &self,
         world: &World,
@@ -90,69 +81,62 @@ impl Material {
             + self.base_color.xyz() * self.params.metallic;
 
         let range = light.range();
-
         let hit_to_light = light.pos() - hit.point;
-
         let distance_squared = hit_to_light.length_squared();
-        // TODO: sqrt is expensive
-        let distance = distance_squared.sqrt();
+        let distance = distance_squared.sqrt(); // TODO expensive
 
-        let ray = Ray::new(hit.point, hit_to_light);
+        let ray = Ray::new(light.pos(), -hit_to_light);
         let l = hit_to_light.normalize();
         let n_o_l = sat(hit.normal.dot(l));
 
-        // TODO move above?
-        let is_occluded = ray.hits_anything(world, stack, distance);
-
-        let (diffuse, specular) = if is_occluded {
-            (0.0, Vec3::ZERO)
+        let visibility_factor = if ray.hits_anything(world, stack, distance) {
+            0.0
         } else {
-            let diffuse = diffuse_light(l, ray, hit, roughness, n_o_l);
-
-            let center_to_ray = hit_to_light.dot(r) * r - hit_to_light;
-
-            let closest_point = hit_to_light
-                + center_to_ray
-                    * sat(light.radius()
-                        * inverse_sqrt(center_to_ray.dot(center_to_ray)));
-
-            let l_spec_length_inverse =
-                inverse_sqrt(closest_point.dot(closest_point));
-
-            let normalization_factor = roughness
-                / sat(
-                    roughness + (light.radius() * 0.5 * l_spec_length_inverse)
-                );
-
-            let specular_intensity =
-                normalization_factor * normalization_factor;
-
-            let l = closest_point * l_spec_length_inverse;
-            let h = (l + v).normalize();
-            let n_o_l = sat(hit.normal.dot(l));
-            let n_o_h = sat(hit.normal.dot(h));
-            let l_o_h = sat(l.dot(h));
-
-            let specular = specular(
-                f0,
-                roughness,
-                n_dot_v,
-                n_o_l,
-                n_o_h,
-                l_o_h,
-                specular_intensity,
-            );
-
-            (diffuse, specular)
+            1.0
         };
+
+        let diffuse = diffuse_light(l, ray, hit, roughness, n_o_l);
+        let center_to_ray = hit_to_light.dot(r) * r - hit_to_light;
+
+        let closest_point = hit_to_light
+            + center_to_ray
+                * sat(light.radius()
+                    * inverse_sqrt(center_to_ray.dot(center_to_ray)));
+
+        let l_spec_length_inverse =
+            inverse_sqrt(closest_point.dot(closest_point));
+
+        let normalization_factor = roughness
+            / sat(roughness + (light.radius() * 0.5 * l_spec_length_inverse));
+
+        let specular_intensity = normalization_factor * normalization_factor;
+
+        let l = closest_point * l_spec_length_inverse;
+        let h = (l + v).normalize();
+        let n_o_l = sat(hit.normal.dot(l));
+        let n_o_h = sat(hit.normal.dot(h));
+        let l_o_h = sat(l.dot(h));
+
+        let specular = specular(
+            f0,
+            roughness,
+            n_dot_v,
+            n_o_l,
+            n_o_h,
+            l_o_h,
+            specular_intensity,
+        );
 
         let distance_attenuation =
             distance_attenuation(distance_squared, 1.0 / range.powf(2.0));
 
         let diffuse = diffuse * diffuse_color;
 
-        let contribution =
-            (diffuse + specular) * light.color() * distance_attenuation * n_o_l;
+        let contribution = (diffuse + specular)
+            * light.color()
+            * distance_attenuation
+            * n_o_l
+            * visibility_factor;
 
         contribution.extend(0.0)
     }

@@ -28,20 +28,6 @@ impl Ray {
         self.direction
     }
 
-    pub fn hits_box_at(self, bb_min: Vec3, bb_max: Vec3) -> f32 {
-        let hit_min = (bb_min - self.origin) * self.inv_direction;
-        let hit_max = (bb_max - self.origin) * self.inv_direction;
-
-        let tmin = hit_min.min(hit_max).max_element();
-        let tmax = hit_min.max(hit_max).min_element();
-
-        if tmax >= tmin && tmax >= 0.0 {
-            tmin
-        } else {
-            f32::MAX
-        }
-    }
-
     pub fn trace(self, world: &World, stack: RayTraversingStack) -> u32 {
         let culling = Culling::Enabled;
         let dist = f32::MAX;
@@ -169,5 +155,19 @@ impl Ray {
         }
 
         traversed_nodes
+    }
+
+    fn hits_box_at(self, bb_min: Vec3, bb_max: Vec3) -> f32 {
+        let hit_min = (bb_min - self.origin) * self.inv_direction;
+        let hit_max = (bb_max - self.origin) * self.inv_direction;
+
+        let tmin = hit_min.min(hit_max).max_element();
+        let tmax = hit_min.max(hit_max).min_element();
+
+        if tmax >= tmin && tmax >= 0.0 {
+            tmin
+        } else {
+            f32::MAX
+        }
     }
 }
