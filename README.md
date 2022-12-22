@@ -61,3 +61,9 @@ keyboard & mouse to move the camera.
 (note that model takes a few seconds to appear.)
 
 Model thanks to: https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/.
+
+## Options
+
+`strolle-models/src/lib.rs` contains a constant called `ENABLE_AABB` - if you
+enable it (and re-generate the shaders), the raytracer will draw BVH bounding
+boxes instead of the triangles; can be fun to browse!
