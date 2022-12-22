@@ -1,7 +1,11 @@
 # strolle
 
 Strolle (from _strålspårning_) is a real-time raytracing engine written entirely
-in Rust, running on CPU & GPU.
+in Rust, running on CPU & GPU:
+
+![1.png](_readme/1.png)
+![2.png](_readme/2.png)
+![3.png](_readme/3.png)
 
 It comes integrated with [Bevy](https://bevyengine.org/), but can be also used
 on its own (within `wgpu`).
@@ -67,3 +71,5 @@ Model thanks to: https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/.
 `strolle-models/src/lib.rs` contains a constant called `ENABLE_AABB` - if you
 enable it (and re-generate the shaders), the raytracer will draw BVH bounding
 boxes instead of the triangles; can be fun to browse!
+
+![aabb.png](_readme/aabb.png)
