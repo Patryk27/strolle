@@ -39,6 +39,12 @@ impl Viewport {
 
         let camera = UniformBuffer::new(device, "strolle_camera");
 
+        let rays = StorageBuffer::new(
+            device,
+            "strolle_rays",
+            (size.x * size.y * 7) as usize * mem::size_of::<f32>(),
+        );
+
         let hits = StorageBuffer::new(
             device,
             "strolle_hits",
@@ -48,10 +54,12 @@ impl Viewport {
         let image = Texture::new(device, "strolle_image", size);
 
         let (tracer_ds0, tracer_ds1, tracer_pipeline) =
-            Self::build_tracer(engine, device, &camera, &hits);
+            Self::build_tracer(engine, device, &camera, &rays, &hits);
 
         let (materializer_ds0, materializer_ds1, materializer_pipeline) =
-            Self::build_materializer(engine, device, &camera, &hits, &image);
+            Self::build_materializer(
+                engine, device, &camera, &rays, &hits, &image,
+            );
 
         let (printer_ds0, printer_pipeline) =
             Self::build_printer(engine, device, format, &camera, &image);
@@ -76,6 +84,7 @@ impl Viewport {
         engine: &Engine,
         device: &wgpu::Device,
         camera: &UniformBuffer<Camera>,
+        rays: &StorageBuffer<f32>,
         hits: &StorageBuffer<u32>,
     ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline) {
         let ds0 = DescriptorSet::builder("strolle_tracer_ds0")
@@ -88,6 +97,7 @@ impl Viewport {
 
         let ds1 = DescriptorSet::builder("strolle_tracer_ds1")
             .add(camera)
+            .add(rays)
             .add(hits)
             .build(device);
 
@@ -116,6 +126,7 @@ impl Viewport {
         engine: &Engine,
         device: &wgpu::Device,
         camera: &UniformBuffer<Camera>,
+        rays: &StorageBuffer<f32>,
         hits: &StorageBuffer<u32>,
         image: &Texture,
     ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline) {
@@ -129,6 +140,7 @@ impl Viewport {
 
         let ds1 = DescriptorSet::builder("strolle_materializer_ds1")
             .add(camera)
+            .add(rays)
             .add(hits)
             .add(&image.writable())
             .build(device);

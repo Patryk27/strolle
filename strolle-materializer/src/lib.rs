@@ -18,13 +18,16 @@ pub fn main(
     #[spirv(uniform, descriptor_set = 0, binding = 3)] lights: &Lights,
     #[spirv(uniform, descriptor_set = 0, binding = 4)] materials: &Materials,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
-    #[spirv(storage_buffer, descriptor_set = 1, binding = 1)] hits: &[u32],
-    #[spirv(descriptor_set = 1, binding = 2)] image_tex: &Image!(2D, format=rgba16f, sampled=false),
+    #[spirv(storage_buffer, descriptor_set = 1, binding = 1)]
+    _rays: &mut [f32],
+    #[spirv(storage_buffer, descriptor_set = 1, binding = 2)] hits: &[u32],
+    #[spirv(descriptor_set = 1, binding = 3)] image: &Image!(2D, format=rgba16f, sampled=false),
     #[spirv(workgroup)] stack: RayTraversingStack,
 ) {
     let global_idx = id.y * camera.viewport_size().as_uvec2().x + id.x;
 
     let world = World {
+        global_idx,
         local_idx,
         geometry_tris: GeometryTrisView::new(geometry_tris),
         geometry_uvs: GeometryUvsView::new(geometry_uvs),
@@ -39,6 +42,7 @@ pub fn main(
     let color = if hit == 0 {
         world.camera.clear_color().extend(1.0)
     } else {
+        #[allow(clippy::collapsible_else_if)]
         if debug::ENABLE_AABB {
             spirv_std::glam::Vec3::splat((hit as f32) / 100.0).extend(1.0)
         } else {
@@ -56,6 +60,6 @@ pub fn main(
 
     // TODO safety
     unsafe {
-        image_tex.write(id.xy().as_ivec2(), color);
+        image.write(id.xy().as_ivec2(), color);
     }
 }
