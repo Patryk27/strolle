@@ -82,6 +82,12 @@ impl StorageBufferable for u32 {
     }
 }
 
+impl StorageBufferable for f32 {
+    fn data(&self) -> &[u8] {
+        bytemuck::cast_slice(slice::from_ref(self))
+    }
+}
+
 impl<T> StorageBufferable for Vec<T>
 where
     T: Pod,

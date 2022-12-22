@@ -19,12 +19,15 @@ pub fn main(
     #[spirv(uniform, descriptor_set = 0, binding = 4)] materials: &Materials,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
     #[spirv(storage_buffer, descriptor_set = 1, binding = 1)]
+    _rays: &mut [u32],
+    #[spirv(storage_buffer, descriptor_set = 1, binding = 2)]
     hits: &mut [u32],
     #[spirv(workgroup)] stack: RayTraversingStack,
 ) {
     let global_idx = id.y * camera.viewport_size().as_uvec2().x + id.x;
 
     let world = World {
+        global_idx,
         local_idx,
         geometry_tris: GeometryTrisView::new(geometry_tris),
         geometry_uvs: GeometryUvsView::new(geometry_uvs),
