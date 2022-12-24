@@ -46,8 +46,8 @@ $ cargo run --release --example models
 ```
 
 Shows support for complex geometry (from a few thousand to a few hundred
-triangles); use left and right arrows to change models, use keyboard & mouse to
-move the camera.
+thousand triangles); use left and right arrows to change models, use keyboard &
+mouse to move the camera.
 
 Models thanks to:
 - https://github.com/alecjacobson/common-3d-test-models
