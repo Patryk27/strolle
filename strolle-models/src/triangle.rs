@@ -103,15 +103,11 @@ impl Triangle {
         }
 
         let normal = {
-            // TODO
-            //
-            // let n = u * self.n1.xyz()
-            //     + v * self.n2.xyz()
-            //     + (1.0 - u - v) * self.n0.xyz();
+            let n = u * self.n1.xyz()
+                + v * self.n2.xyz()
+                + (1.0 - u - v) * self.n0.xyz();
 
-            // n.normalize()
-
-            v0v1.cross(v0v2).normalize()
+            n.normalize()
         };
 
         Hit {
@@ -133,9 +129,20 @@ impl Triangle {
             Vec3::new(v.x, v.y, v.z)
         }
 
+        fn transform_normal(v: Vec3, mut xform: Mat4) -> Vec3 {
+            // Transform-translating normals doesn't make sense and so we have
+            // to zero-out the fourth column before applying the transformation
+            xform.w_axis = Default::default();
+
+            transform(v, xform)
+        }
+
         self.v0 = transform(self.v0.xyz(), val).extend(self.v0.w);
         self.v1 = transform(self.v1.xyz(), val).extend(self.v1.w);
         self.v2 = transform(self.v2.xyz(), val).extend(self.v2.w);
+        self.n0 = transform_normal(self.n0.xyz(), val).extend(0.0);
+        self.n1 = transform_normal(self.n1.xyz(), val).extend(0.0);
+        self.n2 = transform_normal(self.n2.xyz(), val).extend(0.0);
         self
     }
 
