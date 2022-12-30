@@ -194,10 +194,6 @@ impl Ray {
         loop {
             traversed_nodes += 1;
 
-            if traversed_nodes > 1024 {
-                break;
-            }
-
             let opcode = world.bvh.get(bvh_ptr).x.to_bits();
             let is_internal = opcode & 1 == 0;
             let args = opcode >> 1;
