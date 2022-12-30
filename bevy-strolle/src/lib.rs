@@ -35,11 +35,20 @@ impl Plugin for StrollePlugin {
         render_app.insert_resource(EngineRes(engine));
         render_app.insert_resource(SyncedState::default());
 
-        // -----
+        // -------------------- //
+        // RenderStage::Extract //
+
+        render_app
+            .add_system_to_stage(RenderStage::Extract, stages::extract::meshes);
 
         render_app.add_system_to_stage(
             RenderStage::Extract,
-            stages::extract::geometry,
+            stages::extract::materials,
+        );
+
+        render_app.add_system_to_stage(
+            RenderStage::Extract,
+            stages::extract::instances,
         );
 
         render_app
@@ -50,12 +59,36 @@ impl Plugin for StrollePlugin {
             stages::extract::cameras,
         );
 
+        // -------------------- //
+        // RenderStage::Prepare //
+
+        render_app
+            .add_system_to_stage(RenderStage::Prepare, stages::prepare::meshes);
+
+        render_app.add_system_to_stage(
+            RenderStage::Prepare,
+            stages::prepare::materials,
+        );
+
+        render_app.add_system_to_stage(
+            RenderStage::Prepare,
+            stages::prepare::instances
+                .after(stages::prepare::meshes)
+                .after(stages::prepare::materials),
+        );
+
+        render_app
+            .add_system_to_stage(RenderStage::Prepare, stages::prepare::lights);
+
+        // ------------------ //
+        // RenderStage::Queue //
+
         render_app
             .add_system_to_stage(RenderStage::Queue, stages::queue::viewports);
 
         render_app.add_system_to_stage(
             RenderStage::Queue,
-            stages::queue::submit.after(stages::queue::viewports),
+            stages::queue::write.after(stages::queue::viewports),
         );
 
         // -----
@@ -102,10 +135,16 @@ impl Plugin for StrollePlugin {
 }
 
 #[derive(Resource)]
-struct EngineRes(st::Engine);
+struct EngineRes(st::Engine<Self>);
+
+impl st::EngineParams for EngineRes {
+    type MeshHandle = Handle<Mesh>;
+    type LightHandle = Entity;
+    type MaterialHandle = Handle<StandardMaterial>;
+}
 
 impl ops::Deref for EngineRes {
-    type Target = st::Engine;
+    type Target = st::Engine<Self>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

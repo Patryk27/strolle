@@ -1,10 +1,11 @@
 use std::mem;
+use std::ops::DerefMut;
 
 use spirv_std::glam::UVec2;
 use strolle_models::Camera;
 
 use crate::buffers::{DescriptorSet, StorageBuffer, Texture, UniformBuffer};
-use crate::Engine;
+use crate::{Engine, EngineParams};
 
 pub struct Viewport {
     pos: UVec2,
@@ -22,13 +23,17 @@ pub struct Viewport {
 }
 
 impl Viewport {
-    pub(crate) fn new(
-        engine: &Engine,
+    pub(crate) fn new<P>(
+        engine: &Engine<P>,
         device: &wgpu::Device,
         pos: UVec2,
         size: UVec2,
         format: wgpu::TextureFormat,
-    ) -> Self {
+        camera: Camera,
+    ) -> Self
+    where
+        P: EngineParams,
+    {
         log::info!(
             "Creating viewport ({})",
             Viewport::describe(pos, size, format)
@@ -37,29 +42,21 @@ impl Viewport {
         assert!(size.x > 0);
         assert!(size.y > 0);
 
-        let camera = UniformBuffer::new(device, "strolle_camera");
+        let camera = UniformBuffer::new(device, "strolle_camera", camera);
 
-        let rays = StorageBuffer::new(
-            device,
-            "strolle_rays",
-            (size.x * size.y * 7) as usize * mem::size_of::<f32>(),
-        );
-
-        let hits = StorageBuffer::new(
+        let hits = StorageBuffer::new_default(
             device,
             "strolle_hits",
-            (size.x * size.y) as usize * mem::size_of::<u32>(),
+            (2 * size.x * size.y) as usize * mem::size_of::<u32>(),
         );
 
         let image = Texture::new(device, "strolle_image", size);
 
         let (tracer_ds0, tracer_ds1, tracer_pipeline) =
-            Self::build_tracer(engine, device, &camera, &rays, &hits);
+            Self::build_tracer(engine, device, &camera, &hits);
 
         let (materializer_ds0, materializer_ds1, materializer_pipeline) =
-            Self::build_materializer(
-                engine, device, &camera, &rays, &hits, &image,
-            );
+            Self::build_materializer(engine, device, &camera, &hits, &image);
 
         let (printer_ds0, printer_pipeline) =
             Self::build_printer(engine, device, format, &camera, &image);
@@ -80,24 +77,26 @@ impl Viewport {
         }
     }
 
-    fn build_tracer(
-        engine: &Engine,
+    fn build_tracer<P>(
+        engine: &Engine<P>,
         device: &wgpu::Device,
         camera: &UniformBuffer<Camera>,
-        rays: &StorageBuffer<f32>,
         hits: &StorageBuffer<u32>,
-    ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline) {
+    ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline)
+    where
+        P: EngineParams,
+    {
         let ds0 = DescriptorSet::builder("strolle_tracer_ds0")
-            .add(&*engine.geometry_tris)
-            .add(&*engine.geometry_uvs)
-            .add(&*engine.geometry_bvh)
-            .add(&*engine.lights)
-            .add(&*engine.materials)
+            .add(&engine.triangles)
+            .add(&engine.instances)
+            .add(&engine.bvh)
+            .add(&engine.lights)
+            .add(&engine.materials)
+            .add(&engine.info)
             .build(device);
 
         let ds1 = DescriptorSet::builder("strolle_tracer_ds1")
             .add(camera)
-            .add(rays)
             .add(hits)
             .build(device);
 
@@ -122,25 +121,27 @@ impl Viewport {
         (ds0, ds1, pipeline)
     }
 
-    fn build_materializer(
-        engine: &Engine,
+    fn build_materializer<P>(
+        engine: &Engine<P>,
         device: &wgpu::Device,
         camera: &UniformBuffer<Camera>,
-        rays: &StorageBuffer<f32>,
         hits: &StorageBuffer<u32>,
         image: &Texture,
-    ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline) {
+    ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline)
+    where
+        P: EngineParams,
+    {
         let ds0 = DescriptorSet::builder("strolle_materializer_ds0")
-            .add(&*engine.geometry_tris)
-            .add(&*engine.geometry_uvs)
-            .add(&*engine.geometry_bvh)
-            .add(&*engine.lights)
-            .add(&*engine.materials)
+            .add(&engine.triangles)
+            .add(&engine.instances)
+            .add(&engine.bvh)
+            .add(&engine.lights)
+            .add(&engine.materials)
+            .add(&engine.info)
             .build(device);
 
         let ds1 = DescriptorSet::builder("strolle_materializer_ds1")
             .add(camera)
-            .add(rays)
             .add(hits)
             .add(&image.writable())
             .build(device);
@@ -166,13 +167,16 @@ impl Viewport {
         (ds0, ds1, pipeline)
     }
 
-    fn build_printer(
-        engine: &Engine,
+    fn build_printer<P>(
+        engine: &Engine<P>,
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
         camera: &UniformBuffer<Camera>,
         image: &Texture,
-    ) -> (DescriptorSet, wgpu::RenderPipeline) {
+    ) -> (DescriptorSet, wgpu::RenderPipeline)
+    where
+        P: EngineParams,
+    {
         let ds0 = DescriptorSet::builder("strolle_printer_ds0")
             .add(camera)
             .add(&image.readable())
@@ -224,8 +228,12 @@ impl Viewport {
         self.format
     }
 
-    pub fn write(&self, queue: &wgpu::Queue, camera: &Camera) {
-        self.camera.write(queue, camera);
+    pub fn set_camera(&mut self, camera: Camera) {
+        *self.camera.deref_mut() = camera;
+    }
+
+    pub fn write(&mut self, queue: &wgpu::Queue) {
+        self.camera.flush(queue);
     }
 
     pub fn render(

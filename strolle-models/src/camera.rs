@@ -1,4 +1,9 @@
-use crate::*;
+use bytemuck::{Pod, Zeroable};
+use glam::{vec2, vec4, UVec2, Vec2, Vec3, Vec4, Vec4Swizzles};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::float::Float;
+
+use crate::Ray;
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Pod, Zeroable)]

@@ -9,36 +9,49 @@ use strolle_models::*;
 pub fn main(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(local_invocation_index)] local_idx: u32,
+    #[spirv(workgroup)] stack: BvhTraversingStack,
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)]
-    geometry_tris: &[Vec4],
+    triangles: &[Triangle],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 1)]
-    geometry_uvs: &[Vec4],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)]
-    geometry_bvh: &[Vec4],
-    #[spirv(uniform, descriptor_set = 0, binding = 3)] lights: &Lights,
-    #[spirv(uniform, descriptor_set = 0, binding = 4)] materials: &Materials,
+    instances: &[Instance],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] bvh: &[Vec4],
+    #[spirv(uniform, descriptor_set = 0, binding = 3)] lights: &[Light],
+    #[spirv(uniform, descriptor_set = 0, binding = 4)] materials: &[Material],
+    #[spirv(uniform, descriptor_set = 0, binding = 5)] info: &Info,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
     #[spirv(storage_buffer, descriptor_set = 1, binding = 1)]
-    _rays: &mut [u32],
-    #[spirv(storage_buffer, descriptor_set = 1, binding = 2)]
     hits: &mut [u32],
-    #[spirv(workgroup)] stack: RayTraversingStack,
 ) {
+    // If the world is empty, bail out early.
+    //
+    // It's not as much as optimization as a work-around for an empty BVH - by
+    // having this below as an early check, we don't have to special-case BVH
+    // later.
+    if info.is_world_empty() {
+        return;
+    }
+
     let global_idx = id.y * camera.viewport_size().as_uvec2().x + id.x;
 
     let world = World {
         global_idx,
         local_idx,
-        geometry_tris: GeometryTrisView::new(geometry_tris),
-        geometry_uvs: GeometryUvsView::new(geometry_uvs),
-        geometry_bvh: GeometryBvhView::new(geometry_bvh),
+        triangles: TrianglesView::new(triangles),
+        instances: InstancesView::new(instances),
+        bvh: BvhView::new(bvh),
         camera,
-        lights,
-        materials,
+        lights: LightsView::new(lights),
+        materials: MaterialsView::new(materials),
+        info,
     };
 
-    hits[global_idx as usize] = world
+    let (instance_id, triangle_id) = world
         .camera
         .ray(vec2(id.x as f32, id.y as f32))
         .trace(&world, stack);
+
+    let hit_idx = 2 * (global_idx as usize);
+
+    hits[hit_idx] = instance_id;
+    hits[hit_idx + 1] = triangle_id;
 }

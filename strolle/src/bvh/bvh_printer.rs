@@ -27,10 +27,10 @@ impl BvhPrinter {
         *id_counter += 1;
 
         match node {
-            BvhNode::Node { bb, left, right } => {
+            BvhNode::Internal { bb, left, right } => {
                 _ = writeln!(
                     out,
-                    "  n{} [label=\"node({} : {})\"]",
+                    "  n{} [label=\"{} .. {}\"]",
                     id,
                     bb.min(),
                     bb.max()
@@ -44,8 +44,15 @@ impl BvhPrinter {
                 }
             }
 
-            BvhNode::Leaf { tri, .. } => {
-                _ = writeln!(out, "  n{} [label=\"leaf({})\"]", id, tri);
+            BvhNode::Leaf { bb, payload } => {
+                _ = writeln!(
+                    out,
+                    "  n{} [label=\"{} .. {}\\n{:?}\"]",
+                    id,
+                    bb.min(),
+                    bb.max(),
+                    payload
+                );
             }
         }
 

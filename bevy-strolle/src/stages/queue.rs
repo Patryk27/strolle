@@ -1,9 +1,8 @@
-use std::collections::HashSet;
-
 use bevy::prelude::*;
 use bevy::render::camera::ExtractedCamera as BevyExtractedCamera;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::view::ViewTarget;
+use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::state::{ExtractedCamera, SyncedState, SyncedView};
@@ -90,7 +89,7 @@ pub(crate) fn viewports(
         );
 
         if let Some(view) = state.views.get_mut(&entity) {
-            view.camera = camera;
+            view.viewport.set_camera(camera);
         } else {
             log::debug!("Camera {:?} extracted", entity);
 
@@ -99,9 +98,10 @@ pub(crate) fn viewports(
                 viewport_pos,
                 viewport_size,
                 texture_format,
+                camera,
             );
 
-            state.views.insert(entity, SyncedView { camera, viewport });
+            state.views.insert(entity, SyncedView { viewport });
         }
 
         alive_views.insert(entity);
@@ -122,10 +122,10 @@ pub(crate) fn viewports(
     }
 }
 
-pub(crate) fn submit(
+pub(crate) fn write(
     queue: Res<RenderQueue>,
-    engine: Res<EngineRes>,
+    mut engine: ResMut<EngineRes>,
     mut state: ResMut<SyncedState>,
 ) {
-    state.write(&engine, &queue);
+    state.write(&mut engine, &queue);
 }

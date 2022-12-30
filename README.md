@@ -39,6 +39,15 @@ $ cargo run --release --example cubes
 Shows a few cubes rotating around the origin; use keyboard & mouse to move the
 camera.
 
+### Instancing
+
+``` shell
+$ cargo run --release --example instancing
+```
+
+Shows support for hierarchical BVH - there's 100 bunnies * 69 polygons per each
+bunny; use keyboard & mouse to move the camera.
+
 ### Models
 
 ``` shell

@@ -8,7 +8,7 @@ pub use self::storage_buffer::*;
 pub use self::texture::*;
 pub use self::uniform_buffer::*;
 
-pub(crate) trait Bindable {
+pub trait Bindable {
     fn bind(
         &self,
         binding: u32,

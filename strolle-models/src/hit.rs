@@ -1,13 +1,11 @@
-use crate::*;
+use glam::{Vec2, Vec3};
 
 #[derive(Copy, Clone)]
 pub struct Hit {
-    pub dist: f32,
+    pub distance: f32,
     pub uv: Vec2,
-    pub ray: Ray,
     pub point: Vec3,
     pub normal: Vec3,
-    pub mat_id: MaterialId,
 }
 
 impl Hit {
@@ -15,17 +13,15 @@ impl Hit {
 
     pub fn none() -> Self {
         Self {
-            dist: Self::MAX_DIST,
+            distance: Self::MAX_DIST,
             uv: Default::default(),
-            ray: Default::default(),
             point: Default::default(),
             normal: Default::default(),
-            mat_id: MaterialId::new(0),
         }
     }
 
     pub fn is_some(&self) -> bool {
-        self.dist < Self::MAX_DIST
+        self.distance < Self::MAX_DIST
     }
 
     pub fn is_none(&self) -> bool {
@@ -33,6 +29,6 @@ impl Hit {
     }
 
     pub fn is_closer_than(&self, other: Self) -> bool {
-        self.dist < other.dist
+        self.distance < other.distance
     }
 }

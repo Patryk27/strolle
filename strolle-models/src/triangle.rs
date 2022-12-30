@@ -1,32 +1,18 @@
-use crate::*;
+use bytemuck::{Pod, Zeroable};
+use glam::{vec2, Vec3, Vec4, Vec4Swizzles};
 
-/// # Memory model
-///
-/// ```ignore
-/// v0.x = vertex 0 (x; f32)
-/// v0.y = vertex 0 (y; f32)
-/// v0.z = vertex 0 (z; f32)
-/// v0.w (bits 0..16) = material id (u16)
-///
-/// v1.x = vertex 1 (x; f32)
-/// v1.y = vertex 1 (y; f32)
-/// v1.z = vertex 1 (z; f32)
-///
-/// v2.x = vertex 2 (x; f32)
-/// v2.y = vertex 2 (y; f32)
-/// v2.z = vertex 3 (z; f32)
-/// ```
+use crate::{Hit, Ray};
+
 #[repr(C)]
-#[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+#[derive(Clone, Copy, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug, PartialEq))]
 pub struct Triangle {
-    // TODO make them private
-    pub v0: Vec4,
-    pub v1: Vec4,
-    pub v2: Vec4,
-    pub n0: Vec4,
-    pub n1: Vec4,
-    pub n2: Vec4,
+    d0: Vec4,
+    d1: Vec4,
+    d2: Vec4,
+    d3: Vec4,
+    d4: Vec4,
+    d5: Vec4,
 }
 
 impl Triangle {
@@ -37,61 +23,59 @@ impl Triangle {
         n0: Vec3,
         n1: Vec3,
         n2: Vec3,
-        mat_id: MaterialId,
     ) -> Self {
         Self {
-            v0: v0.extend(f32::from_bits(mat_id.get() as _)),
-            v1: v1.extend(1.0),
-            v2: v2.extend(0.0),
-            n0: n0.extend(0.0),
-            n1: n1.extend(0.0),
-            n2: n2.extend(0.0),
+            d0: v0.extend(Default::default()),
+            d1: v1.extend(Default::default()),
+            d2: v2.extend(Default::default()),
+            d3: n0.extend(Default::default()),
+            d4: n1.extend(Default::default()),
+            d5: n2.extend(Default::default()),
         }
-    }
-
-    #[cfg(not(target_arch = "spirv"))]
-    pub fn is_none(self) -> bool {
-        self == Self::default()
-    }
-
-    #[cfg(not(target_arch = "spirv"))]
-    pub fn is_some(self) -> bool {
-        !self.is_none()
     }
 
     pub fn v0(&self) -> Vec3 {
-        self.v0.xyz()
+        self.d0.xyz()
     }
+
     pub fn v1(&self) -> Vec3 {
-        self.v1.xyz()
+        self.d1.xyz()
     }
 
     pub fn v2(&self) -> Vec3 {
-        self.v2.xyz()
+        self.d2.xyz()
     }
 
-    pub fn material_id(&self) -> MaterialId {
-        MaterialId::new(self.v0.w.to_bits() as _)
+    pub fn n0(&self) -> Vec3 {
+        self.d3.xyz()
     }
 
-    pub fn hit(self, ray: Ray, culling: Culling) -> Hit {
-        // Following the Möller-Trumbore algorithm
+    pub fn n1(&self) -> Vec3 {
+        self.d4.xyz()
+    }
 
-        let v0v1 = (self.v1 - self.v0).truncate();
-        let v0v2 = (self.v2 - self.v0).truncate();
+    pub fn n2(&self) -> Vec3 {
+        self.d5.xyz()
+    }
+
+    pub fn with_transform(mut self, mat: glam::Mat4) -> Self {
+        self.d0 = mat.transform_point3(self.d0.xyz()).extend(self.d0.w);
+        self.d1 = mat.transform_point3(self.d1.xyz()).extend(self.d1.w);
+        self.d2 = mat.transform_point3(self.d2.xyz()).extend(self.d2.w);
+        self.d3 = mat.transform_vector3(self.d3.xyz()).extend(self.d3.w);
+        self.d4 = mat.transform_vector3(self.d4.xyz()).extend(self.d4.w);
+        self.d5 = mat.transform_vector3(self.d5.xyz()).extend(self.d5.w);
+        self
+    }
+
+    // Following the Möller-Trumbore algorithm
+    pub fn hit(self, ray: Ray) -> Hit {
+        let v0v1 = self.v1() - self.v0();
+        let v0v2 = self.v2() - self.v0();
         let pvec = ray.direction().cross(v0v2);
         let det = v0v1.dot(pvec);
-
-        if culling.enabled() {
-            if det < f32::EPSILON {
-                return Hit::none();
-            }
-        } else if det.abs() < f32::EPSILON {
-            return Hit::none();
-        }
-
         let inv_det = 1.0 / det;
-        let tvec = ray.origin() - self.v0.truncate();
+        let tvec = ray.origin() - self.v0();
         let u = tvec.dot(pvec) * inv_det;
         let qvec = tvec.cross(v0v1);
         let v = ray.direction().dot(qvec) * inv_det;
@@ -102,50 +86,23 @@ impl Triangle {
             return Hit::none();
         }
 
-        let normal = {
-            let n = u * self.n1.xyz()
-                + v * self.n2.xyz()
-                + (1.0 - u - v) * self.n0.xyz();
+        let point = ray.origin() + ray.direction() * (distance - 0.01);
 
-            n.normalize()
-        };
+        let normal =
+            (u * self.n1() + v * self.n2() + (1.0 - u - v) * self.n0())
+                .normalize();
 
         Hit {
-            dist: distance,
+            distance,
             uv: vec2(u, v),
-            ray,
-            point: ray.origin() + ray.direction() * (distance - 0.01),
+            point,
             normal,
-            mat_id: self.material_id(),
         }
     }
 }
 
 #[cfg(not(target_arch = "spirv"))]
 impl Triangle {
-    pub fn with_transform(mut self, val: Mat4) -> Self {
-        fn transform(v: Vec3, xform: Mat4) -> Vec3 {
-            let v = xform * v.extend(1.0);
-            Vec3::new(v.x, v.y, v.z)
-        }
-
-        fn transform_normal(v: Vec3, mut xform: Mat4) -> Vec3 {
-            // Transform-translating normals doesn't make sense and so we have
-            // to zero-out the fourth column before applying the transformation
-            xform.w_axis = Default::default();
-
-            transform(v, xform)
-        }
-
-        self.v0 = transform(self.v0.xyz(), val).extend(self.v0.w);
-        self.v1 = transform(self.v1.xyz(), val).extend(self.v1.w);
-        self.v2 = transform(self.v2.xyz(), val).extend(self.v2.w);
-        self.n0 = transform_normal(self.n0.xyz(), val).extend(0.0);
-        self.n1 = transform_normal(self.n1.xyz(), val).extend(0.0);
-        self.n2 = transform_normal(self.n2.xyz(), val).extend(0.0);
-        self
-    }
-
     pub fn vertices(&self) -> [Vec3; 3] {
         [self.v0(), self.v1(), self.v2()]
     }
@@ -155,22 +112,20 @@ impl Triangle {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct TriangleId(usize);
+#[derive(Copy, Clone)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug, PartialEq))]
+pub struct TriangleId(u32);
 
 impl TriangleId {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: u32) -> Self {
         Self(id)
     }
 
-    pub fn get(self) -> usize {
+    pub fn get(self) -> u32 {
         self.0
     }
-}
 
-#[cfg(not(target_arch = "spirv"))]
-impl fmt::Display for TriangleId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+    pub fn get_mut(&mut self) -> &mut u32 {
+        &mut self.0
     }
 }
