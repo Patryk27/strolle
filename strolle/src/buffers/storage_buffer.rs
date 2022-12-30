@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 use std::{any, slice};
 
 use bytemuck::Pod;
@@ -7,7 +7,8 @@ use super::Bindable;
 
 pub struct StorageBuffer<T> {
     buffer: wgpu::Buffer,
-    _marker: PhantomData<T>,
+    data: T,
+    dirty: bool,
 }
 
 impl<T> StorageBuffer<T>
@@ -18,6 +19,7 @@ where
         device: &wgpu::Device,
         label: impl AsRef<str>,
         size: usize,
+        data: T,
     ) -> Self {
         let label = label.as_ref();
 
@@ -35,12 +37,52 @@ where
 
         Self {
             buffer,
-            _marker: PhantomData,
+            data,
+            dirty: true,
         }
     }
 
-    pub fn write(&self, queue: &wgpu::Queue, data: &T) {
-        queue.write_buffer(&self.buffer, 0, data.data());
+    pub fn new_default(
+        device: &wgpu::Device,
+        label: impl AsRef<str>,
+        size: usize,
+    ) -> Self
+    where
+        T: Default,
+    {
+        Self::new(device, label, size, Default::default())
+    }
+
+    pub fn flush(&mut self, queue: &wgpu::Queue) {
+        self.flush_offset(queue, 0);
+    }
+
+    pub fn flush_offset(&mut self, queue: &wgpu::Queue, offset: usize) {
+        if self.dirty {
+            queue.write_buffer(
+                &self.buffer,
+                offset as _,
+                &self.data.data()[offset..],
+            );
+
+            self.dirty = false;
+        }
+    }
+}
+
+impl<T> Deref for StorageBuffer<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<T> DerefMut for StorageBuffer<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.dirty = true;
+
+        &mut self.data
     }
 }
 
@@ -77,6 +119,12 @@ pub trait StorageBufferable {
 }
 
 impl StorageBufferable for u32 {
+    fn data(&self) -> &[u8] {
+        bytemuck::cast_slice(slice::from_ref(self))
+    }
+}
+
+impl StorageBufferable for u64 {
     fn data(&self) -> &[u8] {
         bytemuck::cast_slice(slice::from_ref(self))
     }

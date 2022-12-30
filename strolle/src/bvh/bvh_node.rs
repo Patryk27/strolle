@@ -1,10 +1,10 @@
-use strolle_models::TriangleId;
+use strolle_models::{InstanceId, MeshTriangleId};
 
 use super::*;
 
 #[derive(Clone, Debug)]
 pub enum BvhNode {
-    Node {
+    Internal {
         bb: BoundingBox,
         left: Box<Self>,
         right: Box<Self>,
@@ -12,13 +12,13 @@ pub enum BvhNode {
 
     Leaf {
         bb: BoundingBox,
-        tri: TriangleId,
+        payload: BvhNodePayload,
     },
 }
 
 impl BvhNode {
     pub fn validate(&self) {
-        if let BvhNode::Node { bb, left, right } = self {
+        if let BvhNode::Internal { bb, left, right } = self {
             left.validate_assert(*bb);
             left.validate();
 
@@ -41,8 +41,14 @@ impl BvhNode {
 
     fn bb(&self) -> BoundingBox {
         match self {
-            BvhNode::Node { bb, .. } => *bb,
+            BvhNode::Internal { bb, .. } => *bb,
             BvhNode::Leaf { bb, .. } => *bb,
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum BvhNodePayload {
+    Instance(InstanceId),
+    Triangle(MeshTriangleId),
 }

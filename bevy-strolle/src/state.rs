@@ -1,19 +1,12 @@
-mod geometry;
-mod materials;
-
 use bevy::prelude::*;
 use bevy::render::renderer::RenderQueue;
 use bevy::utils::HashMap;
 use strolle as st;
 
-pub use self::geometry::*;
-pub use self::materials::*;
+use crate::EngineRes;
 
 #[derive(Default, Resource)]
-pub struct SyncedState {
-    pub geometry: Geometry,
-    pub lights: st::Lights,
-    pub materials: Materials,
+pub(crate) struct SyncedState {
     pub views: HashMap<Entity, SyncedView>,
 }
 
@@ -22,24 +15,47 @@ impl SyncedState {
         !self.views.is_empty()
     }
 
-    pub fn write(&mut self, engine: &st::Engine, queue: &RenderQueue) {
+    pub fn write(
+        &mut self,
+        engine: &mut st::Engine<EngineRes>,
+        queue: &RenderQueue,
+    ) {
         if !self.is_active() {
             return;
         }
 
-        self.geometry.write(engine, queue);
-        engine.write_lights(queue.0.as_ref(), &self.lights);
-        engine.write_materials(queue.0.as_ref(), self.materials.inner());
+        engine.write(queue);
 
-        for view in self.views.values() {
-            view.viewport.write(queue, &view.camera);
+        for view in self.views.values_mut() {
+            view.viewport.write(queue);
         }
     }
 }
 
 pub struct SyncedView {
-    pub camera: st::Camera,
     pub viewport: st::Viewport,
+}
+
+#[derive(Resource)]
+pub struct ExtractedMeshes {
+    pub changed: Vec<(Handle<Mesh>, Mesh)>,
+    pub removed: Vec<Handle<Mesh>>,
+}
+
+#[derive(Resource)]
+pub struct ExtractedMaterials {
+    pub changed: Vec<(Handle<StandardMaterial>, StandardMaterial)>,
+    pub removed: Vec<Handle<StandardMaterial>>,
+}
+
+#[derive(Resource)]
+pub struct ExtractedInstances {
+    pub items: Vec<(Handle<Mesh>, Handle<StandardMaterial>, Mat4)>,
+}
+
+#[derive(Resource)]
+pub struct ExtractedLights {
+    pub items: Vec<(Entity, st::Light)>,
 }
 
 #[derive(Component)]

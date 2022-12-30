@@ -1,145 +1,129 @@
 use std::f32::consts::PI;
 
 use bevy::core_pipeline::clear_color::ClearColorConfig;
-use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
-use bevy::render::mesh::VertexAttributeValues;
-use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::Extract;
+use bevy::utils::HashSet;
 use strolle as st;
 
-use crate::state::ExtractedCamera;
-use crate::utils::{color_to_vec3, color_to_vec4};
-use crate::SyncedState;
+use crate::state::{
+    ExtractedCamera, ExtractedInstances, ExtractedLights, ExtractedMaterials,
+    ExtractedMeshes,
+};
+use crate::utils::color_to_vec3;
 
-#[allow(clippy::type_complexity)]
-pub(crate) fn geometry(
-    mut state: ResMut<SyncedState>,
+pub(crate) fn meshes(
+    mut commands: Commands,
+    mut events: Extract<EventReader<AssetEvent<Mesh>>>,
     meshes: Extract<Res<Assets<Mesh>>>,
-    materials: Extract<Res<Assets<StandardMaterial>>>,
-    models: Extract<
-        Query<(
-            Entity,
-            &GlobalTransform,
-            &Handle<Mesh>,
-            &Handle<StandardMaterial>,
-        )>,
-    >,
-    changed_models: Extract<
-        Query<
-            (
-                Entity,
-                &GlobalTransform,
-                &Handle<Mesh>,
-                &Handle<StandardMaterial>,
-            ),
-            Or<(
-                Changed<Handle<Mesh>>,
-                Changed<GlobalTransform>,
-                Changed<Handle<StandardMaterial>>,
-            )>,
-        >,
-    >,
-    assets_rx: Extract<EventReader<AssetEvent<Mesh>>>,
 ) {
-    if !state.is_active() {
-        return;
-    }
+    let mut changed = HashSet::default();
+    let mut removed = Vec::new();
 
-    if changed_models.is_empty() && assets_rx.is_empty() {
-        return;
-    }
-
-    let state = &mut *state;
-
-    // TODO we shouldn't have to extract the entire geometry each time
-    state.geometry = Default::default();
-
-    for (entity, transform, mesh, material) in models.iter() {
-        let transform = transform.compute_matrix();
-        let Some(mesh) = meshes.get(mesh) else { continue };
-        let Some(material) = materials.get(material) else { continue };
-
-        let material_id = {
-            let material = st::Material::default()
-                .with_base_color(color_to_vec4(material.base_color))
-                .with_perceptual_roughness(material.perceptual_roughness)
-                .with_metallic(material.metallic)
-                .with_reflectance(material.reflectance);
-
-            state.materials.alloc(entity, material)
-        };
-
-        // TODO we could support more, if we wanted
-        assert_eq!(mesh.primitive_topology(), PrimitiveTopology::TriangleList);
-
-        let positions = mesh
-            .attribute(Mesh::ATTRIBUTE_POSITION)
-            .and_then(VertexAttributeValues::as_float3)
-            .unwrap_or_else(|| {
-                panic!("Entity {:?}'s mesh has no positions", entity);
-            });
-
-        let normals = mesh
-            .attribute(Mesh::ATTRIBUTE_NORMAL)
-            .and_then(VertexAttributeValues::as_float3)
-            .unwrap_or_else(|| {
-                panic!("Entity {:?}'s mesh has no normals", entity);
-            });
-
-        let indices: Vec<_> = mesh.indices().unwrap().iter().collect();
-
-        let tris = indices.chunks(3).map(|vs| {
-            let v0 = positions[vs[0]];
-            let v1 = positions[vs[1]];
-            let v2 = positions[vs[2]];
-
-            let n0 = normals[vs[0]];
-            let n1 = normals[vs[1]];
-            let n2 = normals[vs[2]];
-
-            st::Triangle::new(
-                vec3(v0[0], v0[1], v0[2]),
-                vec3(v1[0], v1[1], v1[2]),
-                vec3(v2[0], v2[1], v2[2]),
-                vec3(n0[0], n0[1], n0[2]),
-                vec3(n1[0], n1[1], n1[2]),
-                vec3(n2[0], n2[1], n2[2]),
-                material_id,
-            )
-            .with_transform(transform)
-        });
-
-        for tri in tris {
-            state.geometry.alloc(tri);
+    for event in events.iter() {
+        match event {
+            AssetEvent::Created { handle }
+            | AssetEvent::Modified { handle } => {
+                changed.insert(handle.clone_weak());
+            }
+            AssetEvent::Removed { handle } => {
+                changed.remove(handle);
+                removed.push(handle.clone_weak());
+            }
         }
     }
 
-    state.geometry.reindex();
+    let changed = changed
+        .into_iter()
+        .flat_map(|handle| {
+            if let Some(mesh) = meshes.get(&handle) {
+                Some((handle, mesh.to_owned()))
+            } else {
+                removed.push(handle.clone_weak());
+                None
+            }
+        })
+        .collect();
+
+    commands.insert_resource(ExtractedMeshes { changed, removed });
+}
+
+pub(crate) fn materials(
+    mut commands: Commands,
+    mut events: Extract<EventReader<AssetEvent<StandardMaterial>>>,
+    materials: Extract<Res<Assets<StandardMaterial>>>,
+) {
+    let mut changed = HashSet::default();
+    let mut removed = Vec::new();
+
+    for event in events.iter() {
+        match event {
+            AssetEvent::Created { handle }
+            | AssetEvent::Modified { handle } => {
+                changed.insert(handle.clone_weak());
+            }
+            AssetEvent::Removed { handle } => {
+                changed.remove(handle);
+                removed.push(handle.clone_weak());
+            }
+        }
+    }
+
+    let changed = changed
+        .into_iter()
+        .flat_map(|handle| {
+            if let Some(material) = materials.get(&handle) {
+                Some((handle, material.to_owned()))
+            } else {
+                removed.push(handle.clone_weak());
+                None
+            }
+        })
+        .collect();
+
+    commands.insert_resource(ExtractedMaterials { changed, removed });
+}
+
+#[allow(clippy::type_complexity)]
+pub(crate) fn instances(
+    mut commands: Commands,
+    instances: Extract<
+        Query<(&Handle<Mesh>, &Handle<StandardMaterial>, &GlobalTransform)>,
+    >,
+) {
+    let mut items = Vec::new();
+
+    for (mesh_handle, material_handle, transform) in instances.iter() {
+        items.push((
+            mesh_handle.clone_weak(),
+            material_handle.clone_weak(),
+            transform.compute_matrix(),
+        ));
+    }
+
+    commands.insert_resource(ExtractedInstances { items });
 }
 
 pub(crate) fn lights(
-    mut state: ResMut<SyncedState>,
-    lights: Extract<Query<(&PointLight, &GlobalTransform)>>,
+    mut commands: Commands,
+    lights: Extract<Query<(Entity, &PointLight, &GlobalTransform)>>,
 ) {
-    if !state.is_active() {
-        return;
-    }
+    let mut items = Vec::new();
 
-    let state = &mut *state;
-
-    state.lights = Default::default();
-
-    for (light, transform) in lights.iter() {
+    for (entity, light, transform) in lights.iter() {
         let lum_intensity = light.intensity / (4.0 * PI);
 
-        state.lights.push(st::Light::point(
+        let light = st::Light::point(
             transform.translation(),
             color_to_vec3(light.color) * lum_intensity,
             light.range,
-        ));
+        );
+
+        items.push((entity, light));
     }
+
+    commands.insert_resource(ExtractedLights { items });
 }
 
 #[allow(clippy::type_complexity)]

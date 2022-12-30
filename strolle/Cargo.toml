@@ -10,6 +10,5 @@ strolle-models = { path = "../strolle-models" }
 # Crates.io
 bytemuck = "1"
 log = "0.4"
-naga = { version = "0.10", features = ["deserialize"] }
 spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", features = ["glam"] }
 wgpu = { version = "0.14", features = ["spirv"] }

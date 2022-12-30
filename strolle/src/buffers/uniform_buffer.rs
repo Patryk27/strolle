@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 use std::{any, mem, slice};
 
 use bytemuck::Pod;
@@ -7,20 +7,21 @@ use super::Bindable;
 
 pub struct UniformBuffer<T> {
     buffer: wgpu::Buffer,
-    _marker: PhantomData<T>,
+    data: T,
+    dirty: bool,
 }
 
 impl<T> UniformBuffer<T>
 where
-    T: Pod,
+    T: UniformBufferable,
 {
-    pub fn new(device: &wgpu::Device, label: impl AsRef<str>) -> Self {
+    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: T) -> Self {
         let label = label.as_ref();
         let size = mem::size_of::<T>();
         let size = (size + 31) & !31;
 
         log::debug!(
-            "Allocating uniform buffer `{label}`; ty={}, size={size} (padded to {})",
+            "Allocating uniform buffer `{label}`; ty={}, size={size} (padded from {})",
             any::type_name::<T>(),
             mem::size_of::<T>(),
         );
@@ -34,16 +35,40 @@ where
 
         Self {
             buffer,
-            _marker: PhantomData,
+            data,
+            dirty: true,
         }
     }
 
-    pub fn write(&self, queue: &wgpu::Queue, data: &T) {
-        queue.write_buffer(
-            &self.buffer,
-            0,
-            bytemuck::cast_slice(slice::from_ref(data)),
-        );
+    pub fn new_default(device: &wgpu::Device, label: impl AsRef<str>) -> Self
+    where
+        T: Default,
+    {
+        Self::new(device, label, Default::default())
+    }
+
+    pub fn flush(&mut self, queue: &wgpu::Queue) {
+        if self.dirty {
+            queue.write_buffer(&self.buffer, 0, self.data.data());
+
+            self.dirty = false;
+        }
+    }
+}
+
+impl<T> Deref for UniformBuffer<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<T> DerefMut for UniformBuffer<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.dirty = true;
+
+        &mut self.data
     }
 }
 
@@ -67,5 +92,23 @@ impl<T> Bindable for UniformBuffer<T> {
         let resource = self.buffer.as_entire_binding();
 
         vec![(layout, resource)]
+    }
+}
+
+pub trait UniformBufferable {
+    fn size(&self) -> usize;
+    fn data(&self) -> &[u8];
+}
+
+impl<T> UniformBufferable for T
+where
+    T: Pod,
+{
+    fn size(&self) -> usize {
+        mem::size_of::<Self>()
+    }
+
+    fn data(&self) -> &[u8] {
+        bytemuck::cast_slice(slice::from_ref(self))
     }
 }

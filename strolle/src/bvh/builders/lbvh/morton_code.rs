@@ -1,7 +1,9 @@
+use std::ops::BitXor;
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MortonCode(pub(super) u64);
 
-impl std::ops::BitXor for MortonCode {
+impl BitXor for MortonCode {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self::Output {

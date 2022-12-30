@@ -1,15 +1,12 @@
 use core::f32::consts::PI;
 
-use crate::*;
+use bytemuck::{Pod, Zeroable};
+use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::float::Float;
 
-/// # Memory model
-///
-/// ```ignore
-/// base_color.x = base color's red component
-/// base_color.y = base color's green component
-/// base_color.z = base color's blue component
-/// base_color.w = base color's alpha component
-/// ```
+use crate::{BvhTraversingStack, Hit, Light, LightId, Ray, World};
+
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
@@ -39,28 +36,30 @@ impl Material {
     pub fn shade(
         &self,
         world: &World,
-        stack: RayTraversingStack,
+        stack: BvhTraversingStack,
+        ray: Ray,
         hit: Hit,
     ) -> Vec4 {
-        let mut radiance = vec4(0.0, 0.0, 0.0, self.base_color.w);
-        let mut light_idx = 0;
+        let mut shade = vec4(0.0, 0.0, 0.0, self.base_color.w);
+        let mut light_id = 0;
 
-        while light_idx < world.lights.len() {
-            let light = world.lights.get(light_idx);
+        while light_id < world.info.light_count {
+            let light = world.lights.get(LightId::new(light_id));
 
-            radiance += self.radiance(world, stack, light, hit);
-            light_idx += 1;
+            shade += self.shade_light(world, stack, ray, hit, light);
+            light_id += 1;
         }
 
-        radiance
+        shade
     }
 
-    fn radiance(
+    fn shade_light(
         &self,
         world: &World,
-        stack: RayTraversingStack,
-        light: Light,
+        stack: BvhTraversingStack,
+        ray: Ray,
         hit: Hit,
+        light: Light,
     ) -> Vec4 {
         // TODO: Optimize a lot of these calculations can be done once per material
 
@@ -70,7 +69,7 @@ impl Material {
         let diffuse_color =
             self.base_color.xyz() * (1.0 - self.params.metallic);
 
-        let v = -hit.ray.direction();
+        let v = -ray.direction();
         let n_dot_v = hit.normal.dot(v).max(0.0001);
         let r = reflect(-v, hit.normal);
 
@@ -311,15 +310,19 @@ impl Default for MaterialParams {
 }
 
 #[derive(Copy, Clone)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct MaterialId(usize);
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug, PartialEq))]
+pub struct MaterialId(u32);
 
 impl MaterialId {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: u32) -> Self {
         Self(id)
     }
 
-    pub fn get(self) -> usize {
+    pub fn get(self) -> u32 {
         self.0
+    }
+
+    pub fn get_mut(&mut self) -> &mut u32 {
+        &mut self.0
     }
 }

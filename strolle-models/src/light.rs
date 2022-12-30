@@ -1,10 +1,12 @@
-use crate::*;
+use bytemuck::{Pod, Zeroable};
+use glam::{Vec3, Vec4, Vec4Swizzles};
 
 pub const POINT_LIGHT: f32 = 0.0;
 pub const SPOT_LIGHT: f32 = 1.0;
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Light {
     // x,y,z is position, w is light type
     pos: Vec4,
@@ -64,5 +66,19 @@ impl Light {
             point_at: Vec4::ZERO,
             color: color.extend(range),
         }
+    }
+}
+
+#[derive(Copy, Clone, Default)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct LightId(u32);
+
+impl LightId {
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+
+    pub fn get(self) -> u32 {
+        self.0
     }
 }

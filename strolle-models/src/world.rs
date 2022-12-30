@@ -1,12 +1,16 @@
-use crate::*;
+use crate::{
+    BvhView, Camera, Info, InstancesView, LightsView, MaterialsView,
+    TrianglesView,
+};
 
 pub struct World<'a> {
     pub global_idx: u32,
     pub local_idx: u32,
-    pub geometry_tris: GeometryTrisView<'a>,
-    pub geometry_uvs: GeometryUvsView<'a>,
-    pub geometry_bvh: GeometryBvhView<'a>,
+    pub triangles: TrianglesView<'a>,
+    pub instances: InstancesView<'a>,
+    pub bvh: BvhView<'a>,
     pub camera: &'a Camera,
-    pub lights: &'a Lights,
-    pub materials: &'a Materials,
+    pub lights: LightsView<'a>,
+    pub materials: MaterialsView<'a>,
+    pub info: &'a Info,
 }

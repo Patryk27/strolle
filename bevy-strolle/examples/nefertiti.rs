@@ -18,9 +18,9 @@ fn main() {
 
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(LookTransformPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(LookTransformPlugin)
         .add_plugin(OrbitCameraPlugin::default())
         .add_plugin(ObjPlugin)
         .add_plugin(StrollePlugin)
@@ -32,8 +32,22 @@ fn main() {
 fn setup(
     mut commands: Commands,
     assets: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    commands.spawn(PbrBundle {
+        mesh: meshes.add(Mesh::from(shape::Plane { size: 50.0 })),
+        material: materials.add(StandardMaterial {
+            base_color: Color::rgb(1.0, 1.0, 1.0),
+            reflectance: 0.0,
+            ..default()
+        }),
+        transform: Transform::from_translation(bevy::math::vec3(
+            0.0, -2.5, 0.0,
+        )),
+        ..default()
+    });
+
     commands.spawn(PbrBundle {
         mesh: assets.load("nefertiti.obj"),
         material: materials.add(StandardMaterial {
