@@ -7,15 +7,15 @@ use crate::{BvhPtr, MaterialId, TriangleId};
 #[derive(Clone, Copy, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug, PartialEq))]
 pub struct Instance {
-    d0: Vec4,
-    d1: Vec4,
-    d2: Vec4,
-    d3: Vec4,
-    d4: Vec4,
-    d5: Vec4,
-    d6: Vec4,
-    d7: Vec4,
-    d8: Vec4,
+    transform_x_axis: Vec4,
+    transform_y_axis: Vec4,
+    transform_z_axis: Vec4,
+    transform_w_axis: Vec4,
+    inv_transform_x_axis: Vec4,
+    inv_transform_y_axis: Vec4,
+    inv_transform_z_axis: Vec4,
+    inv_transform_w_axis: Vec4,
+    meta: Vec4,
 }
 
 impl Instance {
@@ -29,15 +29,15 @@ impl Instance {
         let inv_transform = transform.inverse();
 
         Self {
-            d0: transform.x_axis,
-            d1: transform.y_axis,
-            d2: transform.z_axis,
-            d3: transform.w_axis,
-            d4: inv_transform.x_axis,
-            d5: inv_transform.y_axis,
-            d6: inv_transform.z_axis,
-            d7: inv_transform.w_axis,
-            d8: vec4(
+            transform_x_axis: transform.x_axis,
+            transform_y_axis: transform.y_axis,
+            transform_z_axis: transform.z_axis,
+            transform_w_axis: transform.w_axis,
+            inv_transform_x_axis: inv_transform.x_axis,
+            inv_transform_y_axis: inv_transform.y_axis,
+            inv_transform_z_axis: inv_transform.z_axis,
+            inv_transform_w_axis: inv_transform.w_axis,
+            meta: vec4(
                 f32::from_bits(min_triangle_id.get()),
                 f32::from_bits(max_triangle_id.get()),
                 f32::from_bits(material_id.get()),
@@ -48,36 +48,36 @@ impl Instance {
 
     pub fn transform(&self) -> Mat4 {
         Mat4 {
-            x_axis: self.d0,
-            y_axis: self.d1,
-            z_axis: self.d2,
-            w_axis: self.d3,
+            x_axis: self.transform_x_axis,
+            y_axis: self.transform_y_axis,
+            z_axis: self.transform_z_axis,
+            w_axis: self.transform_w_axis,
         }
     }
 
     pub fn inv_transform(&self) -> Mat4 {
         Mat4 {
-            x_axis: self.d4,
-            y_axis: self.d5,
-            z_axis: self.d6,
-            w_axis: self.d7,
+            x_axis: self.inv_transform_x_axis,
+            y_axis: self.inv_transform_y_axis,
+            z_axis: self.inv_transform_z_axis,
+            w_axis: self.inv_transform_w_axis,
         }
     }
 
     pub fn min_triangle_id(&self) -> TriangleId {
-        TriangleId::new(self.d8.x.to_bits())
+        TriangleId::new(self.meta.x.to_bits())
     }
 
     pub fn max_triangle_id(&self) -> TriangleId {
-        TriangleId::new(self.d8.y.to_bits())
+        TriangleId::new(self.meta.y.to_bits())
     }
 
     pub fn material_id(&self) -> MaterialId {
-        MaterialId::new(self.d8.z.to_bits())
+        MaterialId::new(self.meta.z.to_bits())
     }
 
     pub fn bvh_ptr(&self) -> BvhPtr {
-        BvhPtr::new(self.d8.w.to_bits())
+        BvhPtr::new(self.meta.w.to_bits())
     }
 }
 
