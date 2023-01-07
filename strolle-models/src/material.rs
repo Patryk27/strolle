@@ -4,6 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::float::Float;
+use spirv_std::{Image, Sampler};
 
 use crate::{BvhTraversingStack, Hit, Light, LightId, Ray, World};
 
@@ -12,50 +13,43 @@ use crate::{BvhTraversingStack, Hit, Light, LightId, Ray, World};
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Material {
     base_color: Vec4,
-    params: MaterialParams,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, PartialEq, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct MaterialParams {
-    pub perceptual_roughness: f32,
-    pub metallic: f32,
-    pub reflectance: f32,
-    _unused_3: f32,
+    base_color_texture: u32,
+    perceptual_roughness: f32,
+    metallic: f32,
+    reflectance: f32,
 }
 
 impl Material {
-    pub fn none() -> Self {
-        Self {
-            base_color: Default::default(),
-            params: Default::default(),
-        }
-    }
-
     pub fn shade(
         &self,
         world: &World,
+        images: &[Image!(2D, type=f32, sampled); 256],
+        samplers: &[Sampler; 256],
         stack: BvhTraversingStack,
         ray: Ray,
         hit: Hit,
     ) -> Vec4 {
-        let mut shade = vec4(0.0, 0.0, 0.0, self.base_color.w);
+        let mut shade = vec4(0.0, 0.0, 0.0, 1.0);
         let mut light_id = 0;
 
         while light_id < world.info.light_count {
             let light = world.lights.get(LightId::new(light_id));
 
-            shade += self.shade_light(world, stack, ray, hit, light);
+            shade += self
+                .shade_light(world, images, samplers, stack, ray, hit, light);
+
             light_id += 1;
         }
 
         shade
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn shade_light(
         &self,
         world: &World,
+        images: &[Image!(2D, type=f32, sampled); 256],
+        samplers: &[Sampler; 256],
         stack: BvhTraversingStack,
         ray: Ray,
         hit: Hit,
@@ -63,21 +57,27 @@ impl Material {
     ) -> Vec4 {
         // TODO: Optimize a lot of these calculations can be done once per material
 
+        let base_color = if self.base_color_texture == u32::MAX {
+            self.base_color
+        } else {
+            let image = images[self.base_color_texture as usize];
+            let sampler = samplers[self.base_color_texture as usize];
+
+            self.base_color
+                * image.sample_by_lod::<_, Vec4>(sampler, hit.texture_uv, 0.0)
+        };
+
         let roughness =
-            perceptual_roughness_to_roughness(self.params.perceptual_roughness);
+            perceptual_roughness_to_roughness(self.perceptual_roughness);
 
-        let diffuse_color =
-            self.base_color.xyz() * (1.0 - self.params.metallic);
-
+        let diffuse_color = base_color.xyz() * (1.0 - self.metallic);
         let v = -ray.direction();
         let n_dot_v = hit.normal.dot(v).max(0.0001);
         let r = reflect(-v, hit.normal);
 
-        let f0 = 0.16
-            * self.params.reflectance
-            * self.params.reflectance
-            * (1.0 - self.params.metallic)
-            + self.base_color.xyz() * self.params.metallic;
+        let f0 =
+            0.16 * self.reflectance * self.reflectance * (1.0 - self.metallic)
+                + base_color.xyz() * self.metallic;
 
         let range = light.range();
         let hit_to_light = light.pos() - hit.point;
@@ -269,21 +269,29 @@ impl Material {
         self
     }
 
+    pub fn with_base_color_texture(
+        mut self,
+        base_color_texture: impl Into<Option<u32>>,
+    ) -> Self {
+        self.base_color_texture = base_color_texture.into().unwrap_or(u32::MAX);
+        self
+    }
+
     pub fn with_perceptual_roughness(
         mut self,
         perceptual_roughness: f32,
     ) -> Self {
-        self.params.perceptual_roughness = perceptual_roughness;
+        self.perceptual_roughness = perceptual_roughness;
         self
     }
 
     pub fn with_metallic(mut self, metallic: f32) -> Self {
-        self.params.metallic = metallic;
+        self.metallic = metallic;
         self
     }
 
     pub fn with_reflectance(mut self, reflectance: f32) -> Self {
-        self.params.reflectance = reflectance;
+        self.reflectance = reflectance;
         self
     }
 }
@@ -293,18 +301,10 @@ impl Default for Material {
     fn default() -> Self {
         Material {
             base_color: vec4(1.0, 1.0, 1.0, 1.0),
-            params: Default::default(),
-        }
-    }
-}
-
-impl Default for MaterialParams {
-    fn default() -> Self {
-        Self {
-            perceptual_roughness: 0.089,
+            base_color_texture: u32::MAX,
+            perceptual_roughness: 0.0,
             metallic: 0.0,
             reflectance: 0.0,
-            _unused_3: Default::default(),
         }
     }
 }

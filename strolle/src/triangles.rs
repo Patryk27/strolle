@@ -1,26 +1,29 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::Hash;
 
-use strolle_models::{Triangle, TriangleId};
+use strolle_models as gpu;
 
 use crate::bvh::BoundingBox;
-use crate::StorageBufferable;
+use crate::{Params, StorageBufferable};
 
 #[derive(Clone, Debug)]
-pub struct Triangles<MeshHandle> {
-    data: Vec<Triangle>,
-    index: HashMap<MeshHandle, (TriangleId, TriangleId, BoundingBox)>,
+pub struct Triangles<P>
+where
+    P: Params,
+{
+    gpu_triangles: Vec<gpu::Triangle>,
+    index:
+        HashMap<P::MeshHandle, (gpu::TriangleId, gpu::TriangleId, BoundingBox)>,
 }
 
-impl<MeshHandle> Triangles<MeshHandle>
+impl<P> Triangles<P>
 where
-    MeshHandle: Eq + Hash + Debug,
+    P: Params,
 {
     pub fn add(
         &mut self,
-        mesh_handle: MeshHandle,
-        mesh_triangles: Vec<Triangle>,
+        mesh_handle: P::MeshHandle,
+        mesh_triangles: Vec<gpu::Triangle>,
     ) {
         assert!(!self.index.contains_key(&mesh_handle));
 
@@ -30,9 +33,12 @@ where
                 .flat_map(|triangle| triangle.vertices()),
         );
 
-        let min_id = TriangleId::new(self.data.len() as u32);
-        self.data.extend(mesh_triangles);
-        let max_id = TriangleId::new((self.data.len() - 1) as u32);
+        let min_id = gpu::TriangleId::new(self.gpu_triangles.len() as u32);
+
+        self.gpu_triangles.extend(mesh_triangles);
+
+        let max_id =
+            gpu::TriangleId::new((self.gpu_triangles.len() - 1) as u32);
 
         log::trace!(
             "Triangles added: {:?} ({}..{})",
@@ -45,7 +51,7 @@ where
             .insert(mesh_handle, (min_id, max_id, bounding_box));
     }
 
-    pub fn remove(&mut self, mesh_handle: &MeshHandle) {
+    pub fn remove(&mut self, mesh_handle: &P::MeshHandle) {
         let Some((min_id, max_id, _)) = self.index.remove(mesh_handle) else { return };
         let len = max_id.get() - min_id.get() + 1;
 
@@ -56,7 +62,7 @@ where
             max_id.get()
         );
 
-        self.data
+        self.gpu_triangles
             .drain((min_id.get() as usize)..=(max_id.get() as usize));
 
         for (min_id2, max_id2, _) in self.index.values_mut() {
@@ -67,25 +73,31 @@ where
         }
     }
 
-    pub fn try_get_metadata(
+    pub fn lookup(
         &self,
-        mesh_handle: &MeshHandle,
-    ) -> Option<(TriangleId, TriangleId, BoundingBox)> {
+        mesh_handle: &P::MeshHandle,
+    ) -> Option<(gpu::TriangleId, gpu::TriangleId, BoundingBox)> {
         self.index.get(mesh_handle).copied()
     }
 }
 
-impl<MeshHandle> Default for Triangles<MeshHandle> {
+impl<P> Default for Triangles<P>
+where
+    P: Params,
+{
     fn default() -> Self {
         Self {
-            data: Default::default(),
+            gpu_triangles: Default::default(),
             index: Default::default(),
         }
     }
 }
 
-impl<MeshHandle> StorageBufferable for Triangles<MeshHandle> {
+impl<P> StorageBufferable for Triangles<P>
+where
+    P: Params,
+{
     fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.data)
+        bytemuck::cast_slice(&self.gpu_triangles)
     }
 }

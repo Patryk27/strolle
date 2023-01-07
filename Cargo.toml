@@ -10,3 +10,7 @@ members = [
     "strolle-shader-builder",
     "strolle-tracer",
 ]
+
+[patch."crates-io"]
+# TODO https://github.com/gfx-rs/naga/pull/2199
+naga = { git = "https://github.com/Patryk27/naga", branch = "spirv_binding_arrays" }

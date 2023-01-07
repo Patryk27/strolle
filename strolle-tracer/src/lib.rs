@@ -17,7 +17,7 @@ pub fn main(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] bvh: &[Vec4],
     #[spirv(uniform, descriptor_set = 0, binding = 3)] lights: &[Light],
     #[spirv(uniform, descriptor_set = 0, binding = 4)] materials: &[Material],
-    #[spirv(uniform, descriptor_set = 0, binding = 5)] info: &Info,
+    #[spirv(uniform, descriptor_set = 0, binding = 7)] info: &Info,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
     #[spirv(storage_buffer, descriptor_set = 1, binding = 1)]
     hits: &mut [u32],

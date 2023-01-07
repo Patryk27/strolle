@@ -53,7 +53,7 @@ impl Ray {
         // Note that we deliberately don't normalize this vector - thanks to
         // this (seemigly wrong, but actually correct and pretty cool) trick,
         // the hit-tests performed across different mesh-bvhs will report
-        // distances in world-space instead of mesh-bvhs.
+        // distances in world-space instead of mesh-space.
         //
         // If we normalized the direction in here, then when traversing the
         // tree, we couldn't compare hit-distances from different mesh-bvhs
@@ -165,7 +165,7 @@ impl Ray {
         // For performance reasons, the entire workgroup shares the same stack
         // through workgroup-memory - this means that we can't start from
         // `stack[0]`, but rather have to use the current thread's index and
-        // multiply it by the number of stack-slots for each stack.
+        // multiply it by the number of stack-slots for each thread.
         let stack_begins_at = world.local_idx * 32;
 
         // Index into the `stack` array; our stack spans from here up to + 32
@@ -201,10 +201,11 @@ impl Ray {
             // If the current node is an internal-node
             if is_internal {
                 // ... then its left child is going to be located right after it
-                // (hence `+ 2` here, referring to this node's sice)
+                // (hence `+ 2` here, referring to this node's size)
                 let left_ptr = bvh_ptr + 2;
 
-                // ... and its right child, extra `+ args` items further
+                // ... and its right child is going to be extra `+ args` items
+                // further from here (since mesh-bvh uses relative addressing)
                 let right_ptr = bvh_ptr + 2 + args;
 
                 // Load the left and right child's bounding boxes

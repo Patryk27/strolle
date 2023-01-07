@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use spirv_std::glam::Vec3;
-use strolle_models::InstanceId;
+use strolle_models as gpu;
 
 use crate::bvh::{builders, BoundingBox, BvhNode, BvhNodePayload, BvhObject};
 use crate::Instances;
@@ -39,7 +39,7 @@ impl WorldBvh {
 
 #[derive(Clone, Debug)]
 struct Object {
-    id: InstanceId,
+    id: gpu::InstanceId,
     bounding_box: BoundingBox,
 }
 

@@ -7,12 +7,12 @@ use strolle as st;
 
 use crate::state::{ExtractedCamera, SyncedState, SyncedView};
 use crate::utils::color_to_vec3;
-use crate::EngineRes;
+use crate::EngineResource;
 
 pub(crate) fn viewports(
     device: Res<RenderDevice>,
     mut state: ResMut<SyncedState>,
-    engine: Res<EngineRes>,
+    mut engine: ResMut<EngineResource>,
     mut cameras: Query<(
         Entity,
         &ViewTarget,
@@ -22,7 +22,7 @@ pub(crate) fn viewports(
 ) {
     let device = device.wgpu_device();
     let state = &mut *state;
-    let engine = &*engine;
+    let engine = &mut *engine;
     let mut alive_views = HashSet::new();
 
     for (entity, view_target, bevy_ext_camera, ext_camera) in cameras.iter_mut()
@@ -123,9 +123,10 @@ pub(crate) fn viewports(
 }
 
 pub(crate) fn write(
+    device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
-    mut engine: ResMut<EngineRes>,
+    mut engine: ResMut<EngineResource>,
     mut state: ResMut<SyncedState>,
 ) {
-    state.write(&mut engine, &queue);
+    state.write(&mut engine, &device, &queue);
 }

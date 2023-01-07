@@ -1,9 +1,9 @@
 use bevy::prelude::*;
-use bevy::render::renderer::RenderQueue;
-use bevy::utils::HashMap;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::utils::{HashMap, HashSet};
 use strolle as st;
 
-use crate::EngineRes;
+use crate::EngineParams;
 
 #[derive(Default, Resource)]
 pub(crate) struct SyncedState {
@@ -17,17 +17,18 @@ impl SyncedState {
 
     pub fn write(
         &mut self,
-        engine: &mut st::Engine<EngineRes>,
+        engine: &mut st::Engine<EngineParams>,
+        device: &RenderDevice,
         queue: &RenderQueue,
     ) {
         if !self.is_active() {
             return;
         }
 
-        engine.write(queue);
+        engine.flush(device.wgpu_device(), queue);
 
         for view in self.views.values_mut() {
-            view.viewport.write(queue);
+            view.viewport.flush(queue);
         }
     }
 }
@@ -40,6 +41,12 @@ pub struct SyncedView {
 pub struct ExtractedMeshes {
     pub changed: Vec<(Handle<Mesh>, Mesh)>,
     pub removed: Vec<Handle<Mesh>>,
+}
+
+#[derive(Resource)]
+pub struct ExtractedImages {
+    pub changed: HashSet<Handle<Image>>,
+    pub removed: Vec<Handle<Image>>,
 }
 
 #[derive(Resource)]
