@@ -1,7 +1,7 @@
 #![no_std]
 
 use spirv_std::glam::{vec2, UVec3, Vec3Swizzles, Vec4};
-use spirv_std::{spirv, Image};
+use spirv_std::{spirv, Image, Sampler};
 use strolle_models::*;
 
 #[allow(clippy::too_many_arguments)]
@@ -19,10 +19,17 @@ pub fn main(
     lights: &[Light],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 4)]
     materials: &[Material],
-    #[spirv(uniform, descriptor_set = 0, binding = 5)] info: &Info,
+    #[spirv(descriptor_set = 0, binding = 5)] images: &[Image!(2D, type=f32, sampled);
+         256],
+    #[spirv(descriptor_set = 0, binding = 6)] samplers: &[Sampler; 256],
+    #[spirv(uniform, descriptor_set = 0, binding = 7)] info: &Info,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
     #[spirv(storage_buffer, descriptor_set = 1, binding = 1)] hits: &[u32],
-    #[spirv(descriptor_set = 1, binding = 2)] image: &Image!(2D, format=rgba16f, sampled=false),
+    #[spirv(descriptor_set = 1, binding = 2)] image: &Image!(
+        2D,
+        format = rgba16f,
+        sampled = false
+    ),
 ) {
     if info.is_world_empty() {
         return;
@@ -52,7 +59,7 @@ pub fn main(
         // if there's a miss
         let traversed_nodes = instance_id - 1;
 
-        spirv_std::glam::Vec3::splat((traversed_nodes as f32) / 100.0)
+        spirv_std::glam::Vec3::splat((traversed_nodes as f32) / 200.0)
             .extend(1.0)
     } else {
         #[allow(clippy::collapsible_else_if)]
@@ -91,7 +98,7 @@ pub fn main(
             world
                 .materials
                 .get(instance.material_id())
-                .shade(&world, stack, ray, hit)
+                .shade(&world, images, samplers, stack, ray, hit)
         }
     };
 

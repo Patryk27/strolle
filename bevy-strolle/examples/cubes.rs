@@ -12,9 +12,9 @@ use smooth_bevy_cameras::LookTransformPlugin;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(LookTransformPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(LookTransformPlugin)
         .add_plugin(OrbitCameraPlugin::default())
         .add_plugin(StrollePlugin)
         .add_startup_system(setup)

@@ -9,6 +9,7 @@ log = "0.4"
 strolle = { path = "../strolle" }
 
 [dev-dependencies]
+bevy = { version = "0.9", features = ["jpeg"] }
 bevy_obj = "0.9.1"
 lazy_static = "1.4"
 smooth-bevy-cameras = "0.6.0"

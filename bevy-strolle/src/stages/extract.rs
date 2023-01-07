@@ -8,8 +8,8 @@ use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::state::{
-    ExtractedCamera, ExtractedInstances, ExtractedLights, ExtractedMaterials,
-    ExtractedMeshes,
+    ExtractedCamera, ExtractedImages, ExtractedInstances, ExtractedLights,
+    ExtractedMaterials, ExtractedMeshes,
 };
 use crate::utils::color_to_vec3;
 
@@ -47,6 +47,36 @@ pub(crate) fn meshes(
         .collect();
 
     commands.insert_resource(ExtractedMeshes { changed, removed });
+}
+
+pub(crate) fn images(
+    mut commands: Commands,
+    mut events: Extract<EventReader<AssetEvent<Image>>>,
+) {
+    let mut changed = HashSet::default();
+    let mut removed = Vec::new();
+
+    for event in events.iter() {
+        match event {
+            AssetEvent::Created { handle }
+            | AssetEvent::Modified { handle } => {
+                changed.insert(handle.clone_weak());
+            }
+            AssetEvent::Removed { handle } => {
+                changed.remove(handle);
+                removed.push(handle.clone_weak());
+            }
+        }
+    }
+
+    // Usually we'd map `Handle<Image>` into `GpuImage` right here (similarly as
+    // we do with meshes), but `RenderAssets<Image>` gets filled out during the
+    // *prepare* phase, so we can't read it just yet.
+    //
+    // So instead we're just passing `Handle<Image>` that gets converted into an
+    // actual image later.
+
+    commands.insert_resource(ExtractedImages { changed, removed });
 }
 
 pub(crate) fn materials(

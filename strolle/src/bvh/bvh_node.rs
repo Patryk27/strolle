@@ -1,4 +1,4 @@
-use strolle_models::{InstanceId, MeshTriangleId};
+use strolle_models as gpu;
 
 use super::*;
 
@@ -49,6 +49,6 @@ impl BvhNode {
 
 #[derive(Clone, Debug)]
 pub enum BvhNodePayload {
-    Instance(InstanceId),
-    Triangle(MeshTriangleId),
+    Instance(gpu::InstanceId),
+    Triangle(gpu::MeshTriangleId),
 }

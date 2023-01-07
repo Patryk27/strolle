@@ -2,9 +2,15 @@
 
 mod buffers;
 mod bvh;
+mod camera;
+mod image;
+mod images;
 mod instances;
+mod light;
 mod lights;
+mod material;
 mod materials;
+mod triangle;
 mod triangles;
 mod viewport;
 
@@ -14,34 +20,44 @@ use std::mem;
 use std::time::Instant;
 
 use spirv_std::glam::{Mat4, UVec2, Vec4};
-pub use strolle_models::*;
+use strolle_models as gpu;
 
 pub(crate) use self::buffers::*;
 pub(crate) use self::bvh::*;
+pub use self::camera::*;
+pub use self::image::*;
+pub(crate) use self::images::*;
 pub(crate) use self::instances::*;
+pub use self::light::*;
 pub(crate) use self::lights::*;
+pub use self::material::*;
 pub(crate) use self::materials::*;
+pub use self::triangle::*;
 pub(crate) use self::triangles::*;
 pub use self::viewport::*;
 
-pub struct Engine<Params>
+pub struct Engine<P>
 where
-    Params: EngineParams,
+    P: Params,
 {
     tracer: wgpu::ShaderModule,
     materializer: wgpu::ShaderModule,
     printer: wgpu::ShaderModule,
-    triangles: StorageBuffer<Triangles<Params::MeshHandle>>,
+    triangles: StorageBuffer<Triangles<P>>,
     instances: StorageBuffer<Instances>,
-    bvh: StorageBuffer<Bvh<Params::MeshHandle>>,
-    lights: StorageBuffer<Lights<Params::LightHandle>>,
-    materials: StorageBuffer<Materials<Params::MaterialHandle>>,
-    info: UniformBuffer<Info>,
+    bvh: StorageBuffer<Bvh<P>>,
+    lights: StorageBuffer<Lights<P>>,
+    images: Images<P>,
+    materials: StorageBuffer<Materials<P>>,
+    info: UniformBuffer<gpu::Info>,
+    viewports: Vec<WeakViewport>,
+    has_dirty_images: bool,
+    has_dirty_materials: bool,
 }
 
 impl<P> Engine<P>
 where
-    P: EngineParams,
+    P: Params,
 {
     pub fn new(device: &wgpu::Device) -> Self {
         // TODO support dynamic buffers
@@ -76,6 +92,8 @@ where
             4 * 1024 * 1024,
         );
 
+        let images = Images::new(device);
+
         let materials = StorageBuffer::new_default(
             device,
             "strolle_materials",
@@ -92,8 +110,12 @@ where
             instances,
             bvh,
             lights,
+            images,
             materials,
             info,
+            viewports: Default::default(),
+            has_dirty_images: Default::default(),
+            has_dirty_materials: Default::default(),
         }
     }
 
@@ -114,19 +136,36 @@ where
     }
 
     pub fn contains_mesh(&self, mesh_handle: &P::MeshHandle) -> bool {
-        self.bvh.get_mesh_metadata(mesh_handle).is_some()
+        self.bvh.lookup_mesh(mesh_handle).is_some()
     }
 
     pub fn add_material(
         &mut self,
         material_handle: P::MaterialHandle,
-        material: Material,
+        material: Material<P>,
     ) {
         self.materials.add(material_handle, material);
+        self.has_dirty_materials = true;
     }
 
     pub fn remove_material(&mut self, material_handle: &P::MaterialHandle) {
         self.materials.remove(material_handle);
+        self.has_dirty_materials = true;
+    }
+
+    pub fn add_image(
+        &mut self,
+        image_handle: P::ImageHandle,
+        image_texture: P::ImageTexture,
+        image_sampler: P::ImageSampler,
+    ) {
+        self.images.add(image_handle, image_texture, image_sampler);
+        self.has_dirty_images = true;
+    }
+
+    pub fn remove_image(&mut self, image_handle: &P::ImageHandle) {
+        self.images.remove(image_handle);
+        self.has_dirty_images = true;
     }
 
     pub fn add_instance(
@@ -141,27 +180,24 @@ where
         );
 
         // TODO this assumes `.clear_instances()` is called each frame
-        let (min_triangle_id, max_triangle_id, bounding_box) = self
-            .triangles
-            .try_get_metadata(&mesh_handle)
-            .unwrap_or_else(|| {
-                panic!("Mesh not known: {:?}", mesh_handle);
+        let (min_triangle_id, max_triangle_id, bounding_box) =
+            self.triangles.lookup(&mesh_handle).unwrap_or_else(|| {
+                panic!("Mesh not known: {mesh_handle:?}");
             });
 
         let bounding_box = bounding_box.transform(transform);
 
         let material_id =
             self.materials.lookup(&material_handle).unwrap_or_else(|| {
-                panic!("Material not known: {:?}", material_handle);
+                panic!("Material not known: {material_handle:?}");
             });
 
         // TODO this assumes `.clear_instances()` is called each frame
-        let bvh_ptr =
-            self.bvh.get_mesh_metadata(&mesh_handle).unwrap_or_else(|| {
-                panic!("Mesh not known: {:?}", mesh_handle);
-            });
+        let bvh_ptr = self.bvh.lookup_mesh(&mesh_handle).unwrap_or_else(|| {
+            panic!("Mesh not known: {mesh_handle:?}");
+        });
 
-        let instance = Instance::new(
+        let instance = gpu::Instance::new(
             transform,
             min_triangle_id,
             max_triangle_id,
@@ -176,7 +212,11 @@ where
         self.instances.clear();
     }
 
-    pub fn add_light(&mut self, light_handle: P::LightHandle, light: Light) {
+    pub fn add_light(
+        &mut self,
+        light_handle: P::LightHandle,
+        light: gpu::Light,
+    ) {
         self.lights.add(light_handle, light);
     }
 
@@ -188,25 +228,66 @@ where
         self.lights.clear();
     }
 
-    pub fn write(&mut self, queue: &wgpu::Queue) {
+    pub fn flush(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         let tt = Instant::now();
 
-        // If the scene contains no instances, let's just zero-out world's
-        // bvh-ptr (which otherwise cannot be zero, so it serves as a cheap
-        // sentinel value), flush the info-buffer and bail out.
-        //
-        // We don't have to flush any other buffers, because our shaders won't
-        // access them anyway - the first thing we do in shaders is checking
-        // this bvh-pointer and insta-returning if it's zero.
         if self.instances.is_empty() {
+            // If the scene contains no instances, let's just zero-out world's
+            // bvh-ptr (which otherwise cannot be zero, so it serves as a cheap
+            // sentinel value), flush the info-buffer and bail out.
+            //
+            // We don't have to flush any other buffers, because our shaders
+            // won't access them anyway - the first thing we do in shaders is
+            // checking this bvh-pointer and insta-returning if it's zero.
+
             self.info.world_bvh_ptr = 0;
             self.info.flush(queue);
 
             return;
         }
 
-        // ---------------------- //
-        // Phase 1: Flush buffers //
+        // --------------- //
+        // Prepare buffers //
+
+        if self.has_dirty_images || self.has_dirty_materials {
+            // If materials have changed, we have to rebuild materials so that
+            // their CPU-representations are transformed into the GPU-ones.
+            //
+            // If images have changed, we have to rebuild materials so that
+            // their texture ids are up-to-date (e.g. removing a texture can
+            // shift other texture ids by -1, which we have to account for in
+            // the materials).
+
+            self.materials.rebuild(&self.images);
+        }
+
+        if self.has_dirty_images {
+            // If images have changed, we have to rebuild the pipelines so that
+            // new images & samplers are propagated to `wgpu::PipelineLayout`
+            // and `wgpu::ComputePipeline`.
+            //
+            // This is a somewhat heavy & awkward thing to do, and unfortunately
+            // there seems to be no other way - creating a pipeline sets its
+            // layout in stone and (as compared to buffers) images & samplers
+            // cannot be updated dynamically.
+
+            let viewports = mem::take(&mut self.viewports);
+
+            self.viewports = viewports
+                .into_iter()
+                .filter(|viewport| {
+                    if let Some(viewport) = viewport.upgrade() {
+                        viewport.on_images_changed(self, device);
+                        true
+                    } else {
+                        false
+                    }
+                })
+                .collect();
+        }
+
+        // ------------- //
+        // Flush buffers //
 
         self.info.light_count = self.lights.len();
         self.info.flush(queue);
@@ -215,8 +296,8 @@ where
         self.lights.flush(queue);
         self.materials.flush(queue);
 
-        // ------------------------------------ //
-        // Phase 2: Generate BVH (and flush it) //
+        // -------------------- //
+        // Generate & flush BVH //
 
         // In principle, we have to rebuild world-bvh only if some of the meshes
         // or instances have changed (were moved, scaled etc.); in practice we
@@ -260,22 +341,35 @@ where
         }
 
         log::trace!("write() took {:?}", tt.elapsed());
+
+        self.has_dirty_images = false;
+        self.has_dirty_materials = false;
     }
 
     pub fn create_viewport(
-        &self,
+        &mut self,
         device: &wgpu::Device,
         pos: UVec2,
         size: UVec2,
         format: wgpu::TextureFormat,
         camera: Camera,
     ) -> Viewport {
-        Viewport::new(self, device, pos, size, format, camera)
+        let viewport = Viewport::new(self, device, pos, size, format, camera);
+
+        self.viewports.push(viewport.downgrade());
+
+        viewport
     }
 }
 
-pub trait EngineParams {
-    type MeshHandle: Eq + Hash + Clone + Debug;
+pub trait Params
+where
+    Self: Clone + Debug,
+{
+    type ImageHandle: Eq + Hash + Clone + Debug;
+    type ImageSampler: ImageSampler;
+    type ImageTexture: ImageTexture;
     type LightHandle: Eq + Hash + Clone + Debug;
     type MaterialHandle: Eq + Hash + Clone + Debug;
+    type MeshHandle: Eq + Hash + Clone + Debug;
 }

@@ -1,5 +1,5 @@
 use spirv_std::glam::Vec3;
-use strolle_models::{MeshTriangleId, Triangle};
+use strolle_models as gpu;
 
 use crate::bvh::{builders, BoundingBox, BvhNode, BvhNodePayload, BvhObject};
 
@@ -9,12 +9,12 @@ pub struct MeshBvh {
 }
 
 impl MeshBvh {
-    pub fn build(triangles: &[Triangle]) -> Self {
+    pub fn build(triangles: &[gpu::Triangle]) -> Self {
         let objects: Vec<_> = triangles
             .iter()
             .enumerate()
             .map(|(id, triangle)| Object {
-                id: MeshTriangleId::new(id as u32),
+                id: gpu::MeshTriangleId::new(id as u32),
                 triangle,
             })
             .collect();
@@ -33,8 +33,8 @@ impl MeshBvh {
 
 #[derive(Clone, Debug)]
 struct Object<'a> {
-    id: MeshTriangleId,
-    triangle: &'a Triangle,
+    id: gpu::MeshTriangleId,
+    triangle: &'a gpu::Triangle,
 }
 
 impl BvhObject for Object<'_> {

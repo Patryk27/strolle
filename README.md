@@ -45,7 +45,7 @@ camera.
 $ cargo run --release --example instancing
 ```
 
-Shows support for hierarchical BVH - there's 100 bunnies * 69 polygons per each
+Shows support for hierarchical BVH - there's 100 bunnies * 69k polygons per each
 bunny; use keyboard & mouse to move the camera.
 
 ### Models
@@ -74,6 +74,12 @@ keyboard & mouse to move the camera.
 (note that model takes a few seconds to appear.)
 
 Model thanks to: https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/.
+
+### Textures
+
+``` shell
+$ cargo run --release --example textures
+```
 
 ## Options
 

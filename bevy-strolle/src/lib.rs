@@ -17,6 +17,7 @@ use bevy::core_pipeline::core_3d;
 use bevy::core_pipeline::upscaling::UpscalingNode;
 use bevy::prelude::*;
 use bevy::render::render_graph::{RenderGraph, SlotInfo, SlotType};
+use bevy::render::render_resource::{Sampler, TextureView};
 use bevy::render::renderer::RenderDevice;
 use bevy::render::{RenderApp, RenderStage};
 use strolle as st;
@@ -32,7 +33,7 @@ impl Plugin for StrollePlugin {
         let render_device = render_app.world.resource::<RenderDevice>();
         let engine = st::Engine::new(render_device.wgpu_device());
 
-        render_app.insert_resource(EngineRes(engine));
+        render_app.insert_resource(EngineResource(engine));
         render_app.insert_resource(SyncedState::default());
 
         // -------------------- //
@@ -40,6 +41,9 @@ impl Plugin for StrollePlugin {
 
         render_app
             .add_system_to_stage(RenderStage::Extract, stages::extract::meshes);
+
+        render_app
+            .add_system_to_stage(RenderStage::Extract, stages::extract::images);
 
         render_app.add_system_to_stage(
             RenderStage::Extract,
@@ -65,6 +69,9 @@ impl Plugin for StrollePlugin {
         render_app
             .add_system_to_stage(RenderStage::Prepare, stages::prepare::meshes);
 
+        render_app
+            .add_system_to_stage(RenderStage::Prepare, stages::prepare::images);
+
         render_app.add_system_to_stage(
             RenderStage::Prepare,
             stages::prepare::materials,
@@ -74,6 +81,7 @@ impl Plugin for StrollePlugin {
             RenderStage::Prepare,
             stages::prepare::instances
                 .after(stages::prepare::meshes)
+                .after(stages::prepare::images)
                 .after(stages::prepare::materials),
         );
 
@@ -135,23 +143,33 @@ impl Plugin for StrollePlugin {
 }
 
 #[derive(Resource)]
-struct EngineRes(st::Engine<Self>);
+struct EngineResource(st::Engine<EngineParams>);
 
-impl st::EngineParams for EngineRes {
-    type MeshHandle = Handle<Mesh>;
+#[derive(Clone, Debug)]
+struct EngineParams;
+
+// TODO using Bevy's `Handle<...>` means that when Strolle clones a handle, it
+//      will get a strong reference to the underlying asset - that's wasteful
+//      and in reality we should create a wrapper for `Handle<T>` that performs
+//      `Handle::<T>::clone_weak()` during `.clone()`
+impl st::Params for EngineParams {
+    type ImageHandle = Handle<Image>;
+    type ImageSampler = Sampler;
+    type ImageTexture = TextureView;
     type LightHandle = Entity;
     type MaterialHandle = Handle<StandardMaterial>;
+    type MeshHandle = Handle<Mesh>;
 }
 
-impl ops::Deref for EngineRes {
-    type Target = st::Engine<Self>;
+impl ops::Deref for EngineResource {
+    type Target = st::Engine<EngineParams>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl ops::DerefMut for EngineRes {
+impl ops::DerefMut for EngineResource {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }

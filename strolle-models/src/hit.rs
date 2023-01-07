@@ -3,9 +3,9 @@ use glam::{Vec2, Vec3};
 #[derive(Copy, Clone)]
 pub struct Hit {
     pub distance: f32,
-    pub uv: Vec2,
     pub point: Vec3,
     pub normal: Vec3,
+    pub texture_uv: Vec2,
 }
 
 impl Hit {
@@ -14,9 +14,9 @@ impl Hit {
     pub fn none() -> Self {
         Self {
             distance: Self::MAX_DIST,
-            uv: Default::default(),
             point: Default::default(),
             normal: Default::default(),
+            texture_uv: Default::default(),
         }
     }
 

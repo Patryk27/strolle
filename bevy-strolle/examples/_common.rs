@@ -13,6 +13,7 @@ pub fn unzip_assets() {
     unzip_asset("bunny");
     unzip_asset("dragon");
     unzip_asset("ferris");
+    unzip_asset("flight-helmet");
     unzip_asset("nefertiti");
 }
 

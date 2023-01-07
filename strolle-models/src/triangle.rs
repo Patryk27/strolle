@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{vec2, Vec3, Vec4, Vec4Swizzles};
+use glam::{vec2, Vec2, Vec3, Vec4, Vec4Swizzles};
 
 use crate::{Hit, Ray};
 
@@ -16,6 +16,7 @@ pub struct Triangle {
 }
 
 impl Triangle {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         v0: Vec3,
         v1: Vec3,
@@ -23,39 +24,54 @@ impl Triangle {
         n0: Vec3,
         n1: Vec3,
         n2: Vec3,
+        uv0: Vec2,
+        uv1: Vec2,
+        uv2: Vec2,
     ) -> Self {
         Self {
-            d0: v0.extend(Default::default()),
-            d1: v1.extend(Default::default()),
-            d2: v2.extend(Default::default()),
-            d3: n0.extend(Default::default()),
-            d4: n1.extend(Default::default()),
-            d5: n2.extend(Default::default()),
+            d0: v0.extend(uv0.x),
+            d1: v1.extend(uv0.y),
+            d2: v2.extend(uv1.x),
+            d3: n0.extend(uv1.y),
+            d4: n1.extend(uv2.x),
+            d5: n2.extend(uv2.y),
         }
     }
 
-    pub fn v0(&self) -> Vec3 {
+    pub fn vertex0(&self) -> Vec3 {
         self.d0.xyz()
     }
 
-    pub fn v1(&self) -> Vec3 {
+    pub fn vertex1(&self) -> Vec3 {
         self.d1.xyz()
     }
 
-    pub fn v2(&self) -> Vec3 {
+    pub fn vertex2(&self) -> Vec3 {
         self.d2.xyz()
     }
 
-    pub fn n0(&self) -> Vec3 {
+    pub fn normal0(&self) -> Vec3 {
         self.d3.xyz()
     }
 
-    pub fn n1(&self) -> Vec3 {
+    pub fn normal1(&self) -> Vec3 {
         self.d4.xyz()
     }
 
-    pub fn n2(&self) -> Vec3 {
+    pub fn normal2(&self) -> Vec3 {
         self.d5.xyz()
+    }
+
+    pub fn uv0(&self) -> Vec2 {
+        vec2(self.d0.w, self.d1.w)
+    }
+
+    pub fn uv1(&self) -> Vec2 {
+        vec2(self.d2.w, self.d3.w)
+    }
+
+    pub fn uv2(&self) -> Vec2 {
+        vec2(self.d4.w, self.d5.w)
     }
 
     pub fn with_transform(mut self, mat: glam::Mat4) -> Self {
@@ -70,12 +86,12 @@ impl Triangle {
 
     // Following the Möller-Trumbore algorithm
     pub fn hit(self, ray: Ray) -> Hit {
-        let v0v1 = self.v1() - self.v0();
-        let v0v2 = self.v2() - self.v0();
+        let v0v1 = self.vertex1() - self.vertex0();
+        let v0v2 = self.vertex2() - self.vertex0();
         let pvec = ray.direction().cross(v0v2);
         let det = v0v1.dot(pvec);
         let inv_det = 1.0 / det;
-        let tvec = ray.origin() - self.v0();
+        let tvec = ray.origin() - self.vertex0();
         let u = tvec.dot(pvec) * inv_det;
         let qvec = tvec.cross(v0v1);
         let v = ray.direction().dot(qvec) * inv_det;
@@ -88,15 +104,23 @@ impl Triangle {
 
         let point = ray.origin() + ray.direction() * (distance - 0.01);
 
-        let normal =
-            (u * self.n1() + v * self.n2() + (1.0 - u - v) * self.n0())
-                .normalize();
+        let normal = {
+            let n = u * self.normal1()
+                + v * self.normal2()
+                + (1.0 - u - v) * self.normal0();
+
+            n.normalize()
+        };
+
+        let texture_uv = self.uv0()
+            + (self.uv1() - self.uv0()) * u
+            + (self.uv2() - self.uv0()) * v;
 
         Hit {
             distance,
-            uv: vec2(u, v),
             point,
             normal,
+            texture_uv,
         }
     }
 }
@@ -104,7 +128,7 @@ impl Triangle {
 #[cfg(not(target_arch = "spirv"))]
 impl Triangle {
     pub fn vertices(&self) -> [Vec3; 3] {
-        [self.v0(), self.v1(), self.v2()]
+        [self.vertex0(), self.vertex1(), self.vertex2()]
     }
 
     pub fn center(&self) -> Vec3 {

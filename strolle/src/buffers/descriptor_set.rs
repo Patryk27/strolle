@@ -6,9 +6,7 @@ pub struct DescriptorSet {
 }
 
 impl DescriptorSet {
-    pub(crate) fn builder<'name, 'ctx>(
-        name: &'name str,
-    ) -> DescriptorSetBuilder<'name, 'ctx> {
+    pub fn builder<'ctx>(name: &str) -> DescriptorSetBuilder<'_, 'ctx> {
         DescriptorSetBuilder::new(name)
     }
 
@@ -21,7 +19,7 @@ impl DescriptorSet {
     }
 }
 
-pub(crate) struct DescriptorSetBuilder<'name, 'ctx> {
+pub struct DescriptorSetBuilder<'name, 'ctx> {
     name: &'name str,
     layouts: Vec<wgpu::BindGroupLayoutEntry>,
     resources: Vec<wgpu::BindingResource<'ctx>>,
@@ -36,7 +34,7 @@ impl<'name, 'ctx> DescriptorSetBuilder<'name, 'ctx> {
         }
     }
 
-    pub(crate) fn add(mut self, item: &'ctx dyn Bindable) -> Self {
+    pub fn add(mut self, item: &'ctx dyn Bindable) -> Self {
         for (layout, resource) in item.bind(self.resources.len() as _) {
             self.layouts.push(layout);
             self.resources.push(resource);
@@ -45,7 +43,7 @@ impl<'name, 'ctx> DescriptorSetBuilder<'name, 'ctx> {
         self
     }
 
-    pub(crate) fn build(self, device: &wgpu::Device) -> DescriptorSet {
+    pub fn build(self, device: &wgpu::Device) -> DescriptorSet {
         let name = self.name;
 
         let bind_group_layout = {

@@ -1,25 +1,22 @@
+mod materializer_pass;
+mod printer_pass;
+mod tracer_pass;
+
 use std::mem;
 use std::ops::DerefMut;
+use std::sync::{Arc, Mutex, Weak};
 
 use spirv_std::glam::UVec2;
-use strolle_models::Camera;
+use strolle_models as gpu;
 
-use crate::buffers::{DescriptorSet, StorageBuffer, Texture, UniformBuffer};
-use crate::{Engine, EngineParams};
+use self::materializer_pass::MaterializerPass;
+use self::printer_pass::PrinterPass;
+use self::tracer_pass::TracerPass;
+use crate::buffers::{StorageBuffer, Texture, UniformBuffer};
+use crate::{Engine, Params};
 
 pub struct Viewport {
-    pos: UVec2,
-    size: UVec2,
-    format: wgpu::TextureFormat,
-    camera: UniformBuffer<Camera>,
-    tracer_ds0: DescriptorSet,
-    tracer_ds1: DescriptorSet,
-    tracer_pipeline: wgpu::ComputePipeline,
-    materializer_ds0: DescriptorSet,
-    materializer_ds1: DescriptorSet,
-    materializer_pipeline: wgpu::ComputePipeline,
-    printer_ds0: DescriptorSet,
-    printer_pipeline: wgpu::RenderPipeline,
+    inner: Arc<Mutex<ViewportInner>>,
 }
 
 impl Viewport {
@@ -29,10 +26,10 @@ impl Viewport {
         pos: UVec2,
         size: UVec2,
         format: wgpu::TextureFormat,
-        camera: Camera,
+        camera: gpu::Camera,
     ) -> Self
     where
-        P: EngineParams,
+        P: Params,
     {
         log::info!(
             "Creating viewport ({})",
@@ -52,188 +49,79 @@ impl Viewport {
 
         let image = Texture::new(device, "strolle_image", size);
 
-        let (tracer_ds0, tracer_ds1, tracer_pipeline) =
-            Self::build_tracer(engine, device, &camera, &hits);
+        let tracer = TracerPass::new(engine, device, &camera, &hits);
 
-        let (materializer_ds0, materializer_ds1, materializer_pipeline) =
-            Self::build_materializer(engine, device, &camera, &hits, &image);
+        let materializer =
+            MaterializerPass::new(engine, device, &camera, &hits, &image);
 
-        let (printer_ds0, printer_pipeline) =
-            Self::build_printer(engine, device, format, &camera, &image);
+        let printer = PrinterPass::new(engine, device, format, &camera, &image);
 
         Self {
-            pos,
-            size,
-            format,
-            camera,
-            tracer_ds0,
-            tracer_ds1,
-            tracer_pipeline,
-            materializer_ds0,
-            materializer_ds1,
-            materializer_pipeline,
-            printer_ds0,
-            printer_pipeline,
+            inner: Arc::new(Mutex::new(ViewportInner {
+                pos,
+                size,
+                format,
+                camera,
+                hits,
+                image,
+                tracer,
+                materializer,
+                printer,
+            })),
         }
     }
 
-    fn build_tracer<P>(
-        engine: &Engine<P>,
-        device: &wgpu::Device,
-        camera: &UniformBuffer<Camera>,
-        hits: &StorageBuffer<u32>,
-    ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline)
-    where
-        P: EngineParams,
-    {
-        let ds0 = DescriptorSet::builder("strolle_tracer_ds0")
-            .add(&engine.triangles)
-            .add(&engine.instances)
-            .add(&engine.bvh)
-            .add(&engine.lights)
-            .add(&engine.materials)
-            .add(&engine.info)
-            .build(device);
-
-        let ds1 = DescriptorSet::builder("strolle_tracer_ds1")
-            .add(camera)
-            .add(hits)
-            .build(device);
-
-        let pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_tracer_pipeline_layout"),
-                bind_group_layouts: &[
-                    ds0.bind_group_layout(),
-                    ds1.bind_group_layout(),
-                ],
-                push_constant_ranges: &[],
-            });
-
-        let pipeline =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("strolle_tracer_pipeline"),
-                layout: Some(&pipeline_layout),
-                module: &engine.tracer,
-                entry_point: "main",
-            });
-
-        (ds0, ds1, pipeline)
-    }
-
-    fn build_materializer<P>(
-        engine: &Engine<P>,
-        device: &wgpu::Device,
-        camera: &UniformBuffer<Camera>,
-        hits: &StorageBuffer<u32>,
-        image: &Texture,
-    ) -> (DescriptorSet, DescriptorSet, wgpu::ComputePipeline)
-    where
-        P: EngineParams,
-    {
-        let ds0 = DescriptorSet::builder("strolle_materializer_ds0")
-            .add(&engine.triangles)
-            .add(&engine.instances)
-            .add(&engine.bvh)
-            .add(&engine.lights)
-            .add(&engine.materials)
-            .add(&engine.info)
-            .build(device);
-
-        let ds1 = DescriptorSet::builder("strolle_materializer_ds1")
-            .add(camera)
-            .add(hits)
-            .add(&image.writable())
-            .build(device);
-
-        let pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_materializer_pipeline_layout"),
-                bind_group_layouts: &[
-                    ds0.bind_group_layout(),
-                    ds1.bind_group_layout(),
-                ],
-                push_constant_ranges: &[],
-            });
-
-        let pipeline =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("strolle_materializer_pipeline"),
-                layout: Some(&pipeline_layout),
-                module: &engine.materializer,
-                entry_point: "main",
-            });
-
-        (ds0, ds1, pipeline)
-    }
-
-    fn build_printer<P>(
-        engine: &Engine<P>,
-        device: &wgpu::Device,
-        format: wgpu::TextureFormat,
-        camera: &UniformBuffer<Camera>,
-        image: &Texture,
-    ) -> (DescriptorSet, wgpu::RenderPipeline)
-    where
-        P: EngineParams,
-    {
-        let ds0 = DescriptorSet::builder("strolle_printer_ds0")
-            .add(camera)
-            .add(&image.readable())
-            .build(device);
-
-        let pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_printer_pipeline_layout"),
-                bind_group_layouts: &[ds0.bind_group_layout()],
-                push_constant_ranges: &[],
-            });
-
-        let pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("strolle_printer_pipeline"),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &engine.printer,
-                    entry_point: "main_vs",
-                    buffers: &[],
-                },
-                primitive: wgpu::PrimitiveState::default(),
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState::default(),
-                fragment: Some(wgpu::FragmentState {
-                    module: &engine.printer,
-                    entry_point: "main_fs",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                multiview: None,
-            });
-
-        (ds0, pipeline)
+    pub(crate) fn downgrade(&self) -> WeakViewport {
+        WeakViewport {
+            inner: Arc::downgrade(&self.inner),
+        }
     }
 
     pub fn pos(&self) -> UVec2 {
-        self.pos
+        self.with(|this| this.pos)
     }
 
     pub fn size(&self) -> UVec2 {
-        self.size
+        self.with(|this| this.size)
     }
 
     pub fn format(&self) -> wgpu::TextureFormat {
-        self.format
+        self.with(|this| this.format)
     }
 
-    pub fn set_camera(&mut self, camera: Camera) {
-        *self.camera.deref_mut() = camera;
+    pub fn set_camera(&self, camera: gpu::Camera) {
+        self.with(|this| {
+            *this.camera.deref_mut() = camera;
+        });
     }
 
-    pub fn write(&mut self, queue: &wgpu::Queue) {
-        self.camera.flush(queue);
+    pub(crate) fn on_images_changed<P>(
+        &self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+    ) where
+        P: Params,
+    {
+        log::debug!("Images changed - rebuilding pipelines");
+
+        self.with(|this| {
+            this.tracer =
+                TracerPass::new(engine, device, &this.camera, &this.hits);
+
+            this.materializer = MaterializerPass::new(
+                engine,
+                device,
+                &this.camera,
+                &this.hits,
+                &this.image,
+            );
+        });
+    }
+
+    pub fn flush(&self, queue: &wgpu::Queue) {
+        self.with(|this| {
+            this.camera.flush(queue);
+        });
     }
 
     pub fn render(
@@ -241,51 +129,15 @@ impl Viewport {
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
     ) {
-        let mut pass =
-            encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("strolle_tracer_pass"),
-            });
-
-        pass.set_pipeline(&self.tracer_pipeline);
-        pass.set_bind_group(0, self.tracer_ds0.bind_group(), &[]);
-        pass.set_bind_group(1, self.tracer_ds1.bind_group(), &[]);
-        pass.dispatch_workgroups(self.size.x / 8, self.size.y / 8, 1);
-
-        drop(pass);
-
-        // -----
-
-        let mut pass =
-            encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("strolle_materializer_pass"),
-            });
-
-        pass.set_pipeline(&self.materializer_pipeline);
-        pass.set_bind_group(0, self.materializer_ds0.bind_group(), &[]);
-        pass.set_bind_group(1, self.materializer_ds1.bind_group(), &[]);
-        pass.dispatch_workgroups(self.size.x / 8, self.size.y / 8, 1);
-
-        drop(pass);
-
-        // -----
-
-        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("strolle_printer_pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: target,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
+        self.with(|this| {
+            this.tracer.run(this.size, encoder);
+            this.materializer.run(this.size, encoder);
+            this.printer.run(this.pos, this.size, encoder, target);
         });
+    }
 
-        pass.set_scissor_rect(self.pos.x, self.pos.y, self.size.x, self.size.y);
-        pass.set_pipeline(&self.printer_pipeline);
-        pass.set_bind_group(0, self.printer_ds0.bind_group(), &[]);
-        pass.draw(0..3, 0..1);
+    fn with<T>(&self, f: impl FnOnce(&mut ViewportInner) -> T) -> T {
+        f(&mut self.inner.lock().unwrap())
     }
 
     fn describe(
@@ -300,11 +152,33 @@ impl Viewport {
     }
 }
 
-impl Drop for Viewport {
+pub(crate) struct WeakViewport {
+    inner: Weak<Mutex<ViewportInner>>,
+}
+
+impl WeakViewport {
+    pub fn upgrade(&self) -> Option<Viewport> {
+        self.inner.upgrade().map(|inner| Viewport { inner })
+    }
+}
+
+struct ViewportInner {
+    pos: UVec2,
+    size: UVec2,
+    format: wgpu::TextureFormat,
+    camera: UniformBuffer<gpu::Camera>,
+    hits: StorageBuffer<u32>,
+    image: Texture,
+    tracer: TracerPass,
+    materializer: MaterializerPass,
+    printer: PrinterPass,
+}
+
+impl Drop for ViewportInner {
     fn drop(&mut self) {
         log::info!(
             "Releasing viewport ({})",
-            Self::describe(self.pos, self.size, self.format)
+            Viewport::describe(self.pos, self.size, self.format)
         );
     }
 }

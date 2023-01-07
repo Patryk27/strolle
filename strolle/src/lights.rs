@@ -1,28 +1,31 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::Hash;
 
-use strolle_models::{Light, LightId};
+use strolle_models as gpu;
 
 use crate::buffers::StorageBufferable;
+use crate::Params;
 
 #[derive(Clone, Debug)]
-pub struct Lights<LightHandle> {
-    data: Vec<Light>,
-    index: HashMap<LightHandle, LightId>,
+pub struct Lights<P>
+where
+    P: Params,
+{
+    gpu_lights: Vec<gpu::Light>,
+    index: HashMap<P::LightHandle, gpu::LightId>,
 }
 
-impl<LightHandle> Lights<LightHandle>
+impl<P> Lights<P>
 where
-    LightHandle: Eq + Hash + Debug,
+    P: Params,
 {
     pub fn clear(&mut self) {
-        self.data.clear();
+        self.gpu_lights.clear();
         self.index.clear();
     }
 
-    pub fn add(&mut self, light_handle: LightHandle, light: Light) {
+    pub fn add(&mut self, light_handle: P::LightHandle, light: gpu::Light) {
         match self.index.entry(light_handle) {
             Entry::Occupied(entry) => {
                 let light_handle = entry.key();
@@ -35,14 +38,15 @@ where
                     light
                 );
 
-                self.data[light_id.get() as usize] = light;
+                self.gpu_lights[light_id.get() as usize] = light;
             }
 
             Entry::Vacant(entry) => {
-                let _light_handle = entry.key();
-                let light_id = LightId::new(self.data.len() as u32);
+                // let light_handle = entry.key();
+                let light_id = gpu::LightId::new(self.gpu_lights.len() as u32);
 
                 // TODO noisy
+                //
                 // log::trace!(
                 //     "Light added: {:?} ({}) => {:?}",
                 //     light_handle,
@@ -50,18 +54,18 @@ where
                 //     light
                 // );
 
-                self.data.push(light);
+                self.gpu_lights.push(light);
                 entry.insert(light_id);
             }
         }
     }
 
-    pub fn remove(&mut self, light_handle: &LightHandle) {
+    pub fn remove(&mut self, light_handle: &P::LightHandle) {
         let Some(light_id) = self.index.remove(light_handle) else { return };
 
         log::trace!("Light removed: {:?} ({})", light_handle, light_id.get());
 
-        self.data.remove(light_id.get() as usize);
+        self.gpu_lights.remove(light_id.get() as usize);
 
         for light_id2 in self.index.values_mut() {
             if light_id2.get() > light_id.get() {
@@ -71,27 +75,33 @@ where
                     light_id2.get() - 1
                 );
 
-                *light_id2 = LightId::new(light_id2.get() - 1);
+                *light_id2 = gpu::LightId::new(light_id2.get() - 1);
             }
         }
     }
 
     pub fn len(&self) -> u32 {
-        self.data.len() as u32
+        self.gpu_lights.len() as u32
     }
 }
 
-impl<LightHandle> Default for Lights<LightHandle> {
+impl<P> Default for Lights<P>
+where
+    P: Params,
+{
     fn default() -> Self {
         Self {
-            data: Default::default(),
+            gpu_lights: Default::default(),
             index: Default::default(),
         }
     }
 }
 
-impl<LightHandle> StorageBufferable for Lights<LightHandle> {
+impl<P> StorageBufferable for Lights<P>
+where
+    P: Params,
+{
     fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.data)
+        bytemuck::cast_slice(&self.gpu_lights)
     }
 }

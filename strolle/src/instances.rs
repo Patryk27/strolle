@@ -1,12 +1,11 @@
-use strolle_models::InstanceId;
+use strolle_models as gpu;
 
 use crate::buffers::StorageBufferable;
 use crate::bvh::BoundingBox;
-use crate::Instance;
 
 #[derive(Clone, Debug, Default)]
 pub struct Instances {
-    instances: Vec<Instance>,
+    instances: Vec<gpu::Instance>,
     bounding_boxes: Vec<BoundingBox>,
 }
 
@@ -16,20 +15,21 @@ impl Instances {
         self.bounding_boxes.clear();
     }
 
-    pub fn add(&mut self, instance: Instance, bounding_box: BoundingBox) {
+    pub fn add(&mut self, instance: gpu::Instance, bounding_box: BoundingBox) {
         self.instances.push(instance);
         self.bounding_boxes.push(bounding_box);
     }
 
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = (InstanceId, Instance, BoundingBox)> + '_ {
+    ) -> impl Iterator<Item = (gpu::InstanceId, gpu::Instance, BoundingBox)> + '_
+    {
         self.instances
             .iter()
             .zip(self.bounding_boxes.iter())
             .enumerate()
             .map(|(id, (instance, bounding_box))| {
-                (InstanceId::new(id as u32), *instance, *bounding_box)
+                (gpu::InstanceId::new(id as u32), *instance, *bounding_box)
             })
     }
 

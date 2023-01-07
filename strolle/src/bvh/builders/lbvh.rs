@@ -31,21 +31,9 @@ where
             x
         }
 
-        assert!(
-            vec.x >= 0.0 && vec.x <= 1.0,
-            "Point out of range: {:?}",
-            vec
-        );
-        assert!(
-            vec.y >= 0.0 && vec.y <= 1.0,
-            "Point out of range: {:?}",
-            vec
-        );
-        assert!(
-            vec.z >= 0.0 && vec.z <= 1.0,
-            "Point out of range: {:?}",
-            vec
-        );
+        assert!(vec.x >= 0.0 && vec.x <= 1.0, "Point out of range: {vec:?}");
+        assert!(vec.y >= 0.0 && vec.y <= 1.0, "Point out of range: {vec:?}");
+        assert!(vec.z >= 0.0 && vec.z <= 1.0, "Point out of range: {vec:?}");
 
         let resolution = 2.0f32.powi(20);
         let xs = (vec.x * resolution) as u64;

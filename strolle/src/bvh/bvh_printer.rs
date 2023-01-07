@@ -40,7 +40,7 @@ impl BvhPrinter {
                 let right_id = Self::process(out, id_counter, right);
 
                 for child_id in [left_id, right_id] {
-                    _ = writeln!(out, "  n{} -> n{}", id, child_id);
+                    _ = writeln!(out, "  n{id} -> n{child_id}");
                 }
             }
 
