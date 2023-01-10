@@ -2,7 +2,7 @@ use std::{env, fs};
 
 use spirv_builder::{Capability, MetadataPrintout, SpirvBuilder};
 
-const SHADERS: &[&str] = &["materializer", "printer", "tracer"];
+const SHADERS: &[&str] = &["printing-pass", "shading-pass", "tracing-pass"];
 
 fn main() {
     // HACK Normally, when compiling shaders, spirv-builder uses the regular

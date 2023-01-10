@@ -2929,14 +2929,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-materializer"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-models",
-]
-
-[[package]]
 name = "strolle-models"
 version = "0.1.0"
 dependencies = [
@@ -2946,7 +2938,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-printer"
+name = "strolle-printing-pass"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -2961,7 +2953,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-tracer"
+name = "strolle-shading-pass"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-models",
+]
+
+[[package]]
+name = "strolle-tracing-pass"
 version = "0.1.0"
 dependencies = [
  "spirv-std",

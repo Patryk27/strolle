@@ -68,7 +68,7 @@ impl Ray {
     /// Follows this ray and returns the closest object it hits.
     ///
     /// This function returns a tuple over `(instance-id, triangle-id)` which
-    /// is later read during the materialization pass.
+    /// is later read during the shading pass.
     ///
     /// Note that in principle this function returns `Option<...>` - to avoid
     /// having extra memory allocations, the `None` variant is encoded as

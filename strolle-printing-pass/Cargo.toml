@@ -1,5 +1,5 @@
 [package]
-name = "strolle-materializer"
+name = "strolle-printing-pass"
 version = "0.1.0"
 edition = "2021"
 
