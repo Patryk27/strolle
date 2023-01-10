@@ -1,5 +1,5 @@
 [package]
-name = "strolle-printer"
+name = "strolle-tracing-pass"
 version = "0.1.0"
 edition = "2021"
 

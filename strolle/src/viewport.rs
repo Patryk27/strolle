@@ -1,6 +1,6 @@
-mod materializer_pass;
-mod printer_pass;
-mod tracer_pass;
+mod printing_pass;
+mod shading_pass;
+mod tracing_pass;
 
 use std::mem;
 use std::ops::DerefMut;
@@ -9,9 +9,9 @@ use std::sync::{Arc, Mutex, Weak};
 use spirv_std::glam::UVec2;
 use strolle_models as gpu;
 
-use self::materializer_pass::MaterializerPass;
-use self::printer_pass::PrinterPass;
-use self::tracer_pass::TracerPass;
+use self::printing_pass::*;
+use self::shading_pass::*;
+use self::tracing_pass::*;
 use crate::buffers::{StorageBuffer, Texture, UniformBuffer};
 use crate::{Engine, Params};
 
@@ -49,12 +49,13 @@ impl Viewport {
 
         let image = Texture::new(device, "strolle_image", size);
 
-        let tracer = TracerPass::new(engine, device, &camera, &hits);
+        let tracing_pass = TracingPass::new(engine, device, &camera, &hits);
 
-        let materializer =
-            MaterializerPass::new(engine, device, &camera, &hits, &image);
+        let shading_pass =
+            ShadingPass::new(engine, device, &camera, &hits, &image);
 
-        let printer = PrinterPass::new(engine, device, format, &camera, &image);
+        let printing_pass =
+            PrintingPass::new(engine, device, format, &camera, &image);
 
         Self {
             inner: Arc::new(Mutex::new(ViewportInner {
@@ -64,9 +65,9 @@ impl Viewport {
                 camera,
                 hits,
                 image,
-                tracer,
-                materializer,
-                printer,
+                tracing_pass,
+                shading_pass,
+                printing_pass,
             })),
         }
     }
@@ -105,10 +106,10 @@ impl Viewport {
         log::debug!("Images changed - rebuilding pipelines");
 
         self.with(|this| {
-            this.tracer =
-                TracerPass::new(engine, device, &this.camera, &this.hits);
+            this.tracing_pass =
+                TracingPass::new(engine, device, &this.camera, &this.hits);
 
-            this.materializer = MaterializerPass::new(
+            this.shading_pass = ShadingPass::new(
                 engine,
                 device,
                 &this.camera,
@@ -130,9 +131,9 @@ impl Viewport {
         target: &wgpu::TextureView,
     ) {
         self.with(|this| {
-            this.tracer.run(this.size, encoder);
-            this.materializer.run(this.size, encoder);
-            this.printer.run(this.pos, this.size, encoder, target);
+            this.tracing_pass.run(this.size, encoder);
+            this.shading_pass.run(this.size, encoder);
+            this.printing_pass.run(this.pos, this.size, encoder, target);
         });
     }
 
@@ -169,9 +170,9 @@ struct ViewportInner {
     camera: UniformBuffer<gpu::Camera>,
     hits: StorageBuffer<u32>,
     image: Texture,
-    tracer: TracerPass,
-    materializer: MaterializerPass,
-    printer: PrinterPass,
+    tracing_pass: TracingPass,
+    shading_pass: ShadingPass,
+    printing_pass: PrintingPass,
 }
 
 impl Drop for ViewportInner {

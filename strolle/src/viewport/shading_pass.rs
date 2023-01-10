@@ -4,13 +4,13 @@ use strolle_models as gpu;
 use crate::buffers::{DescriptorSet, StorageBuffer, Texture, UniformBuffer};
 use crate::{Engine, Params};
 
-pub struct MaterializerPass {
+pub struct ShadingPass {
     ds0: DescriptorSet,
     ds1: DescriptorSet,
     pipeline: wgpu::ComputePipeline,
 }
 
-impl MaterializerPass {
+impl ShadingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -21,7 +21,7 @@ impl MaterializerPass {
     where
         P: Params,
     {
-        let ds0 = DescriptorSet::builder("strolle_materializer_ds0")
+        let ds0 = DescriptorSet::builder("strolle_shading_ds0")
             .add(&engine.triangles)
             .add(&engine.instances)
             .add(&engine.bvh)
@@ -31,7 +31,7 @@ impl MaterializerPass {
             .add(&engine.info)
             .build(device);
 
-        let ds1 = DescriptorSet::builder("strolle_materializer_ds1")
+        let ds1 = DescriptorSet::builder("strolle_shading_ds1")
             .add(camera)
             .add(hits)
             .add(&image.writable())
@@ -39,7 +39,7 @@ impl MaterializerPass {
 
         let pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_materializer_pipeline_layout"),
+                label: Some("strolle_shading_pipeline_layout"),
                 bind_group_layouts: &[
                     ds0.bind_group_layout(),
                     ds1.bind_group_layout(),
@@ -49,9 +49,9 @@ impl MaterializerPass {
 
         let pipeline =
             device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("strolle_materializer_pipeline"),
+                label: Some("strolle_shading_pipeline"),
                 layout: Some(&pipeline_layout),
-                module: &engine.materializer,
+                module: &engine.shading_pass_shader,
                 entry_point: "main",
             });
 
@@ -61,7 +61,7 @@ impl MaterializerPass {
     pub fn run(&self, size: UVec2, encoder: &mut wgpu::CommandEncoder) {
         let mut pass =
             encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("strolle_materializer_pass"),
+                label: Some("strolle_shading_pass"),
             });
 
         pass.set_pipeline(&self.pipeline);

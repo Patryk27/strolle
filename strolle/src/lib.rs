@@ -40,9 +40,9 @@ pub struct Engine<P>
 where
     P: Params,
 {
-    tracer: wgpu::ShaderModule,
-    materializer: wgpu::ShaderModule,
-    printer: wgpu::ShaderModule,
+    printing_pass_shader: wgpu::ShaderModule,
+    shading_pass_shader: wgpu::ShaderModule,
+    tracing_pass_shader: wgpu::ShaderModule,
     triangles: StorageBuffer<Triangles<P>>,
     instances: StorageBuffer<Instances>,
     bvh: StorageBuffer<Bvh<P>>,
@@ -65,17 +65,17 @@ where
 
         log::info!("Initializing");
 
-        let tracer = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/tracer.spv"
-        ));
+        let printing_pass_shader = device.create_shader_module(
+            wgpu::include_spirv!("../../target/printing-pass.spv"),
+        );
 
-        let materializer = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/materializer.spv"
-        ));
+        let shading_pass_shader = device.create_shader_module(
+            wgpu::include_spirv!("../../target/shading-pass.spv"),
+        );
 
-        let printer = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/printer.spv"
-        ));
+        let tracing_pass_shader = device.create_shader_module(
+            wgpu::include_spirv!("../../target/tracing-pass.spv"),
+        );
 
         let triangles =
             StorageBuffer::new_default(device, "strolle_triangles", BUF_SIZE);
@@ -103,9 +103,9 @@ where
         let info = UniformBuffer::new_default(device, "strolle_info");
 
         Self {
-            tracer,
-            materializer,
-            printer,
+            printing_pass_shader,
+            shading_pass_shader,
+            tracing_pass_shader,
             triangles,
             instances,
             bvh,

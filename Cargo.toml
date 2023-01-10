@@ -4,11 +4,11 @@ resolver = "2"
 members = [
     "bevy-strolle",
     "strolle",
-    "strolle-materializer",
     "strolle-models",
-    "strolle-printer",
+    "strolle-printing-pass",
     "strolle-shader-builder",
-    "strolle-tracer",
+    "strolle-shading-pass",
+    "strolle-tracing-pass",
 ]
 
 [patch."crates-io"]

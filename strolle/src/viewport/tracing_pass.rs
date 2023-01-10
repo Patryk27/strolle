@@ -4,13 +4,13 @@ use strolle_models as gpu;
 use crate::buffers::{DescriptorSet, StorageBuffer, UniformBuffer};
 use crate::{Engine, Params};
 
-pub struct TracerPass {
+pub struct TracingPass {
     ds0: DescriptorSet,
     ds1: DescriptorSet,
     pipeline: wgpu::ComputePipeline,
 }
 
-impl TracerPass {
+impl TracingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -20,7 +20,7 @@ impl TracerPass {
     where
         P: Params,
     {
-        let ds0 = DescriptorSet::builder("strolle_tracer_ds0")
+        let ds0 = DescriptorSet::builder("strolle_tracing_ds0")
             .add(&engine.triangles)
             .add(&engine.instances)
             .add(&engine.bvh)
@@ -30,14 +30,14 @@ impl TracerPass {
             .add(&engine.info)
             .build(device);
 
-        let ds1 = DescriptorSet::builder("strolle_tracer_ds1")
+        let ds1 = DescriptorSet::builder("strolle_tracing_ds1")
             .add(camera)
             .add(hits)
             .build(device);
 
         let pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_tracer_pipeline_layout"),
+                label: Some("strolle_tracing_pipeline_layout"),
                 bind_group_layouts: &[
                     ds0.bind_group_layout(),
                     ds1.bind_group_layout(),
@@ -47,9 +47,9 @@ impl TracerPass {
 
         let pipeline =
             device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("strolle_tracer_pipeline"),
+                label: Some("strolle_tracing_pipeline"),
                 layout: Some(&pipeline_layout),
-                module: &engine.tracer,
+                module: &engine.tracing_pass_shader,
                 entry_point: "main",
             });
 
@@ -59,7 +59,7 @@ impl TracerPass {
     pub fn run(&self, size: UVec2, encoder: &mut wgpu::CommandEncoder) {
         let mut pass =
             encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("strolle_tracer_pass"),
+                label: Some("strolle_tracing_pass"),
             });
 
         pass.set_pipeline(&self.pipeline);
