@@ -12,6 +12,8 @@ pub struct Ray {
 }
 
 impl Ray {
+    pub const MAX_INSTANCE_ID: u32 = u32::MAX >> 2;
+
     pub fn new(origin: Vec3, direction: Vec3) -> Self {
         let direction = direction.normalize();
 
@@ -70,15 +72,15 @@ impl Ray {
     /// This function returns a tuple over `(instance-id, triangle-id)` which
     /// is later read during the shading pass.
     ///
-    /// Note that in principle this function returns `Option<...>` - to avoid
-    /// having extra memory allocations, the `None` variant is encoded as
-    /// `.0 == u32::MAX`.
+    /// Note that in principle this function returns `Option<...>`, but to avoid
+    /// having extra memory allocations, the `None` variant is encoded as a
+    /// special, practically unreachable instance-id.
     pub fn trace(self, world: &World, stack: BvhTraversingStack) -> (u32, u32) {
         let dist = f32::MAX;
 
         let mut closest_distance = f32::MAX;
-        let mut closest_instance_id = u32::MAX;
-        let mut closest_triangle_id = u32::MAX;
+        let mut closest_instance_id = Ray::MAX_INSTANCE_ID;
+        let mut closest_triangle_id = 0;
 
         let traversed_nodes = self.traverse(
             world,

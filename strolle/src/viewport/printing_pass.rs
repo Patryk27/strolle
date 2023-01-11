@@ -37,7 +37,7 @@ impl PrintingPass {
                 label: Some("strolle_printing_pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &engine.printing_pass_shader,
+                    module: &engine.shaders.printing_pass,
                     entry_point: "main_vs",
                     buffers: &[],
                 },
@@ -45,7 +45,7 @@ impl PrintingPass {
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(wgpu::FragmentState {
-                    module: &engine.printing_pass_shader,
+                    module: &engine.shaders.printing_pass,
                     entry_point: "main_fs",
                     targets: &[Some(wgpu::ColorTargetState {
                         format,

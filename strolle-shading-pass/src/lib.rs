@@ -1,6 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{vec2, UVec3, Vec3Swizzles, Vec4};
+use spirv_std::glam::{UVec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 use spirv_std::{spirv, Image, Sampler};
 use strolle_models::*;
 
@@ -24,7 +24,8 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 6)] samplers: &[Sampler; 256],
     #[spirv(uniform, descriptor_set = 0, binding = 7)] info: &Info,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
-    #[spirv(storage_buffer, descriptor_set = 1, binding = 1)] hits: &[u32],
+    #[spirv(storage_buffer, descriptor_set = 1, binding = 1)]
+    rays: &mut [Vec4],
     #[spirv(descriptor_set = 1, binding = 2)] image: &Image!(
         2D,
         format = rgba16f,
@@ -43,34 +44,51 @@ pub fn main(
         triangles: TrianglesView::new(triangles),
         instances: InstancesView::new(instances),
         bvh: BvhView::new(bvh),
-        camera,
         lights: LightsView::new(lights),
         materials: MaterialsView::new(materials),
         info,
     };
 
-    let hit_idx = 2 * (global_idx as usize);
-    let instance_id = hits[hit_idx];
-    let triangle_id = hits[hit_idx + 1];
+    let ray_idx = 2 * (global_idx as usize);
+    let ray_d0 = unsafe { *rays.get_unchecked(ray_idx) };
+    let ray_d1 = unsafe { *rays.get_unchecked(ray_idx + 1) };
 
-    let color = if debug::ENABLE_AABB {
+    let ray_i0 = ray_d0.w.to_bits();
+    let ray_i1 = ray_d1.w.to_bits();
+
+    let instance_id = ray_i0 >> 2;
+    let ray_mode = ray_i0 & 0b11;
+    let triangle_id = ray_i1;
+
+    if ray_mode == 0 {
+        return;
+    }
+
+    // ---
+
+    let (color, continued_ray, continued_ray_mode) = if debug::ENABLE_AABB {
         // There's always at least one node traversed (the root node), so
         // subtracting one allows us to get pure black color for the background
         // if there's a miss
         let traversed_nodes = instance_id - 1;
 
-        spirv_std::glam::Vec3::splat((traversed_nodes as f32) / 200.0)
-            .extend(1.0)
+        let color =
+            spirv_std::glam::Vec3::splat((traversed_nodes as f32) / 200.0)
+                .extend(1.0);
+
+        (color, Default::default(), 0)
     } else {
         #[allow(clippy::collapsible_else_if)]
-        if instance_id == u32::MAX {
-            world.camera.clear_color().extend(1.0)
+        if instance_id == Ray::MAX_INSTANCE_ID {
+            let color = camera.clear_color().extend(1.0);
+
+            (color, Default::default(), 0)
         } else {
             let instance_id = InstanceId::new(instance_id);
             let triangle_id = TriangleId::new(triangle_id);
 
             let instance = world.instances.get(instance_id);
-            let ray = world.camera.ray(vec2(id.x as f32, id.y as f32));
+            let ray = Ray::new(ray_d0.xyz(), ray_d1.xyz());
 
             // Load the triangle, convert it from mesh-space into world-space
             // and perform hit-testing.
@@ -102,8 +120,41 @@ pub fn main(
         }
     };
 
+    // ---
+
+    unsafe {
+        *rays.get_unchecked_mut(ray_idx) = continued_ray
+            .origin()
+            .extend(f32::from_bits(continued_ray_mode));
+
+        *rays.get_unchecked_mut(ray_idx + 1) =
+            continued_ray.direction().extend(f32::from_bits(0));
+    }
+
+    // ---
+
+    let image_xy = id.xy().as_ivec2();
+
+    let color = match ray_mode {
+        // Primary ray
+        1 => color,
+
+        // Transparent ray
+        2 => {
+            let primary_color: Vec4 = image.read(image_xy);
+
+            let color = primary_color.xyz() * primary_color.w
+                + color.xyz() * (1.0 - primary_color.w);
+
+            color.extend(1.0)
+        }
+
+        // Unreachable
+        _ => color,
+    };
+
     // TODO safety
     unsafe {
-        image.write(id.xy().as_ivec2(), color);
+        image.write(image_xy, color);
     }
 }

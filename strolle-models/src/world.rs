@@ -1,6 +1,5 @@
 use crate::{
-    BvhView, Camera, Info, InstancesView, LightsView, MaterialsView,
-    TrianglesView,
+    BvhView, Info, InstancesView, LightsView, MaterialsView, TrianglesView,
 };
 
 pub struct World<'a> {
@@ -9,7 +8,6 @@ pub struct World<'a> {
     pub triangles: TrianglesView<'a>,
     pub instances: InstancesView<'a>,
     pub bvh: BvhView<'a>,
-    pub camera: &'a Camera,
     pub lights: LightsView<'a>,
     pub materials: MaterialsView<'a>,
     pub info: &'a Info,

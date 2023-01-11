@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use bevy::math::{vec2, vec3};
+use bevy::math::{vec2, vec3, Vec4Swizzles};
 use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
 use bevy::render::render_asset::RenderAssets;
@@ -180,8 +180,24 @@ pub(crate) fn materials(
     }
 
     for (material_handle, material) in materials.changed.drain(..) {
+        let base_color = {
+            let color = color_to_vec4(material.base_color);
+
+            match material.alpha_mode {
+                AlphaMode::Opaque => color.xyz().extend(1.0),
+                AlphaMode::Mask(mask) => {
+                    if color.w >= mask {
+                        color.xyz().extend(1.0)
+                    } else {
+                        color.xyz().extend(0.0)
+                    }
+                }
+                AlphaMode::Blend => color,
+            }
+        };
+
         let material = st::Material::default()
-            .with_base_color(color_to_vec4(material.base_color))
+            .with_base_color(base_color)
             .with_base_color_texture(material.base_color_texture)
             .with_perceptual_roughness(material.perceptual_roughness)
             .with_metallic(material.metallic)

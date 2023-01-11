@@ -1,6 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{vec2, UVec3, Vec4};
+use spirv_std::glam::{UVec3, Vec4, Vec4Swizzles};
 use spirv_std::spirv;
 use strolle_models::*;
 
@@ -20,7 +20,7 @@ pub fn main(
     #[spirv(uniform, descriptor_set = 0, binding = 7)] info: &Info,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
     #[spirv(storage_buffer, descriptor_set = 1, binding = 1)]
-    hits: &mut [u32],
+    rays: &mut [Vec4],
 ) {
     // If the world is empty, bail out early.
     //
@@ -32,6 +32,14 @@ pub fn main(
     }
 
     let global_idx = id.y * camera.viewport_size().as_uvec2().x + id.x;
+    let ray_idx = 2 * (global_idx as usize);
+    let ray_d0 = unsafe { *rays.get_unchecked(ray_idx) };
+    let ray_d1 = unsafe { *rays.get_unchecked(ray_idx + 1) };
+    let ray_mode = ray_d0.w.to_bits();
+
+    if ray_mode == 0 {
+        return;
+    }
 
     let world = World {
         global_idx,
@@ -39,19 +47,20 @@ pub fn main(
         triangles: TrianglesView::new(triangles),
         instances: InstancesView::new(instances),
         bvh: BvhView::new(bvh),
-        camera,
         lights: LightsView::new(lights),
         materials: MaterialsView::new(materials),
         info,
     };
 
-    let (instance_id, triangle_id) = world
-        .camera
-        .ray(vec2(id.x as f32, id.y as f32))
-        .trace(&world, stack);
+    let (instance_id, triangle_id) =
+        Ray::new(ray_d0.xyz(), ray_d1.xyz()).trace(&world, stack);
 
-    let hit_idx = 2 * (global_idx as usize);
+    unsafe {
+        *rays.get_unchecked_mut(ray_idx) = ray_d0
+            .xyz()
+            .extend(f32::from_bits((instance_id << 2) | ray_mode));
 
-    hits[hit_idx] = instance_id;
-    hits[hit_idx + 1] = triangle_id;
+        *rays.get_unchecked_mut(ray_idx + 1) =
+            ray_d1.xyz().extend(f32::from_bits(triangle_id));
+    }
 }

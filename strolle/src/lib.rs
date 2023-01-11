@@ -10,6 +10,7 @@ mod light;
 mod lights;
 mod material;
 mod materials;
+mod shaders;
 mod triangle;
 mod triangles;
 mod viewport;
@@ -32,6 +33,7 @@ pub use self::light::*;
 pub(crate) use self::lights::*;
 pub use self::material::*;
 pub(crate) use self::materials::*;
+pub(crate) use self::shaders::*;
 pub use self::triangle::*;
 pub(crate) use self::triangles::*;
 pub use self::viewport::*;
@@ -40,9 +42,7 @@ pub struct Engine<P>
 where
     P: Params,
 {
-    printing_pass_shader: wgpu::ShaderModule,
-    shading_pass_shader: wgpu::ShaderModule,
-    tracing_pass_shader: wgpu::ShaderModule,
+    shaders: Shaders,
     triangles: StorageBuffer<Triangles<P>>,
     instances: StorageBuffer<Instances>,
     bvh: StorageBuffer<Bvh<P>>,
@@ -65,17 +65,7 @@ where
 
         log::info!("Initializing");
 
-        let printing_pass_shader = device.create_shader_module(
-            wgpu::include_spirv!("../../target/printing-pass.spv"),
-        );
-
-        let shading_pass_shader = device.create_shader_module(
-            wgpu::include_spirv!("../../target/shading-pass.spv"),
-        );
-
-        let tracing_pass_shader = device.create_shader_module(
-            wgpu::include_spirv!("../../target/tracing-pass.spv"),
-        );
+        let shaders = Shaders::new(device);
 
         let triangles =
             StorageBuffer::new_default(device, "strolle_triangles", BUF_SIZE);
@@ -103,9 +93,7 @@ where
         let info = UniformBuffer::new_default(device, "strolle_info");
 
         Self {
-            printing_pass_shader,
-            shading_pass_shader,
-            tracing_pass_shader,
+            shaders,
             triangles,
             instances,
             bvh,

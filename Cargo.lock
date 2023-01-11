@@ -2946,6 +2946,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "strolle-raygen-pass"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-models",
+]
+
+[[package]]
 name = "strolle-shader-builder"
 version = "0.1.0"
 dependencies = [

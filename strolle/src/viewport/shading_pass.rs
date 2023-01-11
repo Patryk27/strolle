@@ -15,7 +15,7 @@ impl ShadingPass {
         engine: &Engine<P>,
         device: &wgpu::Device,
         camera: &UniformBuffer<gpu::Camera>,
-        hits: &StorageBuffer<u32>,
+        rays: &StorageBuffer<f32>,
         image: &Texture,
     ) -> Self
     where
@@ -33,7 +33,7 @@ impl ShadingPass {
 
         let ds1 = DescriptorSet::builder("strolle_shading_ds1")
             .add(camera)
-            .add(hits)
+            .add(rays)
             .add(&image.writable())
             .build(device);
 
@@ -51,7 +51,7 @@ impl ShadingPass {
             device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: Some("strolle_shading_pipeline"),
                 layout: Some(&pipeline_layout),
-                module: &engine.shading_pass_shader,
+                module: &engine.shaders.shading_pass,
                 entry_point: "main",
             });
 

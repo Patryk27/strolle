@@ -27,28 +27,24 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let cube_mat = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.8, 0.7, 0.6),
-        perceptual_roughness: 0.2,
-        ..default()
-    });
-
-    let floor_mat = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.2, 0.2, 0.2),
-        perceptual_roughness: 0.0,
-        ..default()
-    });
-
     commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
-        material: floor_mat,
+        material: materials.add(StandardMaterial {
+            base_color: Color::rgb(0.2, 0.2, 0.2),
+            perceptual_roughness: 0.0,
+            ..default()
+        }),
         ..default()
     });
 
     commands
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: cube_mat.clone(),
+            material: materials.add(StandardMaterial {
+                base_color: Color::rgb(0.8, 0.7, 0.6),
+                perceptual_roughness: 0.2,
+                ..default()
+            }),
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
             ..default()
         })
@@ -57,7 +53,12 @@ fn setup(
     commands
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: cube_mat,
+            material: materials.add(StandardMaterial {
+                base_color: Color::rgba(0.8, 0.7, 0.6, 0.25),
+                perceptual_roughness: 0.2,
+                alpha_mode: AlphaMode::Blend,
+                ..default()
+            }),
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
             ..default()
         })
