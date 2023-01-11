@@ -1,4 +1,5 @@
 mod printing_pass;
+mod raygen_pass;
 mod shading_pass;
 mod tracing_pass;
 
@@ -10,6 +11,7 @@ use spirv_std::glam::UVec2;
 use strolle_models as gpu;
 
 use self::printing_pass::*;
+use self::raygen_pass::*;
 use self::shading_pass::*;
 use self::tracing_pass::*;
 use crate::buffers::{StorageBuffer, Texture, UniformBuffer};
@@ -41,21 +43,23 @@ impl Viewport {
 
         let camera = UniformBuffer::new(device, "strolle_camera", camera);
 
-        let hits = StorageBuffer::new_default(
+        let rays = StorageBuffer::new_default(
             device,
-            "strolle_hits",
-            (2 * size.x * size.y) as usize * mem::size_of::<u32>(),
+            "strolle_rays",
+            (8 * size.x * size.y) as usize * mem::size_of::<f32>(),
         );
 
         let image = Texture::new(device, "strolle_image", size);
 
-        let tracing_pass = TracingPass::new(engine, device, &camera, &hits);
-
-        let shading_pass =
-            ShadingPass::new(engine, device, &camera, &hits, &image);
-
         let printing_pass =
             PrintingPass::new(engine, device, format, &camera, &image);
+
+        let raygen_pass = RaygenPass::new(engine, device, &camera, &rays);
+
+        let shading_pass =
+            ShadingPass::new(engine, device, &camera, &rays, &image);
+
+        let tracing_pass = TracingPass::new(engine, device, &camera, &rays);
 
         Self {
             inner: Arc::new(Mutex::new(ViewportInner {
@@ -63,11 +67,12 @@ impl Viewport {
                 size,
                 format,
                 camera,
-                hits,
+                rays,
                 image,
-                tracing_pass,
-                shading_pass,
                 printing_pass,
+                raygen_pass,
+                shading_pass,
+                tracing_pass,
             })),
         }
     }
@@ -107,13 +112,13 @@ impl Viewport {
 
         self.with(|this| {
             this.tracing_pass =
-                TracingPass::new(engine, device, &this.camera, &this.hits);
+                TracingPass::new(engine, device, &this.camera, &this.rays);
 
             this.shading_pass = ShadingPass::new(
                 engine,
                 device,
                 &this.camera,
-                &this.hits,
+                &this.rays,
                 &this.image,
             );
         });
@@ -130,9 +135,16 @@ impl Viewport {
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
     ) {
+        const BOUNCES: usize = 1;
+
         self.with(|this| {
-            this.tracing_pass.run(this.size, encoder);
-            this.shading_pass.run(this.size, encoder);
+            this.raygen_pass.run(this.size, encoder);
+
+            for _ in 0..=BOUNCES {
+                this.tracing_pass.run(this.size, encoder);
+                this.shading_pass.run(this.size, encoder);
+            }
+
             this.printing_pass.run(this.pos, this.size, encoder, target);
         });
     }
@@ -168,11 +180,12 @@ struct ViewportInner {
     size: UVec2,
     format: wgpu::TextureFormat,
     camera: UniformBuffer<gpu::Camera>,
-    hits: StorageBuffer<u32>,
+    rays: StorageBuffer<f32>,
     image: Texture,
-    tracing_pass: TracingPass,
-    shading_pass: ShadingPass,
     printing_pass: PrintingPass,
+    raygen_pass: RaygenPass,
+    shading_pass: ShadingPass,
+    tracing_pass: TracingPass,
 }
 
 impl Drop for ViewportInner {

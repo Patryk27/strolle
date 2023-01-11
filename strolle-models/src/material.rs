@@ -28,35 +28,7 @@ impl Material {
         stack: BvhTraversingStack,
         ray: Ray,
         hit: Hit,
-    ) -> Vec4 {
-        let mut shade = vec4(0.0, 0.0, 0.0, 1.0);
-        let mut light_id = 0;
-
-        while light_id < world.info.light_count {
-            let light = world.lights.get(LightId::new(light_id));
-
-            shade += self
-                .shade_light(world, images, samplers, stack, ray, hit, light);
-
-            light_id += 1;
-        }
-
-        shade
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn shade_light(
-        &self,
-        world: &World,
-        images: &[Image!(2D, type=f32, sampled); 256],
-        samplers: &[Sampler; 256],
-        stack: BvhTraversingStack,
-        ray: Ray,
-        hit: Hit,
-        light: Light,
-    ) -> Vec4 {
-        // TODO: Optimize a lot of these calculations can be done once per material
-
+    ) -> (Vec4, Ray, u32) {
         let base_color = if self.base_color_texture == u32::MAX {
             self.base_color
         } else {
@@ -66,6 +38,45 @@ impl Material {
             self.base_color
                 * image.sample_by_lod::<_, Vec4>(sampler, hit.texture_uv, 0.0)
         };
+
+        // ---
+
+        let mut shade = vec4(0.0, 0.0, 0.0, base_color.w);
+        let mut light_id = 0;
+
+        while light_id < world.info.light_count {
+            let light = world.lights.get(LightId::new(light_id));
+
+            shade +=
+                self.shade_light(world, stack, ray, hit, base_color, light);
+
+            light_id += 1;
+        }
+
+        // ---
+
+        let (continued_ray, continued_ray_mode) = if shade.w < 1.0 {
+            let ray =
+                Ray::new(hit.point + ray.direction() * 0.1, ray.direction());
+
+            (ray, 2)
+        } else {
+            (Default::default(), 0)
+        };
+
+        (shade, continued_ray, continued_ray_mode)
+    }
+
+    fn shade_light(
+        &self,
+        world: &World,
+        stack: BvhTraversingStack,
+        ray: Ray,
+        hit: Hit,
+        base_color: Vec4,
+        light: Light,
+    ) -> Vec4 {
+        // TODO: Optimize a lot of these calculations can be done once per material
 
         let roughness =
             perceptual_roughness_to_roughness(self.perceptual_roughness);

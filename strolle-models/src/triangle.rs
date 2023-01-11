@@ -97,6 +97,10 @@ impl Triangle {
         let v = ray.direction().dot(qvec) * inv_det;
         let distance = v0v2.dot(qvec) * inv_det;
 
+        if det < f32::EPSILON {
+            return Hit::none();
+        }
+
         if (u < 0.0) | (u > 1.0) | (v < 0.0) | (u + v > 1.0) | (distance < 0.0)
         {
             return Hit::none();

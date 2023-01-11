@@ -6,6 +6,7 @@ members = [
     "strolle",
     "strolle-models",
     "strolle-printing-pass",
+    "strolle-raygen-pass",
     "strolle-shader-builder",
     "strolle-shading-pass",
     "strolle-tracing-pass",
