@@ -88,6 +88,17 @@ impl Triangle {
     pub fn hit(self, ray: Ray) -> Hit {
         let v0v1 = self.vertex1() - self.vertex0();
         let v0v2 = self.vertex2() - self.vertex0();
+
+        // Culling check - if ray hits our triangle from beind, don't consider
+        // that a hit.
+        //
+        // Note that we kinda recalculate `det` here - that's because for this
+        // check we need to use normalized direction, while the rest of the code
+        // assumes not-normalized direction.
+        if v0v1.dot(ray.direction().normalize().cross(v0v2)) < f32::EPSILON {
+            return Hit::none();
+        }
+
         let pvec = ray.direction().cross(v0v2);
         let det = v0v1.dot(pvec);
         let inv_det = 1.0 / det;
@@ -96,10 +107,6 @@ impl Triangle {
         let qvec = tvec.cross(v0v1);
         let v = ray.direction().dot(qvec) * inv_det;
         let distance = v0v2.dot(qvec) * inv_det;
-
-        if det < f32::EPSILON {
-            return Hit::none();
-        }
 
         if (u < 0.0) | (u > 1.0) | (v < 0.0) | (u + v > 1.0) | (distance < 0.0)
         {
