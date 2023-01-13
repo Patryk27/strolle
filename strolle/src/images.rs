@@ -51,7 +51,7 @@ where
     ) {
         let image_id = self.textures.len();
 
-        log::trace!("Image added: {:?} ({})", image_handle, image_id);
+        log::debug!("Image added: {:?} ({})", image_handle, image_id);
 
         self.textures.push(image_texture);
         self.samplers.push(image_sampler);
@@ -61,7 +61,7 @@ where
     pub fn remove(&mut self, image_handle: &P::ImageHandle) {
         let Some(image_id) = self.index.remove(image_handle) else { return };
 
-        log::trace!("Image removed: {:?} ({})", image_handle, image_id);
+        log::debug!("Image removed: {:?} ({})", image_handle, image_id);
 
         self.textures.remove(image_id as usize);
         self.samplers.remove(image_id as usize);

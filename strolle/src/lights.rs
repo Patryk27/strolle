@@ -31,7 +31,7 @@ where
                 let light_handle = entry.key();
                 let light_id = *entry.get();
 
-                log::trace!(
+                log::debug!(
                     "Light updated: {:?} ({}) => {:?}",
                     light_handle,
                     light_id.get(),
@@ -47,7 +47,7 @@ where
 
                 // TODO noisy
                 //
-                // log::trace!(
+                // log::debug!(
                 //     "Light added: {:?} ({}) => {:?}",
                 //     light_handle,
                 //     light_id.get(),
@@ -63,13 +63,13 @@ where
     pub fn remove(&mut self, light_handle: &P::LightHandle) {
         let Some(light_id) = self.index.remove(light_handle) else { return };
 
-        log::trace!("Light removed: {:?} ({})", light_handle, light_id.get());
+        log::debug!("Light removed: {:?} ({})", light_handle, light_id.get());
 
         self.gpu_lights.remove(light_id.get() as usize);
 
         for light_id2 in self.index.values_mut() {
             if light_id2.get() > light_id.get() {
-                log::trace!(
+                log::debug!(
                     "Light relocated: {} -> {}",
                     light_id2.get(),
                     light_id2.get() - 1

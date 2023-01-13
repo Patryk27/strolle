@@ -20,7 +20,7 @@ where
         let size = mem::size_of::<T>();
         let size = (size + 31) & !31;
 
-        log::debug!(
+        log::info!(
             "Allocating uniform buffer `{label}`; ty={}, size={size} (padded from {})",
             any::type_name::<T>(),
             mem::size_of::<T>(),

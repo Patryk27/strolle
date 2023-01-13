@@ -23,7 +23,7 @@ where
     ) -> Self {
         let label = label.as_ref();
 
-        log::debug!(
+        log::info!(
             "Allocating storage buffer `{label}`; ty={}, size={size}",
             any::type_name::<T>(),
         );

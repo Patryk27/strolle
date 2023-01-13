@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use bevy::math::{vec2, vec3, Vec4Swizzles};
+use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
 use bevy::render::render_asset::RenderAssets;
@@ -12,8 +12,7 @@ use crate::state::{
     ExtractedImages, ExtractedInstances, ExtractedLights, ExtractedMaterials,
     ExtractedMeshes,
 };
-use crate::utils::color_to_vec4;
-use crate::EngineResource;
+use crate::{EngineResource, MaterialLike};
 
 pub(crate) fn meshes(
     mut engine: ResMut<EngineResource>,
@@ -171,48 +170,34 @@ pub(crate) fn images(
     }
 }
 
-pub(crate) fn materials(
+pub(crate) fn materials<M>(
     mut engine: ResMut<EngineResource>,
-    mut materials: ResMut<ExtractedMaterials>,
-) {
+    mut materials: ResMut<ExtractedMaterials<M>>,
+) where
+    M: MaterialLike,
+{
     for material_handle in materials.removed.iter() {
-        engine.remove_material(material_handle);
+        engine.remove_material(&M::map_handle(material_handle.clone_weak()));
     }
 
     for (material_handle, material) in materials.changed.drain(..) {
-        let base_color = {
-            let color = color_to_vec4(material.base_color);
-
-            match material.alpha_mode {
-                AlphaMode::Opaque => color.xyz().extend(1.0),
-                AlphaMode::Mask(mask) => {
-                    if color.w >= mask {
-                        color.xyz().extend(1.0)
-                    } else {
-                        color.xyz().extend(0.0)
-                    }
-                }
-                AlphaMode::Blend => color,
-            }
-        };
-
-        let material = st::Material::default()
-            .with_base_color(base_color)
-            .with_base_color_texture(material.base_color_texture)
-            .with_perceptual_roughness(material.perceptual_roughness)
-            .with_metallic(material.metallic)
-            .with_reflectance(material.reflectance);
-
-        engine.add_material(material_handle, material);
+        engine.add_material(
+            M::map_handle(material_handle),
+            material.into_material(),
+        );
     }
 }
 
-pub(crate) fn instances(
-    mut engine: ResMut<EngineResource>,
-    mut instances: ResMut<ExtractedInstances>,
-) {
+pub(crate) fn clear_instances(mut engine: ResMut<EngineResource>) {
     engine.clear_instances();
+}
 
+pub(crate) fn instances<M>(
+    mut engine: ResMut<EngineResource>,
+    mut instances: ResMut<ExtractedInstances<M>>,
+) where
+    M: MaterialLike,
+{
     for (mesh_handle, material_handle, transform) in instances.items.drain(..) {
         if !engine.contains_mesh(&mesh_handle) {
             // This can happen if this mesh is being loaded in the background -
@@ -221,7 +206,11 @@ pub(crate) fn instances(
             continue;
         }
 
-        engine.add_instance(mesh_handle, material_handle, transform);
+        engine.add_instance(
+            mesh_handle,
+            M::map_handle(material_handle),
+            transform,
+        );
     }
 }
 

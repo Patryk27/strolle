@@ -32,7 +32,7 @@ where
                 let material_handle = entry.key();
                 let material_id = *entry.get();
 
-                log::trace!(
+                log::debug!(
                     "Material updated: {:?} ({}) => {:?}",
                     material_handle,
                     material_id.get(),
@@ -47,7 +47,7 @@ where
                 let material_id =
                     gpu::MaterialId::new(self.cpu_materials.len() as u32);
 
-                log::trace!(
+                log::debug!(
                     "Material added: {:?} ({}) => {:?}",
                     material_handle,
                     material_id.get(),
@@ -80,8 +80,6 @@ where
     }
 
     pub fn rebuild(&mut self, images: &Images<P>) {
-        log::trace!("Rebuilding materials");
-
         self.gpu_materials = self
             .cpu_materials
             .iter()

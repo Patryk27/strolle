@@ -40,7 +40,7 @@ where
         let max_id =
             gpu::TriangleId::new((self.gpu_triangles.len() - 1) as u32);
 
-        log::trace!(
+        log::debug!(
             "Triangles added: {:?} ({}..{})",
             mesh_handle,
             min_id.get(),
@@ -55,7 +55,7 @@ where
         let Some((min_id, max_id, _)) = self.index.remove(mesh_handle) else { return };
         let len = max_id.get() - min_id.get() + 1;
 
-        log::trace!(
+        log::debug!(
             "Triangles removed: {:?} ({}..{})",
             mesh_handle,
             min_id.get(),
