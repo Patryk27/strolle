@@ -17,6 +17,10 @@ pub struct Material {
     perceptual_roughness: f32,
     metallic: f32,
     reflectance: f32,
+    refraction: f32,
+    _pad1: f32,
+    _pad2: f32,
+    _pad3: f32,
 }
 
 impl Material {
@@ -29,7 +33,21 @@ impl Material {
         ray: Ray,
         hit: Hit,
     ) -> (Vec4, Ray, u32) {
-        let base_color = if self.base_color_texture == u32::MAX {
+        let base_color = self.compute_base_color(images, samplers, hit);
+        let shade = self.shade_lights(world, stack, base_color, ray, hit);
+        let (ray, ray_mode) = self.continue_ray(ray, hit, shade);
+
+        (shade, ray, ray_mode)
+    }
+
+    /// Returns base color multiplied by the base color's texture (if any).
+    fn compute_base_color(
+        &self,
+        images: &[Image!(2D, type=f32, sampled); 256],
+        samplers: &[Sampler; 256],
+        hit: Hit,
+    ) -> Vec4 {
+        if self.base_color_texture == u32::MAX {
             self.base_color
         } else {
             let image = images[self.base_color_texture as usize];
@@ -37,10 +55,19 @@ impl Material {
 
             self.base_color
                 * image.sample_by_lod::<_, Vec4>(sampler, hit.texture_uv, 0.0)
-        };
+        }
+    }
 
-        // ---
-
+    /// Goes through all of the lights, checks if the light is not occluded and
+    /// incorporates its color into the shaded color.
+    fn shade_lights(
+        &self,
+        world: &World,
+        stack: BvhTraversingStack,
+        base_color: Vec4,
+        ray: Ray,
+        hit: Hit,
+    ) -> Vec4 {
         let mut shade = vec4(0.0, 0.0, 0.0, base_color.w);
         let mut light_id = 0;
 
@@ -53,18 +80,7 @@ impl Material {
             light_id += 1;
         }
 
-        // ---
-
-        let (continued_ray, continued_ray_mode) = if shade.w < 1.0 {
-            let ray =
-                Ray::new(hit.point + ray.direction() * 0.1, ray.direction());
-
-            (ray, 2)
-        } else {
-            (Default::default(), 0)
-        };
-
-        (shade, continued_ray, continued_ray_mode)
+        shade
     }
 
     fn shade_light(
@@ -149,6 +165,47 @@ impl Material {
             * visibility_factor;
 
         contribution.extend(0.0)
+    }
+
+    /// Casts another ray, if needed to compute the material's effective color.
+    ///
+    /// (e.g. this casts a ray if the material is transparent.)
+    fn continue_ray(&self, ray: Ray, hit: Hit, shade: Vec4) -> (Ray, u32) {
+        if shade.w >= 1.0 {
+            return (Default::default(), 0);
+        }
+
+        let direction = {
+            let mut cos_incident_angle = hit.normal.dot(-ray.direction());
+
+            let eta = if cos_incident_angle > 0.0 {
+                self.refraction
+            } else {
+                1.0 / self.refraction
+            };
+
+            let refraction_coeff =
+                1.0 - (1.0 - cos_incident_angle.powi(2)) / eta.powi(2);
+
+            if refraction_coeff < 0.0 {
+                return (Default::default(), 0);
+            }
+
+            let mut normal = hit.normal;
+            let cos_transmitted_angle = refraction_coeff.sqrt();
+
+            if cos_incident_angle < 0.0 {
+                normal = -normal;
+                cos_incident_angle = -cos_incident_angle;
+            }
+
+            ray.direction() / eta
+                - normal * (cos_transmitted_angle - cos_incident_angle / eta)
+        };
+
+        let ray = Ray::new(hit.point + ray.direction() * 0.1, direction);
+
+        (ray, 2)
     }
 }
 
@@ -305,6 +362,11 @@ impl Material {
         self.reflectance = reflectance;
         self
     }
+
+    pub fn with_refraction(mut self, refraction: f32) -> Self {
+        self.refraction = refraction;
+        self
+    }
 }
 
 #[cfg(not(target_arch = "spirv"))]
@@ -316,6 +378,10 @@ impl Default for Material {
             perceptual_roughness: 0.0,
             metallic: 0.0,
             reflectance: 0.0,
+            refraction: 1.0,
+            _pad1: 0.0,
+            _pad2: 0.0,
+            _pad3: 0.0,
         }
     }
 }

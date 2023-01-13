@@ -39,6 +39,14 @@ $ cargo run --release --example cubes
 Shows a few cubes rotating around the origin; use keyboard & mouse to move the
 camera.
 
+### Glass
+
+``` shell
+$ cargo run --release --example glass
+```
+
+Shows support for refraction; use keyboard & mouse to move the camera.
+
 ### Instancing
 
 ``` shell

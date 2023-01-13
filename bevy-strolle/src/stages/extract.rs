@@ -12,6 +12,7 @@ use crate::state::{
     ExtractedMaterials, ExtractedMeshes,
 };
 use crate::utils::color_to_vec3;
+use crate::MaterialLike;
 
 pub(crate) fn meshes(
     mut commands: Commands,
@@ -79,11 +80,13 @@ pub(crate) fn images(
     commands.insert_resource(ExtractedImages { changed, removed });
 }
 
-pub(crate) fn materials(
+pub(crate) fn materials<M>(
     mut commands: Commands,
-    mut events: Extract<EventReader<AssetEvent<StandardMaterial>>>,
-    materials: Extract<Res<Assets<StandardMaterial>>>,
-) {
+    mut events: Extract<EventReader<AssetEvent<M>>>,
+    materials: Extract<Res<Assets<M>>>,
+) where
+    M: MaterialLike,
+{
     let mut changed = HashSet::default();
     let mut removed = Vec::new();
 
@@ -116,12 +119,12 @@ pub(crate) fn materials(
 }
 
 #[allow(clippy::type_complexity)]
-pub(crate) fn instances(
+pub(crate) fn instances<M>(
     mut commands: Commands,
-    instances: Extract<
-        Query<(&Handle<Mesh>, &Handle<StandardMaterial>, &GlobalTransform)>,
-    >,
-) {
+    instances: Extract<Query<(&Handle<Mesh>, &Handle<M>, &GlobalTransform)>>,
+) where
+    M: MaterialLike,
+{
     let mut items = Vec::new();
 
     for (mesh_handle, material_handle, transform) in instances.iter() {

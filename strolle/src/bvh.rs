@@ -43,7 +43,7 @@ where
         BvhSerializer::process(&mut self.data, mesh_bvh.root());
         let max_ptr = gpu::BvhPtr::new((self.data.len() - 1) as u32);
 
-        log::trace!(
+        log::debug!(
             "BVH added: {:?} ({}..{})",
             mesh_handle,
             min_ptr.get(),
@@ -58,7 +58,7 @@ where
         let Some((min_ptr, max_ptr)) = self.index.remove(mesh_handle) else { return };
         let len = max_ptr.get() - min_ptr.get() + 1;
 
-        log::trace!(
+        log::debug!(
             "BVH removed: {:?} ({}..{})",
             mesh_handle,
             min_ptr.get(),

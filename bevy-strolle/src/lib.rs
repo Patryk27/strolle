@@ -1,3 +1,4 @@
+mod material;
 mod render_node;
 mod stages;
 mod state;
@@ -22,6 +23,7 @@ use bevy::render::renderer::RenderDevice;
 use bevy::render::{RenderApp, RenderStage};
 use strolle as st;
 
+pub use self::material::*;
 use self::render_node::*;
 use self::state::*;
 
@@ -29,6 +31,8 @@ pub struct StrollePlugin;
 
 impl Plugin for StrollePlugin {
     fn build(&self, app: &mut App) {
+        app.add_asset::<StrolleMaterial>();
+
         let render_app = app.sub_app_mut(RenderApp);
         let render_device = render_app.world.resource::<RenderDevice>();
         let engine = st::Engine::new(render_device.wgpu_device());
@@ -47,12 +51,22 @@ impl Plugin for StrollePlugin {
 
         render_app.add_system_to_stage(
             RenderStage::Extract,
-            stages::extract::materials,
+            stages::extract::materials::<StandardMaterial>,
         );
 
         render_app.add_system_to_stage(
             RenderStage::Extract,
-            stages::extract::instances,
+            stages::extract::materials::<StrolleMaterial>,
+        );
+
+        render_app.add_system_to_stage(
+            RenderStage::Extract,
+            stages::extract::instances::<StandardMaterial>,
+        );
+
+        render_app.add_system_to_stage(
+            RenderStage::Extract,
+            stages::extract::instances::<StrolleMaterial>,
         );
 
         render_app
@@ -74,15 +88,35 @@ impl Plugin for StrollePlugin {
 
         render_app.add_system_to_stage(
             RenderStage::Prepare,
-            stages::prepare::materials,
+            stages::prepare::materials::<StandardMaterial>,
         );
 
         render_app.add_system_to_stage(
             RenderStage::Prepare,
-            stages::prepare::instances
+            stages::prepare::materials::<StrolleMaterial>,
+        );
+
+        render_app.add_system_to_stage(
+            RenderStage::Prepare,
+            stages::prepare::clear_instances,
+        );
+
+        render_app.add_system_to_stage(
+            RenderStage::Prepare,
+            stages::prepare::instances::<StandardMaterial>
+                .after(stages::prepare::clear_instances)
                 .after(stages::prepare::meshes)
                 .after(stages::prepare::images)
-                .after(stages::prepare::materials),
+                .after(stages::prepare::materials::<StandardMaterial>),
+        );
+
+        render_app.add_system_to_stage(
+            RenderStage::Prepare,
+            stages::prepare::instances::<StrolleMaterial>
+                .after(stages::prepare::clear_instances)
+                .after(stages::prepare::meshes)
+                .after(stages::prepare::images)
+                .after(stages::prepare::materials::<StrolleMaterial>),
         );
 
         render_app
@@ -157,7 +191,7 @@ impl st::Params for EngineParams {
     type ImageSampler = Sampler;
     type ImageTexture = TextureView;
     type LightHandle = Entity;
-    type MaterialHandle = Handle<StandardMaterial>;
+    type MaterialHandle = MaterialHandle;
     type MeshHandle = Handle<Mesh>;
 }
 
