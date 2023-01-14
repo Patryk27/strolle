@@ -6,7 +6,7 @@ use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
 use spirv_std::num_traits::float::Float;
 use spirv_std::{Image, Sampler};
 
-use crate::{BvhTraversingStack, Hit, Light, LightId, Ray, World};
+use crate::{BvhTraversingStack, Hit, Light, LightId, Ray, RayOp, World};
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Pod, Zeroable)]
@@ -32,12 +32,12 @@ impl Material {
         stack: BvhTraversingStack,
         ray: Ray,
         hit: Hit,
-    ) -> (Vec4, Ray, u32) {
+    ) -> (Vec4, RayOp) {
         let base_color = self.compute_base_color(images, samplers, hit);
         let shade = self.shade_lights(world, stack, base_color, ray, hit);
-        let (ray, ray_mode) = self.continue_ray(ray, hit, shade);
+        let ray = self.continue_ray(ray, hit, shade);
 
-        (shade, ray, ray_mode)
+        (shade, ray)
     }
 
     /// Returns base color multiplied by the base color's texture (if any).
@@ -170,9 +170,9 @@ impl Material {
     /// Casts another ray, if needed to compute the material's effective color.
     ///
     /// (e.g. this casts a ray if the material is transparent.)
-    fn continue_ray(&self, ray: Ray, hit: Hit, shade: Vec4) -> (Ray, u32) {
+    fn continue_ray(&self, ray: Ray, hit: Hit, shade: Vec4) -> RayOp {
         if shade.w >= 1.0 {
-            return (Default::default(), 0);
+            return RayOp::killed();
         }
 
         let direction = {
@@ -188,7 +188,7 @@ impl Material {
                 1.0 - (1.0 - cos_incident_angle.powi(2)) / eta.powi(2);
 
             if refraction_coeff < 0.0 {
-                return (Default::default(), 0);
+                return RayOp::killed();
             }
 
             let mut normal = hit.normal;
@@ -203,9 +203,7 @@ impl Material {
                 - normal * (cos_transmitted_angle - cos_incident_angle / eta)
         };
 
-        let ray = Ray::new(hit.point + ray.direction() * 0.1, direction);
-
-        (ray, 2)
+        RayOp::reflected(Ray::new(hit.point + ray.direction() * 0.1, direction))
     }
 }
 

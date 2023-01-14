@@ -1,16 +1,15 @@
 use crate::{Light, LightId};
 
 pub struct LightsView<'a> {
-    data: &'a [Light],
+    items: &'a [Light],
 }
 
 impl<'a> LightsView<'a> {
-    pub fn new(data: &'a [Light]) -> Self {
-        Self { data }
+    pub fn new(items: &'a [Light]) -> Self {
+        Self { items }
     }
 
     pub fn get(&self, id: LightId) -> Light {
-        // TODO safety
-        unsafe { *self.data.get_unchecked(id.get() as usize) }
+        unsafe { *self.items.get_unchecked(id.get() as usize) }
     }
 }
