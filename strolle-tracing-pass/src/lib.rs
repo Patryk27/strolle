@@ -1,13 +1,13 @@
 #![no_std]
 
-use spirv_std::glam::{UVec3, Vec4, Vec4Swizzles};
+use spirv_std::glam::{UVec3, Vec4};
 use spirv_std::spirv;
 use strolle_models::*;
 
 #[allow(clippy::too_many_arguments)]
 #[spirv(compute(threads(8, 8)))]
 pub fn main(
-    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(local_invocation_index)] local_idx: u32,
     #[spirv(workgroup)] stack: BvhTraversingStack,
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)]
@@ -20,7 +20,7 @@ pub fn main(
     #[spirv(uniform, descriptor_set = 0, binding = 7)] info: &Info,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
     #[spirv(storage_buffer, descriptor_set = 1, binding = 1)]
-    rays: &mut [Vec4],
+    rays: &mut [RayOp],
 ) {
     // If the world is empty, bail out early.
     //
@@ -31,15 +31,16 @@ pub fn main(
         return;
     }
 
-    let global_idx = id.y * camera.viewport_size().as_uvec2().x + id.x;
-    let ray_idx = 2 * (global_idx as usize);
-    let ray_d0 = unsafe { *rays.get_unchecked(ray_idx) };
-    let ray_d1 = unsafe { *rays.get_unchecked(ray_idx + 1) };
-    let ray_mode = ray_d0.w.to_bits();
+    let global_idx =
+        global_id.x + global_id.y * camera.viewport_size().as_uvec2().x;
 
-    if ray_mode == 0 {
+    let ray = RayOpsView::new(rays).get(global_idx);
+
+    if ray.is_killed() {
         return;
     }
+
+    // ---
 
     let world = World {
         global_idx,
@@ -52,15 +53,8 @@ pub fn main(
         info,
     };
 
-    let (instance_id, triangle_id) =
-        Ray::new(ray_d0.xyz(), ray_d1.xyz()).trace(&world, stack);
+    let (instance_id, triangle_id) = ray.ray().trace(&world, stack);
 
-    unsafe {
-        *rays.get_unchecked_mut(ray_idx) = ray_d0
-            .xyz()
-            .extend(f32::from_bits((instance_id << 2) | ray_mode));
-
-        *rays.get_unchecked_mut(ray_idx + 1) =
-            ray_d1.xyz().extend(f32::from_bits(triangle_id));
-    }
+    RayOpsView::new(rays)
+        .set(global_idx, ray.with_hit(instance_id, triangle_id));
 }

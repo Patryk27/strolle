@@ -17,12 +17,12 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn ray(&self, pos: Vec2) -> Ray {
+    pub fn ray(&self, viewport_xy: Vec2) -> Ray {
         let origin = self.origin.xyz();
 
         let direction = {
             // Map from viewport's size to 0..1
-            let pos = pos / self.viewport_size();
+            let pos = viewport_xy / self.viewport_size();
 
             // Map to -1..1
             let pos = 2.0 * pos - 1.0;

@@ -7,7 +7,7 @@ use strolle_models::*;
 #[allow(clippy::too_many_arguments)]
 #[spirv(compute(threads(8, 8)))]
 pub fn main(
-    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(local_invocation_index)] local_idx: u32,
     #[spirv(workgroup)] stack: BvhTraversingStack,
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)]
@@ -25,18 +25,32 @@ pub fn main(
     #[spirv(uniform, descriptor_set = 0, binding = 7)] info: &Info,
     #[spirv(uniform, descriptor_set = 1, binding = 0)] camera: &Camera,
     #[spirv(storage_buffer, descriptor_set = 1, binding = 1)]
-    rays: &mut [Vec4],
+    rays: &mut [RayOp],
     #[spirv(descriptor_set = 1, binding = 2)] image: &Image!(
         2D,
         format = rgba16f,
         sampled = false
     ),
 ) {
+    // If the world is empty, bail out early.
+    //
+    // It's not as much as optimization as a work-around for an empty BVH - by
+    // having this below as an early check, we don't have to special-case BVH
+    // later.
     if info.is_world_empty() {
         return;
     }
 
-    let global_idx = id.y * camera.viewport_size().as_uvec2().x + id.x;
+    let global_idx =
+        global_id.x + global_id.y * camera.viewport_size().as_uvec2().x;
+
+    let ray = RayOpsView::new(rays).get(global_idx);
+
+    if ray.is_killed() {
+        return;
+    }
+
+    // ---
 
     let world = World {
         global_idx,
@@ -49,24 +63,10 @@ pub fn main(
         info,
     };
 
-    let ray_idx = 2 * (global_idx as usize);
-    let ray_d0 = unsafe { *rays.get_unchecked(ray_idx) };
-    let ray_d1 = unsafe { *rays.get_unchecked(ray_idx + 1) };
+    let instance_id = ray.instance_id();
+    let triangle_id = ray.triangle_id();
 
-    let ray_i0 = ray_d0.w.to_bits();
-    let ray_i1 = ray_d1.w.to_bits();
-
-    let instance_id = ray_i0 >> 2;
-    let ray_mode = ray_i0 & 0b11;
-    let triangle_id = ray_i1;
-
-    if ray_mode == 0 {
-        return;
-    }
-
-    // ---
-
-    let (color, continued_ray, continued_ray_mode) = if debug::ENABLE_AABB {
+    let (color, continued_ray) = if debug::ENABLE_AABB {
         // There's always at least one node traversed (the root node), so
         // subtracting one allows us to get pure black color for the background
         // if there's a miss
@@ -76,19 +76,19 @@ pub fn main(
             spirv_std::glam::Vec3::splat((traversed_nodes as f32) / 200.0)
                 .extend(1.0);
 
-        (color, Default::default(), 0)
+        (color, RayOp::killed())
     } else {
         #[allow(clippy::collapsible_else_if)]
         if instance_id == Ray::MAX_INSTANCE_ID {
             let color = camera.clear_color().extend(1.0);
 
-            (color, Default::default(), 0)
+            (color, RayOp::killed())
         } else {
             let instance_id = InstanceId::new(instance_id);
             let triangle_id = TriangleId::new(triangle_id);
 
             let instance = world.instances.get(instance_id);
-            let ray = Ray::new(ray_d0.xyz(), ray_d1.xyz());
+            let ray = ray.ray();
 
             // Load the triangle, convert it from mesh-space into world-space
             // and perform hit-testing.
@@ -122,38 +122,21 @@ pub fn main(
 
     // ---
 
-    unsafe {
-        *rays.get_unchecked_mut(ray_idx) = continued_ray
-            .origin()
-            .extend(f32::from_bits(continued_ray_mode));
+    RayOpsView::new(rays).set(global_idx, continued_ray);
 
-        *rays.get_unchecked_mut(ray_idx + 1) =
-            continued_ray.direction().extend(f32::from_bits(0));
-    }
+    let image_xy = global_id.xy().as_ivec2();
 
-    // ---
+    let color = if ray.is_reflected() {
+        let prev_color: Vec4 = image.read(image_xy);
+        let curr_color = color;
 
-    let image_xy = id.xy().as_ivec2();
-
-    let color = match ray_mode {
-        // Primary ray
-        1 => color,
-
-        // Transparent ray
-        2 => {
-            let primary_color: Vec4 = image.read(image_xy);
-
-            let color = primary_color.xyz() * primary_color.w
-                + color.xyz() * (1.0 - primary_color.w);
-
-            color.extend(1.0)
-        }
-
-        // Unreachable
-        _ => color,
+        (prev_color.xyz() * prev_color.w
+            + curr_color.xyz() * (1.0 - prev_color.w))
+            .extend(1.0)
+    } else {
+        color
     };
 
-    // TODO safety
     unsafe {
         image.write(image_xy, color);
     }
