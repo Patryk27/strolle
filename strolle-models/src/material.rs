@@ -18,9 +18,9 @@ pub struct Material {
     metallic: f32,
     reflectance: f32,
     refraction: f32,
+    reflectivity: f32,
     _pad1: f32,
     _pad2: f32,
-    _pad3: f32,
 }
 
 impl Material {
@@ -34,8 +34,15 @@ impl Material {
         hit: Hit,
     ) -> (Vec4, RayOp) {
         let base_color = self.compute_base_color(images, samplers, hit);
-        let shade = self.shade_lights(world, stack, base_color, ray, hit);
+        let mut shade = self.shade_lights(world, stack, base_color, ray, hit);
         let ray = self.continue_ray(ray, hit, shade);
+
+        // HACK for simplicity, we're blending both transparent & reflected rays
+        //      at the end of the shading pass - but for blending to happen, we
+        //      need to have a "transparent" material; and so if our current
+        //      material is reflective, we're faking that it's actually kinda
+        //      transparent so that the refleted ray can be blended into it
+        shade.w *= 1.0 - self.reflectivity;
 
         (shade, ray)
     }
@@ -113,7 +120,7 @@ impl Material {
 
         let ray = Ray::new(light.pos(), -hit_to_light);
         let l = hit_to_light.normalize();
-        let n_o_l = sat(hit.normal.dot(l));
+        let n_o_l = saturate(hit.normal.dot(l));
 
         let visibility_factor = if ray.hits_anything(world, stack, distance) {
             0.0
@@ -126,22 +133,26 @@ impl Material {
 
         let closest_point = hit_to_light
             + center_to_ray
-                * sat(light.radius()
-                    * inverse_sqrt(center_to_ray.dot(center_to_ray)));
+                * saturate(
+                    light.radius()
+                        * inverse_sqrt(center_to_ray.dot(center_to_ray)),
+                );
 
         let l_spec_length_inverse =
             inverse_sqrt(closest_point.dot(closest_point));
 
         let normalization_factor = roughness
-            / sat(roughness + (light.radius() * 0.5 * l_spec_length_inverse));
+            / saturate(
+                roughness + (light.radius() * 0.5 * l_spec_length_inverse),
+            );
 
         let specular_intensity = normalization_factor * normalization_factor;
 
         let l = closest_point * l_spec_length_inverse;
         let h = (l + v).normalize();
-        let n_o_l = sat(hit.normal.dot(l));
-        let n_o_h = sat(hit.normal.dot(h));
-        let l_o_h = sat(l.dot(h));
+        let n_o_l = saturate(hit.normal.dot(l));
+        let n_o_h = saturate(hit.normal.dot(h));
+        let l_o_h = saturate(l.dot(h));
 
         let specular = specular(
             f0,
@@ -167,10 +178,16 @@ impl Material {
         contribution.extend(0.0)
     }
 
-    /// Casts another ray, if needed to compute the material's effective color.
-    ///
-    /// (e.g. this casts a ray if the material is transparent.)
+    /// Casts another ray, if needed to compute the material's final color (e.g.
+    /// because the material is transparent).
     fn continue_ray(&self, ray: Ray, hit: Hit, shade: Vec4) -> RayOp {
+        if self.reflectivity > 0.0 {
+            return RayOp::reflected(Ray::new(
+                hit.point + ray.direction() * 0.1,
+                reflect(ray.direction(), hit.normal),
+            ));
+        }
+
         if shade.w >= 1.0 {
             return RayOp::killed();
         }
@@ -225,7 +242,7 @@ fn diffuse_light(
 ) -> f32 {
     let h = (l + ray.direction()).normalize();
     let n_dot_v = hit.normal.dot(ray.direction()).max(0.0001);
-    let l_o_h = sat(l.dot(h));
+    let l_o_h = saturate(l.dot(h));
 
     fd_burley(roughness, n_dot_v, n_o_l, l_o_h)
 }
@@ -292,7 +309,7 @@ fn v_smith_ggx_correlated(roughness: f32, n_o_v: f32, n_o_l: f32) -> f32 {
 fn fresnel(f0: Vec3, l_o_h: f32) -> Vec3 {
     // f_90 suitable for ambient occlusion
     // see https://google.github.io/filament/Filament.html#lighting/occlusion
-    let f90 = sat(f0.dot(Vec3::splat(50.0 * 0.33)));
+    let f90 = saturate(f0.dot(Vec3::splat(50.0 * 0.33)));
 
     f_schlick_vec(f0, f90, l_o_h)
 }
@@ -308,15 +325,13 @@ fn distance_attenuation(
     inverse_range_squared: f32,
 ) -> f32 {
     let factor = distance_square * inverse_range_squared;
-    let smooth_factor = sat(1.0 - factor * factor);
+    let smooth_factor = saturate(1.0 - factor * factor);
     let attenuation = smooth_factor * smooth_factor;
 
     attenuation * 1.0 / distance_square.max(0.0001)
 }
 
-// saturate
-#[inline]
-fn sat(v: f32) -> f32 {
+fn saturate(v: f32) -> f32 {
     v.clamp(0.0, 1.0)
 }
 
@@ -365,6 +380,11 @@ impl Material {
         self.refraction = refraction;
         self
     }
+
+    pub fn with_reflectivity(mut self, reflectivity: f32) -> Self {
+        self.reflectivity = reflectivity;
+        self
+    }
 }
 
 #[cfg(not(target_arch = "spirv"))]
@@ -377,9 +397,9 @@ impl Default for Material {
             metallic: 0.0,
             reflectance: 0.0,
             refraction: 1.0,
+            reflectivity: 0.0,
             _pad1: 0.0,
             _pad2: 0.0,
-            _pad3: 0.0,
         }
     }
 }

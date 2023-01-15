@@ -17,6 +17,7 @@ where
     metallic: f32,
     reflectance: f32,
     refraction: f32,
+    reflectivity: f32,
 }
 
 impl<P> Material<P>
@@ -86,6 +87,15 @@ where
         self
     }
 
+    pub fn set_reflectivity(&mut self, reflectivity: f32) {
+        self.reflectivity = reflectivity;
+    }
+
+    pub fn with_reflectivity(mut self, reflectivity: f32) -> Self {
+        self.set_reflectivity(reflectivity);
+        self
+    }
+
     pub(crate) fn build(&self, images: &Images<P>) -> gpu::Material {
         gpu::Material::default()
             .with_base_color(self.base_color)
@@ -98,6 +108,7 @@ where
             .with_metallic(self.metallic)
             .with_reflectance(self.reflectance)
             .with_refraction(self.refraction)
+            .with_reflectivity(self.reflectivity)
     }
 }
 
@@ -113,6 +124,7 @@ where
             metallic: 0.01,
             reflectance: 0.5,
             refraction: 1.0,
+            reflectivity: 0.0,
         }
     }
 }

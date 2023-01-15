@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
-use bevy_strolle::StrollePlugin;
+use bevy_strolle::{StrolleMaterial, StrollePlugin};
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
 };
@@ -26,23 +26,26 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut strolle_materials: ResMut<Assets<StrolleMaterial>>,
 ) {
-    commands.spawn(PbrBundle {
+    commands.spawn(MaterialMeshBundle {
         mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
-        material: materials.add(StandardMaterial {
-            base_color: Color::rgb(0.2, 0.2, 0.2),
-            perceptual_roughness: 0.0,
+        material: strolle_materials.add(StrolleMaterial {
+            parent: StandardMaterial {
+                base_color: Color::rgb(0.2, 0.2, 0.2),
+                ..default()
+            },
+            reflectivity: 0.5,
             ..default()
         }),
         ..default()
     });
 
     commands
-        .spawn(PbrBundle {
+        .spawn(MaterialMeshBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             material: materials.add(StandardMaterial {
-                base_color: Color::rgb(0.8, 0.7, 0.6),
-                perceptual_roughness: 0.2,
+                base_color: Color::CRIMSON,
                 ..default()
             }),
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
@@ -54,9 +57,7 @@ fn setup(
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             material: materials.add(StandardMaterial {
-                base_color: Color::rgba(0.8, 0.7, 0.6, 0.25),
-                perceptual_roughness: 0.2,
-                alpha_mode: AlphaMode::Blend,
+                base_color: Color::GOLD,
                 ..default()
             }),
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
