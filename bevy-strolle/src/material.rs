@@ -8,11 +8,38 @@ use crate::utils::color_to_vec4;
 use crate::EngineParams;
 
 /// Extends Bevy's `StandardMaterial` with extra features supported by Strolle.
-#[derive(Clone, Debug, Default, TypeUuid, AsBindGroup)]
+#[derive(Clone, Debug, TypeUuid, AsBindGroup)]
 #[uuid = "b270a5e8-9330-11ed-a1eb-0242ac120002"]
 pub struct StrolleMaterial {
     pub parent: StandardMaterial,
+
+    /// Specifies the refractive index.
+    ///
+    /// Defaults to 1.0 and makes sense only for transparent materials (i.e.
+    /// when `parent.base_color` and/or `parent.base_color_texture` have
+    /// transparency, and `parent.alpha_mode` is non-opaque).
     pub refraction: f32,
+
+    /// Specifies the reflectivity level (0.0 ..= 1.0).
+    ///
+    /// Defaults to 0.0, making the material non-reflective, while the value of
+    /// 1.0 means the material will behave as mirror.
+    ///
+    /// Note that it's different from `parent.reflectance` in the sense that
+    /// reflectance only applies to the specular intensity (i.e. how much
+    /// _lights_ are reflected), while setting reflectivity actually causes the
+    /// material to reflect the rays.
+    pub reflectivity: f32,
+}
+
+impl Default for StrolleMaterial {
+    fn default() -> Self {
+        Self {
+            parent: Default::default(),
+            refraction: 1.0,
+            reflectivity: 0.0,
+        }
+    }
 }
 
 impl Material for StrolleMaterial {
@@ -60,7 +87,10 @@ impl MaterialLike for StandardMaterial {
 
 impl MaterialLike for StrolleMaterial {
     fn into_material(self) -> st::Material<EngineParams> {
-        self.parent.into_material().with_refraction(self.refraction)
+        self.parent
+            .into_material()
+            .with_refraction(self.refraction)
+            .with_reflectivity(self.reflectivity)
     }
 
     fn map_handle(handle: Handle<Self>) -> MaterialHandle {

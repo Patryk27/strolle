@@ -35,11 +35,12 @@ fn setup(
         mesh: sphere_mesh.clone(),
         material: strolle_materials.add(StrolleMaterial {
             parent: StandardMaterial {
-                base_color: Color::rgba(0.2, 0.2, 0.2, 0.3),
+                base_color: Color::rgba(0.2, 0.0, 0.0, 0.8),
                 alpha_mode: AlphaMode::Blend,
                 ..default()
             },
             refraction: 1.1,
+            ..default()
         }),
         transform: Transform::from_xyz(0.0, 2.0, 0.0)
             .with_scale(Vec3::splat(2.0)),
