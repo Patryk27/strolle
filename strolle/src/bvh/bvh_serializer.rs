@@ -5,10 +5,8 @@ use super::*;
 pub struct BvhSerializer;
 
 impl BvhSerializer {
-    const OP_NODE: u32 = 0;
+    const OP_INTERNAL: u32 = 0;
     const OP_LEAF: u32 = 1;
-    const ARG_LEAF_INSTANCE: u32 = 0;
-    const ARG_LEAF_TRIANGLE: u32 = 1;
 
     pub fn process(out: &mut Vec<Vec4>, node: &BvhNode) -> usize {
         let ptr = out.len();
@@ -18,41 +16,43 @@ impl BvhSerializer {
 
         match node {
             BvhNode::Internal { bb, left, right } => {
-                let left_size = Self::process(out, left);
-                let _right_size = Self::process(out, right);
+                let left_ptr = Self::process(out, left);
+                let _right_ptr = Self::process(out, right);
 
-                let opcode = f32::from_bits({
-                    let payload = left_size as u32;
+                let opcode = Self::OP_INTERNAL;
+                let arg0 = left_ptr as u32;
+                let arg1 = 0;
 
-                    Self::OP_NODE | (payload << 1)
-                });
+                out[ptr] = vec4(
+                    f32::from_bits(opcode | (arg0 << 1)),
+                    bb.min().x,
+                    bb.min().y,
+                    bb.min().z,
+                );
 
-                out[ptr] = vec4(opcode, bb.min().x, bb.min().y, bb.min().z);
-                out[ptr + 1] = bb.max().extend(Default::default());
+                out[ptr + 1] = bb.max().extend(f32::from_bits(arg1));
             }
 
-            BvhNode::Leaf { bb, payload } => {
-                let opcode = f32::from_bits({
-                    let opcode = match payload {
-                        BvhNodePayload::Instance(payload) => {
-                            Self::ARG_LEAF_INSTANCE | (payload.get() << 1)
-                        }
-                        BvhNodePayload::Triangle(payload) => {
-                            Self::ARG_LEAF_TRIANGLE | (payload.get() << 1)
-                        }
-                    };
+            BvhNode::Leaf {
+                bb,
+                triangle_id,
+                material_id,
+            } => {
+                let opcode = Self::OP_LEAF;
+                let arg0 = triangle_id.get();
+                let arg1 = material_id.get();
 
-                    Self::OP_LEAF | (opcode << 1)
-                });
+                out[ptr] = vec4(
+                    f32::from_bits(opcode | (arg0 << 1)),
+                    bb.min().x,
+                    bb.min().y,
+                    bb.min().z,
+                );
 
-                out[ptr] = vec4(opcode, bb.min().x, bb.min().y, bb.min().z);
-                out[ptr + 1] = bb.max().extend(Default::default());
+                out[ptr + 1] = bb.max().extend(f32::from_bits(arg1));
             }
         }
 
-        // We're returning sizes instead of pointers, because we keep our BVHs
-        // (mostly) relatively-indexed - thanks to this approach, we don't have
-        // to rebuild mesh-bvhs (unless the mesh actually changes)
-        out.len() - ptr
+        out.len()
     }
 }

@@ -1,15 +1,16 @@
 use crate::{Triangle, TriangleId};
 
+#[derive(Clone, Copy)]
 pub struct TrianglesView<'a> {
-    items: &'a [Triangle],
+    buffer: &'a [Triangle],
 }
 
 impl<'a> TrianglesView<'a> {
-    pub fn new(items: &'a [Triangle]) -> Self {
-        Self { items }
+    pub fn new(buffer: &'a [Triangle]) -> Self {
+        Self { buffer }
     }
 
     pub fn get(&self, id: TriangleId) -> Triangle {
-        unsafe { *self.items.get_unchecked(id.get() as usize) }
+        unsafe { *self.buffer.get_unchecked(id.get() as usize) }
     }
 }

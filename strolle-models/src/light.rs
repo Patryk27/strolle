@@ -1,6 +1,8 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec3, Vec4, Vec4Swizzles};
 
+use crate::Noise;
+
 pub const POINT_LIGHT: f32 = 0.0;
 pub const SPOT_LIGHT: f32 = 1.0;
 
@@ -20,8 +22,12 @@ pub struct Light {
 }
 
 impl Light {
-    pub fn pos(&self) -> Vec3 {
+    pub fn center(&self) -> Vec3 {
         self.pos.truncate()
+    }
+
+    pub fn position(&self, noise: &mut Noise) -> Vec3 {
+        self.center() + self.radius() * noise.sample_sphere()
     }
 
     pub fn point_at(&self) -> Vec3 {
@@ -46,7 +52,7 @@ impl Light {
 
     // TODO: Make configurable
     pub fn radius(&self) -> f32 {
-        0.0 // default value for bevy
+        0.05
     }
 
     pub fn is_spot(&self) -> bool {

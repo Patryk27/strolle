@@ -1,20 +1,17 @@
 mod morton_code;
 
 use spirv_std::glam::Vec3;
+use strolle_models as gpu;
 
 use self::morton_code::MortonCode;
-use crate::bvh::{BoundingBox, BvhNode, BvhObject};
+use crate::bvh::{BoundingBox, BvhNode, BvhTriangle};
 
 /// Builds LVBH as described by Kerras in ¹.
 ///
-/// It's a naive CPU implementation supposed to serve as a reference point for
-/// our (not yet implemented) GPU one.
-///
 /// ¹ https://devblogs.nvidia.com/wp-content/uploads/2012/11/karras2012hpg_paper.pdf
-pub fn build<T>(objects: &[T]) -> BvhNode
-where
-    T: BvhObject,
-{
+pub fn build(
+    triangles: impl IntoIterator<Item = BvhTriangle> + Clone,
+) -> BvhNode {
     /// Transforms given point into a Morton code.
     ///
     /// Point's coordinates should be within range 0.0..=1.0.
@@ -47,20 +44,34 @@ where
         MortonCode(xs | ys | zs)
     }
 
-    let scene_bb = BoundingBox::from_objects(objects);
-    let mut morton_objects = Vec::new();
+    let scene_bb = BoundingBox::from_triangles(
+        triangles
+            .clone()
+            .into_iter()
+            .map(|triangle| triangle.triangle),
+    );
 
-    for (object_idx, object) in objects.iter().enumerate() {
-        let object_pos = object.center();
-        let object_pos = scene_bb.map(object_pos);
-        let object_code = vec3_to_morton(object_pos);
+    let mut triangles: Vec<_> = triangles
+        .into_iter()
+        .map(|triangle| {
+            let BvhTriangle {
+                triangle,
+                triangle_id,
+                material_id,
+            } = triangle;
 
-        morton_objects.push((object_idx, object_code));
-    }
+            let morton_code = vec3_to_morton(scene_bb.map(triangle.center()));
 
-    morton_objects.sort_unstable_by(|(_, morton_a), (_, morton_b)| {
-        morton_a.cmp(morton_b)
-    });
+            MortonTriangle {
+                triangle,
+                triangle_id,
+                material_id,
+                morton_code,
+            }
+        })
+        .collect();
+
+    triangles.sort_unstable_by(|a, b| a.morton_code.cmp(&b.morton_code));
 
     // TODO
     // for tris in tris.windows(2) {
@@ -73,24 +84,27 @@ where
     // -----
 
     fn generate(
-        morton_objects: &[(usize, MortonCode)],
+        triangles: &[MortonTriangle],
         left: usize,
         right: usize,
     ) -> LinearBvhNode {
         assert!(left <= right);
 
         if left == right {
+            let triangle = &triangles[left];
+
             LinearBvhNode::Leaf {
-                bb: Default::default(),
-                object_idx: morton_objects[left].0,
+                bb: BoundingBox::from_triangle(triangle.triangle),
+                triangle_id: triangle.triangle_id,
+                material_id: triangle.material_id,
             }
         } else {
-            let split = find_split(morton_objects, left, right);
-            let left_node = generate(morton_objects, left, split);
-            let right_node = generate(morton_objects, split + 1, right);
+            let split = find_split(triangles, left, right);
+            let left_node = generate(triangles, left, split);
+            let right_node = generate(triangles, split + 1, right);
 
             LinearBvhNode::Internal {
-                bb: Default::default(),
+                bb: left_node.bb() + right_node.bb(),
                 left: Box::new(left_node),
                 right: Box::new(right_node),
             }
@@ -98,12 +112,12 @@ where
     }
 
     fn find_split(
-        morton_objects: &[(usize, MortonCode)],
+        triangles: &[MortonTriangle],
         left: usize,
         right: usize,
     ) -> usize {
-        let left_code = morton_objects[left].1;
-        let right_code = morton_objects[right].1;
+        let left_code = triangles[left].morton_code;
+        let right_code = triangles[right].morton_code;
         let common_prefix = (left_code ^ right_code).leading_zeros();
 
         let mut split = left;
@@ -115,7 +129,7 @@ where
             let middle = split + step;
 
             if middle < right {
-                let middle_code = morton_objects[middle].1;
+                let middle_code = triangles[middle].morton_code;
                 let middle_prefix = (left_code ^ middle_code).leading_zeros();
 
                 if middle_prefix > common_prefix {
@@ -131,10 +145,7 @@ where
         split
     }
 
-    let mut root = generate(&morton_objects, 0, morton_objects.len() - 1);
-
-    root.assign_bounding_boxes(objects);
-    root.map(objects)
+    generate(&triangles, 0, triangles.len() - 1).map()
 }
 
 #[derive(Clone, Debug)]
@@ -147,45 +158,43 @@ enum LinearBvhNode {
 
     Leaf {
         bb: BoundingBox,
-        object_idx: usize,
+        triangle_id: gpu::TriangleId,
+        material_id: gpu::MaterialId,
     },
 }
 
 impl LinearBvhNode {
-    fn assign_bounding_boxes<T>(&mut self, objects: &[T]) -> BoundingBox
-    where
-        T: BvhObject,
-    {
+    fn bb(&self) -> BoundingBox {
         match self {
-            LinearBvhNode::Internal { bb, left, right } => {
-                *bb = left.assign_bounding_boxes(objects)
-                    + right.assign_bounding_boxes(objects);
-
-                *bb
-            }
-
-            LinearBvhNode::Leaf { bb, object_idx } => {
-                *bb = objects[*object_idx].bounding_box();
-                *bb
-            }
+            LinearBvhNode::Internal { bb, .. } => *bb,
+            LinearBvhNode::Leaf { bb, .. } => *bb,
         }
     }
 
-    fn map<T>(self, objects: &[T]) -> BvhNode
-    where
-        T: BvhObject,
-    {
+    fn map(self) -> BvhNode {
         match self {
             LinearBvhNode::Internal { bb, left, right } => BvhNode::Internal {
                 bb,
-                left: Box::new(left.map(objects)),
-                right: Box::new(right.map(objects)),
+                left: Box::new(left.map()),
+                right: Box::new(right.map()),
             },
 
-            LinearBvhNode::Leaf { bb, object_idx } => BvhNode::Leaf {
+            LinearBvhNode::Leaf {
                 bb,
-                payload: objects[object_idx].payload(),
+                triangle_id,
+                material_id,
+            } => BvhNode::Leaf {
+                bb,
+                triangle_id,
+                material_id,
             },
         }
     }
+}
+
+struct MortonTriangle {
+    triangle: gpu::Triangle,
+    triangle_id: gpu::TriangleId,
+    material_id: gpu::MaterialId,
+    morton_code: MortonCode,
 }

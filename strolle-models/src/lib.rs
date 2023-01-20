@@ -5,18 +5,16 @@
 mod bvh_ptr;
 mod bvh_view;
 mod camera;
+mod drawing_pass_params;
 mod hit;
-mod info;
-mod instance;
-mod instances_view;
 mod light;
 mod lights_view;
 mod material;
 mod materials_view;
 mod mesh;
+mod noise;
 mod ray;
-mod ray_op;
-mod ray_ops_view;
+mod ray_pass_params;
 mod triangle;
 mod triangles_view;
 mod world;
@@ -24,18 +22,16 @@ mod world;
 pub use self::bvh_ptr::*;
 pub use self::bvh_view::*;
 pub use self::camera::*;
+pub use self::drawing_pass_params::*;
 pub use self::hit::*;
-pub use self::info::*;
-pub use self::instance::*;
-pub use self::instances_view::*;
 pub use self::light::*;
 pub use self::lights_view::*;
 pub use self::material::*;
 pub use self::materials_view::*;
 pub use self::mesh::*;
+pub use self::noise::*;
 pub use self::ray::*;
-pub use self::ray_op::*;
-pub use self::ray_ops_view::*;
+pub use self::ray_pass_params::*;
 pub use self::triangle::*;
 pub use self::triangles_view::*;
 pub use self::world::*;
@@ -46,8 +42,7 @@ pub use self::world::*;
 /// workgroup memory makes the code run slightly faster.
 pub type BvhTraversingStack<'a> = &'a mut [u32; 32 * 8 * 8];
 
-pub mod debug {
-    /// Instead of rendering triangles, shows BVH's bounding boxes representing
-    /// scene hierarchy; the brighter the color, the more nested given node is.
-    pub const ENABLE_AABB: bool = false;
-}
+/// Maximum number of images (aka textures).
+///
+/// The lowest common denominator here is Metal with its limit of 16.
+pub const MAX_IMAGES: usize = 16;

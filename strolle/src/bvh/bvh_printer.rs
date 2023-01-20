@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::fmt::Write;
 
 use super::BvhNode;
@@ -44,14 +42,19 @@ impl BvhPrinter {
                 }
             }
 
-            BvhNode::Leaf { bb, payload } => {
+            BvhNode::Leaf {
+                bb,
+                triangle_id,
+                material_id,
+            } => {
                 _ = writeln!(
                     out,
-                    "  n{} [label=\"{} .. {}\\n{:?}\"]",
+                    "  n{} [label=\"{} .. {}\\n{:?} / {:?}\"]",
                     id,
                     bb.min(),
                     bb.max(),
-                    payload
+                    triangle_id,
+                    material_id,
                 );
             }
         }

@@ -1,12 +1,17 @@
 use core::f32::consts::PI;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
+#[cfg(not(target_arch = "spirv"))]
+use glam::vec4;
+use glam::{Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::float::Float;
 use spirv_std::{Image, Sampler};
 
-use crate::{BvhTraversingStack, Hit, Light, LightId, Ray, RayOp, World};
+use crate::{
+    BvhTraversingStack, BvhView, Hit, Light, LightId, LightsView, Noise, Ray,
+    TrianglesView, World, MAX_IMAGES,
+};
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Pod, Zeroable)]
@@ -24,36 +29,50 @@ pub struct Material {
 }
 
 impl Material {
+    #[allow(clippy::too_many_arguments)]
     pub fn shade(
         &self,
+        local_idx: u32,
+        triangles: TrianglesView,
+        bvh: BvhView,
+        lights: LightsView,
         world: &World,
-        images: &[Image!(2D, type=f32, sampled); 256],
-        samplers: &[Sampler; 256],
+        images: &[Image!(2D, type=f32, sampled); MAX_IMAGES],
+        samplers: &[Sampler; MAX_IMAGES],
         stack: BvhTraversingStack,
         ray: Ray,
         hit: Hit,
-    ) -> (Vec4, RayOp) {
-        let base_color = self.compute_base_color(images, samplers, hit);
-        let mut shade = self.shade_lights(world, stack, base_color, ray, hit);
-        let ray = self.continue_ray(ray, hit, shade);
+        noise: &mut Noise,
+    ) -> (Vec3, Vec3) {
+        let albedo = self.albedo(images, samplers, hit);
 
-        // HACK for simplicity, we're blending both transparent & reflected rays
-        //      at the end of the shading pass - but for blending to happen, we
-        //      need to have a "transparent" material; and so if our current
-        //      material is reflective, we're faking that it's actually kinda
-        //      transparent so that the refleted ray can be blended into it
-        shade.w *= 1.0 - self.reflectivity;
+        let shade = {
+            let mut shade = Vec3::ZERO;
+            let mut light_id = 0;
 
-        (shade, ray)
+            while light_id < world.light_count {
+                let light = lights.get(LightId::new(light_id));
+
+                shade += self.shade_light(
+                    local_idx, triangles, bvh, stack, ray, hit, albedo, light,
+                    noise,
+                );
+
+                light_id += 1;
+            }
+
+            shade
+        };
+
+        (albedo, shade)
     }
 
-    /// Returns base color multiplied by the base color's texture (if any).
-    fn compute_base_color(
+    fn albedo(
         &self,
-        images: &[Image!(2D, type=f32, sampled); 256],
-        samplers: &[Sampler; 256],
+        images: &[Image!(2D, type=f32, sampled); MAX_IMAGES],
+        samplers: &[Sampler; MAX_IMAGES],
         hit: Hit,
-    ) -> Vec4 {
+    ) -> Vec3 {
         if self.base_color_texture == u32::MAX {
             self.base_color
         } else {
@@ -61,74 +80,58 @@ impl Material {
             let sampler = samplers[self.base_color_texture as usize];
 
             self.base_color
-                * image.sample_by_lod::<_, Vec4>(sampler, hit.texture_uv, 0.0)
+                * image.sample_by_lod::<_, Vec4>(sampler, hit.uv, 0.0)
         }
+        .xyz()
     }
 
-    /// Goes through all of the lights, checks if the light is not occluded and
-    /// incorporates its color into the shaded color.
-    fn shade_lights(
-        &self,
-        world: &World,
-        stack: BvhTraversingStack,
-        base_color: Vec4,
-        ray: Ray,
-        hit: Hit,
-    ) -> Vec4 {
-        let mut shade = vec4(0.0, 0.0, 0.0, base_color.w);
-        let mut light_id = 0;
-
-        while light_id < world.info.light_count {
-            let light = world.lights.get(LightId::new(light_id));
-
-            shade +=
-                self.shade_light(world, stack, ray, hit, base_color, light);
-
-            light_id += 1;
-        }
-
-        shade
-    }
-
+    // TODO: Optimize a lot of these calculations can be done once per material
+    #[allow(clippy::too_many_arguments)]
     fn shade_light(
         &self,
-        world: &World,
+        local_idx: u32,
+        triangles: TrianglesView,
+        bvh: BvhView,
         stack: BvhTraversingStack,
         ray: Ray,
         hit: Hit,
-        base_color: Vec4,
+        albedo: Vec3,
         light: Light,
-    ) -> Vec4 {
-        // TODO: Optimize a lot of these calculations can be done once per material
+        noise: &mut Noise,
+    ) -> Vec3 {
+        let is_occluded = {
+            let light_pos = light.position(noise);
+            let light_to_hit = hit.point - light_pos;
+
+            let shadow_ray = Ray::new(light_pos, light_to_hit.normalize());
+            let max_distance = light_to_hit.length();
+
+            shadow_ray.trace_any(local_idx, triangles, bvh, stack, max_distance)
+        };
+
+        if is_occluded {
+            return Vec3::ZERO;
+        }
 
         let roughness =
             perceptual_roughness_to_roughness(self.perceptual_roughness);
 
-        let diffuse_color = base_color.xyz() * (1.0 - self.metallic);
+        let hit_to_light = light.center() - hit.point;
+        let diffuse_color = albedo * (1.0 - self.metallic);
         let v = -ray.direction();
         let n_dot_v = hit.normal.dot(v).max(0.0001);
         let r = reflect(-v, hit.normal);
 
         let f0 =
             0.16 * self.reflectance * self.reflectance * (1.0 - self.metallic)
-                + base_color.xyz() * self.metallic;
+                + albedo * self.metallic;
 
         let range = light.range();
-        let hit_to_light = light.pos() - hit.point;
-        let distance_squared = hit_to_light.length_squared();
-        let distance = distance_squared.sqrt(); // TODO expensive
 
-        let ray = Ray::new(light.pos(), -hit_to_light);
         let l = hit_to_light.normalize();
         let n_o_l = saturate(hit.normal.dot(l));
 
-        let visibility_factor = if ray.hits_anything(world, stack, distance) {
-            0.0
-        } else {
-            1.0
-        };
-
-        let diffuse = diffuse_light(l, ray, hit, roughness, n_o_l);
+        let diffuse = diffuse_light(l, v, hit, roughness, n_o_l);
         let center_to_ray = hit_to_light.dot(r) * r - hit_to_light;
 
         let closest_point = hit_to_light
@@ -164,63 +167,14 @@ impl Material {
             specular_intensity,
         );
 
-        let distance_attenuation =
-            distance_attenuation(distance_squared, 1.0 / range.powf(2.0));
+        let distance_attenuation = distance_attenuation(
+            hit_to_light.length_squared(),
+            1.0 / range.powf(2.0),
+        );
 
         let diffuse = diffuse * diffuse_color;
 
-        let contribution = (diffuse + specular)
-            * light.color()
-            * distance_attenuation
-            * n_o_l
-            * visibility_factor;
-
-        contribution.extend(0.0)
-    }
-
-    /// Casts another ray, if needed to compute the material's final color (e.g.
-    /// because the material is transparent).
-    fn continue_ray(&self, ray: Ray, hit: Hit, shade: Vec4) -> RayOp {
-        if self.reflectivity > 0.0 {
-            return RayOp::reflected(Ray::new(
-                hit.point + ray.direction() * 0.1,
-                reflect(ray.direction(), hit.normal),
-            ));
-        }
-
-        if shade.w >= 1.0 {
-            return RayOp::killed();
-        }
-
-        let direction = {
-            let mut cos_incident_angle = hit.normal.dot(-ray.direction());
-
-            let eta = if cos_incident_angle > 0.0 {
-                self.refraction
-            } else {
-                1.0 / self.refraction
-            };
-
-            let refraction_coeff =
-                1.0 - (1.0 - cos_incident_angle.powi(2)) / eta.powi(2);
-
-            if refraction_coeff < 0.0 {
-                return RayOp::killed();
-            }
-
-            let mut normal = hit.normal;
-            let cos_transmitted_angle = refraction_coeff.sqrt();
-
-            if cos_incident_angle < 0.0 {
-                normal = -normal;
-                cos_incident_angle = -cos_incident_angle;
-            }
-
-            ray.direction() / eta
-                - normal * (cos_transmitted_angle - cos_incident_angle / eta)
-        };
-
-        RayOp::reflected(Ray::new(hit.point + ray.direction() * 0.1, direction))
+        (diffuse + specular) * light.color() * distance_attenuation * n_o_l
     }
 }
 
@@ -235,13 +189,13 @@ fn perceptual_roughness_to_roughness(perceptual_roughness: f32) -> f32 {
 
 fn diffuse_light(
     l: Vec3,
-    ray: Ray,
+    v: Vec3,
     hit: Hit,
     roughness: f32,
     n_o_l: f32,
 ) -> f32 {
-    let h = (l + ray.direction()).normalize();
-    let n_dot_v = hit.normal.dot(ray.direction()).max(0.0001);
+    let h = (l + v).normalize();
+    let n_dot_v = hit.normal.dot(v).max(0.0001);
     let l_o_h = saturate(l.dot(h));
 
     fd_burley(roughness, n_dot_v, n_o_l, l_o_h)

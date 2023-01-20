@@ -4,12 +4,20 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::math::uvec2;
 use bevy::prelude::*;
 use bevy::render::camera::{CameraRenderGraph, Viewport};
-use bevy_strolle::StrollePlugin;
+use bevy_strolle::{st, StrolleCamera, StrollePlugin};
 use smooth_bevy_cameras::LookTransformPlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            window: WindowDescriptor {
+                width: 512.0,
+                height: 512.0,
+                mode: WindowMode::Windowed,
+                ..default()
+            },
+            ..default()
+        }))
         .add_plugin(LookTransformPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
@@ -81,6 +89,8 @@ fn setup(
         ..default()
     });
 
+    // -----
+
     let transform = Transform::from_xyz(15.0, 10.0, 15.0)
         .looking_at(Vec3::splat(0.0), Vec3::Y);
 
@@ -95,7 +105,7 @@ fn setup(
         })
         .id();
 
-    let strolle_camera = commands
+    let strolle_image_camera = commands
         .spawn(Camera3dBundle {
             camera: Camera {
                 priority: 1,
@@ -109,9 +119,55 @@ fn setup(
         })
         .id();
 
+    let strolle_normals_camera = commands
+        .spawn(Camera3dBundle {
+            camera: Camera {
+                priority: 2,
+                ..default()
+            },
+            camera_render_graph: CameraRenderGraph::new(
+                bevy_strolle::graph::NAME,
+            ),
+            transform,
+            ..default()
+        })
+        .insert(StrolleCamera {
+            config: st::ViewportConfiguration {
+                mode: st::ViewportMode::DisplayNormals,
+                ..default()
+            },
+        })
+        .id();
+
+    let strolle_bvh_heatmap_camera = commands
+        .spawn(Camera3dBundle {
+            camera: Camera {
+                priority: 3,
+                ..default()
+            },
+            camera_render_graph: CameraRenderGraph::new(
+                bevy_strolle::graph::NAME,
+            ),
+            transform,
+            ..default()
+        })
+        .insert(StrolleCamera {
+            config: st::ViewportConfiguration {
+                mode: st::ViewportMode::DisplayBvhHeatmap,
+                ..default()
+            },
+        })
+        .id();
+
+    // -----
+
     commands.insert_resource(State {
-        bevy_camera,
-        strolle_camera,
+        cameras: [
+            bevy_camera,
+            strolle_image_camera,
+            strolle_normals_camera,
+            strolle_bvh_heatmap_camera,
+        ],
     });
 }
 
@@ -119,8 +175,7 @@ const RADIUS: f32 = 3.0;
 
 #[derive(Resource)]
 struct State {
-    bevy_camera: Entity,
-    strolle_camera: Entity,
+    cameras: [Entity; 4],
 }
 
 fn update_cameras(
@@ -129,19 +184,27 @@ fn update_cameras(
     mut cameras: Query<&mut Camera>,
 ) {
     let window = windows.primary();
-    let (w, h) = (window.physical_width(), window.physical_height());
 
-    cameras.get_mut(state.bevy_camera).unwrap().viewport = Some(Viewport {
-        physical_position: uvec2(0, 0),
-        physical_size: uvec2(w / 2, h),
-        ..default()
-    });
+    let (window_width, window_height) =
+        (window.physical_width(), window.physical_height());
 
-    cameras.get_mut(state.strolle_camera).unwrap().viewport = Some(Viewport {
-        physical_position: uvec2(w / 2, 0),
-        physical_size: uvec2(w / 2, h),
-        ..default()
-    });
+    let mut physical_position = uvec2(0, 0);
+    let physical_size = uvec2(window_width / 2, window_height / 2);
+
+    for &camera in &state.cameras {
+        cameras.get_mut(camera).unwrap().viewport = Some(Viewport {
+            physical_position,
+            physical_size,
+            ..default()
+        });
+
+        physical_position.x += physical_size.x;
+
+        if physical_position.x + physical_size.x > window_width {
+            physical_position.x = 0;
+            physical_position.y += physical_size.y;
+        }
+    }
 }
 
 fn animate(time: Res<Time>, mut objects: Query<(&mut Transform, &Animated)>) {

@@ -1,103 +1,196 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::mem;
 
 use strolle_models as gpu;
 
-use crate::bvh::BoundingBox;
-use crate::{Params, StorageBufferable};
+use crate::buffers::{Bindable, MappedStorageBuffer};
+use crate::{Params, Triangle};
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Triangles<P>
 where
     P: Params,
 {
-    gpu_triangles: Vec<gpu::Triangle>,
-    index:
-        HashMap<P::MeshHandle, (gpu::TriangleId, gpu::TriangleId, BoundingBox)>,
+    buffer: MappedStorageBuffer<Vec<gpu::Triangle>>,
+    index: HashMap<P::InstanceHandle, IndexedInstance>,
+    dirty: bool,
 }
 
 impl<P> Triangles<P>
 where
     P: Params,
 {
+    pub fn new(device: &wgpu::Device) -> Self {
+        Self {
+            buffer: MappedStorageBuffer::new_default(
+                device,
+                "strolle_triangles",
+                (128 + 64) * 1024 * 1024,
+            ),
+            index: Default::default(),
+            dirty: Default::default(),
+        }
+    }
+
     pub fn add(
         &mut self,
-        mesh_handle: P::MeshHandle,
-        mesh_triangles: Vec<gpu::Triangle>,
+        instance_handle: P::InstanceHandle,
+        triangles: impl IntoIterator<Item = Triangle>,
     ) {
-        assert!(!self.index.contains_key(&mesh_handle));
-
-        let bounding_box = BoundingBox::from_points(
-            mesh_triangles
-                .iter()
-                .flat_map(|triangle| triangle.vertices()),
+        assert!(
+            !self.index.contains_key(&instance_handle),
+            "Instance {instance_handle:?} has been already added - now it can \
+             be only updated or removed"
         );
 
-        let min_id = gpu::TriangleId::new(self.gpu_triangles.len() as u32);
+        let min_triangle_id = self.buffer.len();
 
-        self.gpu_triangles.extend(mesh_triangles);
+        self.buffer
+            .extend(triangles.into_iter().map(|triangle| triangle.serialize()));
 
-        let max_id =
-            gpu::TriangleId::new((self.gpu_triangles.len() - 1) as u32);
+        let max_triangle_id = self.buffer.len() - 1;
 
-        log::debug!(
-            "Triangles added: {:?} ({}..{})",
-            mesh_handle,
-            min_id.get(),
-            max_id.get()
+        assert!(
+            max_triangle_id > min_triangle_id,
+            "Instance {instance_handle:?} contains no triangles"
         );
 
-        self.index
-            .insert(mesh_handle, (min_id, max_id, bounding_box));
+        self.index.insert(
+            instance_handle,
+            IndexedInstance {
+                min_triangle_id,
+                max_triangle_id,
+                dirty: true,
+            },
+        );
+
+        self.dirty = true;
     }
 
-    pub fn remove(&mut self, mesh_handle: &P::MeshHandle) {
-        let Some((min_id, max_id, _)) = self.index.remove(mesh_handle) else { return };
-        let len = max_id.get() - min_id.get() + 1;
+    pub fn update(
+        &mut self,
+        instance_handle: &P::InstanceHandle,
+        triangles: impl IntoIterator<Item = Triangle>,
+    ) {
+        let index = self.index.get_mut(instance_handle).unwrap_or_else(|| {
+            panic!("Instance not known: {instance_handle:?}")
+        });
 
-        log::debug!(
-            "Triangles removed: {:?} ({}..{})",
-            mesh_handle,
-            min_id.get(),
-            max_id.get()
-        );
+        let mut buffer = self.buffer[index.min_triangle_id..].iter_mut();
 
-        self.gpu_triangles
-            .drain((min_id.get() as usize)..=(max_id.get() as usize));
+        for triangle in triangles {
+            *buffer.next().unwrap() = triangle.serialize();
+        }
 
-        for (min_id2, max_id2, _) in self.index.values_mut() {
-            if min_id2.get() > min_id.get() {
-                *min_id2.get_mut() -= len;
-                *max_id2.get_mut() -= len;
+        index.dirty = true;
+        self.dirty = true;
+    }
+
+    pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
+        let Some(instance) = self.index.remove(instance_handle) else { return };
+        let removed_triangles = instance.triangle_count();
+
+        for instance2 in self.index.values_mut() {
+            if instance2.min_triangle_id >= instance.max_triangle_id {
+                let old_indices =
+                    instance2.min_triangle_id..=instance2.max_triangle_id;
+
+                instance2.min_triangle_id -= removed_triangles;
+                instance2.max_triangle_id -= removed_triangles;
+                instance2.dirty = true;
+
+                let _ = self.buffer.drain(old_indices);
             }
         }
+
+        if let Some(max) = self
+            .index
+            .values()
+            .map(|instance| instance.max_triangle_id)
+            .max()
+        {
+            self.buffer.truncate(max);
+        } else {
+            self.buffer.clear();
+        }
+
+        self.dirty = true;
     }
 
-    pub fn lookup(
+    pub fn count(&self, instance_handle: &P::InstanceHandle) -> Option<usize> {
+        self.index
+            .get(instance_handle)
+            .map(|instance| instance.triangle_count())
+    }
+
+    pub fn iter(
         &self,
-        mesh_handle: &P::MeshHandle,
-    ) -> Option<(gpu::TriangleId, gpu::TriangleId, BoundingBox)> {
-        self.index.get(mesh_handle).copied()
-    }
-}
+        instance_handle: &P::InstanceHandle,
+    ) -> impl Iterator<Item = (gpu::TriangleId, gpu::Triangle)> + Clone + '_
+    {
+        self.index
+            .get(instance_handle)
+            .into_iter()
+            .flat_map(move |instance| {
+                let triangle_ids =
+                    instance.min_triangle_id..=instance.max_triangle_id;
 
-impl<P> Default for Triangles<P>
-where
-    P: Params,
-{
-    fn default() -> Self {
-        Self {
-            gpu_triangles: Default::default(),
-            index: Default::default(),
+                triangle_ids.map(move |triangle_id| {
+                    (
+                        gpu::TriangleId::new(triangle_id as u32),
+                        self.buffer[triangle_id],
+                    )
+                })
+            })
+    }
+
+    pub fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    pub fn flush(&mut self, queue: &wgpu::Queue) {
+        if !mem::take(&mut self.dirty) {
+            return;
+        }
+
+        for instance in self.index.values_mut() {
+            if !mem::take(&mut instance.dirty) {
+                continue;
+            }
+
+            let offset =
+                instance.min_triangle_id * mem::size_of::<gpu::Triangle>();
+
+            let size =
+                instance.triangle_count() * mem::size_of::<gpu::Triangle>();
+
+            self.buffer.flush_ex(queue, offset, size);
         }
     }
 }
 
-impl<P> StorageBufferable for Triangles<P>
+impl<P> Bindable for Triangles<P>
 where
     P: Params,
 {
-    fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.gpu_triangles)
+    fn bind(
+        &self,
+        binding: u32,
+    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
+        self.buffer.bind(binding)
+    }
+}
+
+#[derive(Debug)]
+struct IndexedInstance {
+    min_triangle_id: usize,
+    max_triangle_id: usize,
+    dirty: bool,
+}
+
+impl IndexedInstance {
+    fn triangle_count(&self) -> usize {
+        self.max_triangle_id - self.min_triangle_id + 1
     }
 }

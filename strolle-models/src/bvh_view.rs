@@ -1,5 +1,6 @@
 use glam::Vec4;
 
+#[derive(Clone, Copy)]
 pub struct BvhView<'a> {
     items: &'a [Vec4],
 }
