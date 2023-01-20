@@ -1,45 +1,98 @@
-use strolle_models as gpu;
+use std::collections::HashMap;
+use std::mem;
 
-use crate::buffers::StorageBufferable;
-use crate::bvh::BoundingBox;
+use crate::meshes::Meshes;
+use crate::triangles::Triangles;
+use crate::{Instance, Params};
 
-#[derive(Clone, Debug, Default)]
-pub struct Instances {
-    instances: Vec<gpu::Instance>,
-    bounding_boxes: Vec<BoundingBox>,
+#[derive(Debug)]
+pub struct Instances<P>
+where
+    P: Params,
+{
+    instances: HashMap<P::InstanceHandle, (Instance<P>, bool)>,
+    dirty: bool,
 }
 
-impl Instances {
-    pub fn clear(&mut self) {
-        self.instances.clear();
-        self.bounding_boxes.clear();
-    }
-
-    pub fn add(&mut self, instance: gpu::Instance, bounding_box: BoundingBox) {
-        self.instances.push(instance);
-        self.bounding_boxes.push(bounding_box);
+impl<P> Instances<P>
+where
+    P: Params,
+{
+    pub fn add(
+        &mut self,
+        instance_handle: P::InstanceHandle,
+        instance: Instance<P>,
+    ) {
+        self.instances.insert(instance_handle, (instance, true));
+        self.dirty = true;
     }
 
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = (gpu::InstanceId, gpu::Instance, BoundingBox)> + '_
+    ) -> impl Iterator<Item = (&P::InstanceHandle, &Instance<P>)> + Clone + '_
     {
         self.instances
             .iter()
-            .zip(self.bounding_boxes.iter())
-            .enumerate()
-            .map(|(id, (instance, bounding_box))| {
-                (gpu::InstanceId::new(id as u32), *instance, *bounding_box)
-            })
+            .map(|(instance_handle, (instance, _))| (instance_handle, instance))
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.instances.is_empty()
+    pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
+        self.instances.remove(instance_handle);
+        self.dirty = true;
+    }
+
+    pub fn refresh(
+        &mut self,
+        meshes: &Meshes<P>,
+        triangles: &mut Triangles<P>,
+    ) -> bool {
+        if !mem::take(&mut self.dirty) {
+            return false;
+        }
+
+        for (instance_handle, (instance, dirty)) in &mut self.instances {
+            if !mem::take(dirty) {
+                continue;
+            }
+
+            let Some(mesh) = meshes.get(instance.mesh_handle()) else {
+                // If the mesh is not yet available, it might be still being
+                // loaded in the background - in that case let's try again next
+                // frame:
+                *dirty = true;
+                self.dirty = true;
+                continue;
+            };
+
+            let mesh_triangles = mesh
+                .triangles()
+                .iter()
+                .map(|triangle| triangle.transformed(instance.transform()));
+
+            if let Some(count) = triangles.count(instance_handle) {
+                if mesh.triangles().len() == count {
+                    triangles.update(instance_handle, mesh_triangles);
+                } else {
+                    triangles.remove(instance_handle);
+                    triangles.add(instance_handle.to_owned(), mesh_triangles);
+                }
+            } else {
+                triangles.add(instance_handle.to_owned(), mesh_triangles);
+            }
+        }
+
+        true
     }
 }
 
-impl StorageBufferable for Instances {
-    fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.instances)
+impl<P> Default for Instances<P>
+where
+    P: Params,
+{
+    fn default() -> Self {
+        Self {
+            instances: Default::default(),
+            dirty: Default::default(),
+        }
     }
 }

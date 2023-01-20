@@ -1,33 +1,28 @@
+#[derive(Debug)]
 pub struct Shaders {
-    pub printing_pass: wgpu::ShaderModule,
-    pub raygen_pass: wgpu::ShaderModule,
-    pub shading_pass: wgpu::ShaderModule,
-    pub tracing_pass: wgpu::ShaderModule,
+    pub drawing_pass: wgpu::ShaderModule,
+    pub ray_shading_pass: wgpu::ShaderModule,
+    pub ray_tracing_pass: wgpu::ShaderModule,
 }
 
 impl Shaders {
     pub fn new(device: &wgpu::Device) -> Self {
-        let printing_pass = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/printing-pass.spv"
+        let drawing_pass = device.create_shader_module(wgpu::include_spirv!(
+            "../../target/pass-drawing.spv"
         ));
 
-        let raygen_pass = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/raygen-pass.spv"
-        ));
+        let ray_shading_pass = device.create_shader_module(
+            wgpu::include_spirv!("../../target/pass-ray-shading.spv"),
+        );
 
-        let shading_pass = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/shading-pass.spv"
-        ));
-
-        let tracing_pass = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/tracing-pass.spv"
-        ));
+        let ray_tracing_pass = device.create_shader_module(
+            wgpu::include_spirv!("../../target/pass-ray-tracing.spv"),
+        );
 
         Self {
-            printing_pass,
-            raygen_pass,
-            shading_pass,
-            tracing_pass,
+            drawing_pass,
+            ray_shading_pass,
+            ray_tracing_pass,
         }
     }
 }

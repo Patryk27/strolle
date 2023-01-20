@@ -63,7 +63,8 @@ pub(crate) struct ExtractedInstances<M>
 where
     M: MaterialLike,
 {
-    pub items: Vec<(Handle<Mesh>, Handle<M>, Mat4)>,
+    pub changed: Vec<(Entity, Handle<Mesh>, Handle<M>, Mat4)>,
+    pub removed: Vec<Entity>,
 }
 
 #[derive(Resource)]
@@ -76,4 +77,5 @@ pub(crate) struct ExtractedCamera {
     pub transform: GlobalTransform,
     pub projection: PerspectiveProjection,
     pub clear_color: Color,
+    pub config: Option<st::ViewportConfiguration>,
 }

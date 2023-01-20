@@ -5,13 +5,15 @@ members = [
     "bevy-strolle",
     "strolle",
     "strolle-models",
-    "strolle-printing-pass",
-    "strolle-raygen-pass",
+    "strolle-pass-drawing",
+    "strolle-pass-ray-shading",
+    "strolle-pass-ray-tracing",
     "strolle-shader-builder",
-    "strolle-shading-pass",
-    "strolle-tracing-pass",
 ]
 
+# TODO newest naga contains https://github.com/gfx-rs/naga/pull/2199, but it's
+#      also backwards-incompatible with wgpu 0.14, so in here we've got some
+#      trickery to make them work together
 [patch."crates-io"]
-# TODO https://github.com/gfx-rs/naga/pull/2199
-naga = { git = "https://github.com/Patryk27/naga", branch = "spirv_binding_arrays" }
+naga = { git = "https://github.com/Patryk27/naga", branch = "strolle" }
+wgpu = { git = "https://github.com/Patryk27/wgpu", branch = "strolle" }

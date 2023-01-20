@@ -11,6 +11,7 @@ use zip::ZipArchive;
 pub fn unzip_assets() {
     unzip_asset("buddha");
     unzip_asset("bunny");
+    unzip_asset("cornell");
     unzip_asset("dragon");
     unzip_asset("ferris");
     unzip_asset("flight-helmet");

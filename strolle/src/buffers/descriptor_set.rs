@@ -1,5 +1,6 @@
 use super::Bindable;
 
+#[derive(Debug)]
 pub struct DescriptorSet {
     bind_group: wgpu::BindGroup,
     bind_group_layout: wgpu::BindGroupLayout,

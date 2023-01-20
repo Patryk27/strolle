@@ -2,47 +2,42 @@ use std::ops::{Index, IndexMut};
 
 use spirv_std::glam::Vec3;
 
-use crate::bvh::{BoundingBox, BvhNode, BvhObject};
+use crate::bvh::{BoundingBox, BvhNode, BvhTriangle};
 
 /// Builds BVH using SAH.
 ///
 /// Special thanks to:
 /// - https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/,
 /// - https://github.com/svenstaro/bvh.
-pub fn build<T>(objects: &[T]) -> BvhNode
-where
-    T: BvhObject + Send + Sync,
-{
+pub fn build(triangles: impl IntoIterator<Item = BvhTriangle>) -> BvhNode {
     let mut root = SahBvhNode::default();
 
-    for object in objects.iter() {
-        root.add(object);
+    for triangle in triangles {
+        root.add(triangle);
     }
 
     root.balance();
     root.map()
 }
 
-struct SahBvhNode<T> {
+#[derive(Default)]
+struct SahBvhNode {
     bb: BoundingBox,
-    objects: Vec<T>,
+    triangles: Vec<BvhTriangle>,
     children: Option<[Box<Self>; 2]>,
 }
 
-impl<T> SahBvhNode<T>
-where
-    T: BvhObject + Send + Sync,
-{
-    fn add(&mut self, object: T) {
-        self.bb = self.bb + object.bounding_box();
-        self.objects.push(object);
+impl SahBvhNode {
+    fn add(&mut self, triangle: BvhTriangle) {
+        self.bb = self.bb + BoundingBox::from_triangle(triangle.triangle);
+        self.triangles.push(triangle);
     }
 
     fn balance(&mut self) {
         let best = self
-            .objects
+            .triangles
             .iter()
-            .map(|object| object.center())
+            .map(|triangle| triangle.triangle.center())
             .flat_map(|split_at| {
                 Axis::all().map(move |split_by| (split_at, split_by))
             })
@@ -55,7 +50,7 @@ where
             .min_by(|(_, _, cost_a), (_, _, cost_b)| cost_a.total_cmp(cost_b));
 
         if let Some((split_at, split_by, splitting_cost)) = best {
-            let current_cost = (self.objects.len() as f32) * self.bb.area();
+            let current_cost = (self.triangles.len() as f32) * self.bb.area();
 
             if splitting_cost < current_cost {
                 self.split(split_at, split_by);
@@ -69,16 +64,17 @@ where
         let mut right = 0;
         let mut right_bb = BoundingBox::default();
 
-        for object in &self.objects {
+        for triangle in &self.triangles {
             let (side, side_bb) =
-                if object.center()[split_by] < split_at[split_by] {
+                if triangle.triangle.center()[split_by] < split_at[split_by] {
                     (&mut left, &mut left_bb)
                 } else {
                     (&mut right, &mut right_bb)
                 };
 
             *side += 1;
-            *side_bb = *side_bb + object.bounding_box();
+
+            *side_bb = *side_bb + BoundingBox::from_triangle(triangle.triangle);
         }
 
         let cost =
@@ -91,14 +87,15 @@ where
         let mut left = Self::default();
         let mut right = Self::default();
 
-        for object in self.objects.drain(..) {
-            let side = if object.center()[split_by] < split_at[split_by] {
-                &mut left
-            } else {
-                &mut right
-            };
+        for triangle in self.triangles.drain(..) {
+            let side =
+                if triangle.triangle.center()[split_by] < split_at[split_by] {
+                    &mut left
+                } else {
+                    &mut right
+                };
 
-            side.add(object);
+            side.add(triangle);
         }
 
         left.balance();
@@ -115,35 +112,27 @@ where
                 right: Box::new(right.map()),
             }
         } else {
-            assert!(!self.objects.is_empty());
+            assert!(!self.triangles.is_empty());
 
-            if self.objects.len() == 1 {
+            let node = {
+                let triangle = self.triangles.remove(0);
+
                 BvhNode::Leaf {
                     bb: self.bb,
-                    payload: self.objects[0].payload(),
+                    triangle_id: triangle.triangle_id,
+                    material_id: triangle.material_id,
                 }
-            } else {
-                let bb = self.bb;
+            };
 
+            if self.triangles.is_empty() {
+                node
+            } else {
                 BvhNode::Internal {
-                    bb,
-                    left: Box::new(BvhNode::Leaf {
-                        bb,
-                        payload: self.objects.remove(0).payload(),
-                    }),
+                    bb: self.bb,
+                    left: Box::new(node),
                     right: Box::new(self.map()),
                 }
             }
-        }
-    }
-}
-
-impl<T> Default for SahBvhNode<T> {
-    fn default() -> Self {
-        Self {
-            bb: Default::default(),
-            objects: Default::default(),
-            children: Default::default(),
         }
     }
 }

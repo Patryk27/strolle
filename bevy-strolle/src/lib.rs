@@ -1,3 +1,4 @@
+mod camera;
 mod material;
 mod render_node;
 mod stages;
@@ -21,8 +22,9 @@ use bevy::render::render_graph::{RenderGraph, SlotInfo, SlotType};
 use bevy::render::render_resource::{Sampler, TextureView};
 use bevy::render::renderer::RenderDevice;
 use bevy::render::{RenderApp, RenderStage};
-use strolle as st;
+pub use strolle as st;
 
+pub use self::camera::*;
 pub use self::material::*;
 use self::render_node::*;
 use self::state::*;
@@ -98,13 +100,7 @@ impl Plugin for StrollePlugin {
 
         render_app.add_system_to_stage(
             RenderStage::Prepare,
-            stages::prepare::clear_instances,
-        );
-
-        render_app.add_system_to_stage(
-            RenderStage::Prepare,
             stages::prepare::instances::<StandardMaterial>
-                .after(stages::prepare::clear_instances)
                 .after(stages::prepare::meshes)
                 .after(stages::prepare::images)
                 .after(stages::prepare::materials::<StandardMaterial>),
@@ -113,7 +109,6 @@ impl Plugin for StrollePlugin {
         render_app.add_system_to_stage(
             RenderStage::Prepare,
             stages::prepare::instances::<StrolleMaterial>
-                .after(stages::prepare::clear_instances)
                 .after(stages::prepare::meshes)
                 .after(stages::prepare::images)
                 .after(stages::prepare::materials::<StrolleMaterial>),
@@ -190,6 +185,7 @@ impl st::Params for EngineParams {
     type ImageHandle = Handle<Image>;
     type ImageSampler = Sampler;
     type ImageTexture = TextureView;
+    type InstanceHandle = Entity;
     type LightHandle = Entity;
     type MaterialHandle = MaterialHandle;
     type MeshHandle = Handle<Mesh>;

@@ -4,24 +4,37 @@ use std::fmt::Debug;
 
 use strolle_models as gpu;
 
-use crate::buffers::StorageBufferable;
+use crate::buffers::{Bindable, MappedStorageBuffer};
 use crate::images::Images;
 use crate::{Material, Params};
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Materials<P>
 where
     P: Params,
 {
-    cpu_materials: Vec<Material<P>>,
-    gpu_materials: Vec<gpu::Material>,
+    // TODO benchmark with uniform
+    buffer: MappedStorageBuffer<Vec<gpu::Material>>,
     index: HashMap<P::MaterialHandle, gpu::MaterialId>,
+    materials: Vec<Material<P>>,
 }
 
 impl<P> Materials<P>
 where
     P: Params,
 {
+    pub fn new(device: &wgpu::Device) -> Self {
+        Self {
+            buffer: MappedStorageBuffer::new_default(
+                device,
+                "strolle_materials",
+                4 * 1024 * 1024,
+            ),
+            index: Default::default(),
+            materials: Default::default(),
+        }
+    }
+
     pub fn add(
         &mut self,
         material_handle: P::MaterialHandle,
@@ -39,13 +52,13 @@ where
                     material
                 );
 
-                self.cpu_materials[material_id.get() as usize] = material;
+                self.materials[material_id.get() as usize] = material;
             }
 
             Entry::Vacant(entry) => {
                 let material_handle = entry.key();
                 let material_id =
-                    gpu::MaterialId::new(self.cpu_materials.len() as u32);
+                    gpu::MaterialId::new(self.materials.len() as u32);
 
                 log::debug!(
                     "Material added: {:?} ({}) => {:?}",
@@ -54,7 +67,7 @@ where
                     material
                 );
 
-                self.cpu_materials.push(material);
+                self.materials.push(material);
                 entry.insert(material_id);
             }
         }
@@ -63,7 +76,7 @@ where
     pub fn remove(&mut self, material_handle: &P::MaterialHandle) {
         let Some(id) = self.index.remove(material_handle) else { return };
 
-        self.cpu_materials.remove(id.get() as usize);
+        self.materials.remove(id.get() as usize);
 
         for id2 in self.index.values_mut() {
             if id2.get() > id.get() {
@@ -79,33 +92,27 @@ where
         self.index.get(material_handle).copied()
     }
 
-    pub fn rebuild(&mut self, images: &Images<P>) {
-        self.gpu_materials = self
-            .cpu_materials
+    pub fn refresh(&mut self, images: &Images<P>) {
+        *self.buffer = self
+            .materials
             .iter()
             .map(|material| material.build(images))
             .collect();
     }
-}
 
-impl<P> Default for Materials<P>
-where
-    P: Params,
-{
-    fn default() -> Self {
-        Self {
-            cpu_materials: Default::default(),
-            gpu_materials: Default::default(),
-            index: Default::default(),
-        }
+    pub fn flush(&mut self, queue: &wgpu::Queue) {
+        self.buffer.flush(queue);
     }
 }
 
-impl<P> StorageBufferable for Materials<P>
+impl<P> Bindable for Materials<P>
 where
     P: Params,
 {
-    fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.gpu_materials)
+    fn bind(
+        &self,
+        binding: u32,
+    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
+        self.buffer.bind(binding)
     }
 }

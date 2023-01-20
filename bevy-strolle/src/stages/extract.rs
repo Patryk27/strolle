@@ -12,7 +12,7 @@ use crate::state::{
     ExtractedMaterials, ExtractedMeshes,
 };
 use crate::utils::color_to_vec3;
-use crate::MaterialLike;
+use crate::{MaterialLike, StrolleCamera};
 
 pub(crate) fn meshes(
     mut commands: Commands,
@@ -121,23 +121,54 @@ pub(crate) fn materials<M>(
 #[allow(clippy::type_complexity)]
 pub(crate) fn instances<M>(
     mut commands: Commands,
-    instances: Extract<Query<(&Handle<Mesh>, &Handle<M>, &GlobalTransform)>>,
+    all: Extract<Query<Entity, (&Handle<Mesh>, &Handle<M>, &GlobalTransform)>>,
+    changed: Extract<
+        Query<
+            (Entity, &Handle<Mesh>, &Handle<M>, &GlobalTransform),
+            Or<(
+                Changed<Handle<Mesh>>,
+                Changed<Handle<M>>,
+                Changed<GlobalTransform>,
+            )>,
+        >,
+    >,
+    mut known: Local<HashSet<Entity>>,
 ) where
     M: MaterialLike,
 {
-    let mut items = Vec::new();
+    let changed: Vec<_> = changed
+        .iter()
+        .map(|(entity, mesh_handle, material_handle, transform)| {
+            (
+                entity,
+                mesh_handle.clone_weak(),
+                material_handle.clone_weak(),
+                transform.compute_matrix(),
+            )
+        })
+        .collect();
 
-    for (mesh_handle, material_handle, transform) in instances.iter() {
-        items.push((
-            mesh_handle.clone_weak(),
-            material_handle.clone_weak(),
-            transform.compute_matrix(),
-        ));
+    known.extend(changed.iter().map(|(entity, _, _, _)| entity));
+
+    // ---
+
+    // TODO use `RemovedComponents` instead
+
+    let removed: Vec<_> = known
+        .difference(&all.iter().collect::<HashSet<_>>())
+        .copied()
+        .collect();
+
+    for removed in &removed {
+        known.remove(removed);
     }
 
-    commands.insert_resource(ExtractedInstances { items });
+    // ---
+
+    commands.insert_resource(ExtractedInstances { changed, removed });
 }
 
+// TODO use `Changed` to avoid extracting all lights each frame
 pub(crate) fn lights(
     mut commands: Commands,
     lights: Extract<Query<(Entity, &PointLight, &GlobalTransform)>>,
@@ -171,6 +202,7 @@ pub(crate) fn cameras(
             &CameraRenderGraph,
             &Projection,
             &GlobalTransform,
+            Option<&StrolleCamera>,
         )>,
     >,
 ) {
@@ -181,14 +213,13 @@ pub(crate) fn cameras(
         camera_render_graph,
         projection,
         transform,
+        strolle_camera,
     ) in cameras.iter()
     {
         if !camera.is_active || **camera_render_graph != crate::graph::NAME {
             continue;
         }
 
-        // TODO it feels like we should be able to reuse `.get_projection_matrix()`,
-        //      but I can't come up with anything working at the moment
         let Projection::Perspective(projection) = projection else { continue };
 
         let clear_color = match &camera_3d.clear_color {
@@ -198,9 +229,9 @@ pub(crate) fn cameras(
                 .unwrap_or(Color::BLACK),
             ClearColorConfig::Custom(color) => *color,
             ClearColorConfig::None => {
-                // TODO our camera doesn't support transparent clear color, so
-                //      this is semi-invalid (as in: it works differently than
-                //      in bevy_render)
+                // TODO our camera doesn't support transparent clear colors, so
+                //      currently this edge case works somewhat differently than
+                //      in bevy_render
                 Color::rgba(0.0, 0.0, 0.0, 1.0)
             }
         };
@@ -209,6 +240,7 @@ pub(crate) fn cameras(
             transform: *transform,
             projection: projection.clone(),
             clear_color,
+            config: strolle_camera.map(|camera| camera.config.clone()),
         });
     }
 }

@@ -1,14 +1,9 @@
-use crate::{
-    BvhView, Info, InstancesView, LightsView, MaterialsView, TrianglesView,
-};
+use bytemuck::{Pod, Zeroable};
 
-pub struct World<'a> {
-    pub global_idx: u32,
-    pub local_idx: u32,
-    pub triangles: TrianglesView<'a>,
-    pub instances: InstancesView<'a>,
-    pub bvh: BvhView<'a>,
-    pub lights: LightsView<'a>,
-    pub materials: MaterialsView<'a>,
-    pub info: &'a Info,
+#[repr(C)]
+#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct World {
+    pub triangle_count: u32,
+    pub light_count: u32,
 }
