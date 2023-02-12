@@ -2,10 +2,10 @@ use spirv_std::glam::UVec2;
 
 use super::Bindable;
 
-const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
-
+#[derive(Debug)]
 pub struct Texture {
-    tex_view: wgpu::TextureView,
+    view: wgpu::TextureView,
+    format: wgpu::TextureFormat,
     sampler: wgpu::Sampler,
 }
 
@@ -14,6 +14,7 @@ impl Texture {
         device: &wgpu::Device,
         label: impl AsRef<str>,
         size: UVec2,
+        format: wgpu::TextureFormat,
     ) -> Self {
         let label = label.as_ref();
 
@@ -32,19 +33,24 @@ impl Texture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: FORMAT,
+            format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::STORAGE_BINDING,
+                | wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_DST,
         });
 
-        let tex_view = tex.create_view(&Default::default());
+        let view = tex.create_view(&Default::default());
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some(&format!("{label}_sampler")),
             ..Default::default()
         });
 
-        Self { tex_view, sampler }
+        Self {
+            view,
+            format,
+            sampler,
+        }
     }
 
     pub fn readable(&self) -> ReadableTexture {
@@ -90,7 +96,7 @@ impl Bindable for ReadableTexture<'_> {
         };
 
         let tex_resource =
-            wgpu::BindingResource::TextureView(&self.parent.tex_view);
+            wgpu::BindingResource::TextureView(&self.parent.view);
 
         let sampler_resource =
             wgpu::BindingResource::Sampler(&self.parent.sampler);
@@ -117,14 +123,14 @@ impl Bindable for WritableTexture<'_> {
                 | wgpu::ShaderStages::COMPUTE,
             ty: wgpu::BindingType::StorageTexture {
                 access: wgpu::StorageTextureAccess::ReadWrite,
-                format: FORMAT,
+                format: self.parent.format,
                 view_dimension: wgpu::TextureViewDimension::D2,
             },
             count: None,
         };
 
         let tex_resource =
-            wgpu::BindingResource::TextureView(&self.parent.tex_view);
+            wgpu::BindingResource::TextureView(&self.parent.view);
 
         vec![(tex_layout, tex_resource)]
     }

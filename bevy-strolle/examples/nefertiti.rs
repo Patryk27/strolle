@@ -17,7 +17,15 @@ fn main() {
     common::unzip_assets();
 
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            window: WindowDescriptor {
+                width: 512.0,
+                height: 512.0,
+                mode: WindowMode::Windowed,
+                ..default()
+            },
+            ..default()
+        }))
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(LookTransformPlugin)

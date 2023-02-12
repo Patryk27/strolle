@@ -7,6 +7,7 @@ use crate::Ray;
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Camera {
     origin: Vec4,
     viewport: Vec4,

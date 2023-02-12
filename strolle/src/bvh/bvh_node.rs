@@ -1,5 +1,8 @@
+use std::fmt;
+
 use strolle_models as gpu;
 
+use super::bvh_printer::BvhPrinter;
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -12,7 +15,8 @@ pub enum BvhNode {
 
     Leaf {
         bb: BoundingBox,
-        payload: BvhNodePayload,
+        triangle_id: gpu::TriangleId,
+        material_id: gpu::MaterialId,
     },
 }
 
@@ -39,7 +43,7 @@ impl BvhNode {
         assert!(bb.max().z <= parent_bb.max().z);
     }
 
-    fn bb(&self) -> BoundingBox {
+    pub fn bb(&self) -> BoundingBox {
         match self {
             BvhNode::Internal { bb, .. } => *bb,
             BvhNode::Leaf { bb, .. } => *bb,
@@ -47,8 +51,8 @@ impl BvhNode {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum BvhNodePayload {
-    Instance(gpu::InstanceId),
-    Triangle(gpu::MeshTriangleId),
+impl fmt::Display for BvhNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", BvhPrinter::print(self))
+    }
 }

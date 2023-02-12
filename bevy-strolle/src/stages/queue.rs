@@ -90,6 +90,9 @@ pub(crate) fn viewports(
 
         if let Some(view) = state.views.get_mut(&entity) {
             view.viewport.set_camera(camera);
+
+            view.viewport
+                .set_config(ext_camera.config.clone().unwrap_or_default());
         } else {
             log::debug!("Camera {:?} extracted", entity);
 
@@ -100,6 +103,8 @@ pub(crate) fn viewports(
                 texture_format,
                 camera,
             );
+
+            viewport.set_config(ext_camera.config.clone().unwrap_or_default());
 
             state.views.insert(entity, SyncedView { viewport });
         }

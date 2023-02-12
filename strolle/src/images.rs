@@ -1,9 +1,13 @@
 use std::collections::HashMap;
+use std::iter;
 use std::num::NonZeroU32;
+
+use strolle_models as gpu;
 
 use crate::buffers::Bindable;
 use crate::{ImageSampler, ImageTexture, Params};
 
+#[derive(Debug)]
 pub struct Images<P>
 where
     P: Params,
@@ -49,6 +53,16 @@ where
         image_texture: P::ImageTexture,
         image_sampler: P::ImageSampler,
     ) {
+        if self.textures.len() == gpu::MAX_IMAGES {
+            log::warn!(
+                "Cannot add image `{:?}`: reached the maximum number of allocated textures ({})",
+                image_handle,
+                gpu::MAX_IMAGES,
+            );
+
+            return;
+        }
+
         let image_id = self.textures.len();
 
         log::debug!("Image added: {:?} ({})", image_handle, image_id);
@@ -72,28 +86,29 @@ where
     }
 
     pub fn binder(&self) -> ImagesBinder {
-        ImagesBinder {
-            textures: self
-                .textures
-                .iter()
-                .map(|texture| texture.get())
-                .collect(),
-            samplers: self
-                .samplers
-                .iter()
-                .map(|sampler| sampler.get())
-                .collect(),
-            null_texture: &self.null_texture,
-            null_sampler: &self.null_sampler,
-        }
+        let free_slots = gpu::MAX_IMAGES - self.textures.len();
+
+        let textures = self
+            .textures
+            .iter()
+            .map(|texture| texture.get())
+            .chain(iter::repeat(&self.null_texture).take(free_slots))
+            .collect();
+
+        let samplers = self
+            .samplers
+            .iter()
+            .map(|sampler| sampler.get())
+            .chain(iter::repeat(&self.null_sampler).take(free_slots))
+            .collect();
+
+        ImagesBinder { textures, samplers }
     }
 }
 
 pub struct ImagesBinder<'a> {
     textures: Vec<&'a wgpu::TextureView>,
     samplers: Vec<&'a wgpu::Sampler>,
-    null_texture: &'a wgpu::TextureView,
-    null_sampler: &'a wgpu::Sampler,
 }
 
 impl Bindable for ImagesBinder<'_> {
@@ -101,7 +116,7 @@ impl Bindable for ImagesBinder<'_> {
         &self,
         binding: u32,
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
-        let count = NonZeroU32::new(self.textures.len() as u32);
+        let count = NonZeroU32::new(gpu::MAX_IMAGES as u32);
 
         let textures_layout = wgpu::BindGroupLayoutEntry {
             binding,
@@ -116,6 +131,9 @@ impl Bindable for ImagesBinder<'_> {
             count,
         };
 
+        let textures_resource =
+            wgpu::BindingResource::TextureViewArray(&self.textures);
+
         let samplers_layout = wgpu::BindGroupLayoutEntry {
             binding: binding + 1,
             visibility: wgpu::ShaderStages::COMPUTE,
@@ -125,25 +143,8 @@ impl Bindable for ImagesBinder<'_> {
             count,
         };
 
-        let (textures_resource, samplers_resource) = if count.is_none() {
-            // Even if there are no textures, we still have to bind *something*
-            // to the pipeline - so let's bind an empty texture & empty sampler.
-            //
-            // Note that even though what we're binding is `TextureView`, not
-            // `TextureViewArray` (and the same for samplers), the shader can
-            // still continue to refer to them through `images: &[Image!(...)]`;
-            // somewhat magically it all works (and seems to be a common pattern
-            // in cases like these).
-            (
-                wgpu::BindingResource::TextureView(self.null_texture),
-                wgpu::BindingResource::Sampler(self.null_sampler),
-            )
-        } else {
-            (
-                wgpu::BindingResource::TextureViewArray(&self.textures),
-                wgpu::BindingResource::SamplerArray(&self.samplers),
-            )
-        };
+        let samplers_resource =
+            wgpu::BindingResource::SamplerArray(&self.samplers);
 
         vec![
             (textures_layout, textures_resource),

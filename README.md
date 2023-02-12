@@ -1,14 +1,16 @@
 # strolle
 
-Strolle (from _strålspårning_) is a real-time raytracing engine written entirely
-in Rust, running on CPU & GPU:
+Strolle (coming from _strålspårning_) is an experimental real-time renderer that
+supports global illumination:
 
 ![1.png](_readme/1.png)
-![2.png](_readme/2.png)
-![3.png](_readme/3.png)
 
-It comes integrated with [Bevy](https://bevyengine.org/), but can be also used
-on its own (within `wgpu`).
+Our goal is to create a path-tracer that doesn't rely on hardware raytracing
+capabilities and is able to generate an approximate, good-looking image on a 
+relatively modern, consumer GPU.
+
+Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
+used on its own (through `wgpu`).
 
 Status: work in progress, no official release yet; examples below should work on
 Windows, Mac & Linux (with WebGPU support possible in the future).
@@ -27,8 +29,16 @@ $ cargo build-shaders
 $ cargo run --release --example cameras
 ```
 
-Shows support for multiple cameras - the left one is rasterized, while the right
-one is raytraced.
+Shows support for multiple cameras; the four cameras there show the rasterized
+view, the raytraced view, normals, and BVH nodes.
+
+### Cornell
+
+``` shell
+$ cargo run --release --example cornell
+```
+
+Shows the famous Cornell Box.
 
 ### Cubes
 
@@ -88,11 +98,3 @@ Model thanks to: https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/.
 ``` shell
 $ cargo run --release --example textures
 ```
-
-## Options
-
-`strolle-models/src/lib.rs` contains a constant called `ENABLE_AABB` - if you
-enable it (and re-generate the shaders), the raytracer will draw BVH bounding
-boxes instead of the triangles; can be fun to browse!
-
-![aabb.png](_readme/aabb.png)

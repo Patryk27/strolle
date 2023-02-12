@@ -2023,7 +2023,7 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.10.0"
-source = "git+https://github.com/Patryk27/naga?branch=spirv_binding_arrays#881945e81058c4b1ec5f5058a34656a2a5ec4892"
+source = "git+https://github.com/Patryk27/naga?branch=strolle#01ebfba2741be627dd531d68156fecd0b454549a"
 dependencies = [
  "bit-set",
  "bitflags",
@@ -2414,6 +2414,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ppv-lite86"
+version = "0.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+
+[[package]]
 name = "proc-macro-crate"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2453,6 +2459,36 @@ name = "radsort"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17fd96390ed3feda12e1dfe2645ed587e0bea749e319333f104a33ff62f77a0b"
+
+[[package]]
+name = "rand"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+dependencies = [
+ "libc",
+ "rand_chacha",
+ "rand_core",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
+dependencies = [
+ "ppv-lite86",
+ "rand_core",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+dependencies = [
+ "getrandom",
+]
 
 [[package]]
 name = "range-alloc"
@@ -2923,6 +2959,7 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "log",
+ "rand",
  "spirv-std",
  "strolle-models",
  "wgpu",
@@ -2938,7 +2975,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-printing-pass"
+name = "strolle-pass-drawing"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -2946,7 +2983,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-raygen-pass"
+name = "strolle-pass-ray-shading"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-models",
+]
+
+[[package]]
+name = "strolle-pass-ray-tracing"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -2958,22 +3003,6 @@ name = "strolle-shader-builder"
 version = "0.1.0"
 dependencies = [
  "spirv-builder",
-]
-
-[[package]]
-name = "strolle-shading-pass"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-models",
-]
-
-[[package]]
-name = "strolle-tracing-pass"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-models",
 ]
 
 [[package]]
@@ -3307,8 +3336,7 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81f643110d228fd62a60c5ed2ab56c4d5b3704520bd50561174ec4ec74932937"
+source = "git+https://github.com/Patryk27/wgpu?branch=strolle#f861cee1cb1c5ddba35d0c1d0563d3a4b37f2219"
 dependencies = [
  "arrayvec",
  "js-sys",
@@ -3329,8 +3357,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6000d1284ef8eec6076fd5544a73125fd7eb9b635f18dceeb829d826f41724ca"
+source = "git+https://github.com/Patryk27/wgpu?branch=strolle#f861cee1cb1c5ddba35d0c1d0563d3a4b37f2219"
 dependencies = [
  "arrayvec",
  "bit-vec",
@@ -3353,8 +3380,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cc320a61acb26be4f549c9b1b53405c10a223fbfea363ec39474c32c348d12f"
+source = "git+https://github.com/Patryk27/wgpu?branch=strolle#f861cee1cb1c5ddba35d0c1d0563d3a4b37f2219"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -3392,8 +3418,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb6b28ef22cac17b9109b25b3bf8c9a103eeb293d7c5f78653979b09140375f6"
+source = "git+https://github.com/Patryk27/wgpu?branch=strolle#f861cee1cb1c5ddba35d0c1d0563d3a4b37f2219"
 dependencies = [
  "bitflags",
 ]

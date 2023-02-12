@@ -1,22 +1,22 @@
-mod printing_pass;
-mod raygen_pass;
-mod shading_pass;
-mod tracing_pass;
+mod drawing_pass;
+mod ray_shading_pass;
+mod ray_tracing_pass;
 
 use std::mem;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex, Weak};
 
-use spirv_std::glam::UVec2;
+use rand::Rng;
+use spirv_std::glam::{UVec2, Vec4};
 use strolle_models as gpu;
 
-use self::printing_pass::*;
-use self::raygen_pass::*;
-use self::shading_pass::*;
-use self::tracing_pass::*;
-use crate::buffers::{StorageBuffer, Texture, UniformBuffer};
+use self::drawing_pass::*;
+use self::ray_shading_pass::*;
+use self::ray_tracing_pass::*;
+use crate::buffers::{MappedUniformBuffer, Texture, UnmappedStorageBuffer};
 use crate::{Engine, Params};
 
+#[derive(Debug)]
 pub struct Viewport {
     inner: Arc<Mutex<ViewportInner>>,
 }
@@ -41,38 +41,106 @@ impl Viewport {
         assert!(size.x > 0);
         assert!(size.y > 0);
 
-        let camera = UniformBuffer::new(device, "strolle_camera", camera);
+        let camera = MappedUniformBuffer::new(device, "strolle_camera", camera);
 
-        let rays = StorageBuffer::new_default(
+        let ray_origins = UnmappedStorageBuffer::new(
             device,
-            "strolle_rays",
-            (8 * size.x * size.y) as usize * mem::size_of::<f32>(),
+            "strolle_ray_origins",
+            (size.x * size.y) as usize * mem::size_of::<Vec4>(),
         );
 
-        let image = Texture::new(device, "strolle_image", size);
+        let ray_directions = UnmappedStorageBuffer::new(
+            device,
+            "strolle_ray_directions",
+            (size.x * size.y) as usize * mem::size_of::<Vec4>(),
+        );
 
-        let printing_pass =
-            PrintingPass::new(engine, device, format, &camera, &image);
+        let ray_throughputs = UnmappedStorageBuffer::new(
+            device,
+            "strolle_ray_throughputs",
+            (size.x * size.y) as usize * mem::size_of::<Vec4>(),
+        );
 
-        let raygen_pass = RaygenPass::new(engine, device, &camera, &rays);
+        let ray_hits = UnmappedStorageBuffer::new(
+            device,
+            "strolle_ray_hits",
+            (2 * size.x * size.y) as usize * mem::size_of::<Vec4>(),
+        );
 
-        let shading_pass =
-            ShadingPass::new(engine, device, &camera, &rays, &image);
+        let colors = Texture::new(
+            device,
+            "strolle_colors",
+            size,
+            wgpu::TextureFormat::Rgba16Float,
+        );
 
-        let tracing_pass = TracingPass::new(engine, device, &camera, &rays);
+        let normals = Texture::new(
+            device,
+            "strolle_normals",
+            size,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+
+        let bvh_heatmap = Texture::new(
+            device,
+            "strolle_bvh_heatmap",
+            size,
+            wgpu::TextureFormat::Rgba8Unorm,
+        );
+
+        let drawing_pass = DrawingPass::new(
+            engine,
+            device,
+            format,
+            &camera,
+            &colors,
+            &normals,
+            &bvh_heatmap,
+        );
+
+        let ray_shading_pass = RayShadingPass::new(
+            engine,
+            device,
+            &camera,
+            &ray_origins,
+            &ray_directions,
+            &ray_throughputs,
+            &ray_hits,
+            &colors,
+            &normals,
+            &bvh_heatmap,
+        );
+
+        let ray_tracing_pass = RayTracingPass::new(
+            engine,
+            device,
+            &camera,
+            &ray_origins,
+            &ray_directions,
+            &ray_hits,
+        );
 
         Self {
             inner: Arc::new(Mutex::new(ViewportInner {
                 pos,
                 size,
                 format,
+
                 camera,
-                rays,
-                image,
-                printing_pass,
-                raygen_pass,
-                shading_pass,
-                tracing_pass,
+                ray_origins,
+                ray_directions,
+                ray_throughputs,
+                ray_hits,
+                colors,
+                normals,
+                bvh_heatmap,
+
+                drawing_pass,
+                ray_shading_pass,
+                ray_tracing_pass,
+
+                config: Default::default(),
+                tick: 0,
             })),
         }
     }
@@ -101,25 +169,52 @@ impl Viewport {
         });
     }
 
-    pub(crate) fn on_images_changed<P>(
-        &self,
-        engine: &Engine<P>,
-        device: &wgpu::Device,
-    ) where
+    pub fn set_config(&self, config: ViewportConfiguration) {
+        self.with(|this| {
+            this.config = config;
+        });
+    }
+
+    pub(crate) fn rebuild<P>(&self, engine: &Engine<P>, device: &wgpu::Device)
+    where
         P: Params,
     {
-        log::debug!("Images changed - rebuilding pipelines");
-
         self.with(|this| {
-            this.tracing_pass =
-                TracingPass::new(engine, device, &this.camera, &this.rays);
+            log::info!(
+                "Rebuilding viewport ({})",
+                Self::describe(this.pos, this.size, this.format)
+            );
 
-            this.shading_pass = ShadingPass::new(
+            this.drawing_pass = DrawingPass::new(
+                engine,
+                device,
+                this.format,
+                &this.camera,
+                &this.colors,
+                &this.normals,
+                &this.bvh_heatmap,
+            );
+
+            this.ray_shading_pass = RayShadingPass::new(
                 engine,
                 device,
                 &this.camera,
-                &this.rays,
-                &this.image,
+                &this.ray_origins,
+                &this.ray_directions,
+                &this.ray_throughputs,
+                &this.ray_hits,
+                &this.colors,
+                &this.normals,
+                &this.bvh_heatmap,
+            );
+
+            this.ray_tracing_pass = RayTracingPass::new(
+                engine,
+                device,
+                &this.camera,
+                &this.ray_origins,
+                &this.ray_directions,
+                &this.ray_hits,
             );
         });
     }
@@ -135,17 +230,27 @@ impl Viewport {
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
     ) {
-        const BOUNCES: usize = 1;
-
         self.with(|this| {
-            this.raygen_pass.run(this.size, encoder);
+            this.tick += 1;
 
-            for _ in 0..=BOUNCES {
-                this.tracing_pass.run(this.size, encoder);
-                this.shading_pass.run(this.size, encoder);
+            for bounce in 0..=this.config.bounces() {
+                let params = gpu::RayPassParams {
+                    bounce: bounce as u32,
+                    seed: rand::thread_rng().gen(),
+                    tick: this.tick,
+                    apply_denoising: this.config.apply_denoising() as u32,
+                };
+
+                this.ray_tracing_pass.run(this.size, params, encoder);
+                this.ray_shading_pass.run(this.size, params, encoder);
             }
 
-            this.printing_pass.run(this.pos, this.size, encoder, target);
+            let params = gpu::DrawingPassParams {
+                viewport_mode: this.config.mode.serialize(),
+            };
+
+            this.drawing_pass
+                .run(this.pos, this.size, params, encoder, target);
         });
     }
 
@@ -165,6 +270,7 @@ impl Viewport {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct WeakViewport {
     inner: Weak<Mutex<ViewportInner>>,
 }
@@ -175,17 +281,27 @@ impl WeakViewport {
     }
 }
 
+#[derive(Debug)]
 struct ViewportInner {
     pos: UVec2,
     size: UVec2,
     format: wgpu::TextureFormat,
-    camera: UniformBuffer<gpu::Camera>,
-    rays: StorageBuffer<f32>,
-    image: Texture,
-    printing_pass: PrintingPass,
-    raygen_pass: RaygenPass,
-    shading_pass: ShadingPass,
-    tracing_pass: TracingPass,
+
+    camera: MappedUniformBuffer<gpu::Camera>,
+    ray_origins: UnmappedStorageBuffer,
+    ray_directions: UnmappedStorageBuffer,
+    ray_throughputs: UnmappedStorageBuffer,
+    ray_hits: UnmappedStorageBuffer,
+    colors: Texture,
+    normals: Texture,
+    bvh_heatmap: Texture,
+
+    drawing_pass: DrawingPass,
+    ray_shading_pass: RayShadingPass,
+    ray_tracing_pass: RayTracingPass,
+
+    config: ViewportConfiguration,
+    tick: u32,
 }
 
 impl Drop for ViewportInner {
@@ -194,5 +310,65 @@ impl Drop for ViewportInner {
             "Releasing viewport ({})",
             Viewport::describe(self.pos, self.size, self.format)
         );
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ViewportConfiguration {
+    pub mode: ViewportMode,
+    pub bounces: usize,
+}
+
+impl ViewportConfiguration {
+    fn bounces(&self) -> usize {
+        if self.mode == ViewportMode::DisplayImage {
+            self.bounces
+        } else {
+            // If we're displaying normals and/or the heatmap, there's no need
+            // to trace any bounces, because they don't incorporate any more
+            // detail into those modes.
+            //
+            // (that is to say, the normal-output will look the same for zero
+            // bounces as it would for ten.)
+            0
+        }
+    }
+
+    /// Returns whether the final image should be denoised.
+    ///
+    /// Currently it's kind of a hack to avoid denoising when we're running in
+    /// the ray-tracing mode (i.e. without tracing bounces), since otherwise it
+    /// causes some pretty visible artifacts (e.g. on the `cubes` example).
+    ///
+    /// Overall we need this only because our current denoising algorithm is
+    /// bad - we should be able to remove it having migrated to ReSTIR GI or
+    /// something else.
+    ///
+    /// TODO consider removing in the future
+    fn apply_denoising(&self) -> bool {
+        self.mode == ViewportMode::DisplayImage && self.bounces > 0
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ViewportMode {
+    DisplayImage,
+    DisplayNormals,
+    DisplayBvhHeatmap,
+}
+
+impl ViewportMode {
+    fn serialize(&self) -> u32 {
+        match self {
+            ViewportMode::DisplayImage => 0,
+            ViewportMode::DisplayNormals => 1,
+            ViewportMode::DisplayBvhHeatmap => 2,
+        }
+    }
+}
+
+impl Default for ViewportMode {
+    fn default() -> Self {
+        Self::DisplayImage
     }
 }
