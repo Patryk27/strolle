@@ -3,7 +3,7 @@
 Strolle (coming from _strålspårning_) is an experimental real-time renderer that
 supports global illumination:
 
-![1.png](_readme/1.png)
+![cornell.png](_readme/cornell.png)
 
 Our goal is to create a path-tracer that doesn't rely on hardware raytracing
 capabilities and is able to generate an approximate, good-looking image on a 
