@@ -2023,7 +2023,7 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.10.0"
-source = "git+https://github.com/Patryk27/naga?branch=strolle#01ebfba2741be627dd531d68156fecd0b454549a"
+source = "git+https://github.com/Patryk27/naga?branch=strolle#685ad60e096dc87857e0aa08bc69a5779f77acbc"
 dependencies = [
  "bit-set",
  "bitflags",
