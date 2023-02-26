@@ -6,7 +6,7 @@ use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy_obj::ObjPlugin;
-use bevy_strolle::StrollePlugin;
+use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
 };
@@ -84,7 +84,7 @@ fn setup(
                 controller.mouse_translate_sensitivity = Vec2::ONE * 0.5;
                 controller
             },
-            Vec3::new(0.0, 1.0, 1.4),
-            Vec3::new(0.0, 0.5, 0.5),
+            vec3(0.0, 1.0, 1.4),
+            vec3(0.0, 0.5, 0.5),
         ));
 }

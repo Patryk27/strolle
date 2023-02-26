@@ -13,7 +13,7 @@ use crate::EngineParams;
 pub struct StrolleMaterial {
     pub parent: StandardMaterial,
 
-    /// Specifies the refractive index.
+    /// Specifies the index of refraction.
     ///
     /// Defaults to 1.0 and makes sense only for transparent materials (i.e.
     /// when `parent.base_color` and/or `parent.base_color_texture` have

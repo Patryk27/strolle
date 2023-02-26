@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
-use bevy_strolle::{StrolleMaterial, StrollePlugin};
+use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
 };
@@ -36,22 +36,24 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut strolle_materials: ResMut<Assets<StrolleMaterial>>,
 ) {
+    let cube = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+
     commands.spawn(MaterialMeshBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
+        mesh: meshes.add(Mesh::from(shape::Plane { size: 25.0 })),
         material: strolle_materials.add(StrolleMaterial {
             parent: StandardMaterial {
                 base_color: Color::rgb(0.2, 0.2, 0.2),
                 ..default()
             },
-            reflectivity: 0.5,
+            reflectivity: 0.75,
             ..default()
         }),
         ..default()
     });
 
     commands
-        .spawn(MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+        .spawn(PbrBundle {
+            mesh: cube.clone(),
             material: materials.add(StandardMaterial {
                 base_color: Color::CRIMSON,
                 ..default()
@@ -63,7 +65,7 @@ fn setup(
 
     commands
         .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+            mesh: cube,
             material: materials.add(StandardMaterial {
                 base_color: Color::GOLD,
                 ..default()
@@ -100,6 +102,12 @@ fn setup(
             ),
             ..default()
         })
+        .insert(StrolleCamera {
+            config: st::ViewportConfiguration {
+                bounces: 4,
+                ..default()
+            },
+        })
         .insert(OrbitCameraBundle::new(
             {
                 let mut controller = OrbitCameraController::default();
@@ -108,7 +116,7 @@ fn setup(
                 controller.mouse_translate_sensitivity = Vec2::ONE * 0.5;
                 controller
             },
-            Vec3::new(-10.0, 5.0, 10.0),
+            vec3(-10.0, 5.0, 10.0),
             Vec3::ZERO,
         ));
 }

@@ -8,7 +8,7 @@ use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy_obj::ObjPlugin;
-use bevy_strolle::StrollePlugin;
+use bevy_strolle::prelude::*;
 use lazy_static::lazy_static;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
@@ -26,17 +26,17 @@ lazy_static! {
         (
             "buddha.obj",
             Transform::from_scale(Vec3::splat(50.0))
-                .with_translation(vec3(0.0, -2.5, 0.0))
+                .with_translation(vec3(0.5, -2.5, 0.0))
         ),
         (
             "bunny.obj",
             Transform::from_scale(Vec3::splat(50.0))
-                .with_translation(vec3(0.0, 0.5, 0.0))
+                .with_translation(vec3(1.0, 0.5, 0.0))
         ),
         (
             "dragon.obj",
             Transform::from_scale(Vec3::splat(0.06))
-                .with_translation(vec3(0.0, 5.0, 0.0))
+                .with_translation(vec3(1.0, 5.0, 0.0))
                 .with_rotation(Quat::from_rotation_y(PI)),
         ),
     ];
@@ -92,8 +92,8 @@ fn setup(mut commands: Commands) {
                 controller.mouse_translate_sensitivity = Vec2::ONE * 0.5;
                 controller
             },
-            Vec3::new(-10.0, 10.0, 10.0),
-            Vec3::new(0.0, 5.0, 0.0),
+            vec3(-10.0, 10.0, 10.0),
+            vec3(0.0, 5.0, 0.0),
         ));
 
     commands.insert_resource(State::default());
@@ -101,8 +101,8 @@ fn setup(mut commands: Commands) {
 
 #[derive(Default, Resource)]
 struct State {
-    curr_model_id: usize,
-    curr_model_entity: Option<Entity>,
+    model_id: usize,
+    model_entity: Option<Entity>,
 }
 
 fn process_input(
@@ -117,34 +117,32 @@ fn process_input(
     if keys.just_pressed(KeyCode::Left) {
         reload_model = true;
 
-        state.curr_model_id = state
-            .curr_model_id
-            .checked_sub(1)
-            .unwrap_or(MODELS.len() - 1);
+        state.model_id =
+            state.model_id.checked_sub(1).unwrap_or(MODELS.len() - 1);
     }
 
     if keys.just_pressed(KeyCode::Right) {
         reload_model = true;
-        state.curr_model_id = (state.curr_model_id + 1) % MODELS.len();
+        state.model_id = (state.model_id + 1) % MODELS.len();
     }
 
-    if state.curr_model_entity.is_none() || reload_model {
-        if let Some(entity) = state.curr_model_entity.take() {
+    if state.model_entity.is_none() || reload_model {
+        if let Some(entity) = state.model_entity.take() {
             commands.entity(entity).despawn();
         }
 
         let entity = commands
             .spawn(PbrBundle {
-                mesh: assets.load(MODELS[state.curr_model_id].0),
+                mesh: assets.load(MODELS[state.model_id].0),
                 material: materials.add(StandardMaterial {
                     base_color: Color::rgb(1.0, 1.0, 1.0),
                     ..default()
                 }),
-                transform: MODELS[state.curr_model_id].1,
+                transform: MODELS[state.model_id].1,
                 ..default()
             })
             .id();
 
-        state.curr_model_entity = Some(entity);
+        state.model_entity = Some(entity);
     }
 }

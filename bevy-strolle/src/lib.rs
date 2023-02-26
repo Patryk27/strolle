@@ -5,6 +5,10 @@ mod stages;
 mod state;
 mod utils;
 
+pub mod prelude {
+    pub use crate::*;
+}
+
 pub mod graph {
     pub const NAME: &str = "strolle";
 

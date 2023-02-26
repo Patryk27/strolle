@@ -4,7 +4,7 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::math::uvec2;
 use bevy::prelude::*;
 use bevy::render::camera::{CameraRenderGraph, Viewport};
-use bevy_strolle::{st, StrolleCamera, StrollePlugin};
+use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::LookTransformPlugin;
 
 fn main() {

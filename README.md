@@ -5,9 +5,9 @@ supports global illumination:
 
 ![cornell.png](_readme/cornell.png)
 
-Our goal is to create a path-tracer that doesn't rely on hardware raytracing
-capabilities and is able to generate an approximate, good-looking image on a 
-relatively modern, consumer GPU.
+Our goal is to create an interactive path-tracer that is able to produce a
+good-looking image on a consumer GPU without relying on hardware raytracing
+capabilities.
 
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
@@ -49,22 +49,14 @@ $ cargo run --release --example cubes
 Shows a few cubes rotating around the origin; use keyboard & mouse to move the
 camera.
 
-### Glass
+### Materials
 
 ``` shell
-$ cargo run --release --example glass
+$ cargo run --release --example materials
 ```
 
-Shows support for refraction; use keyboard & mouse to move the camera.
-
-### Instancing
-
-``` shell
-$ cargo run --release --example instancing
-```
-
-Shows support for hierarchical BVH - there's 100 bunnies * 69k polygons per each
-bunny; use keyboard & mouse to move the camera.
+Shows a few spheres with various materials; use left and right arrows to change
+the materials, use keyboard & mouse to move the camera.
 
 ### Models
 
@@ -79,19 +71,6 @@ mouse to move the camera.
 Models thanks to:
 - https://github.com/alecjacobson/common-3d-test-models
 - https://github.com/RayMarch/ferris3d
-
-### Nefertiti
-
-``` shell
-$ cargo run --release --example nefertiti
-```
-
-Renders a 2 million-polygon head of Nefertiti with some dynamic lightning; use
-keyboard & mouse to move the camera.
-
-(note that model takes a few seconds to appear.)
-
-Model thanks to: https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/.
 
 ### Textures
 

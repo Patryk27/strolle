@@ -6,7 +6,7 @@ use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy_obj::ObjPlugin;
-use bevy_strolle::{st, StrolleCamera, StrollePlugin};
+use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
 };
@@ -73,8 +73,8 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                 controller.mouse_translate_sensitivity = Vec2::ONE * 0.5;
                 controller
             },
-            Vec3::new(0.0, 1.0, 3.2),
-            Vec3::new(0.0, 1.0, 0.0),
+            vec3(0.0, 1.0, 3.2),
+            vec3(0.0, 1.0, 0.0),
         ));
 }
 
