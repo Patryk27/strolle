@@ -5,7 +5,7 @@ use bevy::render::render_graph::{
 use bevy::render::renderer::RenderContext;
 use bevy::render::view::{ExtractedView, ViewTarget};
 
-use crate::SyncedState;
+use crate::{EngineResource, SyncedState};
 
 pub struct RenderNode {
     query: QueryState<&'static ViewTarget, With<ExtractedView>>,
@@ -27,7 +27,7 @@ impl Node for RenderNode {
     }
 
     fn update(&mut self, world: &mut World) {
-        self.query.update_archetypes(world)
+        self.query.update_archetypes(world);
     }
 
     fn run(
@@ -42,14 +42,18 @@ impl Node for RenderNode {
             return Ok(());
         };
 
+        let engine = world.resource::<EngineResource>();
         let state = world.resource::<SyncedState>();
 
-        let Some(view) = state.views.get(&entity) else {
+        let Some(camera) = state.cameras.get(&entity) else {
             return Ok(());
         };
 
-        view.viewport
-            .render(&mut render_context.command_encoder, target.main_texture());
+        engine.render_camera(
+            camera.handle,
+            render_context.command_encoder(),
+            target.main_texture(),
+        );
 
         Ok(())
     }

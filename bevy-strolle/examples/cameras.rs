@@ -1,21 +1,23 @@
-use std::f32::consts::PI;
+#[path = "_common.rs"]
+mod common;
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::math::uvec2;
+use bevy::math::{uvec2, vec3};
 use bevy::prelude::*;
 use bevy::render::camera::{CameraRenderGraph, Viewport};
+use bevy::window::{PrimaryWindow, WindowMode, WindowResolution};
 use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::LookTransformPlugin;
 
 fn main() {
+    common::unzip_assets();
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
-            window: WindowDescriptor {
-                width: 512.0,
-                height: 512.0,
-                mode: WindowMode::Windowed,
+            primary_window: Some(Window {
+                resolution: WindowResolution::new(512.0, 512.0),
                 ..default()
-            },
+            }),
             ..default()
         }))
         .add_plugin(LookTransformPlugin)
@@ -24,80 +26,35 @@ fn main() {
         .add_plugin(StrollePlugin)
         .add_startup_system(setup)
         .add_system(update_cameras)
-        .add_system(animate)
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let cube_mat = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.8, 0.7, 0.6),
-        perceptual_roughness: 0.2,
-        ..default()
-    });
-
-    let floor_mat = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.2, 0.2, 0.2),
-        perceptual_roughness: 0.0,
-        ..default()
-    });
-
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
-        material: floor_mat,
-        ..default()
-    });
-
-    commands
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: cube_mat.clone(),
-            transform: Transform::from_xyz(0.0, 0.5, 0.0),
-            ..default()
-        })
-        .insert(Animated { phase: 0.0 });
-
-    commands
-        .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: cube_mat,
-            transform: Transform::from_xyz(0.0, 0.5, 0.0),
-            ..default()
-        })
-        .insert(Animated { phase: PI });
-
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            intensity: 1500.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
+fn setup(mut commands: Commands, assets: Res<AssetServer>) {
+    commands.spawn(SceneBundle {
+        scene: assets.load("cornell/scene.gltf#Scene0"),
+        ..Default::default()
     });
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 1500.0,
+            color: Color::WHITE,
+            intensity: 50.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(-4.0, 8.0, -4.0),
+        transform: Transform::from_translation(vec3(0.0, 1.5, 0.0)),
         ..default()
     });
 
     // -----
 
-    let transform = Transform::from_xyz(15.0, 10.0, 15.0)
-        .looking_at(Vec3::splat(0.0), Vec3::Y);
+    let transform = Transform::from_xyz(0.0, 1.0, 3.2)
+        .looking_at(vec3(0.0, 1.0, 0.0), Vec3::Y);
 
     let bevy_camera = commands
         .spawn(Camera3dBundle {
             camera: Camera {
-                priority: 0,
+                order: 0,
                 ..default()
             },
             transform,
@@ -105,10 +62,10 @@ fn setup(
         })
         .id();
 
-    let strolle_image_camera = commands
+    let strolle_camera = commands
         .spawn(Camera3dBundle {
             camera: Camera {
-                priority: 1,
+                order: 1,
                 ..default()
             },
             camera_render_graph: CameraRenderGraph::new(
@@ -119,30 +76,10 @@ fn setup(
         })
         .id();
 
-    let strolle_normals_camera = commands
+    let strolle_direct_lightning_camera = commands
         .spawn(Camera3dBundle {
             camera: Camera {
-                priority: 2,
-                ..default()
-            },
-            camera_render_graph: CameraRenderGraph::new(
-                bevy_strolle::graph::NAME,
-            ),
-            transform,
-            ..default()
-        })
-        .insert(StrolleCamera {
-            config: st::ViewportConfiguration {
-                mode: st::ViewportMode::DisplayNormals,
-                ..default()
-            },
-        })
-        .id();
-
-    let strolle_bvh_heatmap_camera = commands
-        .spawn(Camera3dBundle {
-            camera: Camera {
-                priority: 3,
+                order: 2,
                 ..default()
             },
             camera_render_graph: CameraRenderGraph::new(
@@ -152,8 +89,28 @@ fn setup(
             ..default()
         })
         .insert(StrolleCamera {
-            config: st::ViewportConfiguration {
-                mode: st::ViewportMode::DisplayBvhHeatmap,
+            config: st::Camera {
+                mode: st::CameraMode::DisplayDirectLightning,
+                ..default()
+            },
+        })
+        .id();
+
+    let strolle_indirect_lightning_camera = commands
+        .spawn(Camera3dBundle {
+            camera: Camera {
+                order: 3,
+                ..default()
+            },
+            camera_render_graph: CameraRenderGraph::new(
+                bevy_strolle::graph::NAME,
+            ),
+            transform,
+            ..default()
+        })
+        .insert(StrolleCamera {
+            config: st::Camera {
+                mode: st::CameraMode::DisplayIndirectLightning,
                 ..default()
             },
         })
@@ -164,14 +121,12 @@ fn setup(
     commands.insert_resource(State {
         cameras: [
             bevy_camera,
-            strolle_image_camera,
-            strolle_normals_camera,
-            strolle_bvh_heatmap_camera,
+            strolle_camera,
+            strolle_direct_lightning_camera,
+            strolle_indirect_lightning_camera,
         ],
     });
 }
-
-const RADIUS: f32 = 3.0;
 
 #[derive(Resource)]
 struct State {
@@ -180,10 +135,10 @@ struct State {
 
 fn update_cameras(
     state: Res<State>,
-    windows: Res<Windows>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     mut cameras: Query<&mut Camera>,
 ) {
-    let window = windows.primary();
+    let window = windows.single();
 
     let (window_width, window_height) =
         (window.physical_width(), window.physical_height());
@@ -205,22 +160,4 @@ fn update_cameras(
             physical_position.y += physical_size.y;
         }
     }
-}
-
-fn animate(time: Res<Time>, mut objects: Query<(&mut Transform, &Animated)>) {
-    let tt = time.elapsed_seconds();
-
-    for (mut transform, animated) in objects.iter_mut() {
-        transform.translation.x = RADIUS * (animated.phase + tt).sin();
-        transform.translation.z = RADIUS * (animated.phase + tt).cos();
-        transform.translation.y = 0.5 + tt.sin().abs() * 1.8;
-
-        transform.rotation =
-            Quat::from_rotation_x(tt) * Quat::from_rotation_y(tt / 1.5);
-    }
-}
-
-#[derive(Component)]
-struct Animated {
-    phase: f32,
 }

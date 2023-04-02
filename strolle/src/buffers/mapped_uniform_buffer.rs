@@ -1,9 +1,7 @@
 use std::ops::{Deref, DerefMut};
-use std::{any, mem, slice};
+use std::{any, mem};
 
-use bytemuck::Pod;
-
-use super::Bindable;
+use super::{Bindable, Bufferable};
 
 #[derive(Debug)]
 pub struct MappedUniformBuffer<T> {
@@ -14,17 +12,20 @@ pub struct MappedUniformBuffer<T> {
 
 impl<T> MappedUniformBuffer<T>
 where
-    T: UniformBufferable,
+    T: Bufferable,
 {
-    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: T) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        label: impl AsRef<str>,
+        size: usize,
+        data: T,
+    ) -> Self {
         let label = label.as_ref();
-        let size = mem::size_of::<T>();
         let size = (size + 31) & !31;
 
         log::info!(
-            "Allocating uniform buffer `{label}`; ty={}, size={size} (padded from {})",
+            "Allocating uniform buffer `{label}`; ty={}, size={size}",
             any::type_name::<T>(),
-            mem::size_of::<T>(),
         );
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
@@ -41,11 +42,15 @@ where
         }
     }
 
-    pub fn new_default(device: &wgpu::Device, label: impl AsRef<str>) -> Self
+    pub fn new_default(
+        device: &wgpu::Device,
+        label: impl AsRef<str>,
+        size: usize,
+    ) -> Self
     where
         T: Default,
     {
-        Self::new(device, label, Default::default())
+        Self::new(device, label, size, Default::default())
     }
 
     pub fn flush(&mut self, queue: &wgpu::Queue) {
@@ -93,23 +98,5 @@ impl<T> Bindable for MappedUniformBuffer<T> {
         let resource = self.buffer.as_entire_binding();
 
         vec![(layout, resource)]
-    }
-}
-
-pub trait UniformBufferable {
-    fn size(&self) -> usize;
-    fn data(&self) -> &[u8];
-}
-
-impl<T> UniformBufferable for T
-where
-    T: Pod,
-{
-    fn size(&self) -> usize {
-        mem::size_of::<Self>()
-    }
-
-    fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(slice::from_ref(self))
     }
 }

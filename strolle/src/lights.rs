@@ -2,10 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use strolle_models as gpu;
-
-use crate::buffers::{Bindable, MappedStorageBuffer};
-use crate::Params;
+use crate::{gpu, Bindable, MappedStorageBuffer, Params};
 
 #[derive(Debug)]
 pub struct Lights<P>
@@ -26,7 +23,7 @@ where
             buffer: MappedStorageBuffer::new_default(
                 device,
                 "stolle_lights",
-                4 * 1024 * 1024,
+                1024 * 1024,
             ),
             index: Default::default(),
         }
@@ -75,18 +72,10 @@ where
     pub fn remove(&mut self, light_handle: &P::LightHandle) {
         let Some(light_id) = self.index.remove(light_handle) else { return };
 
-        log::debug!("Light removed: {:?} ({})", light_handle, light_id.get());
-
         self.buffer.remove(light_id.get() as usize);
 
         for light_id2 in self.index.values_mut() {
             if light_id2.get() > light_id.get() {
-                log::debug!(
-                    "Light relocated: {} -> {}",
-                    light_id2.get(),
-                    light_id2.get() - 1
-                );
-
                 *light_id2 = gpu::LightId::new(light_id2.get() - 1);
             }
         }
@@ -99,16 +88,8 @@ where
     pub fn flush(&mut self, queue: &wgpu::Queue) {
         self.buffer.flush(queue);
     }
-}
 
-impl<P> Bindable for Lights<P>
-where
-    P: Params,
-{
-    fn bind(
-        &self,
-        binding: u32,
-    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
-        self.buffer.bind(binding)
+    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
+        self.buffer.as_ro_bind()
     }
 }

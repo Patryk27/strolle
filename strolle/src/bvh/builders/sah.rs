@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use spirv_std::glam::Vec3;
 
-use crate::bvh::{BoundingBox, BvhNode, BvhTriangle};
+use crate::{BoundingBox, BvhNode, BvhTriangle};
 
 /// Builds BVH using SAH.
 ///

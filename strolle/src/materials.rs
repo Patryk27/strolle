@@ -2,11 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use strolle_models as gpu;
-
-use crate::buffers::{Bindable, MappedStorageBuffer};
-use crate::images::Images;
-use crate::{Material, Params};
+use crate::{gpu, Bindable, Images, MappedStorageBuffer, Material, Params};
 
 #[derive(Debug)]
 pub struct Materials<P>
@@ -28,7 +24,7 @@ where
             buffer: MappedStorageBuffer::new_default(
                 device,
                 "strolle_materials",
-                4 * 1024 * 1024,
+                1024 * 1024,
             ),
             index: Default::default(),
             materials: Default::default(),
@@ -73,6 +69,23 @@ where
         }
     }
 
+    pub fn get(
+        &self,
+        material_handle: &P::MaterialHandle,
+    ) -> Option<&Material<P>> {
+        let idx = self.index.get(material_handle)?.get() as usize;
+
+        Some(&self.materials[idx])
+    }
+
+    pub fn has(&self, material_handle: &P::MaterialHandle) -> bool {
+        self.index.contains_key(material_handle)
+    }
+
+    pub fn handles(&self) -> impl Iterator<Item = &P::MaterialHandle> + '_ {
+        self.index.keys()
+    }
+
     pub fn remove(&mut self, material_handle: &P::MaterialHandle) {
         let Some(id) = self.index.remove(material_handle) else { return };
 
@@ -103,16 +116,8 @@ where
     pub fn flush(&mut self, queue: &wgpu::Queue) {
         self.buffer.flush(queue);
     }
-}
 
-impl<P> Bindable for Materials<P>
-where
-    P: Params,
-{
-    fn bind(
-        &self,
-        binding: u32,
-    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
-        self.buffer.bind(binding)
+    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
+        self.buffer.as_ro_bind()
     }
 }

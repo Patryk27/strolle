@@ -9,15 +9,13 @@ use std::fmt::Debug;
 
 use spirv_std::glam::Vec4;
 
-pub(crate) use self::bounding_box::*;
-pub(self) use self::bvh_node::*;
-pub(self) use self::bvh_serializer::*;
-pub(self) use self::bvh_triangle::*;
-use crate::buffers::{Bindable, MappedStorageBuffer};
-use crate::instances::Instances;
-use crate::materials::Materials;
-use crate::triangles::Triangles;
-use crate::Params;
+pub use self::bounding_box::*;
+pub use self::bvh_node::*;
+pub use self::bvh_serializer::*;
+pub use self::bvh_triangle::*;
+use crate::{
+    Bindable, Instances, MappedStorageBuffer, Materials, Params, Triangles,
+};
 
 const ALGORITHM: &str = "lbvh";
 
@@ -32,7 +30,7 @@ impl Bvh {
             buffer: MappedStorageBuffer::new_default(
                 device,
                 "strolle_bvh",
-                128 * 1024 * 1024,
+                32 * 1024 * 1024,
             ),
         }
     }
@@ -84,13 +82,8 @@ impl Bvh {
     pub fn flush(&mut self, queue: &wgpu::Queue) {
         self.buffer.flush(queue);
     }
-}
 
-impl Bindable for Bvh {
-    fn bind(
-        &self,
-        binding: u32,
-    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
-        self.buffer.bind(binding)
+    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
+        self.buffer.as_ro_bind()
     }
 }

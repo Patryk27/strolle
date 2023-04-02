@@ -25,7 +25,7 @@ use bevy::prelude::*;
 use bevy::render::render_graph::{RenderGraph, SlotInfo, SlotType};
 use bevy::render::render_resource::{Sampler, TextureView};
 use bevy::render::renderer::RenderDevice;
-use bevy::render::{RenderApp, RenderStage};
+use bevy::render::{RenderApp, RenderSet};
 pub use strolle as st;
 
 pub use self::camera::*;
@@ -46,132 +46,132 @@ impl Plugin for StrollePlugin {
         render_app.insert_resource(EngineResource(engine));
         render_app.insert_resource(SyncedState::default());
 
-        // -------------------- //
-        // RenderStage::Extract //
+        // -------------------------- //
+        // RenderSet::ExtractCommands //
+
+        render_app.add_system(
+            stages::extract::meshes
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
+        render_app.add_system(
+            stages::extract::materials::<StandardMaterial>
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
+        render_app.add_system(
+            stages::extract::materials::<StrolleMaterial>
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
+        render_app.add_system(
+            stages::extract::instances::<StandardMaterial>
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
+        render_app.add_system(
+            stages::extract::instances::<StrolleMaterial>
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
+        render_app.add_system(
+            stages::extract::lights
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
+        render_app.add_system(
+            stages::extract::cameras
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
+        // ------------------ //
+        // RenderSet::Prepare //
 
         render_app
-            .add_system_to_stage(RenderStage::Extract, stages::extract::meshes);
+            .add_system(stages::prepare::meshes.in_set(RenderSet::Prepare));
 
-        render_app
-            .add_system_to_stage(RenderStage::Extract, stages::extract::images);
-
-        render_app.add_system_to_stage(
-            RenderStage::Extract,
-            stages::extract::materials::<StandardMaterial>,
+        render_app.add_system(
+            stages::prepare::materials::<StandardMaterial>
+                .in_set(RenderSet::Prepare),
         );
 
-        render_app.add_system_to_stage(
-            RenderStage::Extract,
-            stages::extract::materials::<StrolleMaterial>,
+        render_app.add_system(
+            stages::prepare::materials::<StrolleMaterial>
+                .in_set(RenderSet::Prepare),
         );
 
-        render_app.add_system_to_stage(
-            RenderStage::Extract,
-            stages::extract::instances::<StandardMaterial>,
-        );
-
-        render_app.add_system_to_stage(
-            RenderStage::Extract,
-            stages::extract::instances::<StrolleMaterial>,
-        );
-
-        render_app
-            .add_system_to_stage(RenderStage::Extract, stages::extract::lights);
-
-        render_app.add_system_to_stage(
-            RenderStage::Extract,
-            stages::extract::cameras,
-        );
-
-        // -------------------- //
-        // RenderStage::Prepare //
-
-        render_app
-            .add_system_to_stage(RenderStage::Prepare, stages::prepare::meshes);
-
-        render_app
-            .add_system_to_stage(RenderStage::Prepare, stages::prepare::images);
-
-        render_app.add_system_to_stage(
-            RenderStage::Prepare,
-            stages::prepare::materials::<StandardMaterial>,
-        );
-
-        render_app.add_system_to_stage(
-            RenderStage::Prepare,
-            stages::prepare::materials::<StrolleMaterial>,
-        );
-
-        render_app.add_system_to_stage(
-            RenderStage::Prepare,
+        render_app.add_system(
             stages::prepare::instances::<StandardMaterial>
+                .in_set(RenderSet::Prepare)
                 .after(stages::prepare::meshes)
-                .after(stages::prepare::images)
                 .after(stages::prepare::materials::<StandardMaterial>),
         );
 
-        render_app.add_system_to_stage(
-            RenderStage::Prepare,
+        render_app.add_system(
             stages::prepare::instances::<StrolleMaterial>
+                .in_set(RenderSet::Prepare)
                 .after(stages::prepare::meshes)
-                .after(stages::prepare::images)
                 .after(stages::prepare::materials::<StrolleMaterial>),
         );
 
         render_app
-            .add_system_to_stage(RenderStage::Prepare, stages::prepare::lights);
+            .add_system(stages::prepare::lights.in_set(RenderSet::Prepare));
 
-        // ------------------ //
-        // RenderStage::Queue //
+        // ---------------- //
+        // RenderSet::Queue //
 
-        render_app
-            .add_system_to_stage(RenderStage::Queue, stages::queue::viewports);
+        render_app.add_system(stages::queue::cameras.in_set(RenderSet::Queue));
 
-        render_app.add_system_to_stage(
-            RenderStage::Queue,
-            stages::queue::write.after(stages::queue::viewports),
+        render_app.add_system(
+            stages::queue::write
+                .in_set(RenderSet::Queue)
+                .after(stages::queue::cameras),
         );
 
         // -----
 
         let render_node = RenderNode::new(&mut render_app.world);
         let upscaling_node = UpscalingNode::new(&mut render_app.world);
-        let mut sub_graph = RenderGraph::default();
+        let mut graph = RenderGraph::default();
 
-        let input_node_id = sub_graph.set_input(vec![SlotInfo::new(
+        let input_node_id = graph.set_input(vec![SlotInfo::new(
             core_3d::graph::input::VIEW_ENTITY,
             SlotType::Entity,
         )]);
 
-        sub_graph.add_node(graph::node::RENDER, render_node);
-        sub_graph.add_node(core_3d::graph::node::UPSCALING, upscaling_node);
+        graph.add_node(graph::node::RENDER, render_node);
+        graph.add_node(core_3d::graph::node::UPSCALING, upscaling_node);
 
-        sub_graph
-            .add_slot_edge(
-                input_node_id,
-                core_3d::graph::input::VIEW_ENTITY,
-                graph::node::RENDER,
-                RenderNode::IN_VIEW,
-            )
-            .unwrap();
+        graph.add_slot_edge(
+            input_node_id,
+            core_3d::graph::input::VIEW_ENTITY,
+            graph::node::RENDER,
+            RenderNode::IN_VIEW,
+        );
 
-        sub_graph
-            .add_slot_edge(
-                input_node_id,
-                core_3d::graph::input::VIEW_ENTITY,
-                core_3d::graph::node::UPSCALING,
-                UpscalingNode::IN_VIEW,
-            )
-            .unwrap();
+        graph.add_slot_edge(
+            input_node_id,
+            core_3d::graph::input::VIEW_ENTITY,
+            core_3d::graph::node::UPSCALING,
+            UpscalingNode::IN_VIEW,
+        );
 
-        sub_graph
-            .add_node_edge(graph::node::RENDER, core_3d::graph::node::UPSCALING)
-            .unwrap();
+        graph.add_node_edge(
+            graph::node::RENDER,
+            core_3d::graph::node::UPSCALING,
+        );
 
         render_app
             .world
             .resource_mut::<RenderGraph>()
-            .add_sub_graph(graph::NAME, sub_graph);
+            .add_sub_graph(graph::NAME, graph);
     }
 }
 
@@ -181,10 +181,6 @@ struct EngineResource(st::Engine<EngineParams>);
 #[derive(Clone, Debug)]
 struct EngineParams;
 
-// TODO using Bevy's `Handle<...>` means that when Strolle clones a handle, it
-//      will get a strong reference to the underlying asset - that's wasteful
-//      and in reality we should create a wrapper for `Handle<T>` that performs
-//      `Handle::<T>::clone_weak()` during `.clone()`
 impl st::Params for EngineParams {
     type ImageHandle = Handle<Image>;
     type ImageSampler = Sampler;

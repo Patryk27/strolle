@@ -1,28 +1,35 @@
-#[derive(Debug)]
-pub struct Shaders {
-    pub drawing_pass: wgpu::ShaderModule,
-    pub ray_shading_pass: wgpu::ShaderModule,
-    pub ray_tracing_pass: wgpu::ShaderModule,
-}
-
-impl Shaders {
-    pub fn new(device: &wgpu::Device) -> Self {
-        let drawing_pass = device.create_shader_module(wgpu::include_spirv!(
-            "../../target/pass-drawing.spv"
-        ));
-
-        let ray_shading_pass = device.create_shader_module(
-            wgpu::include_spirv!("../../target/pass-ray-shading.spv"),
-        );
-
-        let ray_tracing_pass = device.create_shader_module(
-            wgpu::include_spirv!("../../target/pass-ray-tracing.spv"),
-        );
-
-        Self {
-            drawing_pass,
-            ray_shading_pass,
-            ray_tracing_pass,
+macro_rules! shaders {
+    ([ $( $name:ident => $file:literal, )* ]) => {
+        #[derive(Debug)]
+        pub struct Shaders {
+            $( pub $name: wgpu::ShaderModule, )*
         }
-    }
+
+        impl Shaders {
+            pub fn new(device: &wgpu::Device) -> Self {
+                $(
+                    log::info!("Initializing shader: {}", stringify!($name));
+
+                    let $name = device.create_shader_module(wgpu::include_spirv!(concat!(
+                        "../../target/",
+                        $file,
+                    )));
+                )*
+
+                Self {
+                    $($name,)*
+                }
+            }
+        }
+    };
 }
+
+shaders!([
+    denoising => "denoising.spv",
+    drawing => "drawing.spv",
+    raster => "raster.spv",
+    ray_shading => "ray-shading.spv",
+    voxel_painting => "voxel-painting.spv",
+    voxel_shading => "voxel-shading.spv",
+    voxel_tracing => "voxel-tracing.spv",
+]);

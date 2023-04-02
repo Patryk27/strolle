@@ -2,8 +2,15 @@ use std::{env, fs};
 
 use spirv_builder::{Capability, MetadataPrintout, SpirvBuilder};
 
-const SHADERS: &[&str] =
-    &["pass-drawing", "pass-ray-shading", "pass-ray-tracing"];
+const CRATES: &[&str] = &[
+    "denoising",
+    "drawing",
+    "raster",
+    "ray-shading",
+    "voxel-painting",
+    "voxel-shading",
+    "voxel-tracing",
+];
 
 fn main() {
     // HACK Normally, when compiling shaders, spirv-builder uses the regular
@@ -20,11 +27,14 @@ fn main() {
     //      alleviate on its own, using `--target-dir` - and this fixes the
     //      "artifacts getting randomly invalidated" problem.
     env::set_var("PROFILE", "release");
-    env::set_var("OUT_DIR", "../target/spirv/release/build/shader/out");
+    env::set_var("OUT_DIR", "../../target/spirv/release/build/shader/out");
 
-    for shader in SHADERS {
+    // TODO blocked (at least) on https://github.com/EmbarkStudios/spirt/issues/9
+    env::set_var("RUSTGPU_CODEGEN_ARGS", "--no-spirt");
+
+    for krate in CRATES {
         let compile_result = SpirvBuilder::new(
-            format!("strolle-{shader}"),
+            format!("strolle-shaders/{krate}"),
             "spirv-unknown-spv1.5",
         )
         .print_metadata(MetadataPrintout::None)
@@ -35,7 +45,7 @@ fn main() {
 
         fs::copy(
             compile_result.module.unwrap_single(),
-            format!("target/{shader}.spv"),
+            format!("target/{krate}.spv"),
         )
         .unwrap();
     }

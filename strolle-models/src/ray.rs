@@ -105,8 +105,33 @@ impl Ray {
         // items
         let mut stack_ptr = stack_begins_at;
 
+        // Number of traversed nodes - this performs two functions:
+        //
+        // 1) as a runtime safeguard, to prevent looping forever if the BVH
+        //    happens to get malformed,
+        //
+        // 2) as a compiletime safeguard, to prove to the shader-compiler that
+        //    we don't loop forever.
+        //
+        // The second point is technically not necessary, but some compilers
+        // (e.g. the MacOS's one) have hard time with potentially infinite
+        // loops, sometimes (randomly) crashing themselves with:
+        //
+        // > LLVM ERROR: Emitted non-G13 instruction for G13
+        //
+        // Note that I haven't been able to 100% confirm the crash happens due
+        // to an infinite loop - all I know is that instantiating the shader
+        // sometimes fails if we forget about this check 🙃
+        let mut traversed_nodes = 0u32;
+
         loop {
-            hit.traversed_nodes += 1;
+            traversed_nodes += 1;
+
+            if traversed_nodes > 256 {
+                break;
+            }
+
+            // ---
 
             let d0 = bvh.get(bvh_ptr);
             let opcode = d0.x.to_bits() & 1;

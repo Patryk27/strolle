@@ -52,6 +52,7 @@ where
 {
     fn into_material(self) -> st::Material<EngineParams>;
     fn map_handle(handle: Handle<Self>) -> MaterialHandle;
+    fn images(&self) -> Vec<&Handle<Image>>;
 }
 
 impl MaterialLike for StandardMaterial {
@@ -68,7 +69,7 @@ impl MaterialLike for StandardMaterial {
                         color.xyz().extend(0.0)
                     }
                 }
-                AlphaMode::Blend => color,
+                _ => color,
             }
         };
 
@@ -78,10 +79,19 @@ impl MaterialLike for StandardMaterial {
             .with_perceptual_roughness(self.perceptual_roughness)
             .with_metallic(self.metallic)
             .with_reflectance(self.reflectance)
+            .with_normal_map_texture(self.normal_map_texture)
     }
 
     fn map_handle(handle: Handle<Self>) -> MaterialHandle {
         MaterialHandle::StandardMaterial(handle)
+    }
+
+    fn images(&self) -> Vec<&Handle<Image>> {
+        self.base_color_texture
+            .as_ref()
+            .into_iter()
+            .chain(self.normal_map_texture.as_ref())
+            .collect()
     }
 }
 
@@ -95,6 +105,10 @@ impl MaterialLike for StrolleMaterial {
 
     fn map_handle(handle: Handle<Self>) -> MaterialHandle {
         MaterialHandle::StrolleMaterial(handle)
+    }
+
+    fn images(&self) -> Vec<&Handle<Image>> {
+        self.parent.images()
     }
 }
 

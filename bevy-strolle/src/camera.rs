@@ -7,5 +7,5 @@ use strolle as st;
 /// attached, the default configuration is used.
 #[derive(Clone, Debug, Default, Component)]
 pub struct StrolleCamera {
-    pub config: st::ViewportConfiguration,
+    pub mode: st::CameraMode,
 }

@@ -2,10 +2,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::mem;
 
-use strolle_models as gpu;
-
-use crate::buffers::{Bindable, MappedStorageBuffer};
-use crate::{Params, Triangle};
+use crate::{
+    gpu, Bindable, BoundingBox, MappedStorageBuffer, Params, Triangle,
+};
 
 #[derive(Debug)]
 pub struct Triangles<P>
@@ -14,6 +13,7 @@ where
 {
     buffer: MappedStorageBuffer<Vec<gpu::Triangle>>,
     index: HashMap<P::InstanceHandle, IndexedInstance>,
+    bounding_box: BoundingBox,
     dirty: bool,
 }
 
@@ -26,9 +26,10 @@ where
             buffer: MappedStorageBuffer::new_default(
                 device,
                 "strolle_triangles",
-                (128 + 64) * 1024 * 1024,
+                32 * 1024 * 1024,
             ),
             index: Default::default(),
+            bounding_box: Default::default(),
             dirty: Default::default(),
         }
     }
@@ -46,8 +47,18 @@ where
 
         let min_triangle_id = self.buffer.len();
 
-        self.buffer
-            .extend(triangles.into_iter().map(|triangle| triangle.serialize()));
+        self.buffer.extend(
+            triangles
+                .into_iter()
+                .map(|triangle| {
+                    for position in triangle.positions() {
+                        self.bounding_box.grow(position);
+                    }
+
+                    triangle
+                })
+                .map(|triangle| triangle.serialize()),
+        );
 
         let max_triangle_id = self.buffer.len() - 1;
 
@@ -80,6 +91,10 @@ where
         let mut buffer = self.buffer[index.min_triangle_id..].iter_mut();
 
         for triangle in triangles {
+            for position in triangle.positions() {
+                self.bounding_box.grow(position);
+            }
+
             *buffer.next().unwrap() = triangle.serialize();
         }
 
@@ -145,8 +160,32 @@ where
             })
     }
 
-    pub fn len(&self) -> usize {
-        self.buffer.len()
+    pub fn as_vertex_buffer(
+        &self,
+        instance_handle: &P::InstanceHandle,
+    ) -> (usize, wgpu::BufferSlice<'_>) {
+        let IndexedInstance {
+            min_triangle_id,
+            max_triangle_id,
+            ..
+        } = &self.index[instance_handle];
+
+        let vertices = max_triangle_id - min_triangle_id + 1;
+
+        let vertex_buffer = {
+            let min = min_triangle_id * mem::size_of::<gpu::Triangle>();
+            let min = min as wgpu::BufferAddress;
+
+            // N.B. we could slice up to some `max`, but GPUs care only about
+            // the start of the buffer and the number of vertices
+            self.buffer.as_buffer().slice(min..)
+        };
+
+        (vertices * 3, vertex_buffer)
+    }
+
+    pub fn bounding_box(&self) -> BoundingBox {
+        self.bounding_box
     }
 
     pub fn flush(&mut self, queue: &wgpu::Queue) {
@@ -168,17 +207,9 @@ where
             self.buffer.flush_ex(queue, offset, size);
         }
     }
-}
 
-impl<P> Bindable for Triangles<P>
-where
-    P: Params,
-{
-    fn bind(
-        &self,
-        binding: u32,
-    ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
-        self.buffer.bind(binding)
+    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
+        self.buffer.as_ro_bind()
     }
 }
 

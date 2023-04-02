@@ -1,10 +1,8 @@
 use std::fmt::Debug;
 
 use spirv_std::glam::{vec4, Vec4};
-use strolle_models as gpu;
 
-use crate::images::Images;
-use crate::Params;
+use crate::{gpu, Images, Params};
 
 #[derive(Clone, Debug)]
 pub struct Material<P>
@@ -18,6 +16,7 @@ where
     reflectance: f32,
     refraction: f32,
     reflectivity: f32,
+    normal_map_texture: Option<P::ImageHandle>,
 }
 
 impl<P> Material<P>
@@ -96,13 +95,35 @@ where
         self
     }
 
+    pub fn set_normal_map_texture(
+        &mut self,
+        normal_map_texture: Option<P::ImageHandle>,
+    ) {
+        self.normal_map_texture = normal_map_texture;
+    }
+
+    pub fn with_normal_map_texture(
+        mut self,
+        normal_map_texture: Option<P::ImageHandle>,
+    ) -> Self {
+        self.set_normal_map_texture(normal_map_texture);
+        self
+    }
+
+    pub(crate) fn base_color_texture(&self) -> Option<&P::ImageHandle> {
+        self.base_color_texture.as_ref()
+    }
+
+    pub(crate) fn normal_map_texture(&self) -> Option<&P::ImageHandle> {
+        self.normal_map_texture.as_ref()
+    }
+
     pub(crate) fn build(&self, images: &Images<P>) -> gpu::Material {
+        // TODO missing feature: normal mapping
         gpu::Material::default()
             .with_base_color(self.base_color)
             .with_base_color_texture(
-                self.base_color_texture
-                    .as_ref()
-                    .and_then(|image| images.lookup(image)),
+                images.lookup_opt(self.base_color_texture.as_ref()),
             )
             .with_perceptual_roughness(self.perceptual_roughness)
             .with_metallic(self.metallic)
@@ -117,14 +138,18 @@ where
     P: Params,
 {
     fn default() -> Self {
+        // Defaults here more-or-less follow Bevy's `StandardMaterial` (it's not
+        // a requirement though, it's just for convenience)
+
         Self {
             base_color: vec4(1.0, 1.0, 1.0, 1.0),
             base_color_texture: None,
-            perceptual_roughness: 0.089,
-            metallic: 0.01,
+            perceptual_roughness: 0.5,
+            metallic: 0.0,
             reflectance: 0.5,
             refraction: 1.0,
             reflectivity: 0.0,
+            normal_map_texture: None,
         }
     }
 }

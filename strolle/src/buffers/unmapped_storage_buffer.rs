@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::Bindable;
 
 /// Storage buffer that exists only on the GPU.
@@ -7,7 +9,7 @@ use super::Bindable;
 /// the data to be written to / read from host's RAM.
 #[derive(Debug)]
 pub struct UnmappedStorageBuffer {
-    buffer: wgpu::Buffer,
+    pub buffer: Arc<wgpu::Buffer>,
 }
 
 impl UnmappedStorageBuffer {
@@ -22,16 +24,37 @@ impl UnmappedStorageBuffer {
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
-            usage: wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::MAP_READ,
             size: size as _,
             mapped_at_creation: false,
         });
 
-        Self { buffer }
+        Self {
+            buffer: Arc::new(buffer),
+        }
+    }
+
+    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
+        UnmappedStorageBufferBinder {
+            parent: self,
+            read_only: true,
+        }
+    }
+
+    pub fn as_rw_bind(&self) -> impl Bindable + '_ {
+        UnmappedStorageBufferBinder {
+            parent: self,
+            read_only: false,
+        }
     }
 }
 
-impl Bindable for UnmappedStorageBuffer {
+pub struct UnmappedStorageBufferBinder<'a> {
+    parent: &'a UnmappedStorageBuffer,
+    read_only: bool,
+}
+
+impl Bindable for UnmappedStorageBufferBinder<'_> {
     fn bind(
         &self,
         binding: u32,
@@ -42,10 +65,7 @@ impl Bindable for UnmappedStorageBuffer {
                 | wgpu::ShaderStages::COMPUTE,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Storage {
-                    // TODO should say `read_only: true`, but rust-gpu is not
-                    //      able to emit appropriate attributes yet, causing
-                    //      naga to reject the shader later
-                    read_only: false,
+                    read_only: self.read_only,
                 },
                 has_dynamic_offset: false,
                 min_binding_size: None,
@@ -53,7 +73,7 @@ impl Bindable for UnmappedStorageBuffer {
             count: None,
         };
 
-        let resource = self.buffer.as_entire_binding();
+        let resource = self.parent.buffer.as_entire_binding();
 
         vec![(layout, resource)]
     }

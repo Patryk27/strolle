@@ -1,4 +1,4 @@
-use strolle_models as gpu;
+use crate::gpu;
 
 #[derive(Clone, Copy, Debug)]
 pub struct BvhTriangle {

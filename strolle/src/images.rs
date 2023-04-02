@@ -2,10 +2,7 @@ use std::collections::HashMap;
 use std::iter;
 use std::num::NonZeroU32;
 
-use strolle_models as gpu;
-
-use crate::buffers::Bindable;
-use crate::{ImageSampler, ImageTexture, Params};
+use crate::{gpu, Bindable, ImageSampler, ImageTexture, Params};
 
 #[derive(Debug)]
 pub struct Images<P>
@@ -14,7 +11,7 @@ where
 {
     textures: Vec<P::ImageTexture>,
     samplers: Vec<P::ImageSampler>,
-    index: HashMap<P::ImageHandle, u32>,
+    index: HashMap<P::ImageHandle, usize>,
     null_texture: wgpu::TextureView,
     null_sampler: wgpu::Sampler,
 }
@@ -33,6 +30,7 @@ where
                 dimension: wgpu::TextureDimension::D2,
                 format: wgpu::TextureFormat::Rgba8UnormSrgb,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
             })
             .create_view(&Default::default());
 
@@ -55,7 +53,8 @@ where
     ) {
         if self.textures.len() == gpu::MAX_IMAGES {
             log::warn!(
-                "Cannot add image `{:?}`: reached the maximum number of allocated textures ({})",
+                "Cannot add image `{:?}`: reached the maximum number of \
+                 allocated images ({})",
                 image_handle,
                 gpu::MAX_IMAGES,
             );
@@ -69,7 +68,22 @@ where
 
         self.textures.push(image_texture);
         self.samplers.push(image_sampler);
-        self.index.insert(image_handle, image_id as u32);
+        self.index.insert(image_handle, image_id);
+    }
+
+    pub fn get_opt_or_null(
+        &self,
+        image_handle: Option<&P::ImageHandle>,
+    ) -> (&wgpu::TextureView, &wgpu::Sampler) {
+        let image_id = image_handle
+            .and_then(|handle| self.index.get(handle))
+            .copied();
+
+        if let Some(image_id) = image_id {
+            (self.textures[image_id].get(), self.samplers[image_id].get())
+        } else {
+            (&self.null_texture, &self.null_sampler)
+        }
     }
 
     pub fn remove(&mut self, image_handle: &P::ImageHandle) {
@@ -77,15 +91,32 @@ where
 
         log::debug!("Image removed: {:?} ({})", image_handle, image_id);
 
-        self.textures.remove(image_id as usize);
-        self.samplers.remove(image_id as usize);
+        self.textures.remove(image_id);
+        self.samplers.remove(image_id);
+
+        for image_id2 in self.index.values_mut() {
+            if *image_id2 > image_id {
+                *image_id2 -= 1;
+            }
+        }
+    }
+
+    pub fn has(&self, image_handle: &P::ImageHandle) -> bool {
+        self.index.contains_key(image_handle)
     }
 
     pub fn lookup(&self, image_handle: &P::ImageHandle) -> Option<u32> {
-        self.index.get(image_handle).copied()
+        self.index.get(image_handle).copied().map(|id| id as u32)
     }
 
-    pub fn binder(&self) -> ImagesBinder {
+    pub fn lookup_opt(
+        &self,
+        image_handle: Option<&P::ImageHandle>,
+    ) -> Option<u32> {
+        self.lookup(image_handle?)
+    }
+
+    pub fn as_bind(&self) -> impl Bindable + '_ {
         let free_slots = gpu::MAX_IMAGES - self.textures.len();
 
         let textures = self

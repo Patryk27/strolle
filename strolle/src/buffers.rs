@@ -1,10 +1,12 @@
-mod descriptor_set;
+mod bind_group;
+mod bufferable;
 mod mapped_storage_buffer;
 mod mapped_uniform_buffer;
 mod texture;
 mod unmapped_storage_buffer;
 
-pub use self::descriptor_set::*;
+pub use self::bind_group::*;
+pub use self::bufferable::*;
 pub use self::mapped_storage_buffer::*;
 pub use self::mapped_uniform_buffer::*;
 pub use self::texture::*;

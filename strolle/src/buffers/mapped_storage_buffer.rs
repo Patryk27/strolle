@@ -1,9 +1,7 @@
 use std::ops::{Deref, DerefMut};
-use std::{any, mem, slice};
+use std::{any, mem};
 
-use bytemuck::Pod;
-
-use super::Bindable;
+use super::{Bindable, Bufferable};
 
 /// Storage buffer that exists both on the host machine and the GPU.
 ///
@@ -22,7 +20,7 @@ pub struct MappedStorageBuffer<T> {
 
 impl<T> MappedStorageBuffer<T>
 where
-    T: StorageBufferable,
+    T: Bufferable,
 {
     pub fn new(
         device: &wgpu::Device,
@@ -31,6 +29,7 @@ where
         data: T,
     ) -> Self {
         let label = label.as_ref();
+        let size = (size + 31) & !31;
 
         log::info!(
             "Allocating storage buffer `{label}`; ty={}, size={size}",
@@ -39,7 +38,9 @@ where
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::VERTEX,
             size: size as _,
             mapped_at_creation: false,
         });
@@ -60,6 +61,17 @@ where
         T: Default,
     {
         Self::new(device, label, size, Default::default())
+    }
+
+    pub fn as_buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
+    }
+
+    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
+        MappedStorageBufferBinder {
+            parent: self,
+            read_only: true,
+        }
     }
 
     pub fn flush(&mut self, queue: &wgpu::Queue) {
@@ -100,7 +112,12 @@ impl<T> DerefMut for MappedStorageBuffer<T> {
     }
 }
 
-impl<T> Bindable for MappedStorageBuffer<T> {
+pub struct MappedStorageBufferBinder<'a, T> {
+    parent: &'a MappedStorageBuffer<T>,
+    read_only: bool,
+}
+
+impl<T> Bindable for MappedStorageBufferBinder<'_, T> {
     fn bind(
         &self,
         binding: u32,
@@ -111,10 +128,7 @@ impl<T> Bindable for MappedStorageBuffer<T> {
                 | wgpu::ShaderStages::COMPUTE,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Storage {
-                    // TODO should say `read_only: true`, but rust-gpu is not
-                    //      able to emit appropriate attributes yet, causing
-                    //      wgpu to reject the shader later
-                    read_only: false,
+                    read_only: self.read_only,
                 },
                 has_dynamic_offset: false,
                 min_binding_size: None,
@@ -122,39 +136,8 @@ impl<T> Bindable for MappedStorageBuffer<T> {
             count: None,
         };
 
-        let resource = self.buffer.as_entire_binding();
+        let resource = self.parent.buffer.as_entire_binding();
 
         vec![(layout, resource)]
-    }
-}
-
-pub trait StorageBufferable {
-    fn data(&self) -> &[u8];
-}
-
-impl StorageBufferable for u32 {
-    fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(slice::from_ref(self))
-    }
-}
-
-impl StorageBufferable for u64 {
-    fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(slice::from_ref(self))
-    }
-}
-
-impl StorageBufferable for f32 {
-    fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(slice::from_ref(self))
-    }
-}
-
-impl<T> StorageBufferable for Vec<T>
-where
-    T: Pod,
-{
-    fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(self)
     }
 }

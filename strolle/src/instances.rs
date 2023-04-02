@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem;
 
@@ -23,7 +24,20 @@ where
         instance_handle: P::InstanceHandle,
         instance: Instance<P>,
     ) {
-        self.instances.insert(instance_handle, (instance, true));
+        match self.instances.entry(instance_handle) {
+            Entry::Occupied(entry) => {
+                log::debug!("Instance updated: {:?}", entry.key());
+
+                *entry.into_mut() = (instance, true);
+            }
+
+            Entry::Vacant(entry) => {
+                log::debug!("Instance added: {:?}", entry.key());
+
+                entry.insert((instance, true));
+            }
+        }
+
         self.dirty = true;
     }
 
@@ -37,6 +51,8 @@ where
     }
 
     pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
+        log::debug!("Instance removed: {:?}", instance_handle);
+
         self.instances.remove(instance_handle);
         self.dirty = true;
     }
@@ -67,7 +83,7 @@ where
             let mesh_triangles = mesh
                 .triangles()
                 .iter()
-                .map(|triangle| triangle.transformed(instance.transform()));
+                .map(|triangle| triangle.with_transform(instance.transform()));
 
             if let Some(count) = triangles.count(instance_handle) {
                 if mesh.triangles().len() == count {
@@ -77,7 +93,8 @@ where
                     triangles.add(instance_handle.to_owned(), mesh_triangles);
                 }
             } else {
-                triangles.add(instance_handle.to_owned(), mesh_triangles);
+                triangles
+                    .add(instance_handle.to_owned(), mesh_triangles.clone());
             }
         }
 

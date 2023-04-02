@@ -1,9 +1,8 @@
 use std::fmt;
 
-use strolle_models as gpu;
-
 use super::bvh_printer::BvhPrinter;
 use super::*;
+use crate::gpu;
 
 #[derive(Clone, Debug)]
 pub enum BvhNode {

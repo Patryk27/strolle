@@ -31,11 +31,15 @@ impl Material {
         if self.base_color_texture == u32::MAX {
             self.base_color
         } else {
-            let image = images[self.base_color_texture as usize];
-            let sampler = samplers[self.base_color_texture as usize];
+            let image = unsafe {
+                images.get_unchecked(self.base_color_texture as usize)
+            };
 
-            self.base_color
-                * image.sample_by_lod::<_, Vec4>(sampler, hit.uv, 0.0)
+            let sampler = unsafe {
+                samplers.get_unchecked(self.base_color_texture as usize)
+            };
+
+            self.base_color * image.sample_by_lod(*sampler, hit.uv, 0.0)
         }
     }
 }

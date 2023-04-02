@@ -5,9 +5,8 @@ supports global illumination:
 
 ![cornell.png](_readme/cornell.png)
 
-Our goal is to create an interactive path-tracer that is able to produce a
-good-looking image on a consumer GPU without relying on hardware raytracing
-capabilities.
+Our goal is to create an engine that is able to produce a good-looking image on
+a consumer GPU without having to rely on hardware ray-tracing capabilities.
 
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
@@ -17,20 +16,11 @@ Windows, Mac & Linux (with WebGPU support possible in the future).
 
 ## Examples
 
-Before running any example, please execute (just once):
+Before running any example, run (just once):
 
 ``` shell
 $ cargo build-shaders
 ```
-
-### Cameras
-
-``` shell
-$ cargo run --release --example cameras
-```
-
-Shows support for multiple cameras; the four cameras there show the rasterized
-view, the raytraced view, normals, and BVH nodes.
 
 ### Cornell
 
@@ -38,42 +28,25 @@ view, the raytraced view, normals, and BVH nodes.
 $ cargo run --release --example cornell
 ```
 
-Shows the famous Cornell Box.
+Shows the (in)famous Cornell Box:
 
-### Cubes
+![cornell.png](_readme/cornell.png)
 
-``` shell
-$ cargo run --release --example cubes
-```
-
-Shows a few cubes rotating around the origin; use keyboard & mouse to move the
-camera.
-
-### Materials
+### Dungeon
 
 ``` shell
-$ cargo run --release --example materials
+$ cargo run --release --example dungeon
 ```
 
-Shows a few spheres with various materials; use left and right arrows to change
-the materials, use keyboard & mouse to move the camera.
+Shows a little dungeon tech demo, with textures, normal mapping and whatnot:
 
-### Models
+![dungeon.png](_readme/dungeon.png)
 
-``` shell
-$ cargo run --release --example models
-```
+Use WASD to move, mouse to navigate the camera; extra controls include:
 
-Shows support for complex geometry (from a few thousand to a few hundred
-thousand triangles); use left and right arrows to change models, use keyboard &
-mouse to move the camera.
-
-Models thanks to:
-- https://github.com/alecjacobson/common-3d-test-models
-- https://github.com/RayMarch/ferris3d
-
-### Textures
-
-``` shell
-$ cargo run --release --example textures
-```
+- 1: Switch camera to default mode (i.e. from the options below),
+- 2: Switch camera to direct-lightning-only mode,
+- 3: Switch camera to indirect-lightning-only mode,
+- 4: Switch camera to normal-only mode,
+- 0: Switch camera to use Bevy's renderer,
+- Semicolon: Toggle camera's controls on/off; useful for taking screenshots.

@@ -26,8 +26,9 @@ impl Light {
         self.pos.truncate()
     }
 
-    pub fn position(&self, noise: &mut Noise) -> Vec3 {
-        self.center() + self.radius() * noise.sample_sphere()
+    pub fn position(&self, _noise: &mut Noise) -> Vec3 {
+        self.center()
+        // self.center() + self.radius() * noise.sample_sphere() TODO
     }
 
     pub fn point_at(&self) -> Vec3 {
@@ -52,7 +53,7 @@ impl Light {
 
     // TODO: Make configurable
     pub fn radius(&self) -> f32 {
-        0.05
+        0.1
     }
 
     pub fn is_spot(&self) -> bool {

@@ -1,28 +1,18 @@
-use spirv_std::glam::{Mat4, Vec2, Vec3};
-use strolle_models as gpu;
+use spirv_std::glam::{Mat3, Mat3A, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
+
+use crate::gpu;
 
 #[derive(Clone, Debug, Default)]
 pub struct Triangle {
-    vertices: [Vec3; 3],
+    positions: [Vec3; 3],
     normals: [Vec3; 3],
     uvs: [Vec2; 3],
+    tangents: [Vec4; 3],
 }
 
 impl Triangle {
-    pub fn new(
-        vertices: [Vec3; 3],
-        normals: [Vec3; 3],
-        uvs: [Vec2; 3],
-    ) -> Self {
-        Self {
-            vertices,
-            normals,
-            uvs,
-        }
-    }
-
-    pub fn with_vertices(mut self, vertices: [impl Into<Vec3>; 3]) -> Self {
-        self.vertices = vertices.map(Into::into);
+    pub fn with_positions(mut self, positions: [impl Into<Vec3>; 3]) -> Self {
+        self.positions = positions.map(Into::into);
         self
     }
 
@@ -36,8 +26,13 @@ impl Triangle {
         self
     }
 
-    pub fn vertices(&self) -> [Vec3; 3] {
-        self.vertices
+    pub fn with_tangents(mut self, tangents: [impl Into<Vec4>; 3]) -> Self {
+        self.tangents = tangents.map(Into::into);
+        self
+    }
+
+    pub fn positions(&self) -> [Vec3; 3] {
+        self.positions
     }
 
     pub fn normals(&self) -> [Vec3; 3] {
@@ -48,18 +43,41 @@ impl Triangle {
         self.uvs
     }
 
-    pub(crate) fn transformed(&self, mat: Mat4) -> Self {
-        let vertices = self.vertices.map(|vertex| mat.transform_point3(vertex));
+    pub(crate) fn with_transform(&self, mat: Mat4) -> Self {
+        let positions =
+            self.positions.map(|vertex| mat.transform_point3(vertex));
+
         let normals = self.normals.map(|normal| mat.transform_vector3(normal));
 
+        let tangents = {
+            let sign = if Mat3A::from_mat4(mat).determinant().is_sign_positive()
+            {
+                1.0
+            } else {
+                -1.0
+            };
+
+            self.tangents.map(|tangent| {
+                (Mat3::from_mat4(mat) * tangent.xyz())
+                    .normalize()
+                    .extend(tangent.w * sign)
+            })
+        };
+
         Self {
-            vertices,
+            positions,
             normals,
             uvs: self.uvs,
+            tangents,
         }
     }
 
     pub(crate) fn serialize(&self) -> gpu::Triangle {
-        gpu::Triangle::new(self.vertices, self.normals, self.uvs)
+        gpu::Triangle::new(
+            self.positions,
+            self.normals,
+            self.uvs,
+            self.tangents,
+        )
     }
 }

@@ -4,8 +4,8 @@ use super::Bindable;
 
 #[derive(Debug)]
 pub struct Texture {
-    view: wgpu::TextureView,
     format: wgpu::TextureFormat,
+    view: wgpu::TextureView,
     sampler: wgpu::Sampler,
 }
 
@@ -18,10 +18,20 @@ impl Texture {
     ) -> Self {
         let label = label.as_ref();
 
-        log::debug!("Allocating texture `{label}`; size={:?}", size);
+        log::info!("Allocating texture `{label}`; size={size:?}");
 
         assert!(size.x > 0);
         assert!(size.y > 0);
+
+        let usage = if format == wgpu::TextureFormat::Depth32Float {
+            wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+        } else {
+            wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_DST
+        };
 
         let tex = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(&format!("{label}_tex")),
@@ -34,9 +44,8 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::COPY_DST,
+            usage,
+            view_formats: &[],
         });
 
         let view = tex.create_view(&Default::default());
@@ -47,26 +56,30 @@ impl Texture {
         });
 
         Self {
-            view,
             format,
+            view,
             sampler,
         }
     }
 
-    pub fn readable(&self) -> ReadableTexture {
-        ReadableTexture { parent: self }
+    pub fn view(&self) -> &wgpu::TextureView {
+        &self.view
     }
 
-    pub fn writable(&self) -> WritableTexture {
-        WritableTexture { parent: self }
+    pub fn as_ro_sampled_bind(&self) -> impl Bindable + '_ {
+        ReadonlyTextureBinder { parent: self }
+    }
+
+    pub fn as_rw_storage_bind(&self) -> impl Bindable + '_ {
+        WritableTextureBinder { parent: self }
     }
 }
 
-pub struct ReadableTexture<'a> {
+pub struct ReadonlyTextureBinder<'a> {
     parent: &'a Texture,
 }
 
-impl Bindable for ReadableTexture<'_> {
+impl Bindable for ReadonlyTextureBinder<'_> {
     fn bind(
         &self,
         binding: u32,
@@ -108,11 +121,11 @@ impl Bindable for ReadableTexture<'_> {
     }
 }
 
-pub struct WritableTexture<'a> {
+pub struct WritableTextureBinder<'a> {
     parent: &'a Texture,
 }
 
-impl Bindable for WritableTexture<'_> {
+impl Bindable for WritableTextureBinder<'_> {
     fn bind(
         &self,
         binding: u32,

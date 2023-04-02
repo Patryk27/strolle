@@ -1,10 +1,9 @@
 mod morton_code;
 
 use spirv_std::glam::Vec3;
-use strolle_models as gpu;
 
 use self::morton_code::MortonCode;
-use crate::bvh::{BoundingBox, BvhNode, BvhTriangle};
+use crate::{gpu, BoundingBox, BvhNode, BvhTriangle};
 
 /// Builds LVBH as described by Kerras in ¹.
 ///

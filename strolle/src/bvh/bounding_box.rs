@@ -1,7 +1,8 @@
 use std::ops::Add;
 
 use spirv_std::glam::Vec3;
-use strolle_models as gpu;
+
+use crate::gpu;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BoundingBox {
@@ -68,6 +69,10 @@ impl BoundingBox {
 
     pub fn min(&self) -> Vec3 {
         self.min.expect("Bounding box is empty")
+    }
+
+    pub fn min_opt(&self) -> Option<Vec3> {
+        self.min
     }
 
     pub fn max(&self) -> Vec3 {

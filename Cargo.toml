@@ -5,15 +5,20 @@ members = [
     "bevy-strolle",
     "strolle",
     "strolle-models",
-    "strolle-pass-drawing",
-    "strolle-pass-ray-shading",
-    "strolle-pass-ray-tracing",
     "strolle-shader-builder",
+    "strolle-shaders/denoising",
+    "strolle-shaders/drawing",
+    "strolle-shaders/raster",
+    "strolle-shaders/ray-shading",
+    "strolle-shaders/voxel-painting",
+    "strolle-shaders/voxel-shading",
+    "strolle-shaders/voxel-tracing",
 ]
 
-# TODO newest naga contains https://github.com/gfx-rs/naga/pull/2199, but it's
-#      also backwards-incompatible with wgpu 0.14, so in here we've got some
-#      trickery to make them work together
-[patch."crates-io"]
-naga = { git = "https://github.com/Patryk27/naga", branch = "strolle" }
-wgpu = { git = "https://github.com/Patryk27/wgpu", branch = "strolle" }
+exclude = [
+    "utils/noise-visualizer",
+]
+
+[patch."https://github.com/EmbarkStudios/rust-gpu"]
+# TODO bevy and rust-gpu use slightly different versions of glam at the moment
+spirv-std = { git = "https://github.com/Patryk27/rust-gpu", branch = "strolle" }

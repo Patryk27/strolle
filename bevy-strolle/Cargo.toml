@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.9" # TODO use default-features = false
+bevy = "0.10.1" # TODO use default-features = false
 log = "0.4"
 strolle = { path = "../strolle" }
 
 [dev-dependencies]
-bevy = { version = "0.9", features = ["jpeg"] }
-bevy_obj = "0.9.1"
+bevy = { version = "0.10.1", features = ["jpeg"] }
+bevy_obj = "0.10.0"
 lazy_static = "1.4"
-smooth-bevy-cameras = "0.6.0"
+smooth-bevy-cameras = "0.8.0"
 zip = { version = "0.6", default-features = false, features = ["deflate"] }

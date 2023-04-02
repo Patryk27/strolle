@@ -1,4 +1,4 @@
-use strolle_models as gpu;
+use crate::gpu;
 
 // TODO
 pub type Light = gpu::Light;
