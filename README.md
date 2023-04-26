@@ -3,7 +3,9 @@
 Strolle (coming from _strålspårning_) is an experimental real-time renderer that
 supports global illumination:
 
-![cornell.png](_readme/cornell.png)
+<p align="center">
+  <img width="512" height="512" src="_readme/cornell.png">
+</p>
 
 Our goal is to create an engine that is able to produce a good-looking image on
 a consumer GPU without having to rely on hardware ray-tracing capabilities.
@@ -30,7 +32,9 @@ $ cargo run --release --example cornell
 
 Shows the (in)famous Cornell Box:
 
-![cornell.png](_readme/cornell.png)
+<p align="center">
+  <img width="512" height="512" src="_readme/cornell.png">
+</p>
 
 ### Dungeon
 
@@ -40,7 +44,9 @@ $ cargo run --release --example dungeon
 
 Shows a little dungeon tech demo, with textures, normal mapping and whatnot:
 
-![dungeon.png](_readme/dungeon.png)
+<p align="center">
+  <img width="512" height="512" src="_readme/dungeon.png">
+</p>
 
 Use WASD to move, mouse to navigate the camera; extra controls include:
 
