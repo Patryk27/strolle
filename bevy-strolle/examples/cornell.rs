@@ -76,6 +76,9 @@ fn animate(
     time: Res<Time>,
     mut light: Query<&mut Transform, With<PointLight>>,
 ) {
-    light.single_mut().translation =
-        vec3(0.0f32.sin() / 2.0, 1.5, 0.0f32.cos() / 2.0);
+    light.single_mut().translation = vec3(
+        time.elapsed_seconds().sin() / 2.0,
+        1.5,
+        time.elapsed_seconds().cos() / 2.0,
+    );
 }
