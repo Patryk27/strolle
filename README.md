@@ -36,6 +36,8 @@ Shows the (in)famous Cornell Box:
   <img width="512" height="512" src="_readme/cornell.png">
 </p>
 
+Use Ctrl + mouse to move.
+
 ### Dungeon
 
 ``` shell
