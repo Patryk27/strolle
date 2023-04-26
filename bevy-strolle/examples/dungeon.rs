@@ -1,5 +1,3 @@
-// 28 ms per frame
-
 #[path = "_common.rs"]
 mod common;
 
