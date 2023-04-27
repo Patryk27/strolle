@@ -2,6 +2,7 @@ use glam::{Vec3, Vec4Swizzles};
 
 use crate::{
     BvhTraversingStack, BvhView, Hit, MaterialId, TriangleId, TrianglesView,
+    BVH_STACK_SIZE,
 };
 
 #[derive(Copy, Clone, Default)]
@@ -93,54 +94,20 @@ impl Ray {
         // Index into the `bvh` array; points at the currently processed node
         let mut bvh_ptr = 0;
 
-        // Where this particular thread's stack starts at.
-        //
-        // For performance reasons, the entire workgroup shares the same stack
-        // through workgroup-memory - this means that we can't start from
-        // `stack[0]`, but rather have to use the current thread's index and
-        // multiply it by the number of stack-slots for each thread.
-        let stack_begins_at = local_idx * 32;
+        // Where this particular thread's stack starts at; see
+        // `BvhTraversingStack`
+        let stack_begins_at = local_idx * (BVH_STACK_SIZE as u32);
 
-        // Index into the `stack` array; our stack spans from here up to + 32
-        // items
+        // Index into the `stack` array; our stack spans from here up to +
+        // BVH_STACK_SIZE items
         let mut stack_ptr = stack_begins_at;
 
-        // Number of traversed nodes - this performs two functions:
-        //
-        // 1) as a runtime safeguard, to prevent looping forever if the BVH
-        //    happens to get malformed,
-        //
-        // 2) as a compiletime safeguard, to prove to the shader-compiler that
-        //    we don't loop forever.
-        //
-        // The second point is technically not necessary, but some compilers
-        // (e.g. the MacOS's one) have hard time with potentially infinite
-        // loops, sometimes (randomly) crashing themselves with:
-        //
-        // > LLVM ERROR: Emitted non-G13 instruction for G13
-        //
-        // Note that I haven't been able to 100% confirm the crash happens due
-        // to an infinite loop - all I know is that instantiating the shader
-        // sometimes fails if we forget about this check 🙃
-        let mut traversed_nodes = 0u32;
-
         loop {
-            traversed_nodes += 1;
-
-            if traversed_nodes > 256 {
-                break;
-            }
-
-            // ---
-
             let d0 = bvh.get(bvh_ptr);
             let opcode = d0.x.to_bits() & 1;
             let arg0 = d0.x.to_bits() >> 1;
 
-            let d1 = bvh.get(bvh_ptr + 1);
-            let arg1 = d1.w.to_bits();
-
-            let is_internal_node = opcode & 1 == 0;
+            let is_internal_node = opcode == 0;
 
             if is_internal_node {
                 let left_ptr = bvh_ptr + 2;
@@ -187,6 +154,9 @@ impl Ray {
                     continue;
                 }
             } else {
+                let d1 = bvh.get(bvh_ptr + 1);
+                let arg1 = d1.w.to_bits();
+
                 let triangle_id = TriangleId::new(arg0);
                 let material_id = MaterialId::new(arg1);
 

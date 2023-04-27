@@ -46,19 +46,37 @@ pub use self::voxel::*;
 pub use self::voxels::*;
 pub use self::world::*;
 
-/// Contains ids of nodes yet to be visited, for the entire workgroup at once.
+/// Stack of nodes yet-to-be-visited when traversing the BVH.
 ///
-/// Usually this would be modeled as `let mut stack = [0; ...];`, but using
-/// workgroup memory makes the code run slightly faster.
-pub type BvhTraversingStack<'a> = &'a mut [u32; 32 * 8 * 8];
+/// For performance reasons, we use a per-workgroup shared memory array where
+/// each workgroup-thread simply indexes into a different slice of this memory.
+pub type BvhTraversingStack<'a> = &'a mut [u32; BVH_STACK_SIZE * 8 * 8];
 
-/// Maximum number of images (aka textures).
+/// Maximum stack size per each workgroup-thread.
 ///
-/// TODO
-pub const MAX_IMAGES: usize = 10;
+/// The larger this value is, the bigger world (in terms of BVH nodes) can be
+/// rendered - at the expense of performance.
+pub const BVH_STACK_SIZE: usize = 32;
 
-// TODO
-pub const VOXELS_MAP_LENGTH: usize = 32 * 1024 * 1024;
+/// Maximum number of user-provided textures.
+///
+/// TODO After https://github.com/gfx-rs/wgpu/issues/3334 is implemented, this
+///      limit could be (probably) raised
+pub const MAX_IMAGES: usize = 16;
 
-// TODO
+/// Maximum number of items in the voxel-map.
+///
+/// The larger this value is, the less chance of voxel-collision - at the
+/// expense of memory (each voxel takes 2 * 4 * 4 = 32 bytes).
+///
+/// TODO could be configurable
+pub const VOXELS_MAP_LENGTH: usize = 16 * 1024 * 1024;
+
+/// Size of each voxel, in world-space terms.
+///
+/// The lower this value is, the better indirect illumination can be
+/// approximated - at the expense of performance and increased likelyhood of
+/// voxel-collisions.
+///
+/// TODO could be configurable
 pub const VOXEL_SIZE: f32 = 0.1;
