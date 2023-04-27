@@ -2,6 +2,8 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use log::debug;
+
 use crate::{gpu, Bindable, Images, MappedStorageBuffer, Material, Params};
 
 #[derive(Debug)]
@@ -41,7 +43,7 @@ where
                 let material_handle = entry.key();
                 let material_id = *entry.get();
 
-                log::debug!(
+                debug!(
                     "Material updated: {:?} ({}) => {:?}",
                     material_handle,
                     material_id.get(),
@@ -56,7 +58,7 @@ where
                 let material_id =
                     gpu::MaterialId::new(self.materials.len() as u32);
 
-                log::debug!(
+                debug!(
                     "Material added: {:?} ({}) => {:?}",
                     material_handle,
                     material_id.get(),

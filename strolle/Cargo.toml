@@ -9,7 +9,11 @@ strolle-models = { path = "../strolle-models" }
 
 # Crates.io
 bytemuck = "1"
+humantime = { version = "2.1.0", optional = true }
 log = "0.4"
 rand = "0.8.5"
 spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu" }
 wgpu = { version = "0.15", features = ["spirv"] }
+
+[features]
+metrics = ["humantime"]

@@ -3,6 +3,7 @@ mod passes;
 
 use std::ops::DerefMut;
 
+use log::{debug, info};
 use rand::Rng;
 
 pub use self::buffers::*;
@@ -29,12 +30,12 @@ where
         device: &wgpu::Device,
         camera: Camera,
     ) -> Self {
-        log::info!("Creating camera: {}", camera.describe());
+        info!("Creating camera: {}", camera.describe());
 
         let buffers = CameraBuffers::new(device, &camera);
         let passes = CameraPasses::new(engine, device, &camera, &buffers);
 
-        log::debug!("Camera created");
+        debug!("Camera created");
 
         Self {
             camera,
@@ -62,16 +63,13 @@ where
     }
 
     fn rebuild_buffers(&mut self, device: &wgpu::Device) {
-        log::debug!(
-            "Rebuilding buffers for camera: {}",
-            self.camera.describe()
-        );
+        debug!("Rebuilding buffers for camera: {}", self.camera.describe());
 
         self.buffers = CameraBuffers::new(device, &self.camera);
     }
 
     fn rebuild_passes(&mut self, engine: &Engine<P>, device: &wgpu::Device) {
-        log::debug!("Rebuilding passes for camera: {}", self.camera.describe());
+        debug!("Rebuilding passes for camera: {}", self.camera.describe());
 
         self.passes =
             CameraPasses::new(engine, device, &self.camera, &self.buffers);
@@ -122,6 +120,6 @@ where
     P: Params,
 {
     fn drop(&mut self) {
-        log::info!("Deleting camera: {}", self.camera.describe());
+        info!("Deleting camera: {}", self.camera.describe());
     }
 }

@@ -1,6 +1,8 @@
 use std::mem;
 use std::ops::Range;
 
+use log::info;
+
 use crate::{
     gpu, BindGroup, Camera, CameraBuffers, CameraController, Engine, Params,
 };
@@ -21,7 +23,7 @@ impl DrawingPass {
     where
         P: Params,
     {
-        log::info!("Initializing pass: drawing");
+        info!("Initializing pass: drawing");
 
         let bg0 = BindGroup::builder("strolle_drawing_bg0")
             .add(&buffers.camera)

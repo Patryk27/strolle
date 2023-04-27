@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use log::info;
+
 use super::Bindable;
 
 /// Storage buffer that exists only on the GPU.
@@ -20,7 +22,7 @@ impl UnmappedStorageBuffer {
     ) -> Self {
         let label = label.as_ref();
 
-        log::info!("Allocating unmapped storage buffer `{label}`; size={size}");
+        info!("Allocating unmapped storage buffer `{label}`; size={size}");
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),

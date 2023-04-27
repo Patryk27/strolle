@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::iter;
 use std::num::NonZeroU32;
 
+use log::{debug, warn};
+
 use crate::{gpu, Bindable, ImageSampler, ImageTexture, Params};
 
 #[derive(Debug)]
@@ -52,7 +54,7 @@ where
         image_sampler: P::ImageSampler,
     ) {
         if self.textures.len() == gpu::MAX_IMAGES {
-            log::warn!(
+            warn!(
                 "Cannot add image `{:?}`: reached the maximum number of \
                  allocated images ({})",
                 image_handle,
@@ -64,7 +66,7 @@ where
 
         let image_id = self.textures.len();
 
-        log::debug!("Image added: {:?} ({})", image_handle, image_id);
+        debug!("Image added: {:?} ({})", image_handle, image_id);
 
         self.textures.push(image_texture);
         self.samplers.push(image_sampler);
@@ -89,7 +91,7 @@ where
     pub fn remove(&mut self, image_handle: &P::ImageHandle) {
         let Some(image_id) = self.index.remove(image_handle) else { return };
 
-        log::debug!("Image removed: {:?} ({})", image_handle, image_id);
+        debug!("Image removed: {:?} ({})", image_handle, image_id);
 
         self.textures.remove(image_id);
         self.samplers.remove(image_id);

@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::mem;
 use std::ops::Range;
 
+use log::info;
+
 use crate::{
     gpu, BindGroup, Bindable, Camera, CameraBuffers, CameraController, Engine,
     Event, EventHandler, EventHandlerContext, Params, Texture,
@@ -31,7 +33,7 @@ where
         config: &Camera,
         buffers: &CameraBuffers,
     ) -> Self {
-        log::info!("Initializing pass: raster");
+        info!("Initializing pass: raster");
 
         let depth_texture = Texture::new(
             device,

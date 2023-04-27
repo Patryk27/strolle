@@ -14,7 +14,8 @@ pub use self::bvh_node::*;
 pub use self::bvh_serializer::*;
 pub use self::bvh_triangle::*;
 use crate::{
-    Bindable, Instances, MappedStorageBuffer, Materials, Params, Triangles,
+    utils, Bindable, Instances, MappedStorageBuffer, Materials, Params,
+    Triangles,
 };
 
 const ALGORITHM: &str = "lbvh";
@@ -45,38 +46,44 @@ impl Bvh {
     {
         // TODO rebuilding BVHs for all meshes here might be pretty intensive;
         //      consider using BLAS + TLAS (at least for internal purposes)
-        let bvh_triangles: Vec<_> = instances
-            .iter()
-            .flat_map(|(instance_handle, instance)| {
-                let material = materials.lookup(instance.material_handle());
+        let bvh_triangles: Vec<_> = utils::measure("bvh.collect", || {
+            instances
+                .iter()
+                .flat_map(|(instance_handle, instance)| {
+                    let material = materials.lookup(instance.material_handle());
 
-                material.into_iter().flat_map(|material_id| {
-                    triangles.iter(instance_handle).map(
-                        move |(triangle_id, triangle)| BvhTriangle {
-                            triangle,
-                            triangle_id,
-                            material_id,
-                        },
-                    )
+                    material.into_iter().flat_map(|material_id| {
+                        triangles.iter(instance_handle).map(
+                            move |(triangle_id, triangle)| BvhTriangle {
+                                triangle,
+                                triangle_id,
+                                material_id,
+                            },
+                        )
+                    })
                 })
-            })
-            .collect();
+                .collect()
+        });
 
         if bvh_triangles.is_empty() {
             return;
         }
 
-        let root = match ALGORITHM {
+        let root = utils::measure("bvh.build", || match ALGORITHM {
             "lbvh" => builders::lbvh::build(bvh_triangles),
             "sah" => builders::sah::build(bvh_triangles),
             _ => unreachable!(),
-        };
+        });
 
-        root.validate();
+        utils::measure("bvh.validate", || {
+            root.validate();
+        });
 
         self.buffer.clear();
 
-        BvhSerializer::process(&mut self.buffer, &root);
+        utils::measure("bvh.serialize", || {
+            BvhSerializer::process(&mut self.buffer, &root);
+        });
     }
 
     pub fn flush(&mut self, queue: &wgpu::Queue) {

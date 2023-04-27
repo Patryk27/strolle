@@ -111,17 +111,22 @@ fn main_inner(
     let normal;
 
     if hit.is_some() {
-        let material = materials.get(MaterialId::new(hit.material_id));
-        let albedo = material.albedo(images, samplers, hit).xyz();
+        if params.needs_direct_lightning > 0 {
+            let material = materials.get(MaterialId::new(hit.material_id));
+            let albedo = material.albedo(images, samplers, hit).xyz();
 
-        direct = compute_direct_lightning(
-            local_idx, triangles, bvh, lights, world, stack, &mut noise, hit,
-            ray, material, albedo,
-        );
+            direct = compute_direct_lightning(
+                local_idx, triangles, bvh, lights, world, stack, &mut noise,
+                hit, ray, material, albedo,
+            );
 
-        indirect = compute_indirect_lightning(
-            params, world, voxels, &mut noise, hit, albedo,
-        );
+            indirect = compute_indirect_lightning(
+                params, world, voxels, &mut noise, hit, albedo,
+            );
+        } else {
+            direct = Vec3::ZERO;
+            indirect = Vec3::ZERO;
+        }
 
         normal = hit.flat_normal.extend(f32::from_bits(hit.material_id));
     } else {

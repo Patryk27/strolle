@@ -28,6 +28,7 @@ pub struct RasterPassParams {
 pub struct RayShadingPassParams {
     pub frame: u32,
     pub seed: u32,
+    pub needs_direct_lightning: u32,
 }
 
 #[repr(C)]

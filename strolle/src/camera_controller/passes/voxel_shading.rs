@@ -1,6 +1,8 @@
 use std::mem;
 use std::ops::Range;
 
+use log::info;
+
 use crate::{gpu, BindGroup, CameraBuffers, CameraController, Engine, Params};
 
 #[derive(Debug)]
@@ -20,7 +22,7 @@ impl VoxelShadingPass {
     where
         P: Params,
     {
-        log::info!("Initializing pass: voxel-shading");
+        info!("Initializing pass: voxel-shading");
 
         let bg0 = BindGroup::builder("strolle_voxel_shading_bg0")
             .add(&engine.triangles.as_ro_bind())

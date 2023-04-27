@@ -1,6 +1,7 @@
 use std::mem;
 use std::ops::Range;
 
+use log::info;
 use rand::Rng;
 
 use crate::{gpu, BindGroup, CameraBuffers, CameraController, Engine, Params};
@@ -21,7 +22,7 @@ impl VoxelPaintingPass {
     where
         P: Params,
     {
-        log::info!("Initializing pass: voxel-painting");
+        info!("Initializing pass: voxel-painting");
 
         let bg0 = BindGroup::builder("strolle_voxel_painting_bg0")
             .add(&buffers.camera)

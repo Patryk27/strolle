@@ -1,5 +1,6 @@
 use std::mem;
 
+use log::debug;
 use spirv_std::glam::Vec4;
 
 use crate::{gpu, Camera, MappedUniformBuffer, Texture, UnmappedStorageBuffer};
@@ -22,7 +23,7 @@ pub struct CameraBuffers {
 
 impl CameraBuffers {
     pub fn new(device: &wgpu::Device, camera: &Camera) -> Self {
-        log::debug!("Initializing camera buffers");
+        debug!("Initializing camera buffers");
 
         let camera_uniform = MappedUniformBuffer::new(
             device,

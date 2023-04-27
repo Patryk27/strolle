@@ -2,6 +2,8 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem;
 
+use log::debug;
+
 use crate::meshes::Meshes;
 use crate::triangles::Triangles;
 use crate::{Instance, Params};
@@ -26,13 +28,13 @@ where
     ) {
         match self.instances.entry(instance_handle) {
             Entry::Occupied(entry) => {
-                log::debug!("Instance updated: {:?}", entry.key());
+                debug!("Instance updated: {:?}", entry.key());
 
                 *entry.into_mut() = (instance, true);
             }
 
             Entry::Vacant(entry) => {
-                log::debug!("Instance added: {:?}", entry.key());
+                debug!("Instance added: {:?}", entry.key());
 
                 entry.insert((instance, true));
             }
@@ -51,7 +53,7 @@ where
     }
 
     pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
-        log::debug!("Instance removed: {:?}", instance_handle);
+        debug!("Instance removed: {:?}", instance_handle);
 
         self.instances.remove(instance_handle);
         self.dirty = true;

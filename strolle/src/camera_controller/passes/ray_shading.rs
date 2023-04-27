@@ -1,6 +1,7 @@
 use std::mem;
 use std::ops::Range;
 
+use log::info;
 use rand::Rng;
 
 use crate::{gpu, BindGroup, CameraBuffers, CameraController, Engine, Params};
@@ -22,7 +23,7 @@ impl RayShadingPass {
     where
         P: Params,
     {
-        log::info!("Initializing pass: ray-shading");
+        info!("Initializing pass: ray-shading");
 
         let bg0 = BindGroup::builder("strolle_ray_shading_bg0")
             .add(&engine.triangles.as_ro_bind())
@@ -83,6 +84,8 @@ impl RayShadingPass {
         let params = gpu::RayShadingPassParams {
             frame: camera.frame,
             seed: rand::thread_rng().gen(),
+            needs_direct_lightning: camera.camera.mode.needs_direct_lightning()
+                as u32,
         };
 
         // This pass uses 8x8 warps:

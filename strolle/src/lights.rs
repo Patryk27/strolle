@@ -2,6 +2,8 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use log::debug;
+
 use crate::{gpu, Bindable, MappedStorageBuffer, Params};
 
 #[derive(Debug)]
@@ -40,7 +42,7 @@ where
                 let light_handle = entry.key();
                 let light_id = *entry.get();
 
-                log::debug!(
+                debug!(
                     "Light updated: {:?} ({}) => {:?}",
                     light_handle,
                     light_id.get(),
@@ -56,7 +58,7 @@ where
 
                 // TODO noisy
                 //
-                // log::debug!(
+                // debug!(
                 //     "Light added: {:?} ({}) => {:?}",
                 //     light_handle,
                 //     light_id.get(),

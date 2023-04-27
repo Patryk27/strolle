@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = "0.10.1" # TODO use default-features = false
 log = "0.4"
-strolle = { path = "../strolle" }
+strolle = { path = "../strolle", features = ["metrics"] }
 
 [dev-dependencies]
 bevy = { version = "0.10.1", features = ["jpeg"] }

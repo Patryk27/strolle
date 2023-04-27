@@ -1,6 +1,8 @@
 use std::ops::{Deref, DerefMut};
 use std::{any, mem};
 
+use log::info;
+
 use super::{Bindable, Bufferable};
 
 /// Storage buffer that exists both on the host machine and the GPU.
@@ -31,7 +33,7 @@ where
         let label = label.as_ref();
         let size = (size + 31) & !31;
 
-        log::info!(
+        info!(
             "Allocating storage buffer `{label}`; ty={}, size={size}",
             any::type_name::<T>(),
         );

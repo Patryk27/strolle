@@ -83,6 +83,15 @@ impl CameraMode {
         }
     }
 
+    pub(crate) fn needs_direct_lightning(&self) -> bool {
+        matches!(
+            self,
+            Self::DisplayImage
+                | Self::DisplayDirectLightning
+                | Self::DisplayIndirectLightning
+        )
+    }
+
     pub(crate) fn needs_indirect_lightning(&self) -> bool {
         matches!(self, Self::DisplayImage | Self::DisplayIndirectLightning)
     }

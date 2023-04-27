@@ -1,3 +1,4 @@
+use log::info;
 use spirv_std::glam::UVec2;
 
 use super::Bindable;
@@ -18,7 +19,7 @@ impl Texture {
     ) -> Self {
         let label = label.as_ref();
 
-        log::info!("Allocating texture `{label}`; size={size:?}");
+        info!("Allocating texture `{label}`; size={size:?}");
 
         assert!(size.x > 0);
         assert!(size.y > 0);

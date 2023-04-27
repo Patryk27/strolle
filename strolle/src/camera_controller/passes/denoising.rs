@@ -1,6 +1,7 @@
 use std::mem;
 use std::ops::Range;
 
+use log::info;
 use rand::Rng;
 
 use crate::{gpu, BindGroup, CameraBuffers, CameraController, Engine, Params};
@@ -20,7 +21,7 @@ impl DenoisingPass {
     where
         P: Params,
     {
-        log::info!("Initializing pass: denoising");
+        info!("Initializing pass: denoising");
 
         let bg0 = BindGroup::builder("strolle_denoising_bg0")
             .add(&buffers.directs.as_rw_storage_bind())

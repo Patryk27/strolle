@@ -15,6 +15,7 @@
 //! TODO
 
 #![feature(hash_raw_entry)]
+#![feature(once_cell)]
 #![feature(option_result_contains)]
 
 mod buffers;
@@ -36,12 +37,14 @@ mod meshes;
 mod shaders;
 mod triangle;
 mod triangles;
+mod utils;
 
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::mem;
 use std::time::Instant;
 
+use log::{info, trace, warn};
 pub(self) use strolle_models as gpu;
 
 pub(self) use self::buffers::*;
@@ -87,7 +90,7 @@ where
     P: Params,
 {
     pub fn new(device: &wgpu::Device) -> Self {
-        log::info!("Initializing");
+        info!("Initializing");
 
         Self {
             shaders: Shaders::new(device),
@@ -274,7 +277,7 @@ where
         let mut images_or_materials_changed = false;
 
         for event in mem::take(&mut self.pending_events) {
-            log::trace!("Processing event: {event:?}");
+            trace!("Processing event: {event:?}");
 
             images_or_materials_changed |= matches!(
                 event,
@@ -331,11 +334,10 @@ where
             let new_min_aabb = self.world.min_aabb.min(min_aabb);
 
             if self.world.min_aabb != new_min_aabb {
-                log::warn!(
+                warn!(
                     "World's minimum bounding box has changed ({:?} => {:?}); \
                      irradiance cache will be invalidated",
-                    self.world.min_aabb,
-                    new_min_aabb,
+                    self.world.min_aabb, new_min_aabb,
                 );
 
                 self.world.min_aabb = new_min_aabb;
@@ -351,7 +353,7 @@ where
         self.lights.flush(queue);
         self.materials.flush(queue);
 
-        log::trace!("flush() took {:?}", tt.elapsed());
+        utils::metric("flush", tt);
     }
 
     /// Creates a new camera¹ that can be used to render the world.

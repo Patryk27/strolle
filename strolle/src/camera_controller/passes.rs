@@ -6,6 +6,8 @@ mod voxel_painting;
 mod voxel_shading;
 mod voxel_tracing;
 
+use log::debug;
+
 pub use self::denoising::*;
 pub use self::drawing::*;
 pub use self::raster::*;
@@ -40,7 +42,7 @@ where
         config: &Camera,
         buffers: &CameraBuffers,
     ) -> Self {
-        log::debug!("Initializing camera passes");
+        debug!("Initializing camera passes");
 
         Self {
             denoising: DenoisingPass::new(engine, device, buffers),
