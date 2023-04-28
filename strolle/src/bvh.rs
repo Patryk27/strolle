@@ -1,5 +1,5 @@
+mod algorithms;
 mod bounding_box;
-mod builders;
 mod bvh_node;
 mod bvh_printer;
 mod bvh_serializer;
@@ -18,7 +18,7 @@ use crate::{
     Triangles,
 };
 
-const ALGORITHM: &str = "lbvh";
+const ALGORITHM: &str = "sah";
 
 #[derive(Debug)]
 pub struct Bvh {
@@ -70,8 +70,8 @@ impl Bvh {
         }
 
         let root = utils::measure("bvh.build", || match ALGORITHM {
-            "lbvh" => builders::lbvh::build(bvh_triangles),
-            "sah" => builders::sah::build(bvh_triangles),
+            "lbvh" => algorithms::lbvh::build(bvh_triangles),
+            "sah" => algorithms::sah::build(bvh_triangles),
             _ => unreachable!(),
         });
 

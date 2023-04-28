@@ -58,3 +58,15 @@ Use WASD to move, mouse to navigate the camera; extra controls include:
 - 4: Switch camera to normal-only mode,
 - 0: Switch camera to use Bevy's renderer,
 - Semicolon: Toggle camera's controls on/off; useful for taking screenshots.
+
+## Debugging
+
+Strolle is able to print lots of debugging information, including metrics; for
+instance this:
+
+``` shell
+RUST_LOG=bevy=info,strolle=trace STROLLE_METRIC_THRESHOLD=1ms cargo run --release --example dungeon
+```
+
+... will print all actions (e.g. updating BVH) that took more than one
+millisecond to complete.
