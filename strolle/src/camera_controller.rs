@@ -8,7 +8,10 @@ use rand::Rng;
 
 pub use self::buffers::*;
 pub use self::passes::*;
-use crate::{Camera, Engine, Event, EventHandler, EventHandlerContext, Params};
+use crate::{
+    Camera, CameraMode, Engine, Event, EventHandler, EventHandlerContext,
+    Params,
+};
 
 #[derive(Debug)]
 pub struct CameraController<P>
@@ -86,19 +89,24 @@ where
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) {
-        self.passes.raster.run(engine, self, encoder);
+        if let CameraMode::DisplayBvhHeatmap = self.camera.mode {
+            self.passes.ray_tracing.run(self, encoder);
+            self.passes.drawing.run(self, encoder, view);
+        } else {
+            self.passes.raster.run(engine, self, encoder);
 
-        if self.camera.mode.needs_indirect_lightning() {
-            let seed = rand::thread_rng().gen();
+            if self.camera.mode.needs_indirect_lightning() {
+                let seed = rand::thread_rng().gen();
 
-            self.passes.voxel_tracing.run(self, encoder, seed);
-            self.passes.voxel_shading.run(self, encoder, seed);
-            self.passes.voxel_painting.run(self, encoder);
+                self.passes.voxel_tracing.run(self, encoder, seed);
+                self.passes.voxel_shading.run(self, encoder, seed);
+                self.passes.voxel_painting.run(self, encoder);
+            }
+
+            self.passes.ray_shading.run(self, encoder);
+            self.passes.denoising.run(self, encoder);
+            self.passes.drawing.run(self, encoder, view);
         }
-
-        self.passes.ray_shading.run(self, encoder);
-        self.passes.denoising.run(self, encoder);
-        self.passes.drawing.run(self, encoder, view);
     }
 }
 

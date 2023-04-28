@@ -2,6 +2,7 @@ mod denoising;
 mod drawing;
 mod raster;
 mod ray_shading;
+mod ray_tracing;
 mod voxel_painting;
 mod voxel_shading;
 mod voxel_tracing;
@@ -12,6 +13,7 @@ pub use self::denoising::*;
 pub use self::drawing::*;
 pub use self::raster::*;
 pub use self::ray_shading::*;
+pub use self::ray_tracing::*;
 pub use self::voxel_painting::*;
 pub use self::voxel_shading::*;
 pub use self::voxel_tracing::*;
@@ -27,6 +29,7 @@ where
     pub drawing: DrawingPass,
     pub raster: RasterPass<P>,
     pub ray_shading: RayShadingPass,
+    pub ray_tracing: RayTracingPass,
     pub voxel_painting: VoxelPaintingPass,
     pub voxel_shading: VoxelShadingPass,
     pub voxel_tracing: VoxelTracingPass,
@@ -49,6 +52,7 @@ where
             drawing: DrawingPass::new(engine, device, config, buffers),
             raster: RasterPass::new(engine, device, config, buffers),
             ray_shading: RayShadingPass::new(engine, device, buffers),
+            ray_tracing: RayTracingPass::new(engine, device, buffers),
             voxel_painting: VoxelPaintingPass::new(engine, device, buffers),
             voxel_shading: VoxelShadingPass::new(engine, device, buffers),
             voxel_tracing: VoxelTracingPass::new(engine, device, buffers),

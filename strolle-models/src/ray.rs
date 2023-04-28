@@ -36,10 +36,10 @@ impl Ray {
         triangles: TrianglesView,
         bvh: BvhView,
         stack: BvhTraversingStack,
-    ) -> Hit {
+    ) -> (Hit, u32) {
         let mut hit = Hit::none();
 
-        self.trace(
+        let traversed_nodes = self.trace(
             local_idx,
             triangles,
             bvh,
@@ -49,7 +49,7 @@ impl Ray {
             &mut hit,
         );
 
-        hit
+        (hit, traversed_nodes)
     }
 
     /// Traces this ray and returns whether it hits anything up to the given
@@ -90,7 +90,9 @@ impl Ray {
         mode: TracingMode,
         mut distance: f32,
         hit: &mut Hit,
-    ) {
+    ) -> u32 {
+        let mut traversed_nodes = 0;
+
         // Index into the `bvh` array; points at the currently processed node
         let mut bvh_ptr = 0;
 
@@ -103,6 +105,8 @@ impl Ray {
         let mut stack_ptr = stack_begins_at;
 
         loop {
+            traversed_nodes += 1;
+
             let d0 = bvh.get(bvh_ptr);
             let opcode = d0.x.to_bits() & 1;
             let arg0 = d0.x.to_bits() >> 1;
@@ -189,6 +193,8 @@ impl Ray {
                 break;
             }
         }
+
+        traversed_nodes
     }
 
     /// Performs ray <-> AABB-box hit-testing and returns the closest hit (or

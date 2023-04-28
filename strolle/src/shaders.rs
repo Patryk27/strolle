@@ -31,6 +31,7 @@ shaders!([
     drawing => "drawing.spv",
     raster => "raster.spv",
     ray_shading => "ray-shading.spv",
+    ray_tracing => "ray-tracing.spv",
     voxel_painting => "voxel-painting.spv",
     voxel_shading => "voxel-shading.spv",
     voxel_tracing => "voxel-tracing.spv",

@@ -72,6 +72,12 @@ pub fn main_fs(
             (normal, false)
         }
 
+        4 => {
+            let heatmap = direct_tex.sample(*direct_sampler, texel_xy).xyz();
+
+            (heatmap, false)
+        }
+
         _ => Default::default(),
     };
 

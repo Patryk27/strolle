@@ -7,6 +7,7 @@ const CRATES: &[&str] = &[
     "drawing",
     "raster",
     "ray-shading",
+    "ray-tracing",
     "voxel-painting",
     "voxel-shading",
     "voxel-tracing",
@@ -23,8 +24,8 @@ fn main() {
     //      the ones in our workspace.
     //
     //      Setting those env-vars mitigates this issue, since it simulates a
-    //      nested Cargo invocation, which spirv-builder detects and tries to
-    //      alleviate on its own, using `--target-dir` - and this fixes the
+    //      nested Cargo invocation which spirv-builder detects and tries to
+    //      alleviate on its own using `--target-dir` - and this fixes the
     //      "artifacts getting randomly invalidated" problem.
     env::set_var("PROFILE", "release");
     env::set_var("OUT_DIR", "../../target/spirv/release/build/shader/out");

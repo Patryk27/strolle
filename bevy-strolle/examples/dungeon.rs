@@ -129,6 +129,11 @@ fn process_input(
         camera.mode = st::CameraMode::DisplayNormals;
     }
 
+    if keys.just_pressed(KeyCode::Key5) {
+        camera_render_graph.set(bevy_strolle::graph::NAME);
+        camera.mode = st::CameraMode::DisplayBvhHeatmap;
+    }
+
     if keys.just_pressed(KeyCode::Key0) {
         camera_render_graph.set("core_3d");
     }

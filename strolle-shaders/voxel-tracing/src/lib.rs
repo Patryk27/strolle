@@ -89,7 +89,7 @@ fn main_inner(
             noise.sample_hemisphere(primary_hit.normal),
         );
 
-        ray.trace_nearest(local_idx, triangles, bvh, stack)
+        ray.trace_nearest(local_idx, triangles, bvh, stack).0
     };
 
     pending_voxel_hits.set(

@@ -71,6 +71,7 @@ pub enum CameraMode {
     DisplayDirectLightning,
     DisplayIndirectLightning,
     DisplayNormals,
+    DisplayBvhHeatmap,
 }
 
 impl CameraMode {
@@ -80,6 +81,7 @@ impl CameraMode {
             CameraMode::DisplayDirectLightning => 1,
             CameraMode::DisplayIndirectLightning => 2,
             CameraMode::DisplayNormals => 3,
+            CameraMode::DisplayBvhHeatmap => 4,
         }
     }
 

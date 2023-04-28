@@ -10,6 +10,7 @@ members = [
     "strolle-shaders/drawing",
     "strolle-shaders/raster",
     "strolle-shaders/ray-shading",
+    "strolle-shaders/ray-tracing",
     "strolle-shaders/voxel-painting",
     "strolle-shaders/voxel-shading",
     "strolle-shaders/voxel-tracing",

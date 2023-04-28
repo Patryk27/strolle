@@ -52,10 +52,11 @@ Shows a little dungeon tech demo, with textures, normal mapping and whatnot:
 
 Use WASD to move, mouse to navigate the camera; extra controls include:
 
-- 1: Switch camera to default mode (i.e. from the options below),
-- 2: Switch camera to direct-lightning-only mode,
-- 3: Switch camera to indirect-lightning-only mode,
-- 4: Switch camera to normal-only mode,
+- 1: Switch camera to the default mode,
+- 2: Switch camera to a direct-lightning-only mode,
+- 3: Switch camera to a indirect-lightning-only mode,
+- 4: Switch camera to a normal-only mode,
+- 5: Switch camera to a bvh-heatmap mode,
 - 0: Switch camera to use Bevy's renderer,
 - Semicolon: Toggle camera's controls on/off; useful for taking screenshots.
 
