@@ -4,6 +4,7 @@ mod mapped_storage_buffer;
 mod mapped_uniform_buffer;
 mod texture;
 mod unmapped_storage_buffer;
+mod utils;
 
 pub use self::bind_group::*;
 pub use self::bufferable::*;
@@ -17,4 +18,10 @@ pub trait Bindable {
         &self,
         binding: u32,
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)>;
+}
+
+#[must_use = "buffer might have gotten reallocated which you should react upon"]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BufferFlushOutcome {
+    pub reallocated: bool,
 }

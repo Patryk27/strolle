@@ -1,7 +1,7 @@
 use log::info;
 use spirv_std::glam::UVec2;
 
-use super::Bindable;
+use crate::Bindable;
 
 #[derive(Debug)]
 pub struct Texture {

@@ -3,7 +3,8 @@ use std::fmt::Debug;
 use std::mem;
 
 use crate::{
-    gpu, Bindable, BoundingBox, MappedStorageBuffer, Params, Triangle,
+    gpu, Bindable, BoundingBox, BufferFlushOutcome, MappedStorageBuffer,
+    Params, Triangle,
 };
 
 #[derive(Debug)]
@@ -26,7 +27,6 @@ where
             buffer: MappedStorageBuffer::new_default(
                 device,
                 "strolle_triangles",
-                32 * 1024 * 1024,
             ),
             index: Default::default(),
             bounding_box: Default::default(),
@@ -188,24 +188,37 @@ where
         self.bounding_box
     }
 
-    pub fn flush(&mut self, queue: &wgpu::Queue) {
+    pub fn flush(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> BufferFlushOutcome {
         if !mem::take(&mut self.dirty) {
-            return;
+            return BufferFlushOutcome::default();
         }
 
-        for instance in self.index.values_mut() {
-            if !mem::take(&mut instance.dirty) {
-                continue;
+        let reallocated = self.buffer.reallocate(device, queue);
+
+        if reallocated {
+            // Reallocating already flushes the entire buffer, so there's no
+            // need to flush it again
+        } else {
+            for instance in self.index.values_mut() {
+                if !mem::take(&mut instance.dirty) {
+                    continue;
+                }
+
+                let offset =
+                    instance.min_triangle_id * mem::size_of::<gpu::Triangle>();
+
+                let size =
+                    instance.triangle_count() * mem::size_of::<gpu::Triangle>();
+
+                self.buffer.flush_part(queue, offset, size);
             }
-
-            let offset =
-                instance.min_triangle_id * mem::size_of::<gpu::Triangle>();
-
-            let size =
-                instance.triangle_count() * mem::size_of::<gpu::Triangle>();
-
-            self.buffer.flush_ex(queue, offset, size);
         }
+
+        BufferFlushOutcome { reallocated }
     }
 
     pub fn as_ro_bind(&self) -> impl Bindable + '_ {

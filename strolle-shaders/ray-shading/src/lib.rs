@@ -181,6 +181,7 @@ fn compute_indirect_lightning(
     albedo * (indirect.xyz() / indirect.w.max(1.0))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn compute_direct_lightning(
     local_idx: u32,
     triangles: TrianglesView,

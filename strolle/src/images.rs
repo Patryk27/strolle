@@ -14,8 +14,8 @@ where
     textures: Vec<P::ImageTexture>,
     samplers: Vec<P::ImageSampler>,
     index: HashMap<P::ImageHandle, usize>,
-    null_texture: wgpu::TextureView,
-    null_sampler: wgpu::Sampler,
+    fallback_texture: wgpu::TextureView,
+    fallback_sampler: wgpu::Sampler,
 }
 
 impl<P> Images<P>
@@ -23,9 +23,9 @@ where
     P: Params,
 {
     pub fn new(device: &wgpu::Device) -> Self {
-        let null_texture = device
+        let fallback_texture = device
             .create_texture(&wgpu::TextureDescriptor {
-                label: Some("strolle_null_texture"),
+                label: Some("strolle_fallback_texture"),
                 size: wgpu::Extent3d::default(),
                 mip_level_count: 1,
                 sample_count: 1,
@@ -36,14 +36,14 @@ where
             })
             .create_view(&Default::default());
 
-        let null_sampler = device.create_sampler(&Default::default());
+        let fallback_sampler = device.create_sampler(&Default::default());
 
         Self {
             textures: Default::default(),
             samplers: Default::default(),
             index: Default::default(),
-            null_texture,
-            null_sampler,
+            fallback_texture,
+            fallback_sampler,
         }
     }
 
@@ -55,7 +55,7 @@ where
     ) {
         if self.textures.len() == gpu::MAX_IMAGES {
             warn!(
-                "Cannot add image `{:?}`: reached the maximum number of \
+                "Cannot add image `{:?}` - reached the maximum number of \
                  allocated images ({})",
                 image_handle,
                 gpu::MAX_IMAGES,
@@ -73,19 +73,17 @@ where
         self.index.insert(image_handle, image_id);
     }
 
-    pub fn get_opt_or_null(
+    pub fn get(
         &self,
-        image_handle: Option<&P::ImageHandle>,
-    ) -> (&wgpu::TextureView, &wgpu::Sampler) {
-        let image_id = image_handle
-            .and_then(|handle| self.index.get(handle))
-            .copied();
+        image_handle: &P::ImageHandle,
+    ) -> Option<(&wgpu::TextureView, &wgpu::Sampler)> {
+        let image_id = *self.index.get(image_handle)?;
 
-        if let Some(image_id) = image_id {
-            (self.textures[image_id].get(), self.samplers[image_id].get())
-        } else {
-            (&self.null_texture, &self.null_sampler)
-        }
+        Some((self.textures[image_id].get(), self.samplers[image_id].get()))
+    }
+
+    pub fn get_fallback(&self) -> (&wgpu::TextureView, &wgpu::Sampler) {
+        (&self.fallback_texture, &self.fallback_sampler)
     }
 
     pub fn remove(&mut self, image_handle: &P::ImageHandle) {
@@ -125,14 +123,14 @@ where
             .textures
             .iter()
             .map(|texture| texture.get())
-            .chain(iter::repeat(&self.null_texture).take(free_slots))
+            .chain(iter::repeat(&self.fallback_texture).take(free_slots))
             .collect();
 
         let samplers = self
             .samplers
             .iter()
             .map(|sampler| sampler.get())
-            .chain(iter::repeat(&self.null_sampler).take(free_slots))
+            .chain(iter::repeat(&self.fallback_sampler).take(free_slots))
             .collect();
 
         ImagesBinder { textures, samplers }

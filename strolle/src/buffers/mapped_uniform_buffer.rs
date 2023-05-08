@@ -1,9 +1,10 @@
+use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::{any, mem};
 
 use log::info;
 
-use super::{Bindable, Bufferable};
+use crate::buffers::utils;
+use crate::{Bindable, Bufferable};
 
 #[derive(Debug)]
 pub struct MappedUniformBuffer<T> {
@@ -16,19 +17,11 @@ impl<T> MappedUniformBuffer<T>
 where
     T: Bufferable,
 {
-    pub fn new(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        size: usize,
-        data: T,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: T) -> Self {
         let label = label.as_ref();
-        let size = (size + 31) & !31;
+        let size = utils::pad_size(data.size());
 
-        info!(
-            "Allocating uniform buffer `{label}`; ty={}, size={size}",
-            any::type_name::<T>(),
-        );
+        info!("Allocating uniform buffer `{label}`; size={size}");
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
@@ -42,17 +35,6 @@ where
             data,
             dirty: true,
         }
-    }
-
-    pub fn new_default(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        size: usize,
-    ) -> Self
-    where
-        T: Default,
-    {
-        Self::new(device, label, size, Default::default())
     }
 
     pub fn flush(&mut self, queue: &wgpu::Queue) {

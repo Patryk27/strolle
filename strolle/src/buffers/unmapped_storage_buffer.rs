@@ -2,16 +2,16 @@ use std::sync::Arc;
 
 use log::info;
 
-use super::Bindable;
+use crate::buffers::utils;
+use crate::Bindable;
 
-/// Storage buffer that exists only on the GPU.
+/// Storage buffer that exists only in VRAM.
 ///
 /// This kind of storage buffer should be used for data structures that don't
-/// have to be written / accessed on the host machine, because it doesn't cause
-/// the data to be written to / read from host's RAM.
+/// have to be accessed on the host machine.
 #[derive(Debug)]
 pub struct UnmappedStorageBuffer {
-    pub buffer: Arc<wgpu::Buffer>,
+    buffer: Arc<wgpu::Buffer>,
 }
 
 impl UnmappedStorageBuffer {
@@ -21,6 +21,7 @@ impl UnmappedStorageBuffer {
         size: usize,
     ) -> Self {
         let label = label.as_ref();
+        let size = utils::pad_size(size);
 
         info!("Allocating unmapped storage buffer `{label}`; size={size}");
 

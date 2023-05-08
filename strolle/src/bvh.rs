@@ -14,8 +14,8 @@ pub use self::bvh_node::*;
 pub use self::bvh_serializer::*;
 pub use self::bvh_triangle::*;
 use crate::{
-    utils, Bindable, Instances, MappedStorageBuffer, Materials, Params,
-    Triangles,
+    utils, Bindable, BufferFlushOutcome, Instances, MappedStorageBuffer,
+    Materials, Params, Triangles,
 };
 
 const ALGORITHM: &str = "sah";
@@ -28,11 +28,7 @@ pub struct Bvh {
 impl Bvh {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
-            buffer: MappedStorageBuffer::new_default(
-                device,
-                "strolle_bvh",
-                32 * 1024 * 1024,
-            ),
+            buffer: MappedStorageBuffer::new_default(device, "strolle_bvh"),
         }
     }
 
@@ -86,8 +82,12 @@ impl Bvh {
         });
     }
 
-    pub fn flush(&mut self, queue: &wgpu::Queue) {
-        self.buffer.flush(queue);
+    pub fn flush(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> BufferFlushOutcome {
+        self.buffer.flush(device, queue)
     }
 
     pub fn as_ro_bind(&self) -> impl Bindable + '_ {

@@ -38,6 +38,6 @@ impl World {
 
         let id = ((px | py | pz) ^ (nx ^ ny ^ nz)) % (VOXELS_MAP_LENGTH as u32);
 
-        VoxelId::new(id as u32)
+        VoxelId::new(id)
     }
 }

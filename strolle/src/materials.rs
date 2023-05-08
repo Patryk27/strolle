@@ -4,7 +4,10 @@ use std::fmt::Debug;
 
 use log::debug;
 
-use crate::{gpu, Bindable, Images, MappedStorageBuffer, Material, Params};
+use crate::{
+    gpu, Bindable, BufferFlushOutcome, Images, MappedStorageBuffer, Material,
+    Params,
+};
 
 #[derive(Debug)]
 pub struct Materials<P>
@@ -26,7 +29,6 @@ where
             buffer: MappedStorageBuffer::new_default(
                 device,
                 "strolle_materials",
-                1024 * 1024,
             ),
             index: Default::default(),
             materials: Default::default(),
@@ -115,8 +117,12 @@ where
             .collect();
     }
 
-    pub fn flush(&mut self, queue: &wgpu::Queue) {
-        self.buffer.flush(queue);
+    pub fn flush(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> BufferFlushOutcome {
+        self.buffer.flush(device, queue)
     }
 
     pub fn as_ro_bind(&self) -> impl Bindable + '_ {

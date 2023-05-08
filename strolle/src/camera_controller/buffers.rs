@@ -28,7 +28,6 @@ impl CameraBuffers {
         let camera_uniform = MappedUniformBuffer::new(
             device,
             "strolle_camera",
-            mem::size_of::<gpu::Camera>(),
             camera.serialize(),
         );
 

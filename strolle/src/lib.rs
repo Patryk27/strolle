@@ -23,7 +23,6 @@ mod bvh;
 mod camera;
 mod camera_controller;
 mod camera_controllers;
-mod event_handler;
 mod image;
 mod images;
 mod instance;
@@ -52,7 +51,6 @@ pub(self) use self::bvh::*;
 pub use self::camera::*;
 pub(self) use self::camera_controller::*;
 pub(self) use self::camera_controllers::*;
-pub(self) use self::event_handler::*;
 pub use self::image::*;
 pub(self) use self::images::*;
 pub use self::instance::*;
@@ -101,10 +99,10 @@ where
             lights: Lights::new(device),
             images: Images::new(device),
             materials: Materials::new(device),
-            world: MappedUniformBuffer::new_default(
+            world: MappedUniformBuffer::new(
                 device,
                 "strolle_world",
-                mem::size_of::<gpu::World>(),
+                Default::default(),
             ),
             cameras: Default::default(),
             pending_events: Default::default(),
@@ -172,13 +170,13 @@ where
 
     /// Creates an image¹ or updates the existing one.
     ///
-    /// Note that updating image's contents (i.e. its pixels) doesn't require
-    /// re-calling this function², but changing an image's format or sampler
+    /// Note that updating image's pixels doesn't require recalling this
+    /// function², but changing the image's format, its resolution or sampler
     /// does.
     ///
     /// Also, at the moment Strolle supports only single-sampled 2D textures
     /// with a non-filterable samplers; attaching other kind of texture and/or
-    /// sampler will (probably) cause the renderer to panic.
+    /// sampler will crash the renderer.
     ///
     /// ¹ see the module-level comment for details
     /// ² and it's not recommended due to potential performance pitfalls
@@ -274,56 +272,42 @@ where
     /// enough.)
     pub fn flush(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         let tt = Instant::now();
-        let mut images_or_materials_changed = false;
 
-        for event in mem::take(&mut self.pending_events) {
-            trace!("Processing event: {event:?}");
+        let any_image_or_material_modified =
+            self.pending_events.iter().any(|event| {
+                matches!(
+                    event,
+                    Event::MaterialChanged(_)
+                        | Event::MaterialRemoved(_)
+                        | Event::ImageChanged(_)
+                        | Event::ImageRemoved(_)
+                )
+            });
 
-            images_or_materials_changed |= matches!(
-                event,
-                Event::MaterialChanged(_)
-                    | Event::MaterialRemoved(_)
-                    | Event::ImageChanged(_)
-                    | Event::ImageRemoved(_)
-            );
-
-            let mut cameras = mem::take(&mut self.cameras);
-
-            for camera in cameras.iter_mut() {
-                camera.handle(EventHandlerContext {
-                    engine: self,
-                    device,
-                    event: &event,
-                });
-            }
-
-            self.cameras = cameras;
-        }
-
-        for camera in self.cameras.iter_mut() {
-            camera.flush(queue);
+        if any_image_or_material_modified {
+            self.materials.refresh(&self.images);
         }
 
         // ---
 
-        if images_or_materials_changed {
-            // If materials have changed, we have to rebuild them so that
-            // their CPU-representations are transformed into the GPU-ones.
-            //
-            // If images have changed, we have to rebuild materials so that
-            // their texture ids are up-to-date (e.g. removing a texture can
-            // shift other texture ids by -1, which we have to account for in
-            // the materials).
-
-            self.materials.refresh(&self.images);
-        }
-
-        let instances_changed =
+        let any_instance_modifed =
             self.instances.refresh(&self.meshes, &mut self.triangles);
 
-        if instances_changed {
+        if any_instance_modifed {
             self.bvh
                 .refresh(&self.instances, &self.materials, &self.triangles);
+        }
+
+        // ---
+
+        let any_buffer_reallocated = false
+            | self.bvh.flush(device, queue).reallocated
+            | self.triangles.flush(device, queue).reallocated
+            | self.lights.flush(device, queue).reallocated
+            | self.materials.flush(device, queue).reallocated;
+
+        if any_buffer_reallocated {
+            self.pending_events.push(Event::BufferReallocated);
         }
 
         // ---
@@ -348,10 +332,61 @@ where
 
         // ---
 
-        self.bvh.flush(queue);
-        self.triangles.flush(queue);
-        self.lights.flush(queue);
-        self.materials.flush(queue);
+        let mut any_image_modified = false;
+
+        for event in mem::take(&mut self.pending_events) {
+            trace!("Processing event: {event:?}");
+
+            let mut cameras = mem::take(&mut self.cameras);
+
+            for camera in cameras.iter_mut() {
+                match &event {
+                    Event::BufferReallocated => {
+                        camera.on_buffers_reallocated(self, device);
+                    }
+
+                    Event::ImageChanged(image_handle) => {
+                        camera.on_image_changed(self, device, image_handle);
+                        any_image_modified = true;
+                    }
+
+                    Event::ImageRemoved(image_handle) => {
+                        camera.on_image_removed(self, device, image_handle);
+                        any_image_modified = true;
+                    }
+
+                    Event::MaterialChanged(material_handle) => {
+                        camera.on_material_changed(
+                            self,
+                            device,
+                            material_handle,
+                        );
+                    }
+
+                    Event::MaterialRemoved(material_handle) => {
+                        camera.on_material_removed(material_handle);
+                    }
+                }
+            }
+
+            self.cameras = cameras;
+        }
+
+        if any_image_modified {
+            let mut cameras = mem::take(&mut self.cameras);
+
+            for camera in cameras.iter_mut() {
+                camera.on_images_modified(self, device);
+            }
+
+            self.cameras = cameras;
+        }
+
+        for camera in self.cameras.iter_mut() {
+            camera.flush(queue);
+        }
+
+        // ---
 
         utils::metric("flush", tt);
     }
@@ -471,6 +506,7 @@ enum Event<P>
 where
     P: Params,
 {
+    BufferReallocated,
     MaterialChanged(P::MaterialHandle),
     MaterialRemoved(P::MaterialHandle),
     ImageChanged(P::ImageHandle),

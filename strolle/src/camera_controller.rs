@@ -8,10 +8,7 @@ use rand::Rng;
 
 pub use self::buffers::*;
 pub use self::passes::*;
-use crate::{
-    Camera, CameraMode, Engine, Event, EventHandler, EventHandlerContext,
-    Params,
-};
+use crate::{Camera, CameraMode, Engine, Params};
 
 #[derive(Debug)]
 pub struct CameraController<P>
@@ -54,12 +51,12 @@ where
         device: &wgpu::Device,
         camera: Camera,
     ) {
-        let needs_rebuilding = self.camera.is_invalidated_by(&camera);
+        let is_invalidated = self.camera.is_invalidated_by(&camera);
 
         self.camera = camera;
         *self.buffers.camera.deref_mut() = self.camera.serialize();
 
-        if needs_rebuilding {
+        if is_invalidated {
             self.rebuild_buffers(device);
             self.rebuild_passes(engine, device);
         }
@@ -108,18 +105,77 @@ where
             self.passes.drawing.run(self, encoder, view);
         }
     }
-}
 
-impl<P> EventHandler<P> for CameraController<P>
-where
-    P: Params,
-{
-    fn handle(&mut self, ctxt: EventHandlerContext<P>) {
-        if let Event::ImageChanged(_) | Event::ImageRemoved(_) = ctxt.event {
-            self.rebuild_passes(ctxt.engine, ctxt.device);
-        }
+    pub fn on_buffers_reallocated(
+        &mut self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+    ) {
+        // TODO knowing which passes to re-allocate in here requires knowing
+        //      which buffers those passes use in their `::new()` so currently
+        //      it's pretty error-prone; it would be nice if the passes could
+        //      react to the changes autonomously
 
-        self.passes.handle(ctxt);
+        self.passes.ray_shading =
+            RayShadingPass::new(engine, device, &self.buffers);
+
+        self.passes.ray_tracing =
+            RayTracingPass::new(engine, device, &self.buffers);
+
+        self.passes.voxel_shading =
+            VoxelShadingPass::new(engine, device, &self.buffers);
+
+        self.passes.voxel_tracing =
+            VoxelTracingPass::new(engine, device, &self.buffers);
+    }
+
+    pub fn on_image_changed(
+        &mut self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+        image_handle: &P::ImageHandle,
+    ) {
+        self.passes
+            .raster
+            .on_image_changed(engine, device, image_handle);
+    }
+
+    pub fn on_image_removed(
+        &mut self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+        image_handle: &P::ImageHandle,
+    ) {
+        self.passes
+            .raster
+            .on_image_removed(engine, device, image_handle);
+    }
+
+    pub fn on_images_modified(
+        &mut self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+    ) {
+        self.passes.ray_shading =
+            RayShadingPass::new(engine, device, &self.buffers);
+
+        self.passes.voxel_shading =
+            VoxelShadingPass::new(engine, device, &self.buffers);
+    }
+
+    pub fn on_material_changed(
+        &mut self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+        material_handle: &P::MaterialHandle,
+    ) {
+        self.passes
+            .raster
+            .on_material_changed(engine, device, material_handle);
+    }
+
+    pub fn on_material_removed(&mut self, material_handle: &P::MaterialHandle) {
+        self.passes.raster.on_material_removed(material_handle);
     }
 }
 

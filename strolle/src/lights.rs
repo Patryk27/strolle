@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use log::debug;
 
-use crate::{gpu, Bindable, MappedStorageBuffer, Params};
+use crate::{gpu, Bindable, BufferFlushOutcome, MappedStorageBuffer, Params};
 
 #[derive(Debug)]
 pub struct Lights<P>
@@ -22,11 +22,7 @@ where
 {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
-            buffer: MappedStorageBuffer::new_default(
-                device,
-                "stolle_lights",
-                1024 * 1024,
-            ),
+            buffer: MappedStorageBuffer::new_default(device, "stolle_lights"),
             index: Default::default(),
         }
     }
@@ -87,8 +83,12 @@ where
         self.buffer.len() as u32
     }
 
-    pub fn flush(&mut self, queue: &wgpu::Queue) {
-        self.buffer.flush(queue);
+    pub fn flush(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> BufferFlushOutcome {
+        self.buffer.flush(device, queue)
     }
 
     pub fn as_ro_bind(&self) -> impl Bindable + '_ {

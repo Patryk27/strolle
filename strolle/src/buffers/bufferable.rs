@@ -4,8 +4,13 @@ use bytemuck::Pod;
 
 use crate::gpu;
 
+/// Object that can be sent into the GPU
 pub trait Bufferable {
     fn data(&self) -> &[u8];
+
+    fn size(&self) -> usize {
+        self.data().len()
+    }
 }
 
 impl Bufferable for u32 {

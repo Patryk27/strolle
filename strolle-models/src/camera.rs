@@ -19,6 +19,7 @@ pub struct Camera {
 }
 
 impl Camera {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         projection_view: Mat4,
         origin: Vec3,
@@ -29,6 +30,7 @@ impl Camera {
         viewport_size: UVec2,
         clear_color: Vec3,
     ) -> Self {
+        // TODO maybe building onb instead of storing it would be faster?
         let (onb_u, onb_v, onb_w) =
             OrthonormalBasis::build(origin, look_at, up);
 

@@ -1,20 +1,20 @@
+use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::{any, mem};
 
 use log::info;
 
-use super::{Bindable, Bufferable};
+use crate::buffers::utils;
+use crate::{Bindable, BufferFlushOutcome, Bufferable};
 
-/// Storage buffer that exists both on the host machine and the GPU.
+/// Storage buffer that exists both in RAM and VRAM.
 ///
-/// This kind of storage buffer should be used for data structures such as BVH
-/// that need to be accessed both from the host machine and the GPU; it's
-/// allocated both in RAM and VRAM, and uses [`DerefMut`] to track whether it's
-/// been modified recently.
-///
-/// TODO support buffers with dynamic length
+/// This kind of buffer should be used for data structures such as BVH that need
+/// to be accessed both from the host machine and the GPU; it's allocated both
+/// in RAM and VRAM, and uses [`DerefMut`] to track whether it's been modified
+/// and needs to be flushed.
 #[derive(Debug)]
 pub struct MappedStorageBuffer<T> {
+    label: String,
     buffer: wgpu::Buffer,
     data: T,
     dirty: bool,
@@ -24,45 +24,41 @@ impl<T> MappedStorageBuffer<T>
 where
     T: Bufferable,
 {
-    pub fn new(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        size: usize,
-        data: T,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: T) -> Self {
         let label = label.as_ref();
-        let size = (size + 31) & !31;
 
-        info!(
-            "Allocating storage buffer `{label}`; ty={}, size={size}",
-            any::type_name::<T>(),
-        );
+        let size = if data.size() == 0 {
+            // If the buffer is empty - just like triangles or BVH start - it's
+            // easier to pretend the buffer is just small instead of zero-sized
+            // so that we can allocate *something* here and let the reallocation
+            // logic worry about growing the buffer later.
+            //
+            // That is, since we can't really allocate an empty buffer, the
+            // other solution would be to keep `buffer: Option<wgpu::Buffer>`
+            // and allocate it on-demand on the first write, and that is just
+            // more trouble than it's worth.
+            128 * 1024
+        } else {
+            utils::pad_size(data.size())
+        };
 
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some(label),
-            usage: wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::VERTEX,
-            size: size as _,
-            mapped_at_creation: false,
-        });
+        info!("Allocating mapped storage buffer `{label}`; size={size}");
+
+        let buffer = Self::create_buffer(device, label, size);
 
         Self {
+            label: label.to_owned(),
             buffer,
             data,
             dirty: true,
         }
     }
 
-    pub fn new_default(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        size: usize,
-    ) -> Self
+    pub fn new_default(device: &wgpu::Device, label: impl AsRef<str>) -> Self
     where
         T: Default,
     {
-        Self::new(device, label, size, Default::default())
+        Self::new(device, label, Default::default())
     }
 
     pub fn as_buffer(&self) -> &wgpu::Buffer {
@@ -76,15 +72,55 @@ where
         }
     }
 
-    pub fn flush(&mut self, queue: &wgpu::Queue) {
-        if !mem::take(&mut self.dirty) {
-            return;
+    pub fn reallocate(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> bool {
+        let curr_size = self.buffer.size() as usize;
+        let new_size = utils::pad_size(self.data.size());
+
+        if (self.buffer.size() as usize) >= new_size {
+            return false;
         }
 
+        info!(
+            "Reallocating mapped storage buffer `{}`; \
+             curr-size={curr_size}, new-size={new_size}",
+            self.label,
+        );
+
+        self.buffer.destroy();
+        self.buffer = Self::create_buffer(device, &self.label, new_size);
+        self.dirty = false;
+
         queue.write_buffer(&self.buffer, 0, self.data.data());
+
+        true
     }
 
-    pub fn flush_ex(
+    pub fn flush(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> BufferFlushOutcome {
+        if !mem::take(&mut self.dirty) {
+            return BufferFlushOutcome::default();
+        }
+
+        let reallocated = self.reallocate(device, queue);
+
+        if reallocated {
+            // Reallocating already flushes the entire buffer, so there's no
+            // need to flush it again
+        } else {
+            queue.write_buffer(&self.buffer, 0, self.data.data());
+        }
+
+        BufferFlushOutcome { reallocated }
+    }
+
+    pub fn flush_part(
         &mut self,
         queue: &wgpu::Queue,
         offset: usize,
@@ -95,6 +131,21 @@ where
             offset as _,
             &self.data.data()[offset..][..size],
         );
+    }
+
+    fn create_buffer(
+        device: &wgpu::Device,
+        label: &str,
+        size: usize,
+    ) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(label),
+            usage: wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::VERTEX,
+            size: size as _,
+            mapped_at_creation: false,
+        })
     }
 }
 

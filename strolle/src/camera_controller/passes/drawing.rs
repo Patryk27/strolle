@@ -17,7 +17,7 @@ impl DrawingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
-        config: &Camera,
+        camera: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
@@ -61,7 +61,7 @@ impl DrawingPass {
                     module: &engine.shaders.drawing,
                     entry_point: "main_fs",
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: config.viewport.format,
+                        format: camera.viewport.format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],

@@ -7,7 +7,7 @@ use log::info;
 
 use crate::{
     gpu, BindGroup, Bindable, Camera, CameraBuffers, CameraController, Engine,
-    Event, EventHandler, EventHandlerContext, Params, Texture,
+    Params, Texture,
 };
 
 const DEPTH_TEXTURE_FORMAT: wgpu::TextureFormat =
@@ -30,7 +30,7 @@ where
     pub fn new(
         engine: &Engine<P>,
         device: &wgpu::Device,
-        config: &Camera,
+        camera: &Camera,
         buffers: &CameraBuffers,
     ) -> Self {
         info!("Initializing pass: raster");
@@ -38,7 +38,7 @@ where
         let depth_texture = Texture::new(
             device,
             "strolle_raster_depth",
-            config.viewport.size,
+            camera.viewport.size,
             DEPTH_TEXTURE_FORMAT,
         );
 
@@ -148,93 +148,81 @@ where
             pass.draw(0..(vertices as u32), 0..1);
         }
     }
-}
 
-impl<P> EventHandler<P> for RasterPass<P>
-where
-    P: Params,
-{
-    fn handle(&mut self, ctxt: EventHandlerContext<P>) {
-        match ctxt.event {
-            Event::MaterialChanged(material_handle) => {
-                match self.pipelines.raw_entry_mut().from_key(material_handle) {
-                    RawEntryMut::Occupied(entry) => {
-                        entry.into_mut().rebuild(
-                            ctxt.engine,
-                            ctxt.device,
-                            &self.bg0,
-                            material_handle,
-                        );
-                    }
+    pub fn on_image_changed(
+        &mut self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+        image_handle: &P::ImageHandle,
+    ) {
+        let affected_pipelines =
+            self.pipelines.iter_mut().filter(|(_, material_bg)| {
+                material_bg.base_color_texture.contains(image_handle)
+                    || material_bg.normal_map_texture.contains(image_handle)
+            });
 
-                    RawEntryMut::Vacant(entry) => {
-                        entry.insert(
-                            material_handle.clone(),
-                            MaterialPipeline::new(
-                                ctxt.engine,
-                                ctxt.device,
-                                &self.bg0,
-                                material_handle,
-                            ),
-                        );
-                    }
-                }
+        for (material_handle, material_bg) in affected_pipelines {
+            material_bg.rebuild(engine, device, &self.bg0, material_handle);
+        }
+    }
+
+    pub fn on_image_removed(
+        &mut self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+        image_handle: &P::ImageHandle,
+    ) {
+        for (material_handle, material_bg) in self.pipelines.iter_mut() {
+            let mut is_affected = false;
+
+            if material_bg.base_color_texture.contains(image_handle) {
+                material_bg.base_color_texture = None;
+                is_affected = true;
             }
 
-            Event::MaterialRemoved(material_handle) => {
-                self.pipelines.remove(&material_handle);
+            if material_bg.normal_map_texture.contains(image_handle) {
+                material_bg.normal_map_texture = None;
+                is_affected = true;
             }
 
-            Event::ImageChanged(image_handle) => {
-                let affected_pipelines =
-                    self.pipelines.iter_mut().filter(|(_, material_bg)| {
-                        let base_color_texture_matches = material_bg
-                            .base_color_texture
-                            .contains(image_handle);
-
-                        let normal_map_texture_matches = material_bg
-                            .normal_map_texture
-                            .contains(image_handle);
-
-                        base_color_texture_matches || normal_map_texture_matches
-                    });
-
-                for (material_handle, material_bg) in affected_pipelines {
-                    material_bg.rebuild(
-                        ctxt.engine,
-                        ctxt.device,
-                        &self.bg0,
-                        material_handle,
-                    );
-                }
-            }
-
-            Event::ImageRemoved(image_handle) => {
-                for (material_handle, material_bg) in self.pipelines.iter_mut()
-                {
-                    let mut affected = false;
-
-                    if material_bg.base_color_texture.contains(image_handle) {
-                        affected = true;
-                        material_bg.base_color_texture = None;
-                    }
-
-                    if material_bg.normal_map_texture.contains(image_handle) {
-                        affected = true;
-                        material_bg.normal_map_texture = None;
-                    }
-
-                    if affected {
-                        material_bg.rebuild(
-                            ctxt.engine,
-                            ctxt.device,
-                            &self.bg0,
-                            material_handle,
-                        );
-                    }
-                }
+            if is_affected {
+                material_bg.rebuild(engine, device, &self.bg0, material_handle);
             }
         }
+    }
+
+    pub fn on_material_changed(
+        &mut self,
+        engine: &Engine<P>,
+        device: &wgpu::Device,
+        material_handle: &P::MaterialHandle,
+    ) {
+        match self.pipelines.raw_entry_mut().from_key(material_handle) {
+            RawEntryMut::Occupied(entry) => {
+                entry.into_mut().rebuild(
+                    engine,
+                    device,
+                    &self.bg0,
+                    material_handle,
+                );
+            }
+
+            RawEntryMut::Vacant(entry) => {
+                entry.insert(
+                    material_handle.clone(),
+                    MaterialPipeline::new(
+                        engine,
+                        device,
+                        &self.bg0,
+                        material_handle,
+                    ),
+                );
+            }
+        }
+    }
+
+    pub fn on_material_removed(&mut self, material_handle: &P::MaterialHandle) {
+        self.pipelines.remove(material_handle);
     }
 }
 
@@ -381,7 +369,7 @@ where
 }
 
 struct MaterialBindGroupTexture<'a> {
-    texture_view: &'a wgpu::TextureView,
+    texture: &'a wgpu::TextureView,
     sampler: &'a wgpu::Sampler,
 }
 
@@ -393,13 +381,11 @@ impl<'a> MaterialBindGroupTexture<'a> {
     where
         P: Params,
     {
-        let (texture_view, sampler) =
-            engine.images.get_opt_or_null(image_handle);
+        let (texture, sampler) = image_handle
+            .and_then(|image_handle| engine.images.get(image_handle))
+            .unwrap_or_else(|| engine.images.get_fallback());
 
-        Self {
-            texture_view,
-            sampler,
-        }
+        Self { texture, sampler }
     }
 }
 
@@ -428,9 +414,7 @@ impl Bindable for MaterialBindGroupTexture<'_> {
             count: None,
         };
 
-        let tex_resource =
-            wgpu::BindingResource::TextureView(self.texture_view);
-
+        let tex_resource = wgpu::BindingResource::TextureView(self.texture);
         let sampler_resource = wgpu::BindingResource::Sampler(self.sampler);
 
         vec![

@@ -18,7 +18,7 @@ pub use self::voxel_painting::*;
 pub use self::voxel_shading::*;
 pub use self::voxel_tracing::*;
 use super::buffers::CameraBuffers;
-use crate::{Camera, Engine, EventHandler, EventHandlerContext, Params};
+use crate::{Camera, Engine, Params};
 
 #[derive(Debug)]
 pub struct CameraPasses<P>
@@ -57,14 +57,5 @@ where
             voxel_shading: VoxelShadingPass::new(engine, device, buffers),
             voxel_tracing: VoxelTracingPass::new(engine, device, buffers),
         }
-    }
-}
-
-impl<P> EventHandler<P> for CameraPasses<P>
-where
-    P: Params,
-{
-    fn handle(&mut self, ctxt: EventHandlerContext<P>) {
-        self.raster.handle(ctxt);
     }
 }

@@ -1,4 +1,4 @@
-use super::Bindable;
+use crate::Bindable;
 
 #[derive(Debug)]
 pub struct BindGroup {

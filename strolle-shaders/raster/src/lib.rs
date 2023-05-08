@@ -5,6 +5,7 @@ use spirv_std::{spirv, Image, Sampler};
 use strolle_models::{Camera, RasterPassParams};
 
 #[rustfmt::skip]
+#[allow(clippy::too_many_arguments)]
 #[spirv(vertex)]
 pub fn main_vs(
     // Params
@@ -41,6 +42,7 @@ pub fn main_vs(
 }
 
 #[rustfmt::skip]
+#[allow(clippy::too_many_arguments)]
 #[spirv(fragment)]
 pub fn main_fs(
     // Params
