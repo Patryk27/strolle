@@ -1,0 +1,7 @@
+[package]
+name = "strolle-utils-sandbox"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+strolle-gpu = { path = "../../strolle-gpu" }

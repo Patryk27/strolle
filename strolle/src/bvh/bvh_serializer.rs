@@ -15,7 +15,9 @@ impl BvhSerializer {
         out.push(Default::default());
 
         match node {
-            BvhNode::Internal { bb, left, right } => {
+            BvhNode::Internal {
+                bb, left, right, ..
+            } => {
                 let left_ptr = Self::process(out, left);
                 let _right_ptr = Self::process(out, right);
 

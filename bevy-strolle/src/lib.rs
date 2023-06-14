@@ -23,7 +23,6 @@ use bevy::core_pipeline::core_3d;
 use bevy::core_pipeline::upscaling::UpscalingNode;
 use bevy::prelude::*;
 use bevy::render::render_graph::{RenderGraph, SlotInfo, SlotType};
-use bevy::render::render_resource::{Sampler, TextureView};
 use bevy::render::renderer::RenderDevice;
 use bevy::render::{RenderApp, RenderSet};
 pub use strolle as st;
@@ -80,6 +79,12 @@ impl Plugin for StrollePlugin {
         );
 
         render_app.add_system(
+            stages::extract::images
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
+        render_app.add_system(
             stages::extract::lights
                 .in_schedule(ExtractSchedule)
                 .in_set(RenderSet::ExtractCommands),
@@ -120,6 +125,9 @@ impl Plugin for StrollePlugin {
                 .after(stages::prepare::meshes)
                 .after(stages::prepare::materials::<StrolleMaterial>),
         );
+
+        render_app
+            .add_system(stages::prepare::images.in_set(RenderSet::Prepare));
 
         render_app
             .add_system(stages::prepare::lights.in_set(RenderSet::Prepare));
@@ -183,8 +191,6 @@ struct EngineParams;
 
 impl st::Params for EngineParams {
     type ImageHandle = Handle<Image>;
-    type ImageSampler = Sampler;
-    type ImageTexture = TextureView;
     type InstanceHandle = Entity;
     type LightHandle = Entity;
     type MaterialHandle = MaterialHandle;

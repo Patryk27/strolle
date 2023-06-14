@@ -1,3 +1,4 @@
+use glam::Vec3Swizzles;
 use spirv_std::glam::{Mat3, Mat3A, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
 
 use crate::gpu;
@@ -73,11 +74,21 @@ impl Triangle {
     }
 
     pub(crate) fn serialize(&self) -> gpu::Triangle {
-        gpu::Triangle::new(
-            self.positions,
-            self.normals,
-            self.uvs,
-            self.tangents,
-        )
+        gpu::Triangle {
+            // First vertex
+            d0: self.positions[0].xyz().extend(self.uvs[0].x),
+            d1: self.normals[0].xyz().extend(self.uvs[0].y),
+            d2: self.tangents[0],
+
+            // Second vertex
+            d3: self.positions[1].xyz().extend(self.uvs[1].x),
+            d4: self.normals[1].xyz().extend(self.uvs[1].y),
+            d5: self.tangents[1],
+
+            // Third vertex
+            d6: self.positions[2].xyz().extend(self.uvs[2].x),
+            d7: self.normals[2].xyz().extend(self.uvs[2].y),
+            d8: self.tangents[2],
+        }
     }
 }

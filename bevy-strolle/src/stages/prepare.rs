@@ -1,13 +1,14 @@
 use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
-use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::PrimitiveTopology;
-use bevy::utils::HashSet;
+use bevy::render::texture::ImageSampler;
 use strolle as st;
 
 use crate::state::{
-    ExtractedInstances, ExtractedLights, ExtractedMaterials, ExtractedMeshes,
+    ExtractedImages, ExtractedInstances, ExtractedLights, ExtractedMaterials,
+    ExtractedMeshes,
 };
+use crate::utils::GlamCompat;
 use crate::{EngineResource, MaterialLike};
 
 pub(crate) fn meshes(
@@ -103,51 +104,68 @@ pub(crate) fn meshes(
 pub(crate) fn materials<M>(
     mut engine: ResMut<EngineResource>,
     mut materials: ResMut<ExtractedMaterials<M>>,
-    image_assets: Res<RenderAssets<Image>>,
-    mut pending_images: Local<HashSet<Handle<Image>>>,
 ) where
     M: MaterialLike,
 {
-    pending_images.drain_filter(|image_handle| {
-        if let Some(image) = image_assets.get(image_handle) {
-            engine.add_image(
-                image_handle.clone(),
-                image.texture_view.clone(),
-                image.sampler.clone(),
-            );
-
-            true
-        } else {
-            false
-        }
-    });
-
     for material_handle in materials.removed.iter() {
         engine.remove_material(&M::map_handle(material_handle.clone_weak()));
     }
 
     for (material_handle, material) in materials.changed.drain(..) {
-        for image_handle in material.images() {
-            if engine.has_image(image_handle) {
-                continue;
-            }
-
-            if let Some(image) = image_assets.get(image_handle) {
-                engine.add_image(
-                    image_handle.clone(),
-                    image.texture_view.clone(),
-                    image.sampler.clone(),
-                );
-
-                pending_images.remove(image_handle);
-            } else {
-                pending_images.insert(image_handle.clone());
-            }
-        }
-
         engine.add_material(
             M::map_handle(material_handle),
             material.into_material(),
+        );
+    }
+}
+
+pub(crate) fn images(
+    mut engine: ResMut<EngineResource>,
+    mut images: ResMut<ExtractedImages>,
+) {
+    for image_handle in images.removed.iter() {
+        engine.remove_image(image_handle);
+    }
+
+    for (image_handle, image) in images.changed.drain(..) {
+        // HACK because we .add_image() all images we can find instead of making
+        //      sure to load only images used by any material, we unavoidably
+        //      stumble upon some 1D / 3D images that Bevy (or something?)
+        //      preloads
+        //
+        //      bottom line is:
+        //      this condition shouldn't be necessary if we realize the "load
+        //      only images used in materials" todo below
+        if image.texture_descriptor.dimension != wgpu::TextureDimension::D2 {
+            continue;
+        }
+
+        let sampler_descriptor = match image.sampler_descriptor {
+            ImageSampler::Default => {
+                // TODO as per Bevy's docs, this should actually read the
+                //      defaults as specified in the `ImagePlugin`'s setup
+                ImageSampler::nearest_descriptor()
+            }
+
+            ImageSampler::Descriptor(descriptor) => descriptor,
+        };
+
+        // TODO we should add only those images which are used by at least one
+        //      material, since otherwise we'll .add_image() textures that are
+        //      related solely to UI, for instance
+        //
+        //      (conversely, we should remove those images which are not in use
+        //      by any material)
+        //
+        //      that's not so easy though because it can happen that an image is
+        //      loaded first *and then* (e.g. in next frame) it's used by some
+        //      material, in which case a simple condition right here will not
+        //      be sufficient
+        engine.add_image(
+            image_handle,
+            image.data,
+            image.texture_descriptor,
+            sampler_descriptor,
         );
     }
 }
@@ -165,7 +183,7 @@ pub(crate) fn instances<M>(
 
         engine.add_instance(
             entity,
-            st::Instance::new(mesh_handle, material_handle, transform),
+            st::Instance::new(mesh_handle, material_handle, transform.compat()),
         );
     }
 

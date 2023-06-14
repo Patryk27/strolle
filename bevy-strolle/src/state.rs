@@ -47,6 +47,12 @@ where
 }
 
 #[derive(Resource)]
+pub(crate) struct ExtractedImages {
+    pub changed: Vec<(Handle<Image>, Image)>,
+    pub removed: Vec<Handle<Image>>,
+}
+
+#[derive(Resource)]
 pub(crate) struct ExtractedInstances<M>
 where
     M: MaterialLike,

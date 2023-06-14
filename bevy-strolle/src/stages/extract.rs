@@ -8,10 +8,10 @@ use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::state::{
-    ExtractedCamera, ExtractedInstances, ExtractedLights, ExtractedMaterials,
-    ExtractedMeshes,
+    ExtractedCamera, ExtractedImages, ExtractedInstances, ExtractedLights,
+    ExtractedMaterials, ExtractedMeshes,
 };
-use crate::utils::color_to_vec3;
+use crate::utils::{color_to_vec3, GlamCompat};
 use crate::{MaterialLike, StrolleCamera};
 
 pub(crate) fn meshes(
@@ -88,6 +88,42 @@ pub(crate) fn materials<M>(
     commands.insert_resource(ExtractedMaterials { changed, removed });
 }
 
+pub(crate) fn images(
+    mut commands: Commands,
+    mut events: Extract<EventReader<AssetEvent<Image>>>,
+    images: Extract<Res<Assets<Image>>>,
+) {
+    let mut changed = HashSet::default();
+    let mut removed = Vec::new();
+
+    for event in events.iter() {
+        match event {
+            AssetEvent::Created { handle }
+            | AssetEvent::Modified { handle } => {
+                changed.insert(handle.clone_weak());
+            }
+            AssetEvent::Removed { handle } => {
+                changed.remove(handle);
+                removed.push(handle.clone_weak());
+            }
+        }
+    }
+
+    let changed = changed
+        .into_iter()
+        .flat_map(|handle| {
+            if let Some(image) = images.get(&handle) {
+                Some((handle, image.to_owned()))
+            } else {
+                removed.push(handle.clone_weak());
+                None
+            }
+        })
+        .collect();
+
+    commands.insert_resource(ExtractedImages { changed, removed });
+}
+
 #[allow(clippy::type_complexity)]
 pub(crate) fn instances<M>(
     mut commands: Commands,
@@ -149,8 +185,8 @@ pub(crate) fn lights(
         let lum_intensity = light.intensity / (4.0 * PI);
 
         let light = st::Light::point(
-            transform.translation(),
-            color_to_vec3(light.color) * lum_intensity,
+            transform.translation().compat(),
+            (color_to_vec3(light.color) * lum_intensity).compat(),
             light.range,
         );
 

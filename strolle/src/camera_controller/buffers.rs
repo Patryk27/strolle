@@ -1,29 +1,38 @@
-use std::mem;
-
 use log::debug;
-use spirv_std::glam::Vec4;
+use spirv_std::glam::UVec2;
 
-use crate::{gpu, Camera, MappedUniformBuffer, Texture, UnmappedStorageBuffer};
+use crate::{
+    gpu, Camera, DoubleBuffered, MappedUniformBuffer, Texture,
+    UnmappedStorageBuffer,
+};
 
 #[derive(Debug)]
 pub struct CameraBuffers {
     pub camera: MappedUniformBuffer<gpu::Camera>,
-    pub primary_hits_d0: Texture,
-    pub primary_hits_d1: Texture,
-    pub primary_hits_d2: Texture,
-    pub voxels: UnmappedStorageBuffer,
-    pub pending_voxels: UnmappedStorageBuffer,
-    pub directs: Texture,
-    pub pending_directs: Texture,
-    pub indirects: Texture,
-    pub pending_indirects: Texture,
-    pub normals: Texture,
-    pub pending_normals: Texture,
+    pub past_camera: MappedUniformBuffer<gpu::Camera>,
+
+    pub direct_hits_d0: Texture,
+    pub direct_hits_d1: Texture,
+    pub direct_hits_d2: Texture,
+    pub direct_colors: DoubleBuffered<Texture>,
+
+    pub indirect_hits_d0: Texture,
+    pub indirect_hits_d1: Texture,
+    pub raw_indirect_colors: Texture,
+    pub indirect_colors: DoubleBuffered<Texture>,
+    pub indirect_initial_samples: UnmappedStorageBuffer,
+    pub indirect_temporal_reservoirs: DoubleBuffered<UnmappedStorageBuffer>,
+    pub indirect_spatial_reservoirs: DoubleBuffered<UnmappedStorageBuffer>,
+
+    pub geometry_map: DoubleBuffered<Texture>,
+    pub reprojection_map: Texture,
 }
 
 impl CameraBuffers {
     pub fn new(device: &wgpu::Device, camera: &Camera) -> Self {
         debug!("Initializing camera buffers");
+
+        // TODO lots of the textures here could use simpler formats
 
         let camera_uniform = MappedUniformBuffer::new(
             device,
@@ -31,96 +40,132 @@ impl CameraBuffers {
             camera.serialize(),
         );
 
-        let primary_hits_d0 = Texture::new(
+        let past_camera = MappedUniformBuffer::new(
             device,
-            "strolle_primary_hits_d0",
+            "strolle_past_camera",
+            camera.serialize(),
+        );
+
+        // ---------------------------------------------------------------------
+
+        let direct_hits_d0 = Texture::new(
+            device,
+            "strolle_direct_hits_d0",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba32Float,
         );
 
-        let primary_hits_d1 = Texture::new(
+        let direct_hits_d1 = Texture::new(
             device,
-            "strolle_primary_hits_d1",
+            "strolle_direct_hits_d1",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba32Float,
         );
 
-        let primary_hits_d2 = Texture::new(
+        let direct_hits_d2 = Texture::new(
             device,
-            "strolle_primary_hits_d2",
+            "strolle_direct_hits_d2",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba32Float,
         );
 
-        let voxels = UnmappedStorageBuffer::new(
+        let direct_colors = DoubleBuffered::<Texture>::new(
             device,
-            "strolle_voxels",
-            gpu::VOXELS_MAP_LENGTH * (2 * mem::size_of::<Vec4>()),
-        );
-
-        let pending_voxels = UnmappedStorageBuffer::new(
-            device,
-            "strolle_pending_voxels",
-            ((camera.viewport.size.x / 2) * (camera.viewport.size.y / 2))
-                as usize
-                * (2 * mem::size_of::<Vec4>()),
-        );
-
-        let directs = Texture::new(
-            device,
-            "strolle_directs",
+            "strolle_direct_colors",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba16Float,
         );
 
-        let pending_directs = Texture::new(
+        // ---------------------------------------------------------------------
+
+        let indirect_hits_d0 = Texture::new(
             device,
-            "strolle_pending_directs",
+            "strolle_indirect_hits_d0",
+            camera.viewport.size,
+            wgpu::TextureFormat::Rgba32Float,
+        );
+
+        let indirect_hits_d1 = Texture::new(
+            device,
+            "strolle_indirect_hits_d1",
+            camera.viewport.size,
+            wgpu::TextureFormat::Rgba32Float,
+        );
+
+        let raw_indirect_colors = Texture::new(
+            device,
+            "strolle_raw_indirect_colors",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba16Float,
         );
 
-        let indirects = Texture::new(
+        let indirect_colors = DoubleBuffered::<Texture>::new(
             device,
-            "strolle_indirects",
+            "strolle_indirect_colors",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba16Float,
         );
 
-        let pending_indirects = Texture::new(
+        let indirect_initial_samples = UnmappedStorageBuffer::new(
             device,
-            "strolle_pending_indirects",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba16Float,
+            "strolle_indirect_initial_samples",
+            viewport_buffer_size(camera.viewport.size / 2, 3 * 4 * 4),
         );
 
-        let normals = Texture::new(
+        let indirect_temporal_reservoirs =
+            DoubleBuffered::<UnmappedStorageBuffer>::new(
+                device,
+                "strolle_indirect_temporal_reservoirs",
+                viewport_buffer_size(camera.viewport.size / 2, 4 * 4 * 4),
+            );
+
+        let indirect_spatial_reservoirs =
+            DoubleBuffered::<UnmappedStorageBuffer>::new(
+                device,
+                "strolle_indirect_spatial_reservoirs",
+                viewport_buffer_size(camera.viewport.size / 2, 4 * 4 * 4),
+            );
+
+        // ---------------------------------------------------------------------
+
+        let geometry_map = DoubleBuffered::<Texture>::new(
             device,
-            "strolle_normals",
+            "strolle_geometry_map",
             camera.viewport.size,
-            wgpu::TextureFormat::Rgba16Float,
+            wgpu::TextureFormat::Rgba32Float,
         );
 
-        let pending_normals = Texture::new(
+        let reprojection_map = Texture::new(
             device,
-            "strolle_pending_normals",
+            "strolle_reprojection_map",
             camera.viewport.size,
-            wgpu::TextureFormat::Rgba16Float,
+            wgpu::TextureFormat::Rgba32Float,
         );
 
         Self {
             camera: camera_uniform,
-            primary_hits_d0,
-            primary_hits_d1,
-            primary_hits_d2,
-            voxels,
-            pending_voxels,
-            directs,
-            pending_directs,
-            indirects,
-            pending_indirects,
-            normals,
-            pending_normals,
+            past_camera,
+
+            direct_hits_d0,
+            direct_hits_d1,
+            direct_hits_d2,
+            direct_colors,
+
+            indirect_hits_d0,
+            indirect_hits_d1,
+            raw_indirect_colors,
+            indirect_colors,
+            indirect_initial_samples,
+            indirect_temporal_reservoirs,
+            indirect_spatial_reservoirs,
+
+            geometry_map,
+            reprojection_map,
         }
     }
+}
+
+/// Returns the size of a screen-space buffer with given parameters.
+fn viewport_buffer_size(viewport_size: UVec2, element_size: usize) -> usize {
+    (viewport_size.x as usize) * (viewport_size.y as usize) * element_size
 }

@@ -1,5 +1,4 @@
 target
-/bevy-strolle/assets/*.obj
 /bevy-strolle/assets/cornell
-/bevy-strolle/assets/flight-helmet
+/bevy-strolle/assets/demo
 /bevy-strolle/examples/bench_*

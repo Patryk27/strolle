@@ -3,8 +3,7 @@ use std::fmt::Debug;
 use std::mem;
 
 use crate::{
-    gpu, Bindable, BoundingBox, BufferFlushOutcome, MappedStorageBuffer,
-    Params, Triangle,
+    gpu, Bindable, BufferFlushOutcome, MappedStorageBuffer, Params, Triangle,
 };
 
 #[derive(Debug)]
@@ -14,7 +13,6 @@ where
 {
     buffer: MappedStorageBuffer<Vec<gpu::Triangle>>,
     index: HashMap<P::InstanceHandle, IndexedInstance>,
-    bounding_box: BoundingBox,
     dirty: bool,
 }
 
@@ -29,7 +27,6 @@ where
                 "strolle_triangles",
             ),
             index: Default::default(),
-            bounding_box: Default::default(),
             dirty: Default::default(),
         }
     }
@@ -47,18 +44,8 @@ where
 
         let min_triangle_id = self.buffer.len();
 
-        self.buffer.extend(
-            triangles
-                .into_iter()
-                .map(|triangle| {
-                    for position in triangle.positions() {
-                        self.bounding_box.grow(position);
-                    }
-
-                    triangle
-                })
-                .map(|triangle| triangle.serialize()),
-        );
+        self.buffer
+            .extend(triangles.into_iter().map(|triangle| triangle.serialize()));
 
         let max_triangle_id = self.buffer.len() - 1;
 
@@ -91,10 +78,6 @@ where
         let mut buffer = self.buffer[index.min_triangle_id..].iter_mut();
 
         for triangle in triangles {
-            for position in triangle.positions() {
-                self.bounding_box.grow(position);
-            }
-
             *buffer.next().unwrap() = triangle.serialize();
         }
 
@@ -184,10 +167,6 @@ where
         (vertices * 3, vertex_buffer)
     }
 
-    pub fn bounding_box(&self) -> BoundingBox {
-        self.bounding_box
-    }
-
     pub fn flush(
         &mut self,
         device: &wgpu::Device,
@@ -221,8 +200,8 @@ where
         BufferFlushOutcome { reallocated }
     }
 
-    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
-        self.buffer.as_ro_bind()
+    pub fn bind_readable(&self) -> impl Bindable + '_ {
+        self.buffer.bind_readable()
     }
 }
 

@@ -1,7 +1,7 @@
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
-use log::info;
+use log::debug;
 
 use crate::buffers::utils;
 use crate::{Bindable, Bufferable};
@@ -21,7 +21,7 @@ where
         let label = label.as_ref();
         let size = utils::pad_size(data.size());
 
-        info!("Allocating uniform buffer `{label}`; size={size}");
+        debug!("Allocating uniform buffer `{label}`; size={size}");
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
@@ -44,6 +44,16 @@ where
 
         queue.write_buffer(&self.buffer, 0, self.data.data());
     }
+
+    /// Creates an immutable uniform binding:
+    ///
+    /// ```
+    /// #[spirv(descriptor_set = ..., binding = ..., uniform)]
+    /// item: &T,
+    /// ```
+    pub fn bind_readable(&self) -> impl Bindable + '_ {
+        MappedUniformBufferBinder { parent: self }
+    }
 }
 
 impl<T> Deref for MappedUniformBuffer<T> {
@@ -62,15 +72,18 @@ impl<T> DerefMut for MappedUniformBuffer<T> {
     }
 }
 
-impl<T> Bindable for MappedUniformBuffer<T> {
+pub struct MappedUniformBufferBinder<'a, T> {
+    parent: &'a MappedUniformBuffer<T>,
+}
+
+impl<T> Bindable for MappedUniformBufferBinder<'_, T> {
     fn bind(
         &self,
         binding: u32,
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
         let layout = wgpu::BindGroupLayoutEntry {
             binding,
-            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT
-                | wgpu::ShaderStages::COMPUTE,
+            visibility: wgpu::ShaderStages::all(),
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
@@ -79,7 +92,7 @@ impl<T> Bindable for MappedUniformBuffer<T> {
             count: None,
         };
 
-        let resource = self.buffer.as_entire_binding();
+        let resource = self.parent.buffer.as_entire_binding();
 
         vec![(layout, resource)]
     }
