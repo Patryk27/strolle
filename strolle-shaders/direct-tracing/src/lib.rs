@@ -1,6 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{UVec2, UVec3, Vec3, Vec3Swizzles, Vec4};
+use spirv_std::glam::{UVec2, UVec3, Vec3, Vec3Swizzles};
 use spirv_std::spirv;
 use strolle_gpu::*;
 
@@ -17,7 +17,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[Vec4],
+    bvh: &[BvhNode],
     #[spirv(descriptor_set = 0, binding = 2, uniform)]
     world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)]

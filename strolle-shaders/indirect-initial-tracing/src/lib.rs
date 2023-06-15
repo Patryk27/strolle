@@ -1,6 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{UVec2, UVec3, Vec3Swizzles, Vec4};
+use spirv_std::glam::{UVec2, UVec3, Vec3Swizzles};
 use spirv_std::spirv;
 use strolle_gpu::*;
 
@@ -19,16 +19,14 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 0, uniform)]
-    camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)]
+    bvh: &[BvhNode],
+    #[spirv(descriptor_set = 1, binding = 0)]
     direct_hits_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)]
+    #[spirv(descriptor_set = 1, binding = 1)]
     direct_hits_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)]
+    #[spirv(descriptor_set = 1, binding = 2)]
     indirect_hits_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4)]
+    #[spirv(descriptor_set = 1, binding = 3)]
     indirect_hits_d1: TexRgba32f,
 ) {
     main_inner(
@@ -38,7 +36,6 @@ pub fn main(
         stack,
         TrianglesView::new(triangles),
         BvhView::new(bvh),
-        camera,
         direct_hits_d0,
         direct_hits_d1,
         indirect_hits_d0,
@@ -54,7 +51,6 @@ fn main_inner(
     stack: BvhTraversingStack,
     triangles: TrianglesView,
     bvh: BvhView,
-    camera: &Camera,
     direct_hits_d0: TexRgba32f,
     direct_hits_d1: TexRgba32f,
     indirect_hits_d0: TexRgba32f,
@@ -66,7 +62,6 @@ fn main_inner(
     let direct_hit = Hit::deserialize(
         direct_hits_d0.read(screen_pos),
         direct_hits_d1.read(screen_pos),
-        camera.ray(screen_pos),
     );
 
     let indirect_hit = if direct_hit.is_none() {

@@ -107,26 +107,24 @@ impl Ray {
         loop {
             traversed_nodes += 1;
 
-            let d0 = bvh.get(bvh_ptr);
-            let opcode = d0.x.to_bits() & 1;
-            let arg0 = d0.x.to_bits() >> 1;
+            let (is_internal, arg0, arg1) = bvh.get(bvh_ptr).deserialize();
 
-            let is_internal_node = opcode == 0;
-
-            if is_internal_node {
-                let left_ptr = bvh_ptr + 2;
+            if is_internal {
+                let left_ptr = bvh_ptr + 1;
                 let right_ptr = arg0;
 
                 let left_dist = {
-                    let bb_min = bvh.get(left_ptr).yzw();
-                    let bb_max = bvh.get(left_ptr + 1).xyz();
+                    let node = bvh.get(left_ptr);
+                    let bb_min = node.d0.yzw();
+                    let bb_max = node.d1.xyz();
 
                     self.hits_box_at(bb_min, bb_max)
                 };
 
                 let right_dist = {
-                    let bb_min = bvh.get(right_ptr).yzw();
-                    let bb_max = bvh.get(right_ptr + 1).xyz();
+                    let node = bvh.get(right_ptr);
+                    let bb_min = node.d0.yzw();
+                    let bb_max = node.d1.xyz();
 
                     self.hits_box_at(bb_min, bb_max)
                 };
@@ -150,7 +148,10 @@ impl Ray {
                 // have to check the other node.
                 if near_distance < distance {
                     if far_distance < distance {
-                        stack[stack_ptr as usize] = far_ptr;
+                        *unsafe {
+                            stack.get_unchecked_mut(stack_ptr as usize)
+                        } = far_ptr;
+
                         stack_ptr += 1;
                     }
 
@@ -158,10 +159,8 @@ impl Ray {
                     continue;
                 }
             } else {
-                let d1 = bvh.get(bvh_ptr + 1);
-                let arg1 = d1.w.to_bits();
-
-                let triangle_id = TriangleId::new(arg0);
+                let has_more_triangles = arg0 & 1 == 1;
+                let triangle_id = TriangleId::new(arg0 >> 1);
                 let material_id = MaterialId::new(arg1);
 
                 if triangles.get(triangle_id).hit(self, hit) {
@@ -176,6 +175,11 @@ impl Ray {
                         }
                     }
                 }
+
+                if has_more_triangles {
+                    bvh_ptr += 1;
+                    continue;
+                }
             }
 
             // If the control flow got here, then it means we either tested a
@@ -188,7 +192,7 @@ impl Ray {
 
             if does_stack_contain_anything {
                 stack_ptr -= 1;
-                bvh_ptr = stack[stack_ptr as usize];
+                bvh_ptr = unsafe { *stack.get_unchecked(stack_ptr as usize) };
             } else {
                 break;
             }
@@ -215,7 +219,7 @@ impl Ray {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum TracingMode {
+enum TracingMode {
     Nearest,
     Any,
 }

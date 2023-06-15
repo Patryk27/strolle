@@ -19,7 +19,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[Vec4],
+    bvh: &[BvhNode],
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
     lights: &[Light],
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
@@ -90,23 +90,24 @@ fn main_inner(
 
     // ---
 
-    let direct_ray = camera.ray(screen_pos);
-
     let direct_hit = Hit::deserialize(
         direct_hits_d0.read(screen_pos),
         direct_hits_d1.read(screen_pos),
-        direct_ray,
     );
 
     if direct_hit.is_none() {
-        // TODO I'm not sure if what we do here is correct - we probably should
-        //      conjure a hit-point and a normal from the skybox as well
+        // TODO simulate skybox
+        unsafe {
+            *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
+                camera.clear_color().extend(0.0);
 
-        indirect_initial_samples[3 * global_idx] =
-            camera.clear_color().extend(0.0);
+            *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 1) =
+                Default::default();
 
-        indirect_initial_samples[3 * global_idx + 1] = Default::default();
-        indirect_initial_samples[3 * global_idx + 2] = Default::default();
+            *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
+                Default::default();
+        }
+
         return;
     }
 
@@ -118,28 +119,25 @@ fn main_inner(
     let indirect_hit = Hit::deserialize(
         indirect_hits_d0.read(global_id),
         indirect_hits_d1.read(global_id),
-        indirect_ray,
     );
 
     if indirect_hit.is_none() {
-        // We need some hit-point and normal in order to correctly compute
-        // Jacobians during the spatial resampling pass and so if we happened to
-        // hit nothing, let's conjure a hit-point and a normal from the skybox
-
         let skybox_hit_point =
             indirect_ray.origin() + indirect_ray.direction() * 1000.0;
 
         let skybox_normal = -indirect_ray.direction();
         let skybox_normal = Normal::encode(skybox_normal);
 
-        indirect_initial_samples[3 * global_idx] =
-            camera.clear_color().extend(skybox_normal.x);
+        unsafe {
+            *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
+                camera.clear_color().extend(skybox_normal.x);
 
-        indirect_initial_samples[3 * global_idx + 1] =
-            direct_hit.point.extend(skybox_normal.y);
+            *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 1) =
+                direct_hit.point.extend(skybox_normal.y);
 
-        indirect_initial_samples[3 * global_idx + 2] =
-            skybox_hit_point.extend(Default::default());
+            *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
+                skybox_hit_point.extend(Default::default());
+        }
 
         return;
     }
@@ -175,11 +173,14 @@ fn main_inner(
 
     let indirect_normal = Normal::encode(indirect_hit.normal);
 
-    indirect_initial_samples[3 * global_idx] = color.extend(indirect_normal.x);
+    unsafe {
+        *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
+            color.extend(indirect_normal.x);
 
-    indirect_initial_samples[3 * global_idx + 1] =
-        direct_hit.point.extend(indirect_normal.y);
+        *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 1) =
+            direct_hit.point.extend(indirect_normal.y);
 
-    indirect_initial_samples[3 * global_idx + 2] =
-        indirect_hit.point.extend(Default::default());
+        *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
+            indirect_hit.point.extend(Default::default());
+    }
 }

@@ -1,5 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{vec2, Vec2, Vec3, Vec4, Vec4Swizzles};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::Float;
 
 use crate::{Hit, Ray};
 
@@ -72,7 +74,7 @@ impl Triangle {
         let pvec = ray.direction().cross(v0v2);
         let det = v0v1.dot(pvec);
 
-        if det < f32::EPSILON {
+        if det.abs() < f32::EPSILON {
             return false;
         }
 

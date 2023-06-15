@@ -210,28 +210,13 @@ impl SahBvhNode {
                 right_hash: right.1,
             }
         } else {
-            assert!(!self.tris.is_empty());
-
-            let node = {
-                let triangle = self.tris.remove(0);
-
-                BvhNode::Leaf {
-                    bb: self.bb,
-                    triangle_id: triangle.triangle_id,
-                    material_id: triangle.material_id,
-                }
-            };
-
-            if self.tris.is_empty() {
-                node
-            } else {
-                BvhNode::Internal {
-                    bb: self.bb,
-                    left: Box::new(node),
-                    left_hash: 0,
-                    right: Box::new(self.map()),
-                    right_hash: 0,
-                }
+            BvhNode::Leaf {
+                bb: self.bb,
+                tris: self
+                    .tris
+                    .into_iter()
+                    .map(|tri| (tri.triangle_id, tri.material_id))
+                    .collect(),
             }
         }
     }

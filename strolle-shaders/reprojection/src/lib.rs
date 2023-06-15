@@ -58,7 +58,7 @@ fn main_inner(
     ));
 
     let curr_geo = geometry_map.get(screen_pos);
-    let mut sample_delta = vec2(-2.0, -2.0);
+    let mut sample_delta = vec2(-1.0, -1.0);
 
     loop {
         let sample_screen_pos = prev_screen_pos + sample_delta;
@@ -113,11 +113,11 @@ fn main_inner(
 
         sample_delta.x += 1.0;
 
-        if sample_delta.x >= 3.0 {
+        if sample_delta.x >= 2.0 {
             sample_delta.x = -2.0;
             sample_delta.y += 1.0;
 
-            if sample_delta.y >= 3.0 {
+            if sample_delta.y >= 2.0 {
                 break;
             }
         }

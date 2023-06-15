@@ -1,6 +1,6 @@
 use glam::{Vec2, Vec3, Vec4, Vec4Swizzles};
 
-use crate::{Normal, Ray};
+use crate::Normal;
 
 #[derive(Copy, Clone)]
 pub struct Hit {
@@ -42,14 +42,20 @@ impl Hit {
         [d0, d1]
     }
 
-    pub fn deserialize(d0: Vec4, d1: Vec4, ray: Ray) -> Self {
+    pub fn deserialize(d0: Vec4, d1: Vec4) -> Self {
         if d0.xyz() == Default::default() {
             Self::none()
         } else {
+            let normal = Normal::decode(d1.xy());
+
+            // We're moving the hit-point a few units away from the surface to
+            // prevent self-intersecting when checking for shadows later
+            let point = d0.xyz() + normal * 0.001;
+
             Self {
-                distance: ray.origin().distance(d0.xyz()),
-                point: d0.xyz() - ray.direction() * 0.001,
-                normal: Normal::decode(d1.xy()),
+                distance: 0.0,
+                point,
+                normal,
                 uv: d1.zw(),
                 material_id: d0.w.to_bits(),
             }

@@ -81,14 +81,14 @@ impl CameraBuffers {
         let indirect_hits_d0 = Texture::new(
             device,
             "strolle_indirect_hits_d0",
-            camera.viewport.size,
+            camera.viewport.size / 2,
             wgpu::TextureFormat::Rgba32Float,
         );
 
         let indirect_hits_d1 = Texture::new(
             device,
             "strolle_indirect_hits_d1",
-            camera.viewport.size,
+            camera.viewport.size / 2,
             wgpu::TextureFormat::Rgba32Float,
         );
 

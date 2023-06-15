@@ -1,6 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{UVec2, UVec3, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
+use spirv_std::glam::{UVec2, UVec3, Vec3, Vec3Swizzles, Vec4Swizzles};
 use spirv_std::spirv;
 use strolle_gpu::*;
 
@@ -19,7 +19,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[Vec4],
+    bvh: &[BvhNode],
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
     lights: &[Light],
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
@@ -78,7 +78,6 @@ fn main_inner(
     let hit = Hit::deserialize(
         direct_hits_d0.read(screen_pos),
         direct_hits_d1.read(screen_pos),
-        ray,
     );
 
     if hit.is_none() {

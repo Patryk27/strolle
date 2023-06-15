@@ -23,7 +23,6 @@ impl IndirectInitialTracingPass {
                 &engine.bvh.bind_readable(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
                 &buffers.direct_hits_d0.bind_readable(),
                 &buffers.direct_hits_d1.bind_readable(),
                 &buffers.indirect_hits_d0.bind_writable(),

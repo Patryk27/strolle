@@ -42,8 +42,8 @@ pub(crate) fn meshes(
 
         let mesh_uvs = mesh
             .attribute(Mesh::ATTRIBUTE_UV_0)
-            .and_then(|uvs| match uvs {
-                VertexAttributeValues::Float32x2(uvs) => Some(uvs),
+            .map(|uvs| match uvs {
+                VertexAttributeValues::Float32x2(uvs) => uvs,
                 _ => panic!(
                     "Mesh {mesh_handle:?} uses unsupported format for UVs"
                 ),
@@ -53,8 +53,8 @@ pub(crate) fn meshes(
 
         let mesh_tans = mesh
             .attribute(Mesh::ATTRIBUTE_TANGENT)
-            .and_then(|uvs| match uvs {
-                VertexAttributeValues::Float32x4(tangents) => Some(tangents),
+            .map(|uvs| match uvs {
+                VertexAttributeValues::Float32x4(tangents) => tangents,
                 _ => panic!(
                     "Mesh {mesh_handle:?} uses unsupported format for tangents"
                 ),
