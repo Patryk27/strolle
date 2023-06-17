@@ -30,11 +30,13 @@ fn main() {
         .add_plugin(FpsCameraPlugin::default())
         .add_plugin(ObjPlugin)
         .add_plugin(StrollePlugin)
+        .insert_resource(Sun::default())
         .add_startup_system(setup)
         .add_system(adjust_materials)
         .add_system(process_input)
         .add_system(move_light)
-        .add_system(process_animations)
+        .add_system(animate_sun)
+        .add_system(animate_objects)
         .run();
 }
 
@@ -80,7 +82,7 @@ fn setup(
         point_light: PointLight {
             color: Color::WHITE,
             range: 500.0,
-            intensity: 8000.0,
+            intensity: 2000.0,
             shadows_enabled: true,
             ..default()
         },
@@ -128,6 +130,7 @@ fn process_input(
         &mut FpsCameraController,
     )>,
     mut light: Query<&mut PointLight>,
+    mut sun: ResMut<Sun>,
 ) {
     let (
         camera_transform,
@@ -194,7 +197,7 @@ fn process_input(
                 }),
                 ..default()
             })
-            .insert(Animated {
+            .insert(AnimatedObject {
                 position: vec3(
                     camera_transform.translation.x,
                     0.1,
@@ -206,12 +209,20 @@ fn process_input(
 
     // ---
 
+    if keys.just_pressed(KeyCode::O) {
+        sun.altitude -= 0.1;
+    }
+
+    if keys.just_pressed(KeyCode::P) {
+        sun.altitude += 0.1;
+    }
+
     if keys.just_pressed(KeyCode::LBracket) {
-        light.single_mut().intensity *= 2.0;
+        light.single_mut().intensity /= 2.0;
     }
 
     if keys.just_pressed(KeyCode::RBracket) {
-        light.single_mut().intensity /= 2.0;
+        light.single_mut().intensity *= 2.0;
     }
 }
 
@@ -225,15 +236,37 @@ fn move_light(
     }
 }
 
+#[derive(Resource)]
+struct Sun {
+    altitude: f32,
+}
+
+impl Default for Sun {
+    fn default() -> Self {
+        Self {
+            altitude: StrolleSun::default().altitude,
+        }
+    }
+}
+
+fn animate_sun(
+    time: Res<Time>,
+    mut strolle_sun: ResMut<StrolleSun>,
+    our_sun: Res<Sun>,
+) {
+    strolle_sun.altitude = strolle_sun.altitude
+        + (our_sun.altitude - strolle_sun.altitude) * time.delta_seconds();
+}
+
 #[derive(Component)]
-struct Animated {
+struct AnimatedObject {
     position: Vec3,
     phase: f32,
 }
 
-fn process_animations(
+fn animate_objects(
     time: Res<Time>,
-    mut objects: Query<(&mut Transform, &Animated)>,
+    mut objects: Query<(&mut Transform, &AnimatedObject)>,
 ) {
     let tt = time.elapsed_seconds();
 

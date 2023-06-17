@@ -96,6 +96,7 @@ impl CameraController {
             self.passes.direct_tracing.run(self, encoder);
             self.passes.output_drawing.run(self, encoder, view);
         } else {
+            self.passes.atmosphere.run(engine, self, encoder);
             self.passes.direct_raster.run(engine, self, encoder);
             self.passes.reprojection.run(self, encoder);
             self.passes.direct_shading.run(self, encoder);

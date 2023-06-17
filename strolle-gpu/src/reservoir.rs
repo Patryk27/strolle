@@ -52,10 +52,6 @@ where
         self.w = self.w.min(max_w);
         self.m_sum = self.m_sum.min(max_m_sum);
     }
-
-    pub fn sample(&self) -> T {
-        self.sample
-    }
 }
 
 #[derive(Clone, Copy, Default)]

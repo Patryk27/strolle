@@ -24,6 +24,7 @@ impl IndirectSpatialResamplingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.direct_hits_d0.bind_readable(),
                 &buffers.geometry_map.curr().bind_readable(),
+                &buffers.geometry_map.past().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.indirect_temporal_reservoirs.curr().bind_readable(),
                 &buffers.indirect_spatial_reservoirs.curr().bind_writable(),

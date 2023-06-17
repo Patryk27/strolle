@@ -33,14 +33,22 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
-    direct_hits_d0: TexRgba32f,
+    atmosphere_transmittance_lut_tex: &Image!(2D, type=f32, sampled),
     #[spirv(descriptor_set = 1, binding = 2)]
-    direct_hits_d1: TexRgba32f,
+    atmosphere_transmittance_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 3)]
-    indirect_hits_d0: TexRgba32f,
+    atmosphere_sky_lut_tex: &Image!(2D, type=f32, sampled),
     #[spirv(descriptor_set = 1, binding = 4)]
+    atmosphere_sky_lut_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 5)]
+    direct_hits_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6)]
+    direct_hits_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 7)]
+    indirect_hits_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 8)]
     indirect_hits_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 9, storage_buffer)]
     indirect_initial_samples: &mut [Vec4],
 ) {
     main_inner(
@@ -52,6 +60,12 @@ pub fn main(
         BvhView::new(bvh),
         LightsView::new(lights),
         MaterialsView::new(materials),
+        Atmosphere::new(
+            atmosphere_transmittance_lut_tex,
+            atmosphere_transmittance_lut_sampler,
+            atmosphere_sky_lut_tex,
+            atmosphere_sky_lut_sampler,
+        ),
         atlas_tex,
         atlas_sampler,
         world,
@@ -74,6 +88,7 @@ fn main_inner(
     bvh: BvhView,
     lights: LightsView,
     materials: MaterialsView,
+    atmosphere: Atmosphere,
     atlas_tex: &Image!(2D, type=f32, sampled),
     atlas_sampler: &Sampler,
     world: &World,
@@ -96,10 +111,9 @@ fn main_inner(
     );
 
     if direct_hit.is_none() {
-        // TODO simulate skybox
         unsafe {
             *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
-                camera.clear_color().extend(0.0);
+                Default::default();
 
             *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 1) =
                 Default::default();
@@ -122,21 +136,29 @@ fn main_inner(
     );
 
     if indirect_hit.is_none() {
-        let skybox_hit_point =
+        let sky =
+            atmosphere.eval(world.sun_direction(), indirect_ray.direction());
+
+        // Since we're supporting only single-bounce GI, let's arbitrarily boost
+        // the color a bit to compensate for "missing bounces" getting the scene
+        // too dark:
+        let sky = sky * 7.5;
+
+        let hit_point =
             indirect_ray.origin() + indirect_ray.direction() * 1000.0;
 
-        let skybox_normal = -indirect_ray.direction();
-        let skybox_normal = Normal::encode(skybox_normal);
+        let normal = -indirect_ray.direction();
+        let normal = Normal::encode(normal);
 
         unsafe {
             *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
-                camera.clear_color().extend(skybox_normal.x);
+                sky.extend(normal.x);
 
             *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 1) =
-                direct_hit.point.extend(skybox_normal.y);
+                direct_hit.point.extend(normal.y);
 
             *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
-                skybox_hit_point.extend(Default::default());
+                hit_point.extend(Default::default());
         }
 
         return;
@@ -170,6 +192,26 @@ fn main_inner(
 
         light_id += 1;
     }
+
+    // Since we're supporting only single-bounce GI, let's arbitrarily boost the
+    // color a bit to compensate for "missing bounces" getting the scene too
+    // dark.
+    //
+    // This increases variance (especially around already bright samples), so
+    // it's certainly not a golden hammer, though.
+    let color = color * 2.5;
+
+    // Also, following the rendering equation, we should now multiply the color
+    // by the cosine:
+    //
+    //     let color = color * direct_normal.dot(indirect_normal);
+    //
+    // ... but, as before, since we're only doing single-bounce GI, actually
+    //     carrying this multiplication yields scenes that are tad too dark for
+    //     my taste, so... let's not do that!
+    //
+    //     (something something bias blah blah blah, alright -- what's important
+    //     is that the scenes look somewhat better this way.)
 
     let indirect_normal = Normal::encode(indirect_hit.normal);
 

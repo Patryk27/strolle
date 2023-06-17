@@ -3,6 +3,7 @@ mod material;
 mod render_node;
 mod stages;
 mod state;
+mod sun;
 mod utils;
 
 pub mod prelude {
@@ -31,12 +32,14 @@ pub use self::camera::*;
 pub use self::material::*;
 use self::render_node::*;
 use self::state::*;
+pub use self::sun::*;
 
 pub struct StrollePlugin;
 
 impl Plugin for StrollePlugin {
     fn build(&self, app: &mut App) {
         app.add_asset::<StrolleMaterial>();
+        app.insert_resource(StrolleSun::default());
 
         let render_app = app.sub_app_mut(RenderApp);
         let render_device = render_app.world.resource::<RenderDevice>();
@@ -96,6 +99,12 @@ impl Plugin for StrollePlugin {
                 .in_set(RenderSet::ExtractCommands),
         );
 
+        render_app.add_system(
+            stages::extract::sun
+                .in_schedule(ExtractSchedule)
+                .in_set(RenderSet::ExtractCommands),
+        );
+
         // ------------------ //
         // RenderSet::Prepare //
 
@@ -131,6 +140,8 @@ impl Plugin for StrollePlugin {
 
         render_app
             .add_system(stages::prepare::lights.in_set(RenderSet::Prepare));
+
+        render_app.add_system(stages::prepare::sun.in_set(RenderSet::Prepare));
 
         // ---------------- //
         // RenderSet::Queue //

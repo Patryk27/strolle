@@ -9,6 +9,7 @@ pub struct Texture {
     format: wgpu::TextureFormat,
     view: wgpu::TextureView,
     sampler: wgpu::Sampler,
+    filterable: bool,
 }
 
 impl Texture {
@@ -52,16 +53,33 @@ impl Texture {
 
         let view = tex.create_view(&Default::default());
 
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some(&format!("{label}_sampler")),
-            ..Default::default()
-        });
+        let xx = format!("{label}_sampler");
+
+        let filterable = label.contains("atmosphere");
+
+        // TODO
+        let sampler = if filterable {
+            wgpu::SamplerDescriptor {
+                label: Some(&xx),
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Linear,
+                ..Default::default()
+            }
+        } else {
+            wgpu::SamplerDescriptor {
+                label: Some(&xx),
+                ..Default::default()
+            }
+        };
+
+        let sampler = device.create_sampler(&sampler);
 
         Self {
             tex,
             format,
             view,
             sampler,
+            filterable,
         }
     }
 
@@ -130,7 +148,7 @@ impl Bindable for TextureSampledBinder<'_> {
                 multisampled: false,
                 view_dimension: wgpu::TextureViewDimension::D2,
                 sample_type: wgpu::TextureSampleType::Float {
-                    filterable: false,
+                    filterable: self.parent.filterable,
                 },
             },
             count: None,
@@ -139,9 +157,11 @@ impl Bindable for TextureSampledBinder<'_> {
         let sampler_layout = wgpu::BindGroupLayoutEntry {
             binding: binding + 1,
             visibility: wgpu::ShaderStages::all(),
-            ty: wgpu::BindingType::Sampler(
-                wgpu::SamplerBindingType::NonFiltering,
-            ),
+            ty: wgpu::BindingType::Sampler(if self.parent.filterable {
+                wgpu::SamplerBindingType::Filtering
+            } else {
+                wgpu::SamplerBindingType::NonFiltering
+            }),
             count: None,
         };
 

@@ -26,6 +26,7 @@ where
         CameraPassBuilder {
             label: label.to_string(),
             bind_groups: Default::default(),
+            entry_point: "main",
             _params: Default::default(),
         }
     }
@@ -65,6 +66,7 @@ where
 
 pub struct CameraPassBuilder<'a, P> {
     label: String,
+    entry_point: &'static str,
     bind_groups: Vec<BindGroupBuilder<'a>>,
     _params: PhantomData<P>,
 }
@@ -88,6 +90,11 @@ where
         }
 
         self.bind_groups.push(bind_group);
+        self
+    }
+
+    pub fn with_entry_point(mut self, entry_point: &'static str) -> Self {
+        self.entry_point = entry_point;
         self
     }
 
@@ -136,7 +143,7 @@ where
                 label: Some(&pipeline_label),
                 layout: Some(&pipeline_layout),
                 module,
-                entry_point: "main",
+                entry_point: self.entry_point,
             });
 
         CameraComputePass {

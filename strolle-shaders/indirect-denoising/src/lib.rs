@@ -1,5 +1,5 @@
-//! Applies denoising (mostly through temporal anti-aliasing) on the indirect
-//! lightning.
+//! This pass applies denoising on the indirect lightning; currently we perform
+//! a basic temporal anti-aliasing with color clamping.
 //!
 //! Thanks to:
 //!
@@ -65,7 +65,7 @@ fn main_inner(
         let reprojection = reprojection_map.get(screen_pos);
 
         if reprojection.is_valid() {
-            past_indirect_colors.read(reprojection.prev_screen_pos())
+            past_indirect_colors.read(reprojection.past_screen_pos())
         } else {
             Default::default()
         }
@@ -98,7 +98,7 @@ fn main_inner(
 
         let pos = pos.as_uvec2();
 
-        if geometry_map.get(pos).evaluate_similarity_to(&screen_geo) < 0.25 {
+        if geometry_map.get(pos).evaluate_similarity_to(screen_geo) < 0.25 {
             // If our neighbour is too different from us geometrically (e.g. has
             // normal pointing towards a very different direction), reject the
             // sample.

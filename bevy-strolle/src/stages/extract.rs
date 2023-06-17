@@ -1,6 +1,5 @@
 use std::f32::consts::PI;
 
-use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::Extract;
@@ -9,10 +8,10 @@ use strolle as st;
 
 use crate::state::{
     ExtractedCamera, ExtractedImages, ExtractedInstances, ExtractedLights,
-    ExtractedMaterials, ExtractedMeshes,
+    ExtractedMaterials, ExtractedMeshes, ExtractedSun,
 };
 use crate::utils::{color_to_vec3, GlamCompat};
-use crate::{MaterialLike, StrolleCamera};
+use crate::{MaterialLike, StrolleCamera, StrolleSun};
 
 pub(crate) fn meshes(
     mut commands: Commands,
@@ -199,12 +198,10 @@ pub(crate) fn lights(
 #[allow(clippy::type_complexity)]
 pub(crate) fn cameras(
     mut commands: Commands,
-    default_clear_color: Option<Res<ClearColor>>,
     cameras: Extract<
         Query<(
             Entity,
             &Camera,
-            &Camera3d,
             &CameraRenderGraph,
             &Projection,
             &GlobalTransform,
@@ -215,7 +212,6 @@ pub(crate) fn cameras(
     for (
         entity,
         camera,
-        camera_3d,
         camera_render_graph,
         projection,
         transform,
@@ -228,25 +224,16 @@ pub(crate) fn cameras(
 
         let Projection::Perspective(projection) = projection else { continue };
 
-        let clear_color = match &camera_3d.clear_color {
-            ClearColorConfig::Default => default_clear_color
-                .as_ref()
-                .map(|cc| cc.0)
-                .unwrap_or(Color::BLACK),
-            ClearColorConfig::Custom(color) => *color,
-            ClearColorConfig::None => {
-                // TODO our camera doesn't support transparent clear colors, so
-                //      currently this edge case works somewhat differently than
-                //      in bevy_render
-                Color::rgba(0.0, 0.0, 0.0, 1.0)
-            }
-        };
-
         commands.get_or_spawn(entity).insert(ExtractedCamera {
             transform: *transform,
             projection: projection.clone(),
-            clear_color,
             mode: strolle_camera.map(|camera| camera.mode),
         });
     }
+}
+
+pub(crate) fn sun(mut commands: Commands, sun: Extract<Res<StrolleSun>>) {
+    commands.insert_resource(ExtractedSun {
+        sun: Some((***sun).clone()),
+    });
 }

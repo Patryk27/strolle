@@ -8,7 +8,6 @@ pub struct Camera {
     pub mode: CameraMode,
     pub viewport: CameraViewport,
     pub projection: CameraProjection,
-    pub background: CameraBackground,
 }
 
 impl Camera {
@@ -70,7 +69,6 @@ impl Camera {
             onb_u,
             onb_v,
             onb_w,
-            clear_color: self.background.color.extend(0.0),
         }
     }
 }

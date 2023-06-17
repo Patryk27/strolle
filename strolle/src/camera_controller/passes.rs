@@ -1,3 +1,4 @@
+mod atmosphere;
 mod direct_raster;
 mod direct_shading;
 mod direct_tracing;
@@ -12,6 +13,7 @@ mod reprojection;
 
 use log::debug;
 
+pub use self::atmosphere::*;
 pub use self::direct_raster::*;
 pub use self::direct_shading::*;
 pub use self::direct_tracing::*;
@@ -27,6 +29,7 @@ use crate::{Camera, CameraBuffers, Engine, Params};
 
 #[derive(Debug)]
 pub struct CameraPasses {
+    pub atmosphere: AtmospherePass,
     pub direct_raster: DirectRasterPass,
     pub direct_shading: DirectShadingPass,
     pub direct_tracing: DirectTracingPass,
@@ -53,6 +56,7 @@ impl CameraPasses {
         debug!("Initializing camera passes");
 
         Self {
+            atmosphere: AtmospherePass::new(engine, device, buffers),
             direct_raster: DirectRasterPass::new(
                 engine, device, config, buffers,
             ),

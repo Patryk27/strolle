@@ -11,6 +11,10 @@ pub struct CameraBuffers {
     pub camera: MappedUniformBuffer<gpu::Camera>,
     pub past_camera: MappedUniformBuffer<gpu::Camera>,
 
+    pub atmosphere_transmittance_lut: Texture,
+    pub atmosphere_scattering_lut: Texture,
+    pub atmosphere_sky_lut: Texture,
+
     pub direct_hits_d0: Texture,
     pub direct_hits_d1: Texture,
     pub direct_hits_d2: Texture,
@@ -44,6 +48,29 @@ impl CameraBuffers {
             device,
             "strolle_past_camera",
             camera.serialize(),
+        );
+
+        // ---------------------------------------------------------------------
+
+        let atmosphere_transmittance_lut = Texture::new(
+            device,
+            "strolle_atmosphere_transmittance_lut",
+            gpu::Atmosphere::TRANSMITTANCE_LUT_RESOLUTION,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+
+        let atmosphere_scattering_lut = Texture::new(
+            device,
+            "strolle_atmosphere_scattering_lut",
+            gpu::Atmosphere::SCATTERING_LUT_RESOLUTION,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+
+        let atmosphere_sky_lut = Texture::new(
+            device,
+            "strolle_atmosphere_sky_lut",
+            gpu::Atmosphere::SKY_LUT_RESOLUTION,
+            wgpu::TextureFormat::Rgba16Float,
         );
 
         // ---------------------------------------------------------------------
@@ -145,6 +172,10 @@ impl CameraBuffers {
         Self {
             camera: camera_uniform,
             past_camera,
+
+            atmosphere_transmittance_lut,
+            atmosphere_scattering_lut,
+            atmosphere_sky_lut,
 
             direct_hits_d0,
             direct_hits_d1,

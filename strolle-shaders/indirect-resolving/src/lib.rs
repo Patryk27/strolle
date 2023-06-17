@@ -1,8 +1,11 @@
+//! This pass performs indirect lightning resolving, i.e. it takes the spatial
+//! reservoirs (rendered at half-res) and upscales them into a full-res picture.
+//!
+//! Later this picture is also fed to a dedicated indirect lightning denoiser.
+
 #![no_std]
 
-use core::f32::consts::PI;
-
-use spirv_std::glam::{vec2, UVec2, UVec3, Vec3Swizzles, Vec4, Vec4Swizzles};
+use spirv_std::glam::{UVec2, UVec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 use spirv_std::spirv;
@@ -54,14 +57,18 @@ fn main_inner(
     let screen_geo = geometry_map.get(screen_pos);
 
     while sample_idx < 8 {
-        let reservoir_pos_offset = {
-            let angle = noise.sample() * PI * 2.0;
-            let distance = 2.0 * sample_idx as f32;
+        let reservoir_distance = sample_idx as f32;
 
-            vec2(angle.sin(), angle.cos()) * distance
-        };
+        // Because we render reservoirs at half-res, if we just upscaled them
+        // bilinearly, a single bad reservoir (i.e. too bright) could affect 4+
+        // nearby pixels - that happens and it looks just bad.
+        //
+        // That's why instead of doing basic upscaling, we sample our pixel's
+        // neighbourhood and select a few reservoirs at random; later denoising
+        // hides any artifacts of that pretty well.
+        let reservoir_pos = screen_pos.as_vec2() * 0.5
+            + noise.sample_circle() * reservoir_distance;
 
-        let reservoir_pos = (screen_pos.as_vec2() / 2.0) + reservoir_pos_offset;
         let reservoir_pos = reservoir_pos.as_ivec2();
 
         if reservoir_pos.x < 0 || reservoir_pos.y < 0 {
@@ -82,18 +89,30 @@ fn main_inner(
             camera.half_screen_to_idx(reservoir_pos),
         );
 
-        let reservoir_screen_geo = geometry_map.get(reservoir_screen_pos);
+        let reservoir_radiance = reservoir.sample.radiance * reservoir.w;
 
-        let reservoir_color = reservoir.sample().radiance * reservoir.w;
-
+        // How useful our candidate-reservoir is; <0.0, 1.0>
         let mut reservoir_weight = 1.0;
 
-        reservoir_weight *=
-            screen_geo.evaluate_similarity_to(&reservoir_screen_geo);
+        // Since we're looking at our neighbourhood, we might stumble upon a
+        // reservoir that's useless for our current pixel - e.g. if that
+        // reservoir shades a different object.
+        //
+        // If that happens, we can't reuse this reservoir's radiance.
+        reservoir_weight *= screen_geo
+            .evaluate_similarity_to(geometry_map.get(reservoir_screen_pos));
 
-        reservoir_weight *= reservoir.m_sum.sqrt().max(1.0).min(5.0);
+        // What's more, we can incorporate here a very useful metric: m_sum.
+        //
+        // It defines a number of samples this reservoir has seen and so the
+        // greater m_sum, the more confident we can be that this reservoir
+        // estimates its surrounding correctly.
+        //
+        // In practice, this reduces variance by assigning weight to less
+        // confident reservoirs.
+        reservoir_weight *= reservoir.m_sum.powf(0.25).max(1.0).min(5.0);
 
-        out += (reservoir_color * reservoir_weight).extend(reservoir_weight);
+        out += (reservoir_radiance * reservoir_weight).extend(reservoir_weight);
         sample_idx += 1;
     }
 

@@ -7,7 +7,7 @@ use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::state::{ExtractedCamera, SyncedCamera, SyncedState};
-use crate::utils::{color_to_vec3, GlamCompat};
+use crate::utils::GlamCompat;
 use crate::EngineResource;
 
 pub(crate) fn cameras(
@@ -72,10 +72,6 @@ pub(crate) fn cameras(
                     up: up.compat(),
                     fov,
                 }
-            },
-
-            background: st::CameraBackground {
-                color: color_to_vec3(ext_camera.clear_color).compat(),
             },
         };
 

@@ -6,6 +6,7 @@ members = [
     "strolle",
     "strolle-gpu",
     "strolle-shader-builder",
+    "strolle-shaders/atmosphere",
     "strolle-shaders/direct-raster",
     "strolle-shaders/direct-shading",
     "strolle-shaders/direct-tracing",

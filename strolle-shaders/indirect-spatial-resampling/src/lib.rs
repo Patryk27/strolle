@@ -1,8 +1,6 @@
 #![no_std]
 
-use core::f32::consts::PI;
-
-use spirv_std::glam::{vec2, UVec2, UVec3, Vec3Swizzles, Vec4};
+use spirv_std::glam::{UVec2, UVec3, Vec3Swizzles, Vec4};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 use spirv_std::spirv;
@@ -23,12 +21,14 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 2)]
     geometry_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
+    past_geometry_map: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 4)]
     reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
-    indirect_temporal_reservoirs: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
-    indirect_spatial_reservoirs: &mut [Vec4],
+    indirect_temporal_reservoirs: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
+    indirect_spatial_reservoirs: &mut [Vec4],
+    #[spirv(descriptor_set = 0, binding = 7, storage_buffer)]
     past_indirect_spatial_reservoirs: &[Vec4],
 ) {
     main_inner(
@@ -37,6 +37,7 @@ pub fn main(
         camera,
         direct_hits_d0,
         GeometryMap::new(geometry_map),
+        GeometryMap::new(past_geometry_map),
         ReprojectionMap::new(reprojection_map),
         indirect_temporal_reservoirs,
         indirect_spatial_reservoirs,
@@ -51,6 +52,7 @@ fn main_inner(
     camera: &Camera,
     direct_hits_d0: TexRgba32f,
     geometry_map: GeometryMap,
+    past_geometry_map: GeometryMap,
     reprojection_map: ReprojectionMap,
     indirect_temporal_reservoirs: &[Vec4],
     indirect_spatial_reservoirs: &mut [Vec4],
@@ -68,41 +70,48 @@ fn main_inner(
     let reprojection =
         reprojection_map.get(upsample(global_id, params.frame - 1));
 
+    // Reprojecting a spatial reservoir follows a similar pattern as
+    // reprojecting a temporal reservoir so comments here were ommitted for
+    // brevity:
     if reprojection.is_valid() {
-        let mut prev_reservoir = IndirectReservoir::read(
+        let from_screen_pos =
+            upsample(reprojection.past_screen_pos() / 2, params.frame - 1);
+
+        let to_screen_pos = upsample(global_id, params.frame);
+
+        let migration_compatibility = past_geometry_map
+            .get(from_screen_pos)
+            .evaluate_similarity_to(geometry_map.get(to_screen_pos));
+
+        let mut past_reservoir = IndirectReservoir::read(
             past_indirect_spatial_reservoirs,
-            camera.half_screen_to_idx(reprojection.prev_screen_pos() / 2),
+            camera.half_screen_to_idx(from_screen_pos / 2),
         );
 
-        prev_reservoir.m_sum *= reprojection.confidence.powi(2).max(0.1);
+        past_reservoir.m_sum *= reprojection.confidence.powi(2).max(0.1);
+        past_reservoir.m_sum *= migration_compatibility;
 
         reservoir.merge(
             &mut noise,
-            &prev_reservoir,
-            prev_reservoir.sample.p_hat(),
+            &past_reservoir,
+            past_reservoir.sample.p_hat(),
         );
     }
 
     // -------------------------------------------------------------------------
 
     let mut p_hat = reservoir.sample.p_hat();
-    let curr_geo = geometry_map.get(screen_pos);
+    let screen_geo = geometry_map.get(screen_pos);
 
     let direct_hit_point =
         Hit::deserialize_point(direct_hits_d0.read(screen_pos));
 
     let mut sample_idx = 0;
-    let mut sample_radius = 32.0;
+    let mut sample_radius = 32.0f32;
 
     while sample_idx < 6 {
-        let rhs_pos_delta = {
-            let radius = noise.sample().sqrt() * sample_radius;
-            let angle = noise.sample() * 2.0 * PI;
-
-            vec2(angle.cos(), angle.sin()) * radius
-        };
-
-        let rhs_pos = global_id.as_vec2() + rhs_pos_delta;
+        let rhs_pos =
+            global_id.as_vec2() + noise.sample_disk() * sample_radius.max(3.0);
 
         if rhs_pos.x < 0.0
             || rhs_pos.y < 0.0
@@ -116,9 +125,11 @@ fn main_inner(
 
         let rhs_pos = rhs_pos.as_uvec2();
 
-        let rhs_similarity = geometry_map
-            .get(upsample(rhs_pos, params.frame))
-            .evaluate_similarity_to(&curr_geo);
+        let rhs_similarity = geometry_map.evaluate_similarity_between(
+            screen_pos,
+            screen_geo,
+            upsample(rhs_pos, params.frame),
+        );
 
         if rhs_similarity < 0.25 {
             sample_idx += 1;

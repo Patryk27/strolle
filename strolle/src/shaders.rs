@@ -27,6 +27,7 @@ macro_rules! shaders {
 }
 
 shaders!([
+    atmosphere => "atmosphere.spv",
     direct_raster => "direct-raster.spv",
     direct_shading => "direct-shading.spv",
     direct_tracing => "direct-tracing.spv",

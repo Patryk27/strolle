@@ -60,7 +60,13 @@ where
         assert_eq!(image_texture.mip_level_count, 1);
         assert_eq!(image_texture.sample_count, 1);
         assert_eq!(image_texture.dimension, wgpu::TextureDimension::D2);
-        assert_eq!(image_texture.format, wgpu::TextureFormat::Rgba8UnormSrgb);
+
+        // TODO we should convert textures to a common format
+        assert!([
+            wgpu::TextureFormat::Rgba8Unorm,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+        ]
+        .contains(&image_texture.format));
 
         // TODO propagate sampler's addressing modes to the shader so that we
         //      know whether the texture should be repeated, etc.

@@ -1,7 +1,7 @@
 #![no_std]
 
 use spirv_std::glam::{UVec2, UVec3, Vec3, Vec3Swizzles, Vec4Swizzles};
-use spirv_std::spirv;
+use spirv_std::{spirv, Image, Sampler};
 use strolle_gpu::*;
 
 #[rustfmt::skip]
@@ -29,12 +29,20 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
-    direct_hits_d0: TexRgba32f,
+    atmosphere_transmittance_lut_tex: &Image!(2D, type=f32, sampled),
     #[spirv(descriptor_set = 1, binding = 2)]
-    direct_hits_d1: TexRgba32f,
+    atmosphere_transmittance_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 3)]
-    direct_hits_d2: TexRgba32f,
+    atmosphere_sky_lut_tex: &Image!(2D, type=f32, sampled),
     #[spirv(descriptor_set = 1, binding = 4)]
+    atmosphere_sky_lut_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 5)]
+    direct_hits_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6)]
+    direct_hits_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 7)]
+    direct_hits_d2: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 8)]
     direct_colors: TexRgba16f,
 ) {
     main_inner(
@@ -46,6 +54,12 @@ pub fn main(
         BvhView::new(bvh),
         LightsView::new(lights),
         MaterialsView::new(materials),
+        Atmosphere::new(
+            atmosphere_transmittance_lut_tex,
+            atmosphere_transmittance_lut_sampler,
+            atmosphere_sky_lut_tex,
+            atmosphere_sky_lut_sampler,
+        ),
         world,
         camera,
         direct_hits_d0,
@@ -65,6 +79,7 @@ fn main_inner(
     bvh: BvhView,
     lights: LightsView,
     materials: MaterialsView,
+    atmosphere: Atmosphere,
     world: &World,
     camera: &Camera,
     direct_hits_d0: TexRgba32f,
@@ -81,8 +96,11 @@ fn main_inner(
     );
 
     if hit.is_none() {
+        let sky = atmosphere
+            .eval(world.sun_direction(), camera.ray(screen_pos).direction());
+
         unsafe {
-            direct_colors.write(screen_pos, camera.clear_color().extend(1.0));
+            direct_colors.write(screen_pos, sky.extend(1.0));
         }
 
         return;
@@ -91,6 +109,7 @@ fn main_inner(
     let mut color = Vec3::ZERO;
     let material = materials.get(MaterialId::new(hit.material_id));
     let albedo = direct_hits_d2.read(screen_pos).xyz();
+
     let mut light_id = 0;
 
     while light_id < world.light_count {

@@ -3243,6 +3243,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "strolle-atmosphere-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
 name = "strolle-direct-raster-shader"
 version = "0.1.0"
 dependencies = [

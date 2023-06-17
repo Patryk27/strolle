@@ -60,6 +60,7 @@ mod materials;
 mod mesh;
 mod meshes;
 mod shaders;
+mod sun;
 mod triangle;
 mod triangles;
 mod utils;
@@ -88,6 +89,7 @@ pub(self) use self::materials::*;
 pub use self::mesh::*;
 pub(self) use self::meshes::*;
 pub(self) use self::shaders::*;
+pub use self::sun::*;
 pub use self::triangle::*;
 pub(self) use self::triangles::*;
 
@@ -106,6 +108,7 @@ where
     materials: Materials<P>,
     world: MappedUniformBuffer<gpu::World>,
     cameras: CameraControllers,
+    sun: Sun,
     has_dirty_materials: bool,
     has_dirty_images: bool,
 }
@@ -132,6 +135,7 @@ where
                 Default::default(),
             ),
             cameras: Default::default(),
+            sun: Default::default(),
             has_dirty_materials: false,
             has_dirty_images: false,
         }
@@ -266,6 +270,11 @@ where
         self.lights.clear();
     }
 
+    /// Changes sun's parameters.
+    pub fn set_sun(&mut self, sun: Sun) {
+        self.sun = sun;
+    }
+
     /// Sends all changes to the GPU and prepares it for the upcoming frame.
     ///
     /// This function must be called before each frame, i.e. before invoking
@@ -310,6 +319,7 @@ where
             | self.materials.flush(device, queue).reallocated;
 
         self.world.light_count = self.lights.len();
+        self.world.sun_altitude = self.sun.altitude;
         self.world.flush(queue);
 
         // ---

@@ -15,7 +15,6 @@ pub struct Camera {
     pub onb_u: Vec4,
     pub onb_v: Vec4,
     pub onb_w: Vec4,
-    pub clear_color: Vec4,
 }
 
 impl Camera {
@@ -90,10 +89,6 @@ impl Camera {
 
     pub fn origin(&self) -> Vec3 {
         self.origin.xyz()
-    }
-
-    pub fn clear_color(&self) -> Vec3 {
-        self.clear_color.xyz()
     }
 
     pub fn fov(&self) -> f32 {

@@ -3,6 +3,7 @@ use std::{env, fs};
 use spirv_builder::{Capability, MetadataPrintout, SpirvBuilder};
 
 const CRATES: &[&str] = &[
+    "atmosphere",
     "direct-raster",
     "direct-shading",
     "direct-tracing",

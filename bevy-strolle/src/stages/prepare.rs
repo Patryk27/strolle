@@ -6,7 +6,7 @@ use strolle as st;
 
 use crate::state::{
     ExtractedImages, ExtractedInstances, ExtractedLights, ExtractedMaterials,
-    ExtractedMeshes,
+    ExtractedMeshes, ExtractedSun,
 };
 use crate::utils::GlamCompat;
 use crate::{EngineResource, MaterialLike};
@@ -200,5 +200,14 @@ pub(crate) fn lights(
 
     for (entity, light) in lights.items.drain(..) {
         engine.add_light(entity, light);
+    }
+}
+
+pub(crate) fn sun(
+    mut engine: ResMut<EngineResource>,
+    mut sun: ResMut<ExtractedSun>,
+) {
+    if let Some(sun) = sun.sun.take() {
+        engine.set_sun(sun);
     }
 }

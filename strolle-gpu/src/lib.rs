@@ -4,6 +4,7 @@
 #![allow(clippy::len_without_is_empty)]
 #![allow(clippy::manual_range_contains)]
 
+mod atmosphere;
 mod bvh_ptr;
 mod bvh_view;
 mod camera;
@@ -24,6 +25,7 @@ mod triangles;
 mod utils;
 mod world;
 
+pub use self::atmosphere::*;
 pub use self::bvh_ptr::*;
 pub use self::bvh_view::*;
 pub use self::camera::*;
