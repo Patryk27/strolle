@@ -30,7 +30,7 @@ impl OutputDrawingPass {
             .with(&buffers.direct_colors.curr().bind_sampled())
             .with(&buffers.direct_hits_d2.bind_sampled())
             .with(&buffers.indirect_colors.curr().bind_sampled())
-            .with(&buffers.geometry_map.curr().bind_sampled())
+            .with(&buffers.surface_map.curr().bind_sampled())
             .build(device);
 
         let pipeline_layout =

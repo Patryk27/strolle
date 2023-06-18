@@ -1,6 +1,7 @@
-use spirv_std::glam::UVec2;
-
-use crate::{Bindable, DoubleBufferedBindable, Texture, UnmappedStorageBuffer};
+use crate::{
+    Bindable, DoubleBufferedBindable, Texture, TextureBuilder,
+    UnmappedStorageBuffer,
+};
 
 #[derive(Debug)]
 pub struct DoubleBuffered<T> {
@@ -12,17 +13,13 @@ impl DoubleBuffered<Texture> {
     /// Creates a double-buffered texture.
     ///
     /// See: [`Texture::new()`].
-    pub fn new(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        size: UVec2,
-        format: wgpu::TextureFormat,
-    ) -> Self {
-        let label = label.as_ref();
+    pub fn new(device: &wgpu::Device, texture: TextureBuilder) -> Self {
+        let label_a = format!("{}_a", texture.label());
+        let label_b = format!("{}_b", texture.label());
 
         Self {
-            a: Texture::new(device, format!("{}_a", label), size, format),
-            b: Texture::new(device, format!("{}_b", label), size, format),
+            a: texture.clone().with_label(label_a).build(device),
+            b: texture.with_label(label_b).build(device),
         }
     }
 }

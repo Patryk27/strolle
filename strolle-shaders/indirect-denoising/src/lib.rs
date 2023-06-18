@@ -18,7 +18,7 @@ use spirv_std::glam::{
 use spirv_std::num_traits::Float;
 use spirv_std::spirv;
 use strolle_gpu::{
-    Camera, GeometryMap, ReprojectionMap, TexRgba16f, TexRgba32f,
+    Camera, ReprojectionMap, SurfaceMap, TexRgba16f, TexRgba32f,
 };
 
 #[rustfmt::skip]
@@ -32,7 +32,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 1)]
     reprojection_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 2)]
-    geometry_map: TexRgba32f,
+    surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
     raw_indirect_colors: TexRgba16f,
     #[spirv(descriptor_set = 0, binding = 4)]
@@ -44,7 +44,7 @@ pub fn main(
         global_id.xy(),
         camera,
         ReprojectionMap::new(reprojection_map),
-        GeometryMap::new(geometry_map),
+        SurfaceMap::new(surface_map),
         raw_indirect_colors,
         indirect_colors,
         past_indirect_colors,
@@ -56,7 +56,7 @@ fn main_inner(
     screen_pos: UVec2,
     camera: &Camera,
     reprojection_map: ReprojectionMap,
-    geometry_map: GeometryMap,
+    surface_map: SurfaceMap,
     raw_indirect_colors: TexRgba16f,
     indirect_colors: TexRgba16f,
     past_indirect_colors: TexRgba16f,
@@ -82,7 +82,7 @@ fn main_inner(
 
     // -------------------------------------------------------------------------
 
-    let screen_geo = geometry_map.get(screen_pos);
+    let screen_surface = surface_map.get(screen_pos);
 
     let neighbour = move |dx: i32, dy: i32| {
         let pos = screen_pos.as_ivec2() + ivec2(dx, dy);
@@ -92,13 +92,13 @@ fn main_inner(
             //
             // Note that instead of returning `Vec3::ZERO`, we return the center
             // sample since otherwise we could unnecessarily darken corners or
-            // pixels nearby complex geometry.
+            // pixels nearby complex surface.
             return in0;
         }
 
         let pos = pos.as_uvec2();
 
-        if geometry_map.get(pos).evaluate_similarity_to(screen_geo) < 0.25 {
+        if surface_map.get(pos).evaluate_similarity_to(screen_surface) < 0.25 {
             // If our neighbour is too different from us geometrically (e.g. has
             // normal pointing towards a very different direction), reject the
             // sample.

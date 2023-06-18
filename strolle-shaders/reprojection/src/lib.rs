@@ -20,9 +20,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 1)]
     direct_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 2)]
-    geometry_map: TexRgba32f,
+    surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
-    past_geometry_map: TexRgba32f,
+    past_surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 4)]
     reprojection_map: TexRgba32f,
 ) {
@@ -30,8 +30,8 @@ pub fn main(
         global_id.xy(),
         past_camera,
         direct_hits_d0,
-        GeometryMap::new(geometry_map),
-        GeometryMap::new(past_geometry_map),
+        SurfaceMap::new(surface_map),
+        SurfaceMap::new(past_surface_map),
         ReprojectionMap::new(reprojection_map),
     )
 }
@@ -41,8 +41,8 @@ fn main_inner(
     screen_pos: UVec2,
     past_camera: &Camera,
     direct_hits_d0: TexRgba32f,
-    geometry_map: GeometryMap,
-    past_geometry_map: GeometryMap,
+    surface_map: SurfaceMap,
+    past_surface_map: SurfaceMap,
     reprojection_map: ReprojectionMap,
 ) {
     let mut reprojection = Reprojection::default();
@@ -57,7 +57,7 @@ fn main_inner(
         direct_hits_d0.read(screen_pos),
     ));
 
-    let curr_geo = geometry_map.get(screen_pos);
+    let screen_surface = surface_map.get(screen_pos);
     let mut sample_delta = vec2(-1.0, -1.0);
 
     loop {
@@ -72,7 +72,7 @@ fn main_inner(
 
             // TODO optimization opportunity: preload neighbours into shared
             //      memory
-            let sample_geo = past_geometry_map.get(sample_screen_pos);
+            let sample_surface = past_surface_map.get(sample_screen_pos);
 
             // Compute the difference between normals; this allows us to reject
             // candidates that have wildly different geometric features from our
@@ -83,13 +83,14 @@ fn main_inner(
             // opposing normals could turn the difference score positive,
             // yielding spurious results.
             let normal_diff =
-                1.0 - sample_geo.normal.dot(curr_geo.normal).max(0.0);
+                1.0 - sample_surface.normal.dot(screen_surface.normal).max(0.0);
 
             // Compute the difference between depths; this allows us to reject
             // candidates that are located too far away from our center pixel,
             // which - in turn - reduces bleeding from background into
             // foreground objects.
-            let depth_diff = (sample_geo.depth - curr_geo.depth).abs();
+            let depth_diff =
+                (sample_surface.depth - screen_surface.depth).abs();
 
             // Finally, take into account the screen-space distance; this
             // prevents us from choosing far-away samples when our neighbourhood

@@ -35,12 +35,12 @@ where
             Self::ATLAS_HEIGHT as i32,
         ));
 
-        let atlas_texture = Texture::new(
-            device,
+        let atlas_texture = Texture::builder(
             "strolle_atlas",
             uvec2(Self::ATLAS_WIDTH, Self::ATLAS_HEIGHT),
             wgpu::TextureFormat::Rgba8UnormSrgb,
-        );
+        )
+        .build(device);
 
         Self {
             atlas,

@@ -67,7 +67,7 @@ pub fn main_fs(
     out_direct_hits_d0: &mut Vec4,
     out_direct_hits_d1: &mut Vec4,
     out_direct_hits_d2: &mut Vec4,
-    out_geometry_map: &mut Vec4,
+    out_surface_map: &mut Vec4,
 ) {
     let material = MaterialsView::new(materials)
         .get(MaterialId::new(params.material_id));
@@ -87,5 +87,5 @@ pub fn main_fs(
     *out_direct_hits_d0 = hit_point.extend(f32::from_bits(params.material_id));
     *out_direct_hits_d1 = hit_normal2.extend(hit_uv.x).extend(hit_uv.y);
     *out_direct_hits_d2 = hit_albedo;
-    *out_geometry_map = hit_normal.extend(hit_distance);
+    *out_surface_map = hit_normal.extend(hit_distance);
 }

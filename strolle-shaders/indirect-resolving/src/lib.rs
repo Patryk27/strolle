@@ -10,8 +10,8 @@ use spirv_std::glam::{UVec2, UVec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 use spirv_std::num_traits::Float;
 use spirv_std::spirv;
 use strolle_gpu::{
-    upsample, Camera, GeometryMap, IndirectReservoir,
-    IndirectResolvingPassParams, Noise, TexRgba16f, TexRgba32f,
+    upsample, Camera, IndirectReservoir, IndirectResolvingPassParams, Noise,
+    SurfaceMap, TexRgba16f, TexRgba32f,
 };
 
 #[rustfmt::skip]
@@ -25,7 +25,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)]
-    geometry_map: TexRgba32f,
+    surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 2)]
     raw_indirect_colors: TexRgba16f,
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
@@ -35,7 +35,7 @@ pub fn main(
         global_id.xy(),
         params,
         camera,
-        GeometryMap::new(geometry_map),
+        SurfaceMap::new(surface_map),
         raw_indirect_colors,
         indirect_spatial_reservoirs,
     )
@@ -46,7 +46,7 @@ fn main_inner(
     screen_pos: UVec2,
     params: &IndirectResolvingPassParams,
     camera: &Camera,
-    geometry_map: GeometryMap,
+    surface_map: SurfaceMap,
     raw_indirect_colors: TexRgba16f,
     indirect_spatial_reservoirs: &[Vec4],
 ) {
@@ -54,7 +54,7 @@ fn main_inner(
     let mut out = Vec4::ZERO;
     let mut sample_idx = 0;
 
-    let screen_geo = geometry_map.get(screen_pos);
+    let screen_surface = surface_map.get(screen_pos);
 
     while sample_idx < 8 {
         let reservoir_distance = sample_idx as f32;
@@ -99,8 +99,8 @@ fn main_inner(
         // reservoir shades a different object.
         //
         // If that happens, we can't reuse this reservoir's radiance.
-        reservoir_weight *= screen_geo
-            .evaluate_similarity_to(geometry_map.get(reservoir_screen_pos));
+        reservoir_weight *= screen_surface
+            .evaluate_similarity_to(surface_map.get(reservoir_screen_pos));
 
         // What's more, we can incorporate here a very useful metric: m_sum.
         //

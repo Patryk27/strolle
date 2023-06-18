@@ -28,7 +28,7 @@ pub struct CameraBuffers {
     pub indirect_temporal_reservoirs: DoubleBuffered<UnmappedStorageBuffer>,
     pub indirect_spatial_reservoirs: DoubleBuffered<UnmappedStorageBuffer>,
 
-    pub geometry_map: DoubleBuffered<Texture>,
+    pub surface_map: DoubleBuffered<Texture>,
     pub reprojection_map: Texture,
 }
 
@@ -52,85 +52,92 @@ impl CameraBuffers {
 
         // ---------------------------------------------------------------------
 
-        let atmosphere_transmittance_lut = Texture::new(
-            device,
+        let atmosphere_transmittance_lut = Texture::builder(
             "strolle_atmosphere_transmittance_lut",
             gpu::Atmosphere::TRANSMITTANCE_LUT_RESOLUTION,
             wgpu::TextureFormat::Rgba16Float,
-        );
+        )
+        .with_linear_sampling()
+        .build(device);
 
-        let atmosphere_scattering_lut = Texture::new(
-            device,
+        let atmosphere_scattering_lut = Texture::builder(
             "strolle_atmosphere_scattering_lut",
             gpu::Atmosphere::SCATTERING_LUT_RESOLUTION,
             wgpu::TextureFormat::Rgba16Float,
-        );
+        )
+        .with_linear_sampling()
+        .build(device);
 
-        let atmosphere_sky_lut = Texture::new(
-            device,
+        let atmosphere_sky_lut = Texture::builder(
             "strolle_atmosphere_sky_lut",
             gpu::Atmosphere::SKY_LUT_RESOLUTION,
             wgpu::TextureFormat::Rgba16Float,
-        );
+        )
+        .with_linear_sampling()
+        .build(device);
 
         // ---------------------------------------------------------------------
 
-        let direct_hits_d0 = Texture::new(
-            device,
+        let direct_hits_d0 = Texture::builder(
             "strolle_direct_hits_d0",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba32Float,
-        );
+        )
+        .build(device);
 
-        let direct_hits_d1 = Texture::new(
-            device,
+        let direct_hits_d1 = Texture::builder(
             "strolle_direct_hits_d1",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba32Float,
-        );
+        )
+        .build(device);
 
-        let direct_hits_d2 = Texture::new(
-            device,
+        let direct_hits_d2 = Texture::builder(
             "strolle_direct_hits_d2",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba32Float,
-        );
+        )
+        .build(device);
 
         let direct_colors = DoubleBuffered::<Texture>::new(
             device,
-            "strolle_direct_colors",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba16Float,
+            Texture::builder(
+                "strolle_direct_colors",
+                camera.viewport.size,
+                wgpu::TextureFormat::Rgba16Float,
+            ),
         );
 
         // ---------------------------------------------------------------------
 
-        let indirect_hits_d0 = Texture::new(
-            device,
+        let indirect_hits_d0 = Texture::builder(
             "strolle_indirect_hits_d0",
             camera.viewport.size / 2,
             wgpu::TextureFormat::Rgba32Float,
-        );
+        )
+        .build(device);
 
-        let indirect_hits_d1 = Texture::new(
-            device,
+        let indirect_hits_d1 = Texture::builder(
             "strolle_indirect_hits_d1",
             camera.viewport.size / 2,
             wgpu::TextureFormat::Rgba32Float,
-        );
+        )
+        .build(device);
 
-        let raw_indirect_colors = Texture::new(
-            device,
+        let raw_indirect_colors = Texture::builder(
             "strolle_raw_indirect_colors",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba16Float,
-        );
+        )
+        .build(device);
 
         let indirect_colors = DoubleBuffered::<Texture>::new(
             device,
-            "strolle_indirect_colors",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba16Float,
+            Texture::builder(
+                "strolle_indirect_colors",
+                camera.viewport.size,
+                wgpu::TextureFormat::Rgba16Float,
+            ),
         );
 
         let indirect_initial_samples = UnmappedStorageBuffer::new(
@@ -155,19 +162,21 @@ impl CameraBuffers {
 
         // ---------------------------------------------------------------------
 
-        let geometry_map = DoubleBuffered::<Texture>::new(
+        let surface_map = DoubleBuffered::<Texture>::new(
             device,
-            "strolle_geometry_map",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba32Float,
+            Texture::builder(
+                "strolle_surface_map",
+                camera.viewport.size,
+                wgpu::TextureFormat::Rgba32Float,
+            ),
         );
 
-        let reprojection_map = Texture::new(
-            device,
+        let reprojection_map = Texture::builder(
             "strolle_reprojection_map",
             camera.viewport.size,
             wgpu::TextureFormat::Rgba32Float,
-        );
+        )
+        .build(device);
 
         Self {
             camera: camera_uniform,
@@ -190,7 +199,7 @@ impl CameraBuffers {
             indirect_temporal_reservoirs,
             indirect_spatial_reservoirs,
 
-            geometry_map,
+            surface_map,
             reprojection_map,
         }
     }

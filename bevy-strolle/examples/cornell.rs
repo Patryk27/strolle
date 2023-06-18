@@ -31,7 +31,6 @@ fn main() {
         .add_plugin(ObjPlugin)
         .add_plugin(StrollePlugin)
         .add_startup_system(setup)
-        .add_system(process_input)
         .add_system(animate)
         .run();
 }
@@ -74,45 +73,16 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
         ));
 }
 
-fn process_input(
-    keys: Res<Input<KeyCode>>,
-    mut camera: Query<(&mut CameraRenderGraph, &mut StrolleCamera)>,
-) {
-    let (mut camera_render_graph, mut camera) = camera.single_mut();
-
-    if keys.just_pressed(KeyCode::Key1) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Image;
-    }
-
-    if keys.just_pressed(KeyCode::Key2) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::DirectLightning;
-    }
-
-    if keys.just_pressed(KeyCode::Key3) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectLightning;
-    }
-
-    if keys.just_pressed(KeyCode::Key4) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Normals;
-    }
-
-    if keys.just_pressed(KeyCode::Key5) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::BvhHeatmap;
-    }
-
-    if keys.just_pressed(KeyCode::Key0) {
-        camera_render_graph.set("core_3d");
-    }
-}
-
 fn animate(
-    _time: Res<Time>,
+    time: Res<Time>,
+    mut sun: ResMut<StrolleSun>,
     mut light: Query<&mut Transform, With<PointLight>>,
 ) {
-    light.single_mut().translation = vec3(0.0, 1.5, 0.0);
+    sun.altitude = -1.0;
+
+    light.single_mut().translation = vec3(
+        time.elapsed_seconds().sin() / 2.0,
+        1.5,
+        time.elapsed_seconds().cos() / 2.0,
+    );
 }

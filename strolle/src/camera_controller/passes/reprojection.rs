@@ -21,8 +21,8 @@ impl ReprojectionPass {
             .bind([
                 &buffers.past_camera.bind_readable(),
                 &buffers.direct_hits_d0.bind_readable(),
-                &buffers.geometry_map.curr().bind_readable(),
-                &buffers.geometry_map.past().bind_readable(),
+                &buffers.surface_map.curr().bind_readable(),
+                &buffers.surface_map.past().bind_readable(),
                 &buffers.reprojection_map.bind_writable(),
             ])
             .build(device, &engine.shaders.reprojection);

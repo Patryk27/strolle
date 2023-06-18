@@ -19,9 +19,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)]
-    geometry_map: TexRgba32f,
+    surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 2)]
-    past_geometry_map: TexRgba32f,
+    past_surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
     reprojection_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
@@ -35,8 +35,8 @@ pub fn main(
         global_id.xy(),
         params,
         camera,
-        GeometryMap::new(geometry_map),
-        GeometryMap::new(past_geometry_map),
+        SurfaceMap::new(surface_map),
+        SurfaceMap::new(past_surface_map),
         ReprojectionMap::new(reprojection_map),
         indirect_initial_samples,
         indirect_temporal_reservoirs,
@@ -49,8 +49,8 @@ fn main_inner(
     global_id: UVec2,
     params: &IndirectTemporalResamplingPassParams,
     camera: &Camera,
-    geometry_map: GeometryMap,
-    past_geometry_map: GeometryMap,
+    surface_map: SurfaceMap,
+    past_surface_map: SurfaceMap,
     reprojection_map: ReprojectionMap,
     indirect_initial_samples: &[Vec4],
     indirect_temporal_reservoirs: &mut [Vec4],
@@ -116,9 +116,9 @@ fn main_inner(
         //
         // - score of 0.0 means that we'd try to reproject a totally different
         //   reservoir into current pixel, so let's better not.
-        let migration_compatibility = past_geometry_map
+        let migration_compatibility = past_surface_map
             .get(from_screen_pos)
-            .evaluate_similarity_to(geometry_map.get(to_screen_pos));
+            .evaluate_similarity_to(surface_map.get(to_screen_pos));
 
         let mut past_reservoir = IndirectReservoir::read(
             past_indirect_temporal_reservoirs,

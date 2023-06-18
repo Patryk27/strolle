@@ -22,7 +22,7 @@ impl IndirectResolvingPass {
         let pass = CameraComputePass::builder("indirect_resolving")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.geometry_map.curr().bind_readable(),
+                &buffers.surface_map.curr().bind_readable(),
                 &buffers.raw_indirect_colors.bind_writable(),
                 &buffers.indirect_spatial_reservoirs.curr().bind_readable(),
             ])

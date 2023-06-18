@@ -31,12 +31,12 @@ impl DirectRasterPass {
     {
         debug!("Initializing pass: direct_raster");
 
-        let depth_texture = Texture::new(
-            device,
+        let depth_texture = Texture::builder(
             "strolle_direct_raster_depth",
             camera.viewport.size,
             DEPTH_TEXTURE_FORMAT,
-        );
+        )
+        .build(device);
 
         let bg0 = BindGroup::builder("strolle_direct_raster_bg0")
             .with(&engine.materials.bind_readable())
@@ -185,7 +185,7 @@ impl DirectRasterPass {
                     },
                 }),
                 Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.geometry_map.get(alternate).view(),
+                    view: camera.buffers.surface_map.get(alternate).view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),

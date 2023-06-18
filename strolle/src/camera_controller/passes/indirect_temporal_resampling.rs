@@ -22,8 +22,8 @@ impl IndirectTemporalResamplingPass {
         let pass = CameraComputePass::builder("indirect_temporal_resampling")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.geometry_map.curr().bind_readable(),
-                &buffers.geometry_map.past().bind_readable(),
+                &buffers.surface_map.curr().bind_readable(),
+                &buffers.surface_map.past().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.indirect_initial_samples.bind_readable(),
                 &buffers.indirect_temporal_reservoirs.curr().bind_writable(),

@@ -19,9 +19,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 1)]
     direct_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 2)]
-    geometry_map: TexRgba32f,
+    surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
-    past_geometry_map: TexRgba32f,
+    past_surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 4)]
     reprojection_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
@@ -36,8 +36,8 @@ pub fn main(
         params,
         camera,
         direct_hits_d0,
-        GeometryMap::new(geometry_map),
-        GeometryMap::new(past_geometry_map),
+        SurfaceMap::new(surface_map),
+        SurfaceMap::new(past_surface_map),
         ReprojectionMap::new(reprojection_map),
         indirect_temporal_reservoirs,
         indirect_spatial_reservoirs,
@@ -51,8 +51,8 @@ fn main_inner(
     params: &IndirectSpatialResamplingPassParams,
     camera: &Camera,
     direct_hits_d0: TexRgba32f,
-    geometry_map: GeometryMap,
-    past_geometry_map: GeometryMap,
+    surface_map: SurfaceMap,
+    past_surface_map: SurfaceMap,
     reprojection_map: ReprojectionMap,
     indirect_temporal_reservoirs: &[Vec4],
     indirect_spatial_reservoirs: &mut [Vec4],
@@ -79,9 +79,9 @@ fn main_inner(
 
         let to_screen_pos = upsample(global_id, params.frame);
 
-        let migration_compatibility = past_geometry_map
+        let migration_compatibility = past_surface_map
             .get(from_screen_pos)
-            .evaluate_similarity_to(geometry_map.get(to_screen_pos));
+            .evaluate_similarity_to(surface_map.get(to_screen_pos));
 
         let mut past_reservoir = IndirectReservoir::read(
             past_indirect_spatial_reservoirs,
@@ -101,7 +101,7 @@ fn main_inner(
     // -------------------------------------------------------------------------
 
     let mut p_hat = reservoir.sample.p_hat();
-    let screen_geo = geometry_map.get(screen_pos);
+    let screen_surface = surface_map.get(screen_pos);
 
     let direct_hit_point =
         Hit::deserialize_point(direct_hits_d0.read(screen_pos));
@@ -125,9 +125,9 @@ fn main_inner(
 
         let rhs_pos = rhs_pos.as_uvec2();
 
-        let rhs_similarity = geometry_map.evaluate_similarity_between(
+        let rhs_similarity = surface_map.evaluate_similarity_between(
             screen_pos,
-            screen_geo,
+            screen_surface,
             upsample(rhs_pos, params.frame),
         );
 

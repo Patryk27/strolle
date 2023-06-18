@@ -13,73 +13,16 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new(
-        device: &wgpu::Device,
+    pub fn builder(
         label: impl AsRef<str>,
         size: UVec2,
         format: wgpu::TextureFormat,
-    ) -> Self {
-        let label = label.as_ref();
-
-        debug!("Allocating texture `{label}`; size={size:?}");
-
-        assert!(size.x > 0);
-        assert!(size.y > 0);
-
-        let usage = if format == wgpu::TextureFormat::Depth32Float {
-            wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-        } else {
-            wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::COPY_DST
-        };
-
-        let tex = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some(&format!("{label}_tex")),
-            size: wgpu::Extent3d {
-                width: size.x,
-                height: size.y,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
+    ) -> TextureBuilder {
+        TextureBuilder {
+            label: label.as_ref().to_owned(),
+            size,
             format,
-            usage,
-            view_formats: &[],
-        });
-
-        let view = tex.create_view(&Default::default());
-
-        let xx = format!("{label}_sampler");
-
-        let filterable = label.contains("atmosphere");
-
-        // TODO
-        let sampler = if filterable {
-            wgpu::SamplerDescriptor {
-                label: Some(&xx),
-                mag_filter: wgpu::FilterMode::Linear,
-                min_filter: wgpu::FilterMode::Linear,
-                ..Default::default()
-            }
-        } else {
-            wgpu::SamplerDescriptor {
-                label: Some(&xx),
-                ..Default::default()
-            }
-        };
-
-        let sampler = device.create_sampler(&sampler);
-
-        Self {
-            tex,
-            format,
-            view,
-            sampler,
-            filterable,
+            linear_sampling: false,
         }
     }
 
@@ -114,9 +57,8 @@ impl Texture {
     /// tex: &Image!(2D, format = ..., sampled = false),
     /// ```
     ///
-    /// TODO naga and/or rust-gpu don't support read-only storage textures yet
-    ///      so currently this is equivalent to a writable binding, just
-    ///      separated for readability reasons
+    /// TODO naga and/or rust-gpu don't support read-only storage textures yet,
+    ///      so currently this is equivalent to a writable binding
     pub fn bind_readable(&self) -> impl Bindable + '_ {
         TextureStorageBinder { parent: self }
     }
@@ -129,6 +71,96 @@ impl Texture {
     /// ```
     pub fn bind_writable(&self) -> impl Bindable + '_ {
         TextureStorageBinder { parent: self }
+    }
+}
+
+#[derive(Clone)]
+pub struct TextureBuilder {
+    label: String,
+    size: UVec2,
+    format: wgpu::TextureFormat,
+    linear_sampling: bool,
+}
+
+impl TextureBuilder {
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub fn with_label(mut self, label: impl AsRef<str>) -> Self {
+        self.label = label.as_ref().to_owned();
+        self
+    }
+
+    pub fn with_linear_sampling(mut self) -> Self {
+        self.linear_sampling = true;
+        self
+    }
+
+    pub fn build(self, device: &wgpu::Device) -> Texture {
+        let Self {
+            label,
+            size,
+            format,
+            linear_sampling: linearly_sampled,
+        } = self;
+
+        debug!("Allocating texture `{label}`; size={size:?}");
+
+        assert!(size.x > 0);
+        assert!(size.y > 0);
+
+        let usage = if format == wgpu::TextureFormat::Depth32Float {
+            wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+        } else {
+            wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_DST
+        };
+
+        let tex = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(&format!("{label}_texture")),
+            size: wgpu::Extent3d {
+                width: size.x,
+                height: size.y,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage,
+            view_formats: &[],
+        });
+
+        let view = tex.create_view(&Default::default());
+
+        let sampler_label = format!("{label}_sampler");
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some(&sampler_label),
+            mag_filter: if self.linear_sampling {
+                wgpu::FilterMode::Linear
+            } else {
+                wgpu::FilterMode::Nearest
+            },
+            min_filter: if self.linear_sampling {
+                wgpu::FilterMode::Linear
+            } else {
+                wgpu::FilterMode::Nearest
+            },
+            ..Default::default()
+        });
+
+        Texture {
+            tex,
+            format,
+            view,
+            sampler,
+            filterable: linearly_sampled,
+        }
     }
 }
 

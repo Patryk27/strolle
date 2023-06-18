@@ -4,18 +4,17 @@ use spirv_std::num_traits::Float;
 
 use crate::TexRgba32f;
 
-// TODO rename to `surface`?
 #[derive(Clone, Copy)]
-pub struct Geometry {
+pub struct Surface {
     pub normal: Vec3,
     pub depth: f32,
 }
 
-impl Geometry {
+impl Surface {
     /// Returns a score `<0.0, 1.0>` that determines the similarity of two given
     /// surfaces.
     ///
-    /// See also: [`GeometryMap::evaulate_similarity_between()`].
+    /// See also: [`SurfaceMap::evaulate_similarity_between()`].
     pub fn evaluate_similarity_to(&self, other: Self) -> f32 {
         let normal = self.normal.dot(other.normal).max(0.0);
 
@@ -33,19 +32,19 @@ impl Geometry {
     }
 }
 
-pub struct GeometryMap<'a> {
+pub struct SurfaceMap<'a> {
     tex: TexRgba32f<'a>,
 }
 
-impl<'a> GeometryMap<'a> {
+impl<'a> SurfaceMap<'a> {
     pub fn new(tex: TexRgba32f<'a>) -> Self {
         Self { tex }
     }
 
-    pub fn get(&self, screen_pos: UVec2) -> Geometry {
+    pub fn get(&self, screen_pos: UVec2) -> Surface {
         let d0 = self.tex.read(screen_pos);
 
-        Geometry {
+        Surface {
             normal: d0.xyz(),
             depth: d0.w,
         }
@@ -57,11 +56,11 @@ impl<'a> GeometryMap<'a> {
     /// This function performs screen-space ray-marching and so it is able to
     /// find discontinuities between surfaces etc.
     ///
-    /// See also: [`Geometry::evaluate_similarity_to()`].
+    /// See also: [`Surface::evaluate_similarity_to()`].
     pub fn evaluate_similarity_between(
         &self,
         lhs: UVec2,
-        lhs_geo: Geometry,
+        lhs_surface: Surface,
         rhs: UVec2,
     ) -> f32 {
         let steps = lhs.as_vec2().distance(rhs.as_vec2()) / 3.0;
@@ -71,14 +70,14 @@ impl<'a> GeometryMap<'a> {
             return 1.0;
         }
 
-        let rhs_geo = self.get(rhs);
+        let rhs_surface = self.get(rhs);
 
         if steps == 1 {
-            return lhs_geo.evaluate_similarity_to(rhs_geo);
+            return lhs_surface.evaluate_similarity_to(rhs_surface);
         }
 
-        let lhs = lhs.as_vec2().extend(lhs_geo.depth);
-        let rhs = rhs.as_vec2().extend(rhs_geo.depth);
+        let lhs = lhs.as_vec2().extend(lhs_surface.depth);
+        let rhs = rhs.as_vec2().extend(rhs_surface.depth);
         let step = (rhs - lhs) / (steps as f32);
 
         let mut cursor = lhs;
@@ -88,15 +87,15 @@ impl<'a> GeometryMap<'a> {
         while step_idx < steps {
             cursor += step;
 
-            let cursor_geo = self.get(cursor.xy().as_uvec2());
-            let depth_diff = (cursor_geo.depth - cursor.z).abs();
+            let cursor_surface = self.get(cursor.xy().as_uvec2());
+            let depth_diff = (cursor_surface.depth - cursor.z).abs();
 
             if depth_diff >= 1.0 {
                 return 0.0;
             }
 
             score *= 1.0 - depth_diff;
-            score *= lhs_geo.normal.dot(cursor_geo.normal).max(0.0);
+            score *= lhs_surface.normal.dot(cursor_surface.normal).max(0.0);
             step_idx += 1;
         }
 
