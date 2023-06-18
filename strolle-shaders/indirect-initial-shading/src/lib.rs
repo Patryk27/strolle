@@ -142,7 +142,7 @@ fn main_inner(
         // Since we're supporting only single-bounce GI, let's arbitrarily boost
         // the color a bit to compensate for "missing bounces" getting the scene
         // too dark:
-        let sky = sky * 7.5;
+        let sky = sky * 12.5;
 
         let hit_point =
             indirect_ray.origin() + indirect_ray.direction() * 1000.0;
@@ -193,26 +193,7 @@ fn main_inner(
         light_id += 1;
     }
 
-    // Since we're supporting only single-bounce GI, let's arbitrarily boost the
-    // color a bit to compensate for "missing bounces" getting the scene too
-    // dark.
-    //
-    // This increases variance (especially around already bright samples), so
-    // it's certainly not a golden hammer, though.
-    let color = color * 2.5;
-
-    // Also, following the rendering equation, we should now multiply the color
-    // by the cosine:
-    //
-    //     let color = color * direct_normal.dot(indirect_normal);
-    //
-    // ... but, as before, since we're only doing single-bounce GI, actually
-    //     carrying this multiplication yields scenes that are tad too dark for
-    //     my taste, so... let's not do that!
-    //
-    //     (something something bias blah blah blah, alright -- what's important
-    //     is that the scenes look somewhat better this way.)
-
+    let color = color * indirect_ray.direction().dot(direct_hit.normal);
     let indirect_normal = Normal::encode(indirect_hit.normal);
 
     unsafe {
