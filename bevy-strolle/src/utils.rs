@@ -25,31 +25,19 @@ pub trait GlamCompat<T> {
 
 impl GlamCompat<st::glam::UVec2> for UVec2 {
     fn compat(self) -> st::glam::UVec2 {
-        st::glam::UVec2 {
-            x: self.x,
-            y: self.y,
-        }
+        st::glam::UVec2::new(self.x, self.y)
     }
 }
 
 impl GlamCompat<st::glam::Vec3> for Vec3 {
     fn compat(self) -> st::glam::Vec3 {
-        st::glam::Vec3 {
-            x: self.x,
-            y: self.y,
-            z: self.z,
-        }
+        st::glam::Vec3::new(self.x, self.y, self.z)
     }
 }
 
 impl GlamCompat<st::glam::Vec4> for Vec4 {
     fn compat(self) -> st::glam::Vec4 {
-        st::glam::Vec4 {
-            x: self.x,
-            y: self.y,
-            z: self.z,
-            w: self.w,
-        }
+        st::glam::Vec4::new(self.x, self.y, self.z, self.w)
     }
 }
 
