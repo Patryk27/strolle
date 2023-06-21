@@ -1,8 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec4, Vec4Swizzles};
-use spirv_std::{spirv, Image, Sampler};
-use strolle_gpu::*;
+use strolle_gpu::prelude::*;
 
 #[spirv(vertex)]
 pub fn main_vs(

@@ -11,15 +11,7 @@
 
 #![no_std]
 
-use spirv_std::glam::{
-    ivec2, vec3, UVec2, UVec3, Vec3, Vec3Swizzles, Vec4Swizzles,
-};
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-use spirv_std::spirv;
-use strolle_gpu::{
-    Camera, ReprojectionMap, SurfaceMap, TexRgba16f, TexRgba32f,
-};
+use strolle_gpu::prelude::*;
 
 #[rustfmt::skip]
 #[spirv(compute(threads(8, 8)))]

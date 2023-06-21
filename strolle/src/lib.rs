@@ -131,7 +131,7 @@ where
             materials: Materials::new(device),
             world: MappedUniformBuffer::new(
                 device,
-                "strolle_world",
+                "world",
                 Default::default(),
             ),
             cameras: Default::default(),

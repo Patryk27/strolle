@@ -1,11 +1,11 @@
 mod eval;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec3, Vec4};
+use glam::{Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-pub use self::eval::*;
+use self::eval::*;
 use crate::{
     BvhTraversingStack, BvhView, Hit, Material, Noise, Ray, TrianglesView,
 };
@@ -17,7 +17,7 @@ pub struct Light {
     /// x - position x
     /// y - position y
     /// z - position z
-    /// w - unused
+    /// w - radius
     pub d0: Vec4,
 
     /// x - color R
@@ -28,55 +28,42 @@ pub struct Light {
 }
 
 impl Light {
-    pub fn center(&self) -> Vec3 {
-        self.d0.truncate()
+    pub fn sun(pos: Vec3) -> Self {
+        Self {
+            d0: pos.extend(10.0),
+            d1: Default::default(),
+        }
     }
 
-    pub fn position(&self, _noise: &mut Noise) -> Vec3 {
-        self.center()
-        // self.center() + self.radius() * noise.sample_sphere() TODO
+    pub fn center(&self) -> Vec3 {
+        self.d0.xyz()
+    }
+
+    pub fn radius(&self) -> f32 {
+        self.d0.w
     }
 
     pub fn color(&self) -> Vec3 {
-        self.d1.truncate()
+        self.d1.xyz()
     }
 
     pub fn range(&self) -> f32 {
         self.d1.w
     }
 
-    // TODO: Make configurable
-    pub fn radius(&self) -> f32 {
-        0.1
+    /// TODO check out https://blog.demofox.org/2020/05/16/using-blue-noise-for-raytraced-soft-shadows/
+    /// TODO check out https://schuttejoe.github.io/post/arealightsampling/
+    pub fn position(&self, noise: &mut Noise) -> Vec3 {
+        self.center() + self.radius() * noise.sample_sphere()
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn eval(
+    pub fn contribution(
         &self,
-        local_idx: u32,
-        triangles: TrianglesView,
-        bvh: BvhView,
-        stack: BvhTraversingStack,
-        noise: &mut Noise,
         material: Material,
         hit: Hit,
         ray: Ray,
         albedo: Vec3,
-    ) -> Vec3 {
-        let is_occluded = {
-            let light_pos = self.position(noise);
-            let light_to_hit = hit.point - light_pos;
-
-            let shadow_ray = Ray::new(light_pos, light_to_hit.normalize());
-            let max_distance = light_to_hit.length();
-
-            shadow_ray.trace_any(local_idx, triangles, bvh, stack, max_distance)
-        };
-
-        if is_occluded {
-            return Vec3::ZERO;
-        }
-
+    ) -> LightContribution {
         let roughness =
             perceptual_roughness_to_roughness(material.perceptual_roughness);
 
@@ -138,9 +125,41 @@ impl Light {
             1.0 / range.powf(2.0),
         );
 
-        let diffuse = diffuse * diffuse_color;
+        let diffuse = diffuse
+            * diffuse_color
+            * self.color()
+            * distance_attenuation
+            * n_o_l;
 
-        (diffuse + specular) * self.color() * distance_attenuation * n_o_l
+        let specular = specular * self.color() * distance_attenuation * n_o_l;
+
+        LightContribution { diffuse, specular }
+    }
+
+    pub fn visibility(
+        &self,
+        local_idx: u32,
+        triangles: TrianglesView,
+        bvh: BvhView,
+        stack: BvhTraversingStack,
+        noise: &mut Noise,
+        hit: Hit,
+    ) -> f32 {
+        let is_occluded = {
+            let light_pos = self.position(noise);
+            let light_to_hit = hit.point - light_pos;
+
+            let shadow_ray = Ray::new(light_pos, light_to_hit.normalize());
+            let max_distance = light_to_hit.length();
+
+            shadow_ray.trace_any(local_idx, triangles, bvh, stack, max_distance)
+        };
+
+        if is_occluded {
+            0.0
+        } else {
+            1.0
+        }
     }
 }
 
@@ -155,5 +174,17 @@ impl LightId {
 
     pub fn get(self) -> u32 {
         self.0
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct LightContribution {
+    pub diffuse: Vec3,
+    pub specular: Vec3,
+}
+
+impl LightContribution {
+    pub fn sum(&self) -> Vec3 {
+        self.diffuse + self.specular
     }
 }

@@ -45,6 +45,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
         point_light: PointLight {
             color: Color::WHITE,
             intensity: 50.0,
+            radius: 0.15,
             shadows_enabled: true,
             ..default()
         },

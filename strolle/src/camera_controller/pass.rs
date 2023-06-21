@@ -103,7 +103,7 @@ where
         device: &wgpu::Device,
         module: &wgpu::ShaderModule,
     ) -> CameraComputePass<P> {
-        debug!("Initializing pass: {}", self.label);
+        debug!("Initializing pass: {}:{}", self.label, self.entry_point);
 
         let bind_groups: Vec<_> = self
             .bind_groups

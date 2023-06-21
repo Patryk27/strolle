@@ -3251,6 +3251,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "strolle-direct-denoising-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-direct-initial-shading-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
 name = "strolle-direct-raster-shader"
 version = "0.1.0"
 dependencies = [
@@ -3259,7 +3275,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-direct-shading-shader"
+name = "strolle-direct-resolving-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-direct-spatial-resampling-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-direct-temporal-resampling-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",

@@ -1,8 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{UVec2, UVec3, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
-use spirv_std::{spirv, Image, Sampler};
-use strolle_gpu::*;
+use strolle_gpu::prelude::*;
 
 #[rustfmt::skip]
 #[spirv(compute(threads(8, 8)))]
@@ -103,7 +101,7 @@ fn main_inner(
     let global_idx = camera.half_screen_to_idx(global_id);
     let screen_pos = upsample(global_id, params.frame);
 
-    // ---
+    // -------------------------------------------------------------------------
 
     let direct_hit = Hit::deserialize(
         direct_hits_d0.read(screen_pos),
@@ -125,7 +123,7 @@ fn main_inner(
         return;
     }
 
-    // ---
+    // -------------------------------------------------------------------------
 
     let indirect_ray =
         Ray::new(direct_hit.point, noise.sample_hemisphere(direct_hit.normal));
@@ -142,7 +140,7 @@ fn main_inner(
         // Since we're supporting only single-bounce GI, let's arbitrarily boost
         // the color a bit to compensate for "missing bounces" getting the scene
         // too dark:
-        let sky = sky * 12.5;
+        let sky = sky * 7.5;
 
         let hit_point =
             indirect_ray.origin() + indirect_ray.direction() * 1000.0;
@@ -164,36 +162,60 @@ fn main_inner(
         return;
     }
 
-    // ---
+    // -------------------------------------------------------------------------
 
-    let mut color = Vec3::ZERO;
     let material = materials.get(MaterialId::new(indirect_hit.material_id));
 
     let albedo = material
         .albedo(atlas_tex, atlas_sampler, indirect_hit.uv)
         .xyz();
 
+    // -------------------------------------------------------------------------
+    // Phase 1:
+    //
+    // Similarly as for direct lightning, let's start by selecting the best
+    // light-candidate, judging lights by their *unshadowed* contribution.
+
     let mut light_id = 0;
+    let mut reservoir = DirectReservoir::default();
 
     while light_id < world.light_count {
-        let light = lights.get(LightId::new(light_id));
+        let light_contribution = lights
+            .get(LightId::new(light_id))
+            .contribution(material, indirect_hit, indirect_ray, albedo)
+            .sum();
 
-        color += light.eval(
-            local_idx,
-            triangles,
-            bvh,
-            stack,
-            &mut noise,
-            material,
-            indirect_hit,
-            indirect_ray,
-            albedo,
-        );
+        let sample = DirectReservoirSample {
+            light_id,
+            light_contribution,
+        };
 
+        reservoir.add(&mut noise, sample, sample.p_hat());
         light_id += 1;
     }
 
-    let color = color * indirect_ray.direction().dot(direct_hit.normal);
+    // -------------------------------------------------------------------------
+    // Phase 2:
+    //
+    // Having selected the best light-candidate, cast a shadow ray to check if
+    // that light is actually visible to us.
+
+    let DirectReservoirSample {
+        light_contribution, ..
+    } = reservoir.sample;
+
+    let light_visibility = lights
+        .get(LightId::new(reservoir.sample.light_id))
+        .visibility(local_idx, triangles, bvh, stack, &mut noise, indirect_hit);
+
+    let color = light_contribution
+        * light_visibility
+        * indirect_ray.direction().dot(direct_hit.normal);
+
+    // Setting a mininimum radiance is technically wrong but at least this way
+    // we don't have to deal with zero p_hats:
+    let color = color.max(Vec3::splat(0.000001));
+
     let indirect_normal = Normal::encode(indirect_hit.normal);
 
     unsafe {

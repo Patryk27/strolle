@@ -10,8 +10,25 @@ pub struct DirectRasterPassParams {
 #[repr(C)]
 #[derive(Copy, Clone, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct DirectShadingPassParams {
+pub struct DirectInitialShadingPassParams {
     pub seed: u32,
+    pub frame: u32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct DirectTemporalResamplingPassParams {
+    pub seed: u32,
+    pub frame: u32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct DirectSpatialResamplingPassParams {
+    pub seed: u32,
+    pub frame: u32,
 }
 
 #[repr(C)]

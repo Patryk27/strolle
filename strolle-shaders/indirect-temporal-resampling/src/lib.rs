@@ -1,12 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{
-    vec2, UVec2, UVec3, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
-};
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-use spirv_std::spirv;
-use strolle_gpu::*;
+use strolle_gpu::prelude::*;
 
 #[rustfmt::skip]
 #[spirv(compute(threads(8, 8)))]
@@ -64,12 +58,8 @@ fn main_inner(
         let d1 = indirect_initial_samples[3 * global_idx + 1];
         let d2 = indirect_initial_samples[3 * global_idx + 2];
 
-        // Setting a mininimum radiance is technically wrong but at least we
-        // won't have to deal with negative p_hat later:
-        let radiance = d0.xyz().max(Vec3::splat(0.0001));
-
         IndirectReservoirSample {
-            radiance,
+            radiance: d0.xyz(),
             hit_point: d1.xyz(),
             sample_point: d2.xyz(),
             sample_normal: Normal::decode(vec2(d0.w, d1.w)),
@@ -133,7 +123,7 @@ fn main_inner(
         let past_age = past_reservoir.age(params.frame);
 
         if past_age > 16 {
-            past_reservoir.m_sum *= 1.0 - ((16 - past_age) as f32 / 32.0);
+            past_reservoir.m_sum *= 1.0 - ((past_age - 16) as f32 / 32.0);
         }
 
         past_reservoir.m_sum *= reprojection.confidence.powi(2);

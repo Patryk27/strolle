@@ -25,13 +25,13 @@ where
     T: Bufferable,
 {
     pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: T) -> Self {
-        let label = label.as_ref();
+        let label = format!("strolle_{}", label.as_ref());
 
         let size = if data.size() == 0 {
-            // If the buffer is empty - just like triangles or BVH start - it's
-            // easier to pretend the buffer is just small instead of zero-sized
-            // so that we can allocate *something* here and let the reallocation
-            // logic worry about growing the buffer later.
+            // If the buffer is empty - just like triangles or initial BVH - it
+            // is easier to pretend the buffer is just small instead of
+            // zero-sized so that we can allocate *something* here and let the
+            // reallocation logic worry about growing the buffer later.
             //
             // That is, since we can't really allocate an empty buffer, the
             // other solution would be to keep `buffer: Option<wgpu::Buffer>`
@@ -44,7 +44,7 @@ where
 
         debug!("Allocating mapped storage buffer `{label}`; size={size}");
 
-        let buffer = Self::create_buffer(device, label, size);
+        let buffer = Self::create_buffer(device, &label, size);
 
         Self {
             label: label.to_owned(),

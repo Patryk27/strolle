@@ -105,6 +105,8 @@ impl TextureBuilder {
             linear_sampling: linearly_sampled,
         } = self;
 
+        let label = format!("strolle_{}", label);
+
         debug!("Allocating texture `{label}`; size={size:?}");
 
         assert!(size.x > 0);

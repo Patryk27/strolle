@@ -78,17 +78,32 @@ fn setup(
         ..Default::default()
     });
 
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            color: Color::WHITE,
-            range: 20.0,
-            intensity: 4000.0,
-            shadows_enabled: true,
+    let lights = vec![
+        vec3(-3.0, 0.75, -23.0),
+        // vec3(-2.5, 0.75, -10.5),
+        // vec3(-1.5, 0.75, 1.25),
+        // vec3(-11.5, 0.75, 5.5),
+        // vec3(-10.0, 0.75, 21.0),
+        // vec3(-10.0, 0.75, 28.0),
+        // vec3(-18.0, 0.75, -31.5),
+        // vec3(-23.5, 0.75, -23.0),
+        // vec3(-17.8, 0.75, -20.0),
+    ];
+
+    for light in lights {
+        commands.spawn(PointLightBundle {
+            point_light: PointLight {
+                color: Color::WHITE,
+                range: 20.0,
+                radius: 0.2,
+                intensity: 2500.0,
+                shadows_enabled: true,
+                ..default()
+            },
+            transform: Transform::from_translation(light),
             ..default()
-        },
-        transform: Transform::from_translation(vec3(-3.0, 0.75, -23.0)),
-        ..default()
-    });
+        });
+    }
 }
 
 /// Most of the materials seem to have too low metalicness which makes them look
@@ -186,25 +201,40 @@ fn process_input(
 
     // TODO just for testing purposes
     if keys.just_pressed(KeyCode::Return) {
-        let mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
-
-        commands
-            .spawn(PbrBundle {
-                mesh: mesh.clone(),
-                material: materials.add(StandardMaterial {
-                    base_color: Color::CRIMSON,
-                    ..default()
-                }),
+        commands.spawn(PointLightBundle {
+            point_light: PointLight {
+                color: Color::WHITE,
+                range: 20.0,
+                radius: 0.2,
+                intensity: 2500.0,
+                shadows_enabled: true,
                 ..default()
-            })
-            .insert(AnimatedObject {
-                position: vec3(
-                    camera_transform.translation.x,
-                    0.1,
-                    camera_transform.translation.z,
-                ),
-                phase: time.elapsed_seconds(),
-            });
+            },
+            transform: Transform::from_translation(
+                camera_transform.translation,
+            ),
+            ..default()
+        });
+
+        // let mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+
+        // commands
+        //     .spawn(PbrBundle {
+        //         mesh: mesh.clone(),
+        //         material: materials.add(StandardMaterial {
+        //             base_color: Color::CRIMSON,
+        //             ..default()
+        //         }),
+        //         ..default()
+        //     })
+        //     .insert(AnimatedObject {
+        //         position: vec3(
+        //             camera_transform.translation.x,
+        //             0.1,
+        //             camera_transform.translation.z,
+        //         ),
+        //         phase: time.elapsed_seconds(),
+        //     });
     }
 
     // ---

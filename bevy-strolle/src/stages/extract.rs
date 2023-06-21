@@ -185,6 +185,7 @@ pub(crate) fn lights(
 
         let light = st::Light::point(
             transform.translation().compat(),
+            light.radius,
             (color_to_vec3(light.color) * lum_intensity).compat(),
             light.range,
         );

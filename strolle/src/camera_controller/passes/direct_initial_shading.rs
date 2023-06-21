@@ -5,11 +5,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DirectShadingPass {
-    pass: CameraComputePass<gpu::DirectShadingPassParams>,
+pub struct DirectInitialShadingPass {
+    pass: CameraComputePass<gpu::DirectInitialShadingPassParams>,
 }
 
-impl DirectShadingPass {
+impl DirectInitialShadingPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -19,7 +19,7 @@ impl DirectShadingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("direct_shading")
+        let pass = CameraComputePass::builder("direct_initial_shading")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -33,10 +33,9 @@ impl DirectShadingPass {
                 &buffers.atmosphere_sky_lut.bind_sampled(),
                 &buffers.direct_hits_d0.bind_readable(),
                 &buffers.direct_hits_d1.bind_readable(),
-                &buffers.direct_hits_d2.bind_readable(),
-                &buffers.direct_colors.curr().bind_writable(),
+                &buffers.direct_initial_samples.bind_writable(),
             ])
-            .build(device, &engine.shaders.direct_shading);
+            .build(device, &engine.shaders.direct_initial_shading);
 
         Self { pass }
     }
@@ -49,8 +48,9 @@ impl DirectShadingPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        let params = gpu::DirectShadingPassParams {
+        let params = gpu::DirectInitialShadingPassParams {
             seed: rand::thread_rng().gen(),
+            frame: camera.frame,
         };
 
         self.pass.run(camera, encoder, size, &params);

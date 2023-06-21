@@ -46,6 +46,17 @@ pub use self::triangles::*;
 pub use self::utils::*;
 pub use self::world::*;
 
+pub mod prelude {
+    pub use core::f32::consts::PI;
+
+    pub use spirv_std::glam::*;
+    #[cfg(target_arch = "spirv")]
+    pub use spirv_std::num_traits::Float;
+    pub use spirv_std::{spirv, Image, Sampler};
+
+    pub use crate::*;
+}
+
 /// Stack of nodes yet-to-be-visited when traversing the BVH.
 ///
 /// For performance reasons, we use a per-workgroup shared memory array where

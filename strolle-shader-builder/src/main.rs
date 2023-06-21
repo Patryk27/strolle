@@ -4,8 +4,12 @@ use spirv_builder::{Capability, MetadataPrintout, SpirvBuilder};
 
 const CRATES: &[&str] = &[
     "atmosphere",
+    "direct-denoising",
+    "direct-initial-shading",
     "direct-raster",
-    "direct-shading",
+    "direct-resolving",
+    "direct-spatial-resampling",
+    "direct-temporal-resampling",
     "direct-tracing",
     "indirect-denoising",
     "indirect-initial-shading",

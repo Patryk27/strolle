@@ -18,13 +18,13 @@ where
     T: Bufferable,
 {
     pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: T) -> Self {
-        let label = label.as_ref();
+        let label = format!("strolle_{}", label.as_ref());
         let size = utils::pad_size(data.size());
 
         debug!("Allocating uniform buffer `{label}`; size={size}");
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some(label),
+            label: Some(&label),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
             size: size as _,
             mapped_at_creation: false,

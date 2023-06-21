@@ -28,8 +28,12 @@ macro_rules! shaders {
 
 shaders!([
     atmosphere => "atmosphere.spv",
+    direct_denoising => "direct-denoising.spv",
+    direct_initial_shading => "direct-initial-shading.spv",
     direct_raster => "direct-raster.spv",
-    direct_shading => "direct-shading.spv",
+    direct_resolving => "direct-resolving.spv",
+    direct_spatial_resampling => "direct-spatial-resampling.spv",
+    direct_temporal_resampling => "direct-temporal-resampling.spv",
     direct_tracing => "direct-tracing.spv",
     indirect_denoising => "indirect-denoising.spv",
     indirect_initial_shading => "indirect-initial-shading.spv",

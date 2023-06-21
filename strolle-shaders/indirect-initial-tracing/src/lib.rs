@@ -1,8 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{UVec2, UVec3, Vec3Swizzles};
-use spirv_std::spirv;
-use strolle_gpu::*;
+use strolle_gpu::prelude::*;
 
 #[rustfmt::skip]
 #[spirv(compute(threads(8, 8)))]

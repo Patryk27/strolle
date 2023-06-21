@@ -1,10 +1,6 @@
 #![no_std]
 
-use spirv_std::glam::{vec2, Vec2, Vec3, Vec4, Vec4Swizzles};
-use spirv_std::{spirv, Image, Sampler};
-use strolle_gpu::{
-    Camera, DirectRasterPassParams, Material, MaterialId, MaterialsView, Normal,
-};
+use strolle_gpu::prelude::*;
 
 #[rustfmt::skip]
 #[allow(clippy::too_many_arguments)]

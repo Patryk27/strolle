@@ -36,13 +36,7 @@
 
 #![no_std]
 
-use core::f32::consts::PI;
-
-use spirv_std::glam::{uvec2, vec3, UVec3, Vec3, Vec3Swizzles};
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-use spirv_std::{spirv, Image, Sampler};
-use strolle_gpu::*;
+use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
 #[allow(clippy::too_many_arguments)]

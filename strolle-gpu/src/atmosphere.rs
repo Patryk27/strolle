@@ -78,6 +78,11 @@ impl<'a> Atmosphere<'a> {
         }
     }
 
+    /// Returns color of the sun when at given direction.
+    pub fn sun(&self, sun_dir: Vec3) -> Vec3 {
+        self.sample_transmittance_lut(Self::VIEW_POS, sun_dir)
+    }
+
     /// Returns color of the sky when looking at given direction.
     pub fn eval(&self, sun_dir: Vec3, look_at: Vec3) -> Vec3 {
         let ray_dir = self.remap_normal(look_at);

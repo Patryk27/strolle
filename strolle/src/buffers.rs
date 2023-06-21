@@ -17,7 +17,7 @@ pub use self::mapped_uniform_buffer::*;
 pub use self::texture::*;
 pub use self::unmapped_storage_buffer::*;
 
-#[must_use = "buffer might have gotten reallocated which you should react upon"]
+#[must_use = "buffer might have gotten reallocated which you should probably react upon"]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct BufferFlushOutcome {
     pub reallocated: bool,

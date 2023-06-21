@@ -99,7 +99,14 @@ impl CameraController {
             self.passes.atmosphere.run(engine, self, encoder);
             self.passes.direct_raster.run(engine, self, encoder);
             self.passes.reprojection.run(self, encoder);
-            self.passes.direct_shading.run(self, encoder);
+
+            if self.camera.mode.needs_direct_lightning() {
+                self.passes.direct_initial_shading.run(self, encoder);
+                self.passes.direct_temporal_resampling.run(self, encoder);
+                self.passes.direct_spatial_resampling.run(self, encoder);
+                self.passes.direct_resolving.run(self, encoder);
+                self.passes.direct_denoising.run(self, encoder);
+            }
 
             if self.camera.mode.needs_indirect_lightning() {
                 let seed = rand::thread_rng().gen();
