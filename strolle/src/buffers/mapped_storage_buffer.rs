@@ -47,7 +47,7 @@ where
         let buffer = Self::create_buffer(device, &label, size);
 
         Self {
-            label: label.to_owned(),
+            label,
             buffer,
             data,
             dirty: true,

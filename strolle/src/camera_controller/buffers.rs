@@ -50,67 +50,69 @@ impl CameraBuffers {
 
         // ---------------------------------------------------------------------
 
-        let atmosphere_transmittance_lut = Texture::builder(
-            "atmosphere_transmittance_lut",
-            gpu::Atmosphere::TRANSMITTANCE_LUT_RESOLUTION,
-            wgpu::TextureFormat::Rgba16Float,
-        )
-        .with_linear_sampling()
-        .build(device);
+        let atmosphere_transmittance_lut =
+            Texture::builder("atmosphere_transmittance_lut")
+                .with_size(gpu::Atmosphere::TRANSMITTANCE_LUT_RESOLUTION)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+                .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .with_linear_sampling()
+                .build(device);
 
-        let atmosphere_scattering_lut = Texture::builder(
-            "atmosphere_scattering_lut",
-            gpu::Atmosphere::SCATTERING_LUT_RESOLUTION,
-            wgpu::TextureFormat::Rgba16Float,
-        )
-        .with_linear_sampling()
-        .build(device);
+        let atmosphere_scattering_lut =
+            Texture::builder("atmosphere_scattering_lut")
+                .with_size(gpu::Atmosphere::SCATTERING_LUT_RESOLUTION)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+                .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .with_linear_sampling()
+                .build(device);
 
-        let atmosphere_sky_lut = Texture::builder(
-            "atmosphere_sky_lut",
-            gpu::Atmosphere::SKY_LUT_RESOLUTION,
-            wgpu::TextureFormat::Rgba16Float,
-        )
-        .with_linear_sampling()
-        .build(device);
+        let atmosphere_sky_lut = Texture::builder("atmosphere_sky_lut")
+            .with_size(gpu::Atmosphere::SKY_LUT_RESOLUTION)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_linear_sampling()
+            .build(device);
 
         // ---------------------------------------------------------------------
 
-        let direct_hits_d0 = Texture::builder(
-            "direct_hits_d0",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba32Float,
-        )
-        .build(device);
+        let direct_hits_d0 = Texture::builder("direct_hits_d0")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
 
-        let direct_hits_d1 = Texture::builder(
-            "direct_hits_d1",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba32Float,
-        )
-        .build(device);
+        let direct_hits_d1 = Texture::builder("direct_hits_d1")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
 
-        let direct_hits_d2 = Texture::builder(
-            "direct_hits_d2",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba32Float,
-        )
-        .build(device);
+        let direct_hits_d2 = Texture::builder("direct_hits_d2")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
 
-        let raw_direct_colors = Texture::builder(
-            "raw_direct_colors",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba16Float,
-        )
-        .build(device);
+        let raw_direct_colors = Texture::builder("raw_direct_colors")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
 
         let direct_colors = DoubleBuffered::<Texture>::new(
             device,
-            Texture::builder(
-                "direct_colors",
-                camera.viewport.size,
-                wgpu::TextureFormat::Rgba16Float,
-            ),
+            Texture::builder("direct_colors")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+                .add_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
 
         let direct_initial_samples = UnmappedStorageBuffer::new(
@@ -135,34 +137,32 @@ impl CameraBuffers {
 
         // ---------------------------------------------------------------------
 
-        let indirect_hits_d0 = Texture::builder(
-            "indirect_hits_d0",
-            camera.viewport.size / 2,
-            wgpu::TextureFormat::Rgba32Float,
-        )
-        .build(device);
+        let indirect_hits_d0 = Texture::builder("indirect_hits_d0")
+            .with_size(camera.viewport.size / 2)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
 
-        let indirect_hits_d1 = Texture::builder(
-            "indirect_hits_d1",
-            camera.viewport.size / 2,
-            wgpu::TextureFormat::Rgba32Float,
-        )
-        .build(device);
+        let indirect_hits_d1 = Texture::builder("indirect_hits_d1")
+            .with_size(camera.viewport.size / 2)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
 
-        let raw_indirect_colors = Texture::builder(
-            "raw_indirect_colors",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba16Float,
-        )
-        .build(device);
+        let raw_indirect_colors = Texture::builder("raw_indirect_colors")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
 
         let indirect_colors = DoubleBuffered::<Texture>::new(
             device,
-            Texture::builder(
-                "indirect_colors",
-                camera.viewport.size,
-                wgpu::TextureFormat::Rgba16Float,
-            ),
+            Texture::builder("indirect_colors")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+                .add_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
 
         let indirect_initial_samples = UnmappedStorageBuffer::new(
@@ -189,19 +189,19 @@ impl CameraBuffers {
 
         let surface_map = DoubleBuffered::<Texture>::new(
             device,
-            Texture::builder(
-                "surface_map",
-                camera.viewport.size,
-                wgpu::TextureFormat::Rgba32Float,
-            ),
+            Texture::builder("surface_map")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
+                .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+                .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT),
         );
 
-        let reprojection_map = Texture::builder(
-            "reprojection_map",
-            camera.viewport.size,
-            wgpu::TextureFormat::Rgba32Float,
-        )
-        .build(device);
+        let reprojection_map = Texture::builder("reprojection_map")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
 
         Self {
             camera: camera_uniform,

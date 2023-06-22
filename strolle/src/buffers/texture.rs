@@ -13,16 +13,10 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn builder(
-        label: impl AsRef<str>,
-        size: UVec2,
-        format: wgpu::TextureFormat,
-    ) -> TextureBuilder {
+    pub fn builder(label: impl AsRef<str>) -> TextureBuilder {
         TextureBuilder {
             label: label.as_ref().to_owned(),
-            size,
-            format,
-            linear_sampling: false,
+            ..Default::default()
         }
     }
 
@@ -74,12 +68,13 @@ impl Texture {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct TextureBuilder {
     label: String,
-    size: UVec2,
-    format: wgpu::TextureFormat,
-    linear_sampling: bool,
+    size: Option<UVec2>,
+    format: Option<wgpu::TextureFormat>,
+    usage: Option<wgpu::TextureUsages>,
+    linear_sampling: Option<bool>,
 }
 
 impl TextureBuilder {
@@ -92,8 +87,23 @@ impl TextureBuilder {
         self
     }
 
+    pub fn with_size(mut self, size: UVec2) -> Self {
+        self.size = Some(size);
+        self
+    }
+
+    pub fn with_format(mut self, format: wgpu::TextureFormat) -> Self {
+        self.format = Some(format);
+        self
+    }
+
+    pub fn add_usage(mut self, usage: wgpu::TextureUsages) -> Self {
+        *self.usage.get_or_insert(usage) |= usage;
+        self
+    }
+
     pub fn with_linear_sampling(mut self) -> Self {
-        self.linear_sampling = true;
+        self.linear_sampling = Some(true);
         self
     }
 
@@ -102,25 +112,22 @@ impl TextureBuilder {
             label,
             size,
             format,
-            linear_sampling: linearly_sampled,
+            usage,
+            linear_sampling,
         } = self;
 
         let label = format!("strolle_{}", label);
+        let size = size.expect("Missing property: size");
+        let format = format.expect("Missing property: format");
+        let usage = usage.expect("Missing property: usage");
+        let linear_sampling = linear_sampling.unwrap_or_default();
 
-        debug!("Allocating texture `{label}`; size={size:?}");
+        debug!(
+            "Allocating texture `{label}`; size={size:?}, format={format:?}"
+        );
 
         assert!(size.x > 0);
         assert!(size.y > 0);
-
-        let usage = if format == wgpu::TextureFormat::Depth32Float {
-            wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-        } else {
-            wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::COPY_DST
-        };
 
         let tex = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(&format!("{label}_texture")),
@@ -143,12 +150,12 @@ impl TextureBuilder {
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some(&sampler_label),
-            mag_filter: if self.linear_sampling {
+            mag_filter: if linear_sampling {
                 wgpu::FilterMode::Linear
             } else {
                 wgpu::FilterMode::Nearest
             },
-            min_filter: if self.linear_sampling {
+            min_filter: if linear_sampling {
                 wgpu::FilterMode::Linear
             } else {
                 wgpu::FilterMode::Nearest
@@ -161,7 +168,7 @@ impl TextureBuilder {
             format,
             view,
             sampler,
-            filterable: linearly_sampled,
+            filterable: linear_sampling,
         }
     }
 }

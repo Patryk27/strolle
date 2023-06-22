@@ -25,12 +25,12 @@ impl OutputDrawingPass {
     {
         debug!("Initializing pass: output_drawing");
 
-        let bg0 = BindGroup::builder("strolle_output_drawing_bg0")
-            .with(&buffers.camera.bind_readable())
-            .with(&buffers.direct_colors.curr().bind_sampled())
-            .with(&buffers.direct_hits_d2.bind_sampled())
-            .with(&buffers.indirect_colors.curr().bind_sampled())
-            .with(&buffers.surface_map.curr().bind_sampled())
+        let bg0 = BindGroup::builder("output_drawing_bg0")
+            .add(&buffers.camera.bind_readable())
+            .add(&buffers.direct_colors.curr().bind_sampled())
+            .add(&buffers.direct_hits_d2.bind_sampled())
+            .add(&buffers.indirect_colors.curr().bind_sampled())
+            .add(&buffers.surface_map.curr().bind_sampled())
             .build(device);
 
         let pipeline_layout =

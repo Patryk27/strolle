@@ -80,13 +80,13 @@ where
         items: [&'a dyn DoubleBufferedBindable; N],
     ) -> Self {
         let mut bind_group = BindGroup::builder(format!(
-            "strolle_{}_bg{}",
+            "{}_bg{}",
             self.label,
             self.bind_groups.len()
         ));
 
         for item in items {
-            bind_group = bind_group.with(item);
+            bind_group = bind_group.add(item);
         }
 
         self.bind_groups.push(bind_group);

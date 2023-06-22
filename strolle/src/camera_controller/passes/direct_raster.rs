@@ -31,20 +31,20 @@ impl DirectRasterPass {
     {
         debug!("Initializing pass: direct_raster");
 
-        let depth_texture = Texture::builder(
-            "strolle_direct_raster_depth",
-            camera.viewport.size,
-            DEPTH_TEXTURE_FORMAT,
-        )
-        .build(device);
-
-        let bg0 = BindGroup::builder("strolle_direct_raster_bg0")
-            .with(&engine.materials.bind_readable())
-            .with(&engine.images.bind_sampled())
+        let depth_texture = Texture::builder("direct_raster_depth")
+            .with_size(camera.viewport.size)
+            .with_format(DEPTH_TEXTURE_FORMAT)
+            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
 
-        let bg1 = BindGroup::builder("strolle_direct_raster_bg1")
-            .with(&buffers.camera.bind_readable())
+        let bg0 = BindGroup::builder("direct_raster_bg0")
+            .add(&engine.materials.bind_readable())
+            .add(&engine.images.bind_sampled())
+            .build(device);
+
+        let bg1 = BindGroup::builder("direct_raster_bg1")
+            .add(&buffers.camera.bind_readable())
             .build(device);
 
         let pipeline_layout =

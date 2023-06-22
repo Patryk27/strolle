@@ -36,7 +36,7 @@ pub struct BindGroupBuilder<'a> {
 }
 
 impl<'a> BindGroupBuilder<'a> {
-    pub fn with(mut self, item: &'a dyn DoubleBufferedBindable) -> Self {
+    pub fn add(mut self, item: &'a dyn DoubleBufferedBindable) -> Self {
         for (layout, resources) in item.bind(self.resources.len() as u32) {
             self.layouts.push(layout);
             self.resources.push(resources);
@@ -46,7 +46,7 @@ impl<'a> BindGroupBuilder<'a> {
     }
 
     pub fn build(self, device: &wgpu::Device) -> BindGroup {
-        let label = self.label;
+        let label = format!("strolle_{}", self.label);
 
         let bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
