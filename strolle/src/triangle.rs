@@ -48,7 +48,16 @@ impl Triangle {
         let positions =
             self.positions.map(|vertex| mat.transform_point3(vertex));
 
-        let normals = self.normals.map(|normal| mat.transform_vector3(normal));
+        let normals = {
+            // Transforming normals requires inversing and transposing the
+            // matrix in order to get correct results under scaling, see:
+            //
+            // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
+            let mat = mat.inverse().transpose();
+
+            self.normals
+                .map(|normal| mat.transform_vector3(normal).normalize())
+        };
 
         let tangents = {
             let sign = if Mat3A::from_mat4(mat).determinant().is_sign_positive()
