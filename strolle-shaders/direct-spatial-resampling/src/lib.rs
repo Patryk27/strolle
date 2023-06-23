@@ -60,7 +60,8 @@ fn main_inner(
             camera.screen_to_idx(reprojection.past_screen_pos()),
         );
 
-        past_reservoir.m_sum *= reprojection.confidence.powi(2).max(0.1);
+        past_reservoir.m_sum *=
+            (reprojection.confidence * reprojection.confidence).max(0.1);
 
         reservoir.merge(
             &mut noise,

@@ -84,7 +84,9 @@ fn main_inner(
             camera.half_screen_to_idx(from_screen_pos / 2),
         );
 
-        past_reservoir.m_sum *= reprojection.confidence.powi(2).max(0.1);
+        past_reservoir.m_sum *=
+            (reprojection.confidence * reprojection.confidence).max(0.1);
+
         past_reservoir.m_sum *= migration_compatibility;
 
         reservoir.merge(

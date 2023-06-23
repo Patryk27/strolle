@@ -82,6 +82,11 @@ fn main_inner(
             camera.half_screen_to_idx(reservoir_pos),
         );
 
+        if reservoir.m_sum <= 0.0 {
+            sample_idx += 1;
+            continue;
+        }
+
         let reservoir_radiance = reservoir.sample.radiance * reservoir.w;
 
         // How useful our candidate-reservoir is; <0.0, 1.0>

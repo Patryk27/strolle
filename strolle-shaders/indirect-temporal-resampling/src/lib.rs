@@ -126,7 +126,9 @@ fn main_inner(
             past_reservoir.m_sum *= 1.0 - ((past_age - 16) as f32 / 32.0);
         }
 
-        past_reservoir.m_sum *= reprojection.confidence.powi(2);
+        past_reservoir.m_sum *=
+            reprojection.confidence * reprojection.confidence;
+
         past_reservoir.m_sum *= migration_compatibility;
 
         if reservoir.merge(&mut noise, &past_reservoir, past_p_hat) {
