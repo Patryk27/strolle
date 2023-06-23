@@ -44,7 +44,7 @@ pub fn specular(
 
 pub fn fd_burley(roughness: f32, n_o_v: f32, n_o_l: f32, l_o_h: f32) -> f32 {
     pub fn f_schlick(f0: f32, f90: f32, v_o_h: f32) -> f32 {
-        f0 + (f90 - f0) * (1.0 - v_o_h).powf(5.0)
+        f0 + (f90 - f0) * (1.0 - v_o_h).max(0.001).powf(5.0)
     }
 
     let f90 = 0.5 + 2.0 * roughness * l_o_h * l_o_h;
@@ -77,7 +77,7 @@ pub fn fresnel(f0: Vec3, l_o_h: f32) -> Vec3 {
 }
 
 pub fn f_schlick_vec(f0: Vec3, f90: f32, v_o_h: f32) -> Vec3 {
-    f0 + (f90 - f0) * f32::powf(1.0 - v_o_h, 5.0)
+    f0 + (f90 - f0) * f32::powf((1.0 - v_o_h).max(0.001), 5.0)
 }
 
 pub fn distance_attenuation(
