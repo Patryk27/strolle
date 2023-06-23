@@ -78,6 +78,7 @@ pub fn main_fs(
 
         3 => {
             let normal = surface_tex.sample(*surface_sampler, texel_xy).xyz();
+            let normal = Vec3::splat(0.5) + normal * 0.5;
 
             (normal, false)
         }
