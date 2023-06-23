@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use log::info;
+use log::debug;
 
 use crate::buffers::utils;
 use crate::Bindable;
@@ -23,11 +23,11 @@ impl UnmappedStorageBuffer {
         let label = label.as_ref();
         let size = utils::pad_size(size);
 
-        info!("Allocating unmapped storage buffer `{label}`; size={size}");
+        debug!("Allocating unmapped storage buffer `{label}`; size={size}");
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::MAP_READ,
+            usage: wgpu::BufferUsages::STORAGE,
             size: size as _,
             mapped_at_creation: false,
         });
@@ -37,14 +37,26 @@ impl UnmappedStorageBuffer {
         }
     }
 
-    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
+    /// Creates an immutable storage-buffer binding:
+    ///
+    /// ```
+    /// #[spirv(descriptor_set = ..., binding = ..., storage_buffer)]
+    /// items: &[T],
+    /// ```
+    pub fn bind_readable(&self) -> impl Bindable + '_ {
         UnmappedStorageBufferBinder {
             parent: self,
             read_only: true,
         }
     }
 
-    pub fn as_rw_bind(&self) -> impl Bindable + '_ {
+    /// Creates a mutable storage-buffer binding:
+    ///
+    /// ```
+    /// #[spirv(descriptor_set = ..., binding = ..., storage_buffer)]
+    /// items: &mut [T],
+    /// ```
+    pub fn bind_writable(&self) -> impl Bindable + '_ {
         UnmappedStorageBufferBinder {
             parent: self,
             read_only: false,
@@ -64,8 +76,7 @@ impl Bindable for UnmappedStorageBufferBinder<'_> {
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
         let layout = wgpu::BindGroupLayoutEntry {
             binding,
-            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT
-                | wgpu::ShaderStages::COMPUTE,
+            visibility: wgpu::ShaderStages::all(),
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Storage {
                     read_only: self.read_only,

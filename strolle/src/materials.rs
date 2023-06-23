@@ -2,8 +2,6 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use log::debug;
-
 use crate::{
     gpu, Bindable, BufferFlushOutcome, Images, MappedStorageBuffer, Material,
     Params,
@@ -42,30 +40,14 @@ where
     ) {
         match self.index.entry(material_handle) {
             Entry::Occupied(entry) => {
-                let material_handle = entry.key();
                 let material_id = *entry.get();
-
-                debug!(
-                    "Material updated: {:?} ({}) => {:?}",
-                    material_handle,
-                    material_id.get(),
-                    material
-                );
 
                 self.materials[material_id.get() as usize] = material;
             }
 
             Entry::Vacant(entry) => {
-                let material_handle = entry.key();
                 let material_id =
                     gpu::MaterialId::new(self.materials.len() as u32);
-
-                debug!(
-                    "Material added: {:?} ({}) => {:?}",
-                    material_handle,
-                    material_id.get(),
-                    material
-                );
 
                 self.materials.push(material);
                 entry.insert(material_id);
@@ -73,21 +55,8 @@ where
         }
     }
 
-    pub fn get(
-        &self,
-        material_handle: &P::MaterialHandle,
-    ) -> Option<&Material<P>> {
-        let idx = self.index.get(material_handle)?.get() as usize;
-
-        Some(&self.materials[idx])
-    }
-
     pub fn has(&self, material_handle: &P::MaterialHandle) -> bool {
         self.index.contains_key(material_handle)
-    }
-
-    pub fn handles(&self) -> impl Iterator<Item = &P::MaterialHandle> + '_ {
-        self.index.keys()
     }
 
     pub fn remove(&mut self, material_handle: &P::MaterialHandle) {
@@ -125,7 +94,7 @@ where
         self.buffer.flush(device, queue)
     }
 
-    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
-        self.buffer.as_ro_bind()
+    pub fn bind_readable(&self) -> impl Bindable + '_ {
+        self.buffer.bind_readable()
     }
 }

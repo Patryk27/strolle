@@ -4,7 +4,7 @@ use bevy::reflect::TypeUuid;
 use bevy::render::render_resource::AsBindGroup;
 use strolle as st;
 
-use crate::utils::color_to_vec4;
+use crate::utils::{color_to_vec4, GlamCompat};
 use crate::EngineParams;
 
 /// Extends Bevy's `StandardMaterial` with extra features supported by Strolle.
@@ -74,7 +74,7 @@ impl MaterialLike for StandardMaterial {
         };
 
         st::Material::default()
-            .with_base_color(base_color)
+            .with_base_color(base_color.compat())
             .with_base_color_texture(self.base_color_texture)
             .with_perceptual_roughness(self.perceptual_roughness)
             .with_metallic(self.metallic)

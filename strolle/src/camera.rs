@@ -8,7 +8,6 @@ pub struct Camera {
     pub mode: CameraMode,
     pub viewport: CameraViewport,
     pub projection: CameraProjection,
-    pub background: CameraBackground,
 }
 
 impl Camera {
@@ -52,56 +51,69 @@ impl Camera {
     }
 
     pub(crate) fn serialize(&self) -> gpu::Camera {
-        gpu::Camera::new(
-            self.projection.projection_view,
+        let (onb_u, onb_v, onb_w) = gpu::OrthonormalBasis::build(
             self.projection.origin,
             self.projection.look_at,
             self.projection.up,
-            self.projection.fov,
-            self.viewport.position,
-            self.viewport.size,
-            self.background.color,
-        )
+        );
+
+        gpu::Camera {
+            projection_view: self.projection.projection_view,
+            origin: self.projection.origin.extend(self.projection.fov),
+            viewport: self
+                .viewport
+                .position
+                .as_vec2()
+                .extend(self.viewport.size.x as f32)
+                .extend(self.viewport.size.y as f32),
+            onb_u,
+            onb_v,
+            onb_w,
+        }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CameraMode {
-    DisplayImage,
-    DisplayDirectLightning,
-    DisplayIndirectLightning,
-    DisplayNormals,
-    DisplayBvhHeatmap,
+    /// The default mode - shows the final image
+    Image,
+
+    /// Shows only direct lightning
+    DirectLightning,
+
+    /// Shows only indirect lightning
+    IndirectLightning,
+
+    /// Shows only normals
+    Normals,
+
+    /// Shows a heatmap of the BVH tree
+    BvhHeatmap,
 }
 
 impl CameraMode {
     pub(crate) fn serialize(&self) -> u32 {
         match self {
-            CameraMode::DisplayImage => 0,
-            CameraMode::DisplayDirectLightning => 1,
-            CameraMode::DisplayIndirectLightning => 2,
-            CameraMode::DisplayNormals => 3,
-            CameraMode::DisplayBvhHeatmap => 4,
+            CameraMode::Image => 0,
+            CameraMode::DirectLightning => 1,
+            CameraMode::IndirectLightning => 2,
+            CameraMode::Normals => 3,
+            CameraMode::BvhHeatmap => 4,
         }
     }
 
     pub(crate) fn needs_direct_lightning(&self) -> bool {
-        matches!(
-            self,
-            Self::DisplayImage
-                | Self::DisplayDirectLightning
-                | Self::DisplayIndirectLightning
-        )
+        matches!(self, Self::Image | Self::DirectLightning)
     }
 
     pub(crate) fn needs_indirect_lightning(&self) -> bool {
-        matches!(self, Self::DisplayImage | Self::DisplayIndirectLightning)
+        matches!(self, Self::Image | Self::IndirectLightning)
     }
 }
 
 impl Default for CameraMode {
     fn default() -> Self {
-        Self::DisplayImage
+        Self::Image
     }
 }
 

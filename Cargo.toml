@@ -4,22 +4,31 @@ resolver = "2"
 members = [
     "bevy-strolle",
     "strolle",
-    "strolle-models",
+    "strolle-gpu",
     "strolle-shader-builder",
-    "strolle-shaders/denoising",
-    "strolle-shaders/drawing",
-    "strolle-shaders/raster",
-    "strolle-shaders/ray-shading",
-    "strolle-shaders/ray-tracing",
-    "strolle-shaders/voxel-painting",
-    "strolle-shaders/voxel-shading",
-    "strolle-shaders/voxel-tracing",
+    "strolle-shaders/atmosphere",
+    "strolle-shaders/direct-denoising",
+    "strolle-shaders/direct-initial-shading",
+    "strolle-shaders/direct-raster",
+    "strolle-shaders/direct-resolving",
+    "strolle-shaders/direct-spatial-resampling",
+    "strolle-shaders/direct-temporal-resampling",
+    "strolle-shaders/direct-tracing",
+    "strolle-shaders/indirect-denoising",
+    "strolle-shaders/indirect-initial-shading",
+    "strolle-shaders/indirect-initial-tracing",
+    "strolle-shaders/indirect-resolving",
+    "strolle-shaders/indirect-spatial-resampling",
+    "strolle-shaders/indirect-temporal-resampling",
+    "strolle-shaders/output-drawing",
+    "strolle-shaders/reprojection",
+    "strolle-utils/noise-visualizer",
+    "strolle-utils/sandbox",
 ]
 
-exclude = [
-    "utils/noise-visualizer",
-]
+[patch."crates-io"]
+# TODO https://github.com/bitshifter/glam-rs/pull/411
+glam = { git = "https://github.com/bitshifter/glam-rs" }
 
-[patch."https://github.com/EmbarkStudios/rust-gpu"]
-# TODO bevy and rust-gpu use slightly different versions of glam at the moment
-spirv-std = { git = "https://github.com/Patryk27/rust-gpu", branch = "strolle" }
+# TODO https://github.com/gfx-rs/naga/issues/2373
+naga = { git = "https://github.com/Patryk27/naga", branch = "strolle" }

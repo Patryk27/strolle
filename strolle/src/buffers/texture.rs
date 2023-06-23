@@ -1,41 +1,136 @@
-use log::info;
+use log::debug;
 use spirv_std::glam::UVec2;
 
 use crate::Bindable;
 
 #[derive(Debug)]
 pub struct Texture {
+    tex: wgpu::Texture,
     format: wgpu::TextureFormat,
     view: wgpu::TextureView,
     sampler: wgpu::Sampler,
+    filterable: bool,
 }
 
 impl Texture {
-    pub fn new(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        size: UVec2,
-        format: wgpu::TextureFormat,
-    ) -> Self {
-        let label = label.as_ref();
+    pub fn builder(label: impl AsRef<str>) -> TextureBuilder {
+        TextureBuilder {
+            label: label.as_ref().to_owned(),
+            ..Default::default()
+        }
+    }
 
-        info!("Allocating texture `{label}`; size={size:?}");
+    pub fn tex(&self) -> &wgpu::Texture {
+        &self.tex
+    }
+
+    pub fn view(&self) -> &wgpu::TextureView {
+        &self.view
+    }
+
+    /// Creates an immutable texture+sampler binding:
+    ///
+    /// ```
+    /// #[spirv(descriptor_set = ..., binding = ...)]
+    /// tex: &Image!(2D, type=f32, sampled),
+    ///
+    /// #[spirv(descriptor_set = ..., binding = ...)]
+    /// sampler: &Sampler,
+    /// ```
+    ///
+    /// Sampler's binding follows the texture so e.g. if the texture has
+    /// `binding = 3`, sampler will be `binding = 4`.
+    pub fn bind_sampled(&self) -> impl Bindable + '_ {
+        TextureSampledBinder { parent: self }
+    }
+
+    /// Creates an immutable storage-texture binding:
+    ///
+    /// ```
+    /// #[spirv(descriptor_set = ..., binding = ...)]
+    /// tex: &Image!(2D, format = ..., sampled = false),
+    /// ```
+    ///
+    /// TODO naga and/or rust-gpu don't support read-only storage textures yet,
+    ///      so currently this is equivalent to a writable binding
+    pub fn bind_readable(&self) -> impl Bindable + '_ {
+        TextureStorageBinder { parent: self }
+    }
+
+    /// Creates a mutable storage-texture binding:
+    ///
+    /// ```
+    /// #[spirv(descriptor_set = ..., binding = ...)]
+    /// tex: &Image!(2D, format = ..., sampled = false),
+    /// ```
+    pub fn bind_writable(&self) -> impl Bindable + '_ {
+        TextureStorageBinder { parent: self }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct TextureBuilder {
+    label: String,
+    size: Option<UVec2>,
+    format: Option<wgpu::TextureFormat>,
+    usage: Option<wgpu::TextureUsages>,
+    linear_sampling: Option<bool>,
+}
+
+impl TextureBuilder {
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub fn with_label(mut self, label: impl AsRef<str>) -> Self {
+        self.label = label.as_ref().to_owned();
+        self
+    }
+
+    pub fn with_size(mut self, size: UVec2) -> Self {
+        self.size = Some(size);
+        self
+    }
+
+    pub fn with_format(mut self, format: wgpu::TextureFormat) -> Self {
+        self.format = Some(format);
+        self
+    }
+
+    pub fn add_usage(mut self, usage: wgpu::TextureUsages) -> Self {
+        *self.usage.get_or_insert(usage) |= usage;
+        self
+    }
+
+    pub fn with_linear_sampling(mut self) -> Self {
+        self.linear_sampling = Some(true);
+        self
+    }
+
+    pub fn build(self, device: &wgpu::Device) -> Texture {
+        let Self {
+            label,
+            size,
+            format,
+            usage,
+            linear_sampling,
+        } = self;
+
+        let label = format!("strolle_{}", label);
+        let size = size.expect("Missing property: size");
+        let format = format.expect("Missing property: format");
+        let usage = usage.expect("Missing property: usage");
+        let linear_sampling = linear_sampling.unwrap_or_default();
+
+        debug!(
+            "Allocating texture `{label}`; size={size:?}, format={format:?}"
+        );
 
         assert!(size.x > 0);
         assert!(size.y > 0);
 
-        let usage = if format == wgpu::TextureFormat::Depth32Float {
-            wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-        } else {
-            wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::COPY_DST
-        };
-
         let tex = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some(&format!("{label}_tex")),
+            label: Some(&format!("{label}_texture")),
             size: wgpu::Extent3d {
                 width: size.x,
                 height: size.y,
@@ -51,49 +146,50 @@ impl Texture {
 
         let view = tex.create_view(&Default::default());
 
+        let sampler_label = format!("{label}_sampler");
+
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some(&format!("{label}_sampler")),
+            label: Some(&sampler_label),
+            mag_filter: if linear_sampling {
+                wgpu::FilterMode::Linear
+            } else {
+                wgpu::FilterMode::Nearest
+            },
+            min_filter: if linear_sampling {
+                wgpu::FilterMode::Linear
+            } else {
+                wgpu::FilterMode::Nearest
+            },
             ..Default::default()
         });
 
-        Self {
+        Texture {
+            tex,
             format,
             view,
             sampler,
+            filterable: linear_sampling,
         }
-    }
-
-    pub fn view(&self) -> &wgpu::TextureView {
-        &self.view
-    }
-
-    pub fn as_ro_sampled_bind(&self) -> impl Bindable + '_ {
-        ReadonlyTextureBinder { parent: self }
-    }
-
-    pub fn as_rw_storage_bind(&self) -> impl Bindable + '_ {
-        WritableTextureBinder { parent: self }
     }
 }
 
-pub struct ReadonlyTextureBinder<'a> {
+pub struct TextureSampledBinder<'a> {
     parent: &'a Texture,
 }
 
-impl Bindable for ReadonlyTextureBinder<'_> {
+impl Bindable for TextureSampledBinder<'_> {
     fn bind(
         &self,
         binding: u32,
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
         let tex_layout = wgpu::BindGroupLayoutEntry {
             binding,
-            visibility: wgpu::ShaderStages::FRAGMENT
-                | wgpu::ShaderStages::COMPUTE,
+            visibility: wgpu::ShaderStages::all(),
             ty: wgpu::BindingType::Texture {
                 multisampled: false,
                 view_dimension: wgpu::TextureViewDimension::D2,
                 sample_type: wgpu::TextureSampleType::Float {
-                    filterable: false,
+                    filterable: self.parent.filterable,
                 },
             },
             count: None,
@@ -101,11 +197,12 @@ impl Bindable for ReadonlyTextureBinder<'_> {
 
         let sampler_layout = wgpu::BindGroupLayoutEntry {
             binding: binding + 1,
-            visibility: wgpu::ShaderStages::FRAGMENT
-                | wgpu::ShaderStages::COMPUTE,
-            ty: wgpu::BindingType::Sampler(
-                wgpu::SamplerBindingType::NonFiltering,
-            ),
+            visibility: wgpu::ShaderStages::all(),
+            ty: wgpu::BindingType::Sampler(if self.parent.filterable {
+                wgpu::SamplerBindingType::Filtering
+            } else {
+                wgpu::SamplerBindingType::NonFiltering
+            }),
             count: None,
         };
 
@@ -122,19 +219,18 @@ impl Bindable for ReadonlyTextureBinder<'_> {
     }
 }
 
-pub struct WritableTextureBinder<'a> {
+pub struct TextureStorageBinder<'a> {
     parent: &'a Texture,
 }
 
-impl Bindable for WritableTextureBinder<'_> {
+impl Bindable for TextureStorageBinder<'_> {
     fn bind(
         &self,
         binding: u32,
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
         let tex_layout = wgpu::BindGroupLayoutEntry {
             binding,
-            visibility: wgpu::ShaderStages::FRAGMENT
-                | wgpu::ShaderStages::COMPUTE,
+            visibility: wgpu::ShaderStages::all(),
             ty: wgpu::BindingType::StorageTexture {
                 access: wgpu::StorageTextureAccess::ReadWrite,
                 format: self.parent.format,

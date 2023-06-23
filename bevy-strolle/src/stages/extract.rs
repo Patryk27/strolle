@@ -1,6 +1,5 @@
 use std::f32::consts::PI;
 
-use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::Extract;
@@ -8,11 +7,11 @@ use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::state::{
-    ExtractedCamera, ExtractedInstances, ExtractedLights, ExtractedMaterials,
-    ExtractedMeshes,
+    ExtractedCamera, ExtractedImages, ExtractedInstances, ExtractedLights,
+    ExtractedMaterials, ExtractedMeshes, ExtractedSun,
 };
-use crate::utils::color_to_vec3;
-use crate::{MaterialLike, StrolleCamera};
+use crate::utils::{color_to_vec3, GlamCompat};
+use crate::{MaterialLike, StrolleCamera, StrolleSun};
 
 pub(crate) fn meshes(
     mut commands: Commands,
@@ -88,6 +87,42 @@ pub(crate) fn materials<M>(
     commands.insert_resource(ExtractedMaterials { changed, removed });
 }
 
+pub(crate) fn images(
+    mut commands: Commands,
+    mut events: Extract<EventReader<AssetEvent<Image>>>,
+    images: Extract<Res<Assets<Image>>>,
+) {
+    let mut changed = HashSet::default();
+    let mut removed = Vec::new();
+
+    for event in events.iter() {
+        match event {
+            AssetEvent::Created { handle }
+            | AssetEvent::Modified { handle } => {
+                changed.insert(handle.clone_weak());
+            }
+            AssetEvent::Removed { handle } => {
+                changed.remove(handle);
+                removed.push(handle.clone_weak());
+            }
+        }
+    }
+
+    let changed = changed
+        .into_iter()
+        .flat_map(|handle| {
+            if let Some(image) = images.get(&handle) {
+                Some((handle, image.to_owned()))
+            } else {
+                removed.push(handle.clone_weak());
+                None
+            }
+        })
+        .collect();
+
+    commands.insert_resource(ExtractedImages { changed, removed });
+}
+
 #[allow(clippy::type_complexity)]
 pub(crate) fn instances<M>(
     mut commands: Commands,
@@ -149,8 +184,9 @@ pub(crate) fn lights(
         let lum_intensity = light.intensity / (4.0 * PI);
 
         let light = st::Light::point(
-            transform.translation(),
-            color_to_vec3(light.color) * lum_intensity,
+            transform.translation().compat(),
+            light.radius,
+            (color_to_vec3(light.color) * lum_intensity).compat(),
             light.range,
         );
 
@@ -163,12 +199,10 @@ pub(crate) fn lights(
 #[allow(clippy::type_complexity)]
 pub(crate) fn cameras(
     mut commands: Commands,
-    default_clear_color: Option<Res<ClearColor>>,
     cameras: Extract<
         Query<(
             Entity,
             &Camera,
-            &Camera3d,
             &CameraRenderGraph,
             &Projection,
             &GlobalTransform,
@@ -179,7 +213,6 @@ pub(crate) fn cameras(
     for (
         entity,
         camera,
-        camera_3d,
         camera_render_graph,
         projection,
         transform,
@@ -192,25 +225,16 @@ pub(crate) fn cameras(
 
         let Projection::Perspective(projection) = projection else { continue };
 
-        let clear_color = match &camera_3d.clear_color {
-            ClearColorConfig::Default => default_clear_color
-                .as_ref()
-                .map(|cc| cc.0)
-                .unwrap_or(Color::BLACK),
-            ClearColorConfig::Custom(color) => *color,
-            ClearColorConfig::None => {
-                // TODO our camera doesn't support transparent clear colors, so
-                //      currently this edge case works somewhat differently than
-                //      in bevy_render
-                Color::rgba(0.0, 0.0, 0.0, 1.0)
-            }
-        };
-
         commands.get_or_spawn(entity).insert(ExtractedCamera {
             transform: *transform,
             projection: projection.clone(),
-            clear_color,
             mode: strolle_camera.map(|camera| camera.mode),
         });
     }
+}
+
+pub(crate) fn sun(mut commands: Commands, sun: Extract<Res<StrolleSun>>) {
+    commands.insert_resource(ExtractedSun {
+        sun: Some((***sun).clone()),
+    });
 }

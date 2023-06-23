@@ -7,7 +7,7 @@ use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::state::{ExtractedCamera, SyncedCamera, SyncedState};
-use crate::utils::color_to_vec3;
+use crate::utils::GlamCompat;
 use crate::EngineResource;
 
 pub(crate) fn cameras(
@@ -33,7 +33,6 @@ pub(crate) fn cameras(
 
             viewport: {
                 let format = view_target.main_texture_format();
-
                 let Some(size) = bevy_ext_camera.physical_viewport_size else { continue };
 
                 let position = bevy_ext_camera
@@ -44,8 +43,8 @@ pub(crate) fn cameras(
 
                 st::CameraViewport {
                     format,
-                    size,
-                    position,
+                    size: size.compat(),
+                    position: position.compat(),
                 }
             },
 
@@ -67,16 +66,12 @@ pub(crate) fn cameras(
                 let fov = ext_camera.projection.fov;
 
                 st::CameraProjection {
-                    projection_view,
-                    origin,
-                    look_at,
-                    up,
+                    projection_view: projection_view.compat(),
+                    origin: origin.compat(),
+                    look_at: look_at.compat(),
+                    up: up.compat(),
                     fov,
                 }
-            },
-
-            background: st::CameraBackground {
-                color: color_to_vec3(ext_camera.clear_color),
             },
         };
 

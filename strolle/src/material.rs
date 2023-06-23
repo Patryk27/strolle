@@ -110,26 +110,24 @@ where
         self
     }
 
-    pub(crate) fn base_color_texture(&self) -> Option<&P::ImageHandle> {
-        self.base_color_texture.as_ref()
-    }
-
-    pub(crate) fn normal_map_texture(&self) -> Option<&P::ImageHandle> {
-        self.normal_map_texture.as_ref()
-    }
-
     pub(crate) fn build(&self, images: &Images<P>) -> gpu::Material {
-        // TODO missing feature: normal mapping
-        gpu::Material::default()
-            .with_base_color(self.base_color)
-            .with_base_color_texture(
-                images.lookup_opt(self.base_color_texture.as_ref()),
-            )
-            .with_perceptual_roughness(self.perceptual_roughness)
-            .with_metallic(self.metallic)
-            .with_reflectance(self.reflectance)
-            .with_refraction(self.refraction)
-            .with_reflectivity(self.reflectivity)
+        gpu::Material {
+            base_color: self.base_color,
+            base_color_texture: images
+                .lookup_opt(self.base_color_texture.as_ref())
+                .unwrap_or_default(),
+            perceptual_roughness: self.perceptual_roughness,
+            metallic: self.metallic,
+            reflectance: self.reflectance,
+            refraction: self.refraction,
+            reflectivity: self.reflectivity,
+            normal_map_texture: images
+                .lookup_opt(self.normal_map_texture.as_ref())
+                .unwrap_or_default(),
+            _pad0: 0.0,
+            _pad1: 0.0,
+            _pad2: 0.0,
+        }
     }
 }
 

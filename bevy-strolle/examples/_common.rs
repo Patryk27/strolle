@@ -10,6 +10,7 @@ use zip::ZipArchive;
 
 pub fn unzip_assets() {
     unzip_asset("cornell");
+    unzip_asset("demo");
 }
 
 fn unzip_asset(name: &str) {

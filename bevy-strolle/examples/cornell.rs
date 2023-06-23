@@ -45,6 +45,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
         point_light: PointLight {
             color: Color::WHITE,
             intensity: 50.0,
+            radius: 0.15,
             shadows_enabled: true,
             ..default()
         },
@@ -58,6 +59,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
             ),
             ..default()
         })
+        .insert(StrolleCamera::default())
         .insert(OrbitCameraBundle::new(
             {
                 let mut controller = OrbitCameraController::default();
@@ -74,8 +76,11 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn animate(
     time: Res<Time>,
+    mut sun: ResMut<StrolleSun>,
     mut light: Query<&mut Transform, With<PointLight>>,
 ) {
+    sun.altitude = -1.0;
+
     light.single_mut().translation = vec3(
         time.elapsed_seconds().sin() / 2.0,
         1.5,

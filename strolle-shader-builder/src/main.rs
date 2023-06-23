@@ -3,14 +3,22 @@ use std::{env, fs};
 use spirv_builder::{Capability, MetadataPrintout, SpirvBuilder};
 
 const CRATES: &[&str] = &[
-    "denoising",
-    "drawing",
-    "raster",
-    "ray-shading",
-    "ray-tracing",
-    "voxel-painting",
-    "voxel-shading",
-    "voxel-tracing",
+    "atmosphere",
+    "direct-denoising",
+    "direct-initial-shading",
+    "direct-raster",
+    "direct-resolving",
+    "direct-spatial-resampling",
+    "direct-temporal-resampling",
+    "direct-tracing",
+    "indirect-denoising",
+    "indirect-initial-shading",
+    "indirect-initial-tracing",
+    "indirect-resolving",
+    "indirect-spatial-resampling",
+    "indirect-temporal-resampling",
+    "output-drawing",
+    "reprojection",
 ];
 
 fn main() {
@@ -30,13 +38,10 @@ fn main() {
     env::set_var("PROFILE", "release");
     env::set_var("OUT_DIR", "../../target/spirv/release/build/shader/out");
 
-    // TODO blocked (at least) on https://github.com/EmbarkStudios/spirt/issues/9
-    env::set_var("RUSTGPU_CODEGEN_ARGS", "--no-spirt");
-
     for krate in CRATES {
         let compile_result = SpirvBuilder::new(
             format!("strolle-shaders/{krate}"),
-            "spirv-unknown-spv1.5",
+            "spirv-unknown-spv1.3",
         )
         .print_metadata(MetadataPrintout::None)
         .capability(Capability::Int8)

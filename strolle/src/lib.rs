@@ -4,7 +4,7 @@
 //! # Usage
 //!
 //! If you're using Bevy, please take a look at the `bevy-strolle` crate that
-//! provides a seamless integration with Bevy.
+//! provides an integration with Bevy.
 //!
 //! It's also possible to uses Strolle outside of Bevy, as the low-level
 //! interface requires only `wgpu` - there is no tutorial for that just yet,
@@ -12,18 +12,44 @@
 //!
 //! # Definitions
 //!
-//! TODO
+//! ## Mesh
+//!
+//! Mesh defines the structure of an object; it contains triangles, but without
+//! any information about the materials.
+//!
+//! Meshes together with materials create instances.
+//!
+//! ## Material
+//!
+//! Material determines how an object should look like, i.e. whether it should
+//! be transparent etc.
+//!
+//! Materials together with meshes create instances.
+//!
+//! ## Image
+//!
+//! Image can be used to enhance material's properties, e.g. to make its diffuse
+//! color more interesting.
+//!
+//! Note that normal maps are also classified as images.
+//!
+//! ## Instance
+//!
+//! Instance defines a single object as visible in the world-space; mesh +
+//! material + transformation matrix create a single instance.
+//!
+//! ## Light
+//!
+//! Light defines how the scene should get lightnened - i.e. whether it's a
+//! point-lightning, a cone-lightning etc.
 
 #![feature(hash_raw_entry)]
-#![feature(once_cell)]
-#![feature(option_result_contains)]
 
 mod buffers;
 mod bvh;
 mod camera;
 mod camera_controller;
 mod camera_controllers;
-mod image;
 mod images;
 mod instance;
 mod instances;
@@ -34,6 +60,7 @@ mod materials;
 mod mesh;
 mod meshes;
 mod shaders;
+mod sun;
 mod triangle;
 mod triangles;
 mod utils;
@@ -43,15 +70,15 @@ use std::hash::Hash;
 use std::mem;
 use std::time::Instant;
 
-use log::{info, trace, warn};
-pub(self) use strolle_models as gpu;
+pub use glam;
+use log::info;
+pub(self) use strolle_gpu as gpu;
 
 pub(self) use self::buffers::*;
 pub(self) use self::bvh::*;
 pub use self::camera::*;
 pub(self) use self::camera_controller::*;
 pub(self) use self::camera_controllers::*;
-pub use self::image::*;
 pub(self) use self::images::*;
 pub use self::instance::*;
 pub(self) use self::instances::*;
@@ -62,6 +89,7 @@ pub(self) use self::materials::*;
 pub use self::mesh::*;
 pub(self) use self::meshes::*;
 pub(self) use self::shaders::*;
+pub use self::sun::*;
 pub use self::triangle::*;
 pub(self) use self::triangles::*;
 
@@ -79,8 +107,10 @@ where
     images: Images<P>,
     materials: Materials<P>,
     world: MappedUniformBuffer<gpu::World>,
-    cameras: CameraControllers<P>,
-    pending_events: Vec<Event<P>>,
+    cameras: CameraControllers,
+    sun: Sun,
+    has_dirty_materials: bool,
+    has_dirty_images: bool,
 }
 
 impl<P> Engine<P>
@@ -101,11 +131,13 @@ where
             materials: Materials::new(device),
             world: MappedUniformBuffer::new(
                 device,
-                "strolle_world",
+                "world",
                 Default::default(),
             ),
             cameras: Default::default(),
-            pending_events: Default::default(),
+            sun: Default::default(),
+            has_dirty_materials: false,
+            has_dirty_images: false,
         }
     }
 
@@ -138,10 +170,8 @@ where
         material_handle: P::MaterialHandle,
         material: Material<P>,
     ) {
-        self.materials.add(material_handle.clone(), material);
-
-        self.pending_events
-            .push(Event::MaterialChanged(material_handle));
+        self.materials.add(material_handle, material);
+        self.has_dirty_materials = true;
     }
 
     /// Returns whether material¹ with given handle exists or not.
@@ -163,40 +193,23 @@ where
     /// ¹ see the module-level comment for details
     pub fn remove_material(&mut self, material_handle: &P::MaterialHandle) {
         self.materials.remove(material_handle);
-
-        self.pending_events
-            .push(Event::MaterialRemoved(material_handle.clone()));
+        self.has_dirty_materials = true;
     }
 
     /// Creates an image¹ or updates the existing one.
     ///
-    /// Note that updating image's pixels doesn't require recalling this
-    /// function², but changing the image's format, its resolution or sampler
-    /// does.
-    ///
-    /// Also, at the moment Strolle supports only single-sampled 2D textures
-    /// with a non-filterable samplers; attaching other kind of texture and/or
-    /// sampler will crash the renderer.
-    ///
     /// ¹ see the module-level comment for details
-    /// ² and it's not recommended due to potential performance pitfalls
     pub fn add_image(
         &mut self,
         image_handle: P::ImageHandle,
-        image_texture: P::ImageTexture,
-        image_sampler: P::ImageSampler,
+        image_data: Vec<u8>,
+        image_texture: wgpu::TextureDescriptor,
+        image_sampler: wgpu::SamplerDescriptor,
     ) {
         self.images
-            .add(image_handle.clone(), image_texture, image_sampler);
+            .add(image_handle, image_data, image_texture, image_sampler);
 
-        self.pending_events.push(Event::ImageChanged(image_handle));
-    }
-
-    /// Returns whether image¹ with given handle exists or not.
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn has_image(&self, image_handle: &P::ImageHandle) -> bool {
-        self.images.has(image_handle)
+        self.has_dirty_images = true;
     }
 
     /// Removes an image¹.
@@ -214,9 +227,7 @@ where
     /// ¹ see the module-level comment for details
     pub fn remove_image(&mut self, image_handle: &P::ImageHandle) {
         self.images.remove(image_handle);
-
-        self.pending_events
-            .push(Event::ImageRemoved(image_handle.clone()));
+        self.has_dirty_images = true;
     }
 
     /// Creates an instance¹ or updates the existing one.
@@ -241,11 +252,7 @@ where
     /// Creates a light or updates the existing one¹.
     ///
     /// ¹ see the module-level comment for details
-    pub fn add_light(
-        &mut self,
-        light_handle: P::LightHandle,
-        light: gpu::Light,
-    ) {
+    pub fn add_light(&mut self, light_handle: P::LightHandle, light: Light) {
         self.lights.add(light_handle, light);
     }
 
@@ -263,6 +270,11 @@ where
         self.lights.clear();
     }
 
+    /// Changes sun's parameters.
+    pub fn set_sun(&mut self, sun: Sun) {
+        self.sun = sun;
+    }
+
     /// Sends all changes to the GPU and prepares it for the upcoming frame.
     ///
     /// This function must be called before each frame, i.e. before invoking
@@ -272,30 +284,30 @@ where
     /// enough.)
     pub fn flush(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         let tt = Instant::now();
+        let any_material_modified = mem::take(&mut self.has_dirty_materials);
+        let any_image_modified = mem::take(&mut self.has_dirty_images);
 
-        let any_image_or_material_modified =
-            self.pending_events.iter().any(|event| {
-                matches!(
-                    event,
-                    Event::MaterialChanged(_)
-                        | Event::MaterialRemoved(_)
-                        | Event::ImageChanged(_)
-                        | Event::ImageRemoved(_)
-                )
-            });
-
-        if any_image_or_material_modified {
+        // TODO instead of refreshing all materials if any material was changed,
+        //      it could be nicer to use an incremental approach here and only
+        //      rebuild materials that were actually modified
+        if any_material_modified || any_image_modified {
+            self.images.flush(queue);
             self.materials.refresh(&self.images);
         }
 
         // ---
 
-        let any_instance_modifed =
+        let any_instance_modified =
             self.instances.refresh(&self.meshes, &mut self.triangles);
 
-        if any_instance_modifed {
-            self.bvh
-                .refresh(&self.instances, &self.materials, &self.triangles);
+        if any_instance_modified {
+            utils::measure("bvh.refresh", || {
+                self.bvh.refresh(
+                    &self.instances,
+                    &self.materials,
+                    &self.triangles,
+                );
+            });
         }
 
         // ---
@@ -306,77 +318,17 @@ where
             | self.lights.flush(device, queue).reallocated
             | self.materials.flush(device, queue).reallocated;
 
-        if any_buffer_reallocated {
-            self.pending_events.push(Event::BufferReallocated);
-        }
-
-        // ---
-
         self.world.light_count = self.lights.len();
-
-        if let Some(min_aabb) = self.triangles.bounding_box().min_opt() {
-            let new_min_aabb = self.world.min_aabb.min(min_aabb);
-
-            if self.world.min_aabb != new_min_aabb {
-                warn!(
-                    "World's minimum bounding box has changed ({:?} => {:?}); \
-                     irradiance cache will be invalidated",
-                    self.world.min_aabb, new_min_aabb,
-                );
-
-                self.world.min_aabb = new_min_aabb;
-            }
-        }
-
+        self.world.sun_altitude = self.sun.altitude;
         self.world.flush(queue);
 
         // ---
 
-        let mut any_image_modified = false;
-
-        for event in mem::take(&mut self.pending_events) {
-            trace!("Processing event: {event:?}");
-
+        if any_buffer_reallocated {
             let mut cameras = mem::take(&mut self.cameras);
 
             for camera in cameras.iter_mut() {
-                match &event {
-                    Event::BufferReallocated => {
-                        camera.on_buffers_reallocated(self, device);
-                    }
-
-                    Event::ImageChanged(image_handle) => {
-                        camera.on_image_changed(self, device, image_handle);
-                        any_image_modified = true;
-                    }
-
-                    Event::ImageRemoved(image_handle) => {
-                        camera.on_image_removed(self, device, image_handle);
-                        any_image_modified = true;
-                    }
-
-                    Event::MaterialChanged(material_handle) => {
-                        camera.on_material_changed(
-                            self,
-                            device,
-                            material_handle,
-                        );
-                    }
-
-                    Event::MaterialRemoved(material_handle) => {
-                        camera.on_material_removed(material_handle);
-                    }
-                }
-            }
-
-            self.cameras = cameras;
-        }
-
-        if any_image_modified {
-            let mut cameras = mem::take(&mut self.cameras);
-
-            for camera in cameras.iter_mut() {
-                camera.on_images_modified(self, device);
+                camera.invalidate(self, device);
             }
 
             self.cameras = cameras;
@@ -460,55 +412,30 @@ where
     /// Handle used to lookup images.
     ///
     /// This corresponds to `Handle<Image>` in Bevy, but a simpler
-    /// implementation can do with just `usize` or `String` as well.
+    /// implementation can use just `usize` or `String`.
     type ImageHandle: Eq + Hash + Clone + Debug;
-
-    /// Image sampler; usually [`wgpu::Sampler`].
-    ///
-    /// This type parameter exists only because Bevy doesn't expose *owned*
-    /// `wgpu::Sampler` directly, but rather through a newtype that derefs into
-    /// the actual sampler.
-    type ImageSampler: ImageSampler + Debug;
-
-    /// Image texture; usually [`wgpu::TextureView`].
-    ///
-    /// Similarly as with samplers, this type parameter exists only because Bevy
-    /// doesn't expose *owned* `wgpu::TextureView`.
-    type ImageTexture: ImageTexture + Debug;
 
     /// Handle used to lookup instances of meshes.
     ///
     /// This corresponds to `Entity` in Bevy, but a simpler implementation can
-    /// do with just `usize` or `String` as well.
+    /// use just `usize` or `String`.
     type InstanceHandle: Eq + Hash + Clone + Debug;
 
     /// Handle used to lookup lights.
     ///
     /// This corresponds to `Entity` in Bevy, but a simpler implementation can
-    /// do with just `usize` or `String` as well.
+    /// use just `usize` or `String`.
     type LightHandle: Eq + Hash + Clone + Debug;
 
     /// Handle used to lookup materials.
     ///
     /// This corresponds to `Handle<StandardMaterial>` in Bevy, but a simpler
-    /// implementation can do with just `usize` or `String` as well.
+    /// implementation can use just `usize` or `String`.
     type MaterialHandle: Eq + Hash + Clone + Debug;
 
     /// Handle used to lookup meshes.
     ///
     /// This corresponds to `Handle<Mesh>` in Bevy, but a simpler implementation
-    /// can do with just `usize` or `String` as well.
+    /// can use just `usize` or `String`.
     type MeshHandle: Eq + Hash + Clone + Debug;
-}
-
-#[derive(Debug)]
-enum Event<P>
-where
-    P: Params,
-{
-    BufferReallocated,
-    MaterialChanged(P::MaterialHandle),
-    MaterialRemoved(P::MaterialHandle),
-    ImageChanged(P::ImageHandle),
-    ImageRemoved(P::ImageHandle),
 }

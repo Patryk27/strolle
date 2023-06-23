@@ -1,7 +1,7 @@
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
-use log::info;
+use log::debug;
 
 use crate::buffers::utils;
 use crate::{Bindable, BufferFlushOutcome, Bufferable};
@@ -25,13 +25,13 @@ where
     T: Bufferable,
 {
     pub fn new(device: &wgpu::Device, label: impl AsRef<str>, data: T) -> Self {
-        let label = label.as_ref();
+        let label = format!("strolle_{}", label.as_ref());
 
         let size = if data.size() == 0 {
-            // If the buffer is empty - just like triangles or BVH start - it's
-            // easier to pretend the buffer is just small instead of zero-sized
-            // so that we can allocate *something* here and let the reallocation
-            // logic worry about growing the buffer later.
+            // If the buffer is empty - just like triangles or initial BVH - it
+            // is easier to pretend the buffer is just small instead of
+            // zero-sized so that we can allocate *something* here and let the
+            // reallocation logic worry about growing the buffer later.
             //
             // That is, since we can't really allocate an empty buffer, the
             // other solution would be to keep `buffer: Option<wgpu::Buffer>`
@@ -42,12 +42,12 @@ where
             utils::pad_size(data.size())
         };
 
-        info!("Allocating mapped storage buffer `{label}`; size={size}");
+        debug!("Allocating mapped storage buffer `{label}`; size={size}");
 
-        let buffer = Self::create_buffer(device, label, size);
+        let buffer = Self::create_buffer(device, &label, size);
 
         Self {
-            label: label.to_owned(),
+            label,
             buffer,
             data,
             dirty: true,
@@ -65,7 +65,13 @@ where
         &self.buffer
     }
 
-    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
+    /// Creates an immutable storage-buffer binding:
+    ///
+    /// ```
+    /// #[spirv(descriptor_set = ..., binding = ..., storage_buffer)]
+    /// items: &[T],
+    /// ```
+    pub fn bind_readable(&self) -> impl Bindable + '_ {
         MappedStorageBufferBinder {
             parent: self,
             read_only: true,
@@ -84,7 +90,7 @@ where
             return false;
         }
 
-        info!(
+        debug!(
             "Reallocating mapped storage buffer `{}`; \
              curr-size={curr_size}, new-size={new_size}",
             self.label,
@@ -177,8 +183,7 @@ impl<T> Bindable for MappedStorageBufferBinder<'_, T> {
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
         let layout = wgpu::BindGroupLayoutEntry {
             binding,
-            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT
-                | wgpu::ShaderStages::COMPUTE,
+            visibility: wgpu::ShaderStages::all(),
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Storage {
                     read_only: self.read_only,

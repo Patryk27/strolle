@@ -9,50 +9,56 @@ impl BvhSerializer {
     const OP_LEAF: u32 = 1;
 
     pub fn process(out: &mut Vec<Vec4>, node: &BvhNode) -> usize {
-        let ptr = out.len();
-
-        out.push(Default::default());
-        out.push(Default::default());
+        let idx = out.len();
 
         match node {
-            BvhNode::Internal { bb, left, right } => {
-                let left_ptr = Self::process(out, left);
-                let _right_ptr = Self::process(out, right);
+            BvhNode::Internal {
+                bb, left, right, ..
+            } => {
+                out.push(Default::default());
+                out.push(Default::default());
+
+                let _left_ptr = Self::process(out, left);
+                let right_ptr = Self::process(out, right);
 
                 let opcode = Self::OP_INTERNAL;
-                let arg0 = left_ptr as u32;
+                let arg0 = right_ptr as u32;
                 let arg1 = 0;
 
-                out[ptr] = vec4(
+                out[idx] = vec4(
                     f32::from_bits(opcode | (arg0 << 1)),
                     bb.min().x,
                     bb.min().y,
                     bb.min().z,
                 );
 
-                out[ptr + 1] = bb.max().extend(f32::from_bits(arg1));
+                out[idx + 1] = bb.max().extend(f32::from_bits(arg1));
             }
 
-            BvhNode::Leaf {
-                bb,
-                triangle_id,
-                material_id,
-            } => {
-                let opcode = Self::OP_LEAF;
-                let arg0 = triangle_id.get();
-                let arg1 = material_id.get();
+            BvhNode::Leaf { bb, tris } => {
+                for (tri_idx, (tri_id, mat_id)) in tris.iter().enumerate() {
+                    let opcode = Self::OP_LEAF;
 
-                out[ptr] = vec4(
-                    f32::from_bits(opcode | (arg0 << 1)),
-                    bb.min().x,
-                    bb.min().y,
-                    bb.min().z,
-                );
+                    let arg0 = if tri_idx + 1 == tris.len() {
+                        tri_id.get() << 1
+                    } else {
+                        (tri_id.get() << 1) | 1
+                    };
 
-                out[ptr + 1] = bb.max().extend(f32::from_bits(arg1));
+                    let arg1 = mat_id.get();
+
+                    out.push(vec4(
+                        f32::from_bits(opcode | (arg0 << 1)),
+                        bb.min().x,
+                        bb.min().y,
+                        bb.min().z,
+                    ));
+
+                    out.push(bb.max().extend(f32::from_bits(arg1)));
+                }
             }
         }
 
-        out.len()
+        idx / 2
     }
 }

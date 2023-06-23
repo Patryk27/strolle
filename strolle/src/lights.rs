@@ -2,9 +2,9 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use log::debug;
-
-use crate::{gpu, Bindable, BufferFlushOutcome, MappedStorageBuffer, Params};
+use crate::{
+    gpu, Bindable, BufferFlushOutcome, Light, MappedStorageBuffer, Params,
+};
 
 #[derive(Debug)]
 pub struct Lights<P>
@@ -32,34 +32,18 @@ where
         self.index.clear();
     }
 
-    pub fn add(&mut self, light_handle: P::LightHandle, light: gpu::Light) {
+    pub fn add(&mut self, light_handle: P::LightHandle, light: Light) {
+        let light = light.build();
+
         match self.index.entry(light_handle) {
             Entry::Occupied(entry) => {
-                let light_handle = entry.key();
                 let light_id = *entry.get();
-
-                debug!(
-                    "Light updated: {:?} ({}) => {:?}",
-                    light_handle,
-                    light_id.get(),
-                    light
-                );
 
                 self.buffer[light_id.get() as usize] = light;
             }
 
             Entry::Vacant(entry) => {
-                // let light_handle = entry.key();
                 let light_id = gpu::LightId::new(self.buffer.len() as u32);
-
-                // TODO noisy
-                //
-                // debug!(
-                //     "Light added: {:?} ({}) => {:?}",
-                //     light_handle,
-                //     light_id.get(),
-                //     light
-                // );
 
                 self.buffer.push(light);
                 entry.insert(light_id);
@@ -91,7 +75,7 @@ where
         self.buffer.flush(device, queue)
     }
 
-    pub fn as_ro_bind(&self) -> impl Bindable + '_ {
-        self.buffer.as_ro_bind()
+    pub fn bind_readable(&self) -> impl Bindable + '_ {
+        self.buffer.bind_readable()
     }
 }

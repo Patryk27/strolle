@@ -47,6 +47,12 @@ where
 }
 
 #[derive(Resource)]
+pub(crate) struct ExtractedImages {
+    pub changed: Vec<(Handle<Image>, Image)>,
+    pub removed: Vec<Handle<Image>>,
+}
+
+#[derive(Resource)]
 pub(crate) struct ExtractedInstances<M>
 where
     M: MaterialLike,
@@ -64,6 +70,10 @@ pub(crate) struct ExtractedLights {
 pub(crate) struct ExtractedCamera {
     pub transform: GlobalTransform,
     pub projection: PerspectiveProjection,
-    pub clear_color: Color,
     pub mode: Option<st::CameraMode>,
+}
+
+#[derive(Resource)]
+pub(crate) struct ExtractedSun {
+    pub sun: Option<st::Sun>,
 }
