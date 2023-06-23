@@ -26,6 +26,9 @@ members = [
     "strolle-utils/sandbox",
 ]
 
-# TODO https://github.com/gfx-rs/naga/issues/2373
 [patch."crates-io"]
+# TODO https://github.com/bitshifter/glam-rs/pull/411
+glam = { git = "https://github.com/bitshifter/glam-rs" }
+
+# TODO https://github.com/gfx-rs/naga/issues/2373
 naga = { git = "https://github.com/Patryk27/naga", branch = "strolle" }
