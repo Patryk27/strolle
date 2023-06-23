@@ -104,18 +104,22 @@ pub fn main_fs(
     };
 }
 
-/// Applies ACES tone mapping.
-///
-/// Thanks to:
-/// https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
-fn apply_tone_mapping(x: Vec3) -> Vec3 {
-    let a = 2.51;
-    let b = 0.03;
-    let c = 2.43;
-    let d = 0.59;
-    let e = 0.14;
+/// Applies Reinhard tone mapping.
+fn apply_tone_mapping(color: Vec3) -> Vec3 {
+    fn luminance(color: Vec3) -> f32 {
+        color.dot(vec3(0.2126, 0.7152, 0.0722))
+    }
 
-    ((x * (a * x + b)) / (x * (c * x + d) + e)).clamp(Vec3::ZERO, Vec3::ONE)
+    fn change_luminance(color: Vec3, l_out: f32) -> Vec3 {
+        let l_in = luminance(color);
+
+        color * (l_out / l_in)
+    }
+
+    let l_old = luminance(color);
+    let l_new = l_old / (1.0 + l_old);
+
+    change_luminance(color, l_new)
 }
 
 /// Applies screen-space debanding using a simple dither.
