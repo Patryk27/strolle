@@ -4,7 +4,7 @@ Strolle (coming from _strålspårning_) is an experimental real-time renderer th
 supports global illumination:
 
 <p align="center">
-  <img width="512" height="512" src="_readme/demo-1.jpg" />
+  <img width="512" height="512" src="_readme/demo-v3.jpg" />
 </p>
 
 Our goal is to create an engine that is able to produce a good-looking image on
@@ -33,9 +33,10 @@ Use WASD to move, mouse to navigate the camera; extra controls include:
 - 4: Switch camera to a normals-only mode,
 - 5: Switch camera to a bvh-heatmap mode,
 - 0: Switch camera to use Bevy's renderer,
-- Semicolon: Toggle camera's controls on/off; useful for taking screenshots.
+- Semicolon: Toggle camera's controls on/off; useful for taking screenshots,
+- O/P: Adjust sun's altitude.
 
-Model thanks to: 
+Model thanks to:    
 https://sketchfab.com/3d-models/low-poly-game-level-82b7a937ae504cfa9f277d9bf6874ad2
 
 ## License
