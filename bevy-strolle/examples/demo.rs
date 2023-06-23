@@ -34,9 +34,7 @@ fn main() {
         .add_startup_system(setup)
         .add_system(adjust_materials)
         .add_system(process_input)
-        .add_system(move_light)
         .add_system(animate_sun)
-        .add_system(animate_objects)
         .run();
 }
 
@@ -68,8 +66,8 @@ fn setup(
                 controller.translate_sensitivity = 8.0;
                 controller
             },
-            vec3(-5.75, 0.5, -14.5),
-            vec3(-5.75, 0.5, -21.5),
+            vec3(-5.75, 0.5, -16.8),
+            vec3(-5.75, 0.5, -17.0),
             vec3(0.0, 1.0, 0.0),
         ));
 
@@ -80,23 +78,21 @@ fn setup(
 
     let lights = vec![
         vec3(-3.0, 0.75, -23.0),
-        // vec3(-2.5, 0.75, -10.5),
-        // vec3(-1.5, 0.75, 1.25),
-        // vec3(-11.5, 0.75, 5.5),
-        // vec3(-10.0, 0.75, 21.0),
-        // vec3(-10.0, 0.75, 28.0),
-        // vec3(-18.0, 0.75, -31.5),
-        // vec3(-23.5, 0.75, -23.0),
-        // vec3(-17.8, 0.75, -20.0),
+        vec3(-17.5, 0.75, -31.0),
+        vec3(-23.75, 0.75, -24.0),
+        vec3(1.25, 0.75, -10.5),
+        vec3(-3.15, 0.75, 1.25),
+        vec3(-3.25, 0.75, 20.25),
+        vec3(-11.5, 0.75, 28.50),
     ];
 
     for light in lights {
         commands.spawn(PointLightBundle {
             point_light: PointLight {
                 color: Color::WHITE,
-                range: 20.0,
-                radius: 0.2,
-                intensity: 2500.0,
+                range: 35.0,
+                radius: 0.25,
+                intensity: 3500.0,
                 shadows_enabled: true,
                 ..default()
             },
@@ -132,19 +128,14 @@ fn adjust_materials(mut materials: ResMut<Assets<StandardMaterial>>) {
 }
 
 fn process_input(
-    mut commands: Commands,
-    time: Res<Time>,
     keys: Res<Input<KeyCode>>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut camera: Query<(
         &mut Transform,
         &mut CameraRenderGraph,
         &mut StrolleCamera,
         &mut FpsCameraController,
     )>,
-    mut light: Query<&mut PointLight>,
     mut sun: ResMut<Sun>,
 ) {
     let (
@@ -197,72 +188,17 @@ fn process_input(
         };
     }
 
-    // ---
-
     // TODO just for testing purposes
     if keys.just_pressed(KeyCode::Return) {
-        commands.spawn(PointLightBundle {
-            point_light: PointLight {
-                color: Color::WHITE,
-                range: 20.0,
-                radius: 0.2,
-                intensity: 2500.0,
-                shadows_enabled: true,
-                ..default()
-            },
-            transform: Transform::from_translation(
-                camera_transform.translation,
-            ),
-            ..default()
-        });
-
-        // let mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
-
-        // commands
-        //     .spawn(PbrBundle {
-        //         mesh: mesh.clone(),
-        //         material: materials.add(StandardMaterial {
-        //             base_color: Color::CRIMSON,
-        //             ..default()
-        //         }),
-        //         ..default()
-        //     })
-        //     .insert(AnimatedObject {
-        //         position: vec3(
-        //             camera_transform.translation.x,
-        //             0.1,
-        //             camera_transform.translation.z,
-        //         ),
-        //         phase: time.elapsed_seconds(),
-        //     });
+        println!("{:?}", camera_transform.translation);
     }
 
-    // ---
-
     if keys.just_pressed(KeyCode::O) {
-        sun.altitude -= 0.1;
+        sun.altitude -= 0.05;
     }
 
     if keys.just_pressed(KeyCode::P) {
-        sun.altitude += 0.1;
-    }
-
-    if keys.just_pressed(KeyCode::LBracket) {
-        light.single_mut().intensity /= 2.0;
-    }
-
-    if keys.just_pressed(KeyCode::RBracket) {
-        light.single_mut().intensity *= 2.0;
-    }
-}
-
-fn move_light(
-    keys: Res<Input<KeyCode>>,
-    camera: Query<&Transform, With<Camera>>,
-    mut light: Query<&mut Transform, (With<PointLight>, Without<Camera>)>,
-) {
-    if keys.just_pressed(KeyCode::X) {
-        light.single_mut().translation = camera.single().translation;
+        sun.altitude += 0.05;
     }
 }
 
@@ -286,27 +222,4 @@ fn animate_sun(
 ) {
     strolle_sun.altitude = strolle_sun.altitude
         + (our_sun.altitude - strolle_sun.altitude) * time.delta_seconds();
-}
-
-#[derive(Component)]
-struct AnimatedObject {
-    position: Vec3,
-    phase: f32,
-}
-
-fn animate_objects(
-    time: Res<Time>,
-    mut objects: Query<(&mut Transform, &AnimatedObject)>,
-) {
-    let tt = time.elapsed_seconds();
-
-    for (mut transform, animated) in objects.iter_mut() {
-        let tt = tt + animated.phase;
-
-        transform.translation =
-            animated.position + vec3(0.0, tt.sin().abs() * 1.5, 0.0);
-
-        transform.rotation =
-            Quat::from_rotation_x(tt) * Quat::from_rotation_y(tt / 1.5);
-    }
 }
