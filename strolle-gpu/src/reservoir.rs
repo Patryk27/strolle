@@ -245,7 +245,7 @@ impl IndirectReservoirSample {
 
     fn partial_jacobian(&self, hit_point: Vec3) -> (f32, f32) {
         let vec = hit_point - self.sample_point;
-        let distance = vec.length().max(0.001);
+        let distance = vec.length();
         let cosine = self.sample_normal.dot(vec / distance).clamp(0.0, 1.0);
 
         (distance, cosine)
