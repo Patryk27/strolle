@@ -49,7 +49,7 @@ fn main_inner(
         let d0 = direct_initial_samples[screen_idx];
 
         DirectReservoirSample {
-            light_id: d0.w.to_bits(),
+            light_id: LightId::new(d0.w.to_bits()),
             light_contribution: d0.xyz(),
         }
     };

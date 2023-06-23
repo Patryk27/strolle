@@ -101,9 +101,11 @@ fn main_inner(
 
     if hit.is_some() {
         let material = materials.get(MaterialId::new(hit.material_id));
-        let mut light_id = 0;
+        let mut light_idx = 0;
 
-        while light_id < world.light_count {
+        while light_idx < world.light_count {
+            let light_id = LightId::new(light_idx);
+
             // We're hard-coding albedo here because later, during the resolving
             // pass, we're going to re-compute this light's contribution anyway,
             // this time using the correct albedo.
@@ -118,7 +120,7 @@ fn main_inner(
 
             // TODO add support for specular lightning
             let light_contribution = lights
-                .get(LightId::new(light_id))
+                .get(light_id)
                 .contribution(material, hit, ray, albedo)
                 .diffuse;
 
@@ -128,10 +130,20 @@ fn main_inner(
             };
 
             reservoir.add(&mut noise, sample, sample.p_hat());
-            light_id += 1;
+            light_idx += 1;
         }
+    } else {
+        // If we hit nothing, the reservoir will remain empty and we'll just
+        // sample the sky in a moment.
     }
 
+    // If the reservoir is empty (i.e. it has seen zero samples or all of the
+    // samples are unusable¹), sample the sky.
+    //
+    // If the reservoir has seen some samples, sample the sky with 25%
+    // probability (following the ReSTIR paper).
+    //
+    // ¹ e.g. are lights very very far away from here
     let sky_weight = if reservoir.w_sum == 0.0 {
         1.0
     } else {
@@ -139,20 +151,22 @@ fn main_inner(
     };
 
     if sky_weight > 0.0 {
+        // If we hit nothing, sample the sky - otherwise, sample the sun, so:
+        //
+        // - if the user is looking at the sky, we get no-hit and sample the
+        //   sky,
+        //
+        // - if the user is looking at the world, we get hit and sample the sun
+        //   so that the sun is able to cast shadows.
         let sky = if hit.is_none() {
             atmosphere.eval(world.sun_direction(), ray.direction())
         } else {
             atmosphere.sun(world.sun_direction())
         };
 
-        reservoir.add(
-            &mut noise,
-            DirectReservoirSample {
-                light_id: u32::MAX,
-                light_contribution: sky,
-            },
-            sky_weight,
-        );
+        let sample = DirectReservoirSample::sky(sky);
+
+        reservoir.add(&mut noise, sample, sample.p_hat());
     }
 
     // -------------------------------------------------------------------------
@@ -169,10 +183,10 @@ fn main_inner(
     let light_visibility = if hit.is_none() {
         1.0
     } else {
-        let light = if reservoir.sample.light_id == u32::MAX {
+        let light = if reservoir.sample.is_sky() {
             Light::sun(world.sun_position())
         } else {
-            lights.get(LightId::new(reservoir.sample.light_id))
+            lights.get(reservoir.sample.light_id)
         };
 
         light.visibility(local_idx, triangles, bvh, stack, &mut noise, hit)
@@ -180,9 +194,10 @@ fn main_inner(
 
     let light = light_contribution * light_visibility;
 
-    // Setting a mininimum radiance is technically wrong but at least this
-    // way we don't have to deal with zero p_hats:
+    // Setting a mininimum radiance is technically wrong, but at least this way
+    // we don't have to deal with zero p_hats:
     let light = light.max(Vec3::splat(0.000001));
 
-    direct_initial_samples[screen_idx] = light.extend(f32::from_bits(light_id));
+    direct_initial_samples[screen_idx] =
+        light.extend(f32::from_bits(light_id.get()));
 }

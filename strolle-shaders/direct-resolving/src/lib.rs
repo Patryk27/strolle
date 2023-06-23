@@ -70,7 +70,7 @@ fn main_inner(
         );
 
         if reservoir.w > 0.0 {
-            let contribution = if reservoir.sample.light_id == u32::MAX {
+            let contribution = if reservoir.sample.is_sky() {
                 albedo * reservoir.sample.light_contribution
             } else {
                 let ray = camera.ray(screen_pos);
@@ -80,7 +80,7 @@ fn main_inner(
                 //      (it's a tad difficult since it's visibly more noisy than
                 //      diffuse)
                 lights
-                    .get(LightId::new(reservoir.sample.light_id))
+                    .get(reservoir.sample.light_id)
                     .contribution(material, hit, ray, albedo)
                     .diffuse
             };

@@ -123,8 +123,6 @@ fn main_inner(
         return;
     }
 
-    // -------------------------------------------------------------------------
-
     let indirect_ray =
         Ray::new(direct_hit.point, noise.sample_hemisphere(direct_hit.normal));
 
@@ -133,90 +131,134 @@ fn main_inner(
         indirect_hits_d1.read(global_id),
     );
 
-    if indirect_hit.is_none() {
-        let sky =
-            atmosphere.eval(world.sun_direction(), indirect_ray.direction());
-
-        // Since we're supporting only single-bounce GI, let's arbitrarily boost
-        // the color a bit to compensate for "missing bounces" getting the scene
-        // too dark:
-        let sky = sky * 7.5;
-
-        let hit_point =
-            indirect_ray.origin() + indirect_ray.direction() * 1000.0;
-
-        let normal = -indirect_ray.direction();
-        let normal = Normal::encode(normal);
-
-        unsafe {
-            *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
-                sky.extend(normal.x);
-
-            *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 1) =
-                direct_hit.point.extend(normal.y);
-
-            *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
-                hit_point.extend(Default::default());
-        }
-
-        return;
-    }
-
-    // -------------------------------------------------------------------------
-
-    let material = materials.get(MaterialId::new(indirect_hit.material_id));
-
-    let albedo = material
-        .albedo(atlas_tex, atlas_sampler, indirect_hit.uv)
-        .xyz();
-
     // -------------------------------------------------------------------------
     // Phase 1:
     //
     // Similarly as for direct lightning, let's start by selecting the best
     // light-candidate, judging lights by their *unshadowed* contribution.
+    //
+    // This algorithm follows a similar logic as direct initial shading, so
+    // comments were skipped for brevity.
 
-    let mut light_id = 0;
     let mut reservoir = DirectReservoir::default();
 
-    while light_id < world.light_count {
-        let light_contribution = lights
-            .get(LightId::new(light_id))
-            .contribution(material, indirect_hit, indirect_ray, albedo)
-            .sum();
+    if indirect_hit.is_some() {
+        let material = materials.get(MaterialId::new(indirect_hit.material_id));
 
-        let sample = DirectReservoirSample {
-            light_id,
-            light_contribution,
+        let albedo = material
+            .albedo(atlas_tex, atlas_sampler, indirect_hit.uv)
+            .xyz();
+
+        let mut light_idx = 0;
+
+        while light_idx < world.light_count {
+            let light_id = LightId::new(light_idx);
+
+            let light_contribution = lights
+                .get(light_id)
+                .contribution(material, indirect_hit, indirect_ray, albedo)
+                .sum();
+
+            let sample = DirectReservoirSample {
+                light_id,
+                light_contribution,
+            };
+
+            reservoir.add(&mut noise, sample, sample.p_hat());
+            light_idx += 1;
+        }
+    }
+
+    let sky_weight = if reservoir.w_sum == 0.0 {
+        1.0
+    } else {
+        0.25 * reservoir.w_sum
+    };
+
+    let mut sky_normal = Vec3::ZERO;
+
+    if sky_weight > 0.0 {
+        // If we hit nothing, we know that our indirect-hit's normal must point
+        // towards the sky - great, let's use it!
+        //
+        // If we hit something, we don't know in which way we can sample the
+        // sky, so just take a random guess on the hemisphere on our surface.
+        sky_normal = if indirect_hit.is_none() {
+            indirect_hit.normal
+        } else {
+            noise.sample_hemisphere(indirect_hit.normal)
         };
 
+        // Cursed:
+        //
+        // Since we only support single-bounce GI, let's arbitrarily boost the
+        // sky's exposure to compensate for the missing bounces.
+        //
+        // It's pretty so-so (and increases variance), but it helps a bit as
+        // well.
+        let sky_exposure = if indirect_hit.is_none() { 9.0 } else { 4.5 };
+
+        let sky =
+            sky_exposure * atmosphere.eval(world.sun_direction(), sky_normal);
+
+        let sample = DirectReservoirSample::sky(sky);
+
         reservoir.add(&mut noise, sample, sample.p_hat());
-        light_id += 1;
     }
 
     // -------------------------------------------------------------------------
     // Phase 2:
     //
-    // Having selected the best light-candidate, cast a shadow ray to check if
-    // that light is actually visible to us.
+    // Select the best light-candidate and cast a shadow ray to check if that
+    // light (which might be sun) is actually visible to us.
 
     let DirectReservoirSample {
-        light_contribution, ..
+        light_id,
+        light_contribution,
     } = reservoir.sample;
 
-    let light_visibility = lights
-        .get(LightId::new(reservoir.sample.light_id))
-        .visibility(local_idx, triangles, bvh, stack, &mut noise, indirect_hit);
+    let light = if reservoir.sample.is_sky() {
+        Light::sun(sky_normal * World::SUN_DISTANCE)
+    } else {
+        lights.get(light_id)
+    };
 
-    let color = light_contribution
-        * light_visibility
-        * indirect_ray.direction().dot(direct_hit.normal);
+    let light_visibility = light.visibility(
+        local_idx,
+        triangles,
+        bvh,
+        stack,
+        &mut noise,
+        indirect_hit,
+    );
 
-    // Setting a mininimum radiance is technically wrong but at least this way
+    let mut color = light_contribution * light_visibility;
+
+    if reservoir.sample.is_sky() {
+        // Cursed:
+        //
+        // Since we only support single-bounce GI, let's avoid getting the image
+        // extra dark by skipping the cosine term of the rendering equation.
+        //
+        // psst don't tell anybody
+    } else {
+        color *= indirect_ray.direction().dot(direct_hit.normal);
+    }
+
+    // Setting a mininimum radiance is technically wrong, but at least this way
     // we don't have to deal with zero p_hats:
     let color = color.max(Vec3::splat(0.000001));
 
-    let indirect_normal = Normal::encode(indirect_hit.normal);
+    let indirect_normal;
+    let indirect_point;
+
+    if indirect_hit.is_some() {
+        indirect_normal = Normal::encode(indirect_hit.normal);
+        indirect_point = indirect_hit.point;
+    } else {
+        indirect_normal = Normal::encode(-indirect_ray.direction());
+        indirect_point = sky_normal * World::SUN_DISTANCE;
+    }
 
     unsafe {
         *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
@@ -226,6 +268,6 @@ fn main_inner(
             direct_hit.point.extend(indirect_normal.y);
 
         *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
-            indirect_hit.point.extend(Default::default());
+            indirect_point.extend(Default::default());
     }
 }
