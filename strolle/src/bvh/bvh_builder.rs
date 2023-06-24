@@ -52,7 +52,7 @@ impl SahBvhNode {
     }
 
     fn find_splitting_plane(&self) -> Option<(Axis, f32, f32)> {
-        const BINS: usize = 32;
+        const BINS: usize = 8;
 
         #[derive(Clone, Copy, Default, Debug)]
         struct SahBin {
