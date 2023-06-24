@@ -22,10 +22,7 @@ where
 {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
-            buffer: MappedStorageBuffer::new_default(
-                device,
-                "strolle_triangles",
-            ),
+            buffer: MappedStorageBuffer::new_default(device, "triangles"),
             index: Default::default(),
             dirty: Default::default(),
         }

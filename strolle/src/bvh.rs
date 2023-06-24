@@ -29,7 +29,7 @@ impl Bvh {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
             root: None,
-            buffer: MappedStorageBuffer::new_default(device, "strolle_bvh"),
+            buffer: MappedStorageBuffer::new_default(device, "bvh"),
         }
     }
 
