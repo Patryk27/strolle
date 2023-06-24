@@ -11,7 +11,6 @@ pub struct Lights<P>
 where
     P: Params,
 {
-    // TODO benchmark with uniform
     buffer: MappedStorageBuffer<Vec<gpu::Light>>,
     index: HashMap<P::LightHandle, gpu::LightId>,
 }

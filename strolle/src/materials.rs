@@ -12,7 +12,6 @@ pub struct Materials<P>
 where
     P: Params,
 {
-    // TODO benchmark with uniform
     buffer: MappedStorageBuffer<Vec<gpu::Material>>,
     index: HashMap<P::MaterialHandle, gpu::MaterialId>,
     materials: Vec<Material<P>>,
