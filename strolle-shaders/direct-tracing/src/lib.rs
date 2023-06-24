@@ -50,10 +50,42 @@ fn main_inner(
         .ray(screen_pos)
         .trace_nearest(local_idx, triangles, bvh, stack);
 
+    let color = gradient(
+        [
+            vec3(0.0, 0.0, 1.0),
+            vec3(0.0, 1.0, 0.0),
+            vec3(1.0, 0.0, 0.0),
+            vec3(0.0, 0.0, 0.0),
+        ],
+        traversed_nodes as f32 / 150.0,
+    );
+
     unsafe {
-        direct_colors.write(
-            screen_pos,
-            Vec3::splat(traversed_nodes as f32 / 200.0).extend(1.0),
-        );
+        direct_colors.write(screen_pos, color.extend(1.0));
     }
+}
+
+fn gradient<const N: usize>(colors: [Vec3; N], progress: f32) -> Vec3 {
+    if progress <= 0.0 {
+        return colors[0];
+    }
+
+    let step = 1.0 / (N as f32 - 1.0);
+    let mut i = 0;
+
+    while i < (N - 1) {
+        let min = step * (i as f32);
+        let max = step * (i as f32 + 1.0);
+
+        if progress >= min && progress <= max {
+            let rhs = (progress - min) / step;
+            let lhs = 1.0 - rhs;
+
+            return lhs * colors[i] + rhs * colors[i + 1];
+        }
+
+        i += 1;
+    }
+
+    colors[N - 1]
 }
