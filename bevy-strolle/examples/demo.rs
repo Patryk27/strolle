@@ -181,7 +181,7 @@ fn process_input(
 
         let mut window = windows.single_mut();
 
-        window.cursor.visible = fps_camera_controller.enabled;
+        window.cursor.visible = !fps_camera_controller.enabled;
 
         window.cursor.grab_mode = if fps_camera_controller.enabled {
             CursorGrabMode::Locked
