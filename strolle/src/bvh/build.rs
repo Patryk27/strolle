@@ -11,7 +11,7 @@ use crate::{Axis, BoundingBox, BvhNode, BvhTriangle};
 ///
 /// Special thanks to:
 /// - https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/.
-pub fn build(
+pub fn run(
     past: Option<&BvhNode>,
     triangles: impl IntoIterator<Item = BvhTriangle>,
 ) -> BvhNode {
@@ -28,7 +28,7 @@ pub fn build(
 #[derive(Default)]
 struct SahBvhNode {
     bb: BoundingBox,
-    tris: Vec<BvhTriangle>,
+    triangles: Vec<BvhTriangle>,
     children: Option<[(Box<Self>, u64); 2]>,
     past: Option<BvhNode>,
 }
@@ -36,14 +36,14 @@ struct SahBvhNode {
 impl SahBvhNode {
     fn add(&mut self, triangle: BvhTriangle) {
         self.bb = self.bb + triangle.bb;
-        self.tris.push(triangle);
+        self.triangles.push(triangle);
     }
 
     fn balance(&mut self, past: Option<&BvhNode>) {
         if let Some((split_by, split_at, split_cost)) =
             self.find_splitting_plane()
         {
-            let current_cost = (self.tris.len() as f32) * self.bb.area();
+            let current_cost = (self.triangles.len() as f32) * self.bb.area();
 
             if split_cost < current_cost {
                 self.split(past, split_by, split_at);
@@ -60,14 +60,14 @@ impl SahBvhNode {
             count: usize,
         }
 
-        if self.tris.len() <= 1 {
+        if self.triangles.len() <= 1 {
             return None;
         }
 
         let mut best: Option<(Axis, f32, f32)> = None;
         let mut centroid_bb = BoundingBox::default();
 
-        for triangle in &self.tris {
+        for triangle in &self.triangles {
             centroid_bb.grow(triangle.center);
         }
 
@@ -75,7 +75,7 @@ impl SahBvhNode {
             let mut bins = [SahBin::default(); BINS];
             let scale = (BINS as f32) / centroid_bb.extent()[split_by];
 
-            for triangle in &self.tris {
+            for triangle in &self.triangles {
                 let bin_idx = (triangle.center[split_by]
                     - centroid_bb.min()[split_by])
                     * scale;
@@ -145,7 +145,7 @@ impl SahBvhNode {
         let mut right = Self::default();
         let mut right_hasher = DefaultHasher::default();
 
-        for triangle in mem::take(&mut self.tris) {
+        for triangle in mem::take(&mut self.triangles) {
             let (side, hasher) = if triangle.center[split_by] <= split_at {
                 (&mut left, &mut left_hasher)
             } else {
@@ -212,10 +212,12 @@ impl SahBvhNode {
         } else {
             BvhNode::Leaf {
                 bb: self.bb,
-                tris: self
-                    .tris
+                triangles: self
+                    .triangles
                     .into_iter()
-                    .map(|tri| (tri.triangle_id, tri.material_id))
+                    .map(|triangle| {
+                        (triangle.triangle_id, triangle.material_id)
+                    })
                     .collect(),
             }
         }

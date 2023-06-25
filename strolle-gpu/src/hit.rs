@@ -1,6 +1,6 @@
 use glam::{Vec2, Vec3, Vec4, Vec4Swizzles};
 
-use crate::Normal;
+use crate::{MaterialId, Normal};
 
 #[derive(Copy, Clone)]
 pub struct Hit {
@@ -8,11 +8,18 @@ pub struct Hit {
     pub point: Vec3,
     pub normal: Vec3,
     pub uv: Vec2,
-    pub material_id: u32,
+    pub material_id: MaterialId,
 }
 
 impl Hit {
-    pub const DISTANCE_OFFSET: f32 = 0.01;
+    /// How far to move a hit point away from its surface to avoid
+    /// self-intersection when casting shadow rays.
+    ///
+    /// This constant cannot be zero (because then every object would cast
+    /// shadows onto itself), but it cannot be too high either (because then
+    /// shadows would feel off, flying on surfaces instead of being attached to
+    /// them).
+    pub const NUDGE_OFFSET: f32 = 0.001;
 
     pub fn none() -> Self {
         Self {
@@ -20,7 +27,7 @@ impl Hit {
             point: Default::default(),
             normal: Default::default(),
             uv: Default::default(),
-            material_id: Default::default(),
+            material_id: MaterialId::new(0),
         }
     }
 
@@ -33,7 +40,7 @@ impl Hit {
     }
 
     pub fn serialize(&self) -> [Vec4; 2] {
-        let d0 = self.point.extend(f32::from_bits(self.material_id));
+        let d0 = self.point.extend(f32::from_bits(self.material_id.get()));
 
         let d1 = Normal::encode(self.normal)
             .extend(self.uv.x)
@@ -47,17 +54,14 @@ impl Hit {
             Self::none()
         } else {
             let normal = Normal::decode(d1.xy());
-
-            // We're moving the hit-point a few units away from the surface to
-            // prevent self-intersecting when checking for shadows later
-            let point = d0.xyz() + normal * 0.001;
+            let point = d0.xyz() + normal * Self::NUDGE_OFFSET;
 
             Self {
                 distance: 0.0,
                 point,
                 normal,
                 uv: d1.zw(),
-                material_id: d0.w.to_bits(),
+                material_id: MaterialId::new(d0.w.to_bits()),
             }
         }
     }

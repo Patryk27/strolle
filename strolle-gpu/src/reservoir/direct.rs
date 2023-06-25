@@ -19,8 +19,13 @@ impl DirectReservoir {
     }
 
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
-        let d0 = buffer[2 * id];
-        let d1 = buffer[2 * id + 1];
+        let d0;
+        let d1;
+
+        unsafe {
+            d0 = *buffer.get_unchecked(2 * id);
+            d1 = *buffer.get_unchecked(2 * id + 1);
+        }
 
         Self {
             reservoir: Reservoir {
@@ -49,8 +54,10 @@ impl DirectReservoir {
             Default::default(),
         );
 
-        buffer[2 * id] = d0;
-        buffer[2 * id + 1] = d1;
+        unsafe {
+            *buffer.get_unchecked_mut(2 * id) = d0;
+            *buffer.get_unchecked_mut(2 * id + 1) = d1;
+        }
     }
 
     pub fn age(&self, frame: u32) -> u32 {

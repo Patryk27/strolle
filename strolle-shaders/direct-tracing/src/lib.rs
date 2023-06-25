@@ -11,13 +11,11 @@ pub fn main(
     #[spirv(local_invocation_index)]
     local_idx: u32,
     #[spirv(workgroup)]
-    stack: BvhTraversingStack,
+    stack: BvhStack,
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
     bvh: &[BvhNode],
-    #[spirv(descriptor_set = 0, binding = 2, uniform)]
-    world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
@@ -29,7 +27,6 @@ pub fn main(
         stack,
         TrianglesView::new(triangles),
         BvhView::new(bvh),
-        world,
         camera,
         direct_colors,
     )
@@ -39,10 +36,9 @@ pub fn main(
 fn main_inner(
     screen_pos: UVec2,
     local_idx: u32,
-    stack: BvhTraversingStack,
+    stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
-    _world: &World,
     camera: &Camera,
     direct_colors: TexRgba16f,
 ) {

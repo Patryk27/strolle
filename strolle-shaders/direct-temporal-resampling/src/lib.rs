@@ -46,7 +46,7 @@ fn main_inner(
     let screen_idx = camera.screen_to_idx(screen_pos);
 
     let sample = {
-        let d0 = direct_initial_samples[screen_idx];
+        let d0 = unsafe { *direct_initial_samples.get_unchecked(screen_idx) };
 
         DirectReservoirSample {
             light_id: LightId::new(d0.w.to_bits()),

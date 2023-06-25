@@ -6,9 +6,7 @@ use glam::{Vec3, Vec4, Vec4Swizzles};
 use spirv_std::num_traits::Float;
 
 use self::eval::*;
-use crate::{
-    BvhTraversingStack, BvhView, Hit, Material, Noise, Ray, TrianglesView,
-};
+use crate::{BvhStack, BvhView, Hit, Material, Noise, Ray, TrianglesView};
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -141,7 +139,7 @@ impl Light {
         local_idx: u32,
         triangles: TrianglesView,
         bvh: BvhView,
-        stack: BvhTraversingStack,
+        stack: BvhStack,
         noise: &mut Noise,
         hit: Hit,
     ) -> f32 {

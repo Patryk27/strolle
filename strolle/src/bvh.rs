@@ -1,9 +1,9 @@
 mod axis;
 mod bounding_box;
-mod bvh_builder;
+mod build;
 mod bvh_node;
-mod bvh_serializer;
 mod bvh_triangle;
+mod serialize;
 
 use std::fmt::Debug;
 
@@ -12,7 +12,6 @@ use spirv_std::glam::Vec4;
 pub use self::axis::*;
 pub use self::bounding_box::*;
 pub use self::bvh_node::*;
-pub use self::bvh_serializer::*;
 pub use self::bvh_triangle::*;
 use crate::{
     Bindable, BufferFlushOutcome, Instances, MappedStorageBuffer, Materials,
@@ -51,11 +50,11 @@ impl Bvh {
         }
 
         let bvh_triangles =
-            instances.iter().flat_map(|(instance_handle, instance)| {
-                let material = materials.lookup(instance.material_handle());
+            instances.iter().flat_map(|(inst_handle, instance)| {
+                let material_id = materials.lookup(instance.material_handle());
 
-                material.into_iter().flat_map(|material_id| {
-                    triangles.iter(instance_handle).map(
+                material_id.into_iter().flat_map(|material_id| {
+                    triangles.iter(inst_handle).map(
                         move |(triangle_id, triangle)| BvhTriangle {
                             bb: BoundingBox::from_points(triangle.positions()),
                             center: triangle.center(),
@@ -66,12 +65,12 @@ impl Bvh {
                 })
             });
 
-        let root = bvh_builder::build(self.root.as_ref(), bvh_triangles);
+        let root = build::run(self.root.as_ref(), bvh_triangles);
 
         self.buffer.clear();
         self.buffer.reserve_exact((2 * triangle_count - 1) * 2);
 
-        BvhSerializer::process(&mut self.buffer, &root);
+        serialize::run(&mut self.buffer, &root);
 
         self.root = Some(root);
     }

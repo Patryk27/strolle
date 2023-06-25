@@ -43,7 +43,6 @@ impl DirectSpatialResamplingPass {
 
         let params = gpu::DirectSpatialResamplingPassParams {
             seed: rand::thread_rng().gen(),
-            frame: camera.frame,
         };
 
         self.pass.run(camera, encoder, size, &params);

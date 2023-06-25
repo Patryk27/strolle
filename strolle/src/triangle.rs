@@ -44,31 +44,31 @@ impl Triangle {
         self.uvs
     }
 
-    pub(crate) fn with_transform(&self, mat: Mat4) -> Self {
+    pub(crate) fn with_transform(&self, xform: Mat4) -> Self {
         let positions =
-            self.positions.map(|vertex| mat.transform_point3(vertex));
+            self.positions.map(|vertex| xform.transform_point3(vertex));
 
         let normals = {
             // Transforming normals requires inversing and transposing the
             // matrix in order to get correct results under scaling, see:
             //
             // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
-            let mat = mat.inverse().transpose();
+            let mat = xform.inverse().transpose();
 
             self.normals
                 .map(|normal| mat.transform_vector3(normal).normalize())
         };
 
         let tangents = {
-            let sign = if Mat3A::from_mat4(mat).determinant().is_sign_positive()
-            {
-                1.0
-            } else {
-                -1.0
-            };
+            let sign =
+                if Mat3A::from_mat4(xform).determinant().is_sign_positive() {
+                    1.0
+                } else {
+                    -1.0
+                };
 
             self.tangents.map(|tangent| {
-                (Mat3::from_mat4(mat) * tangent.xyz())
+                (Mat3::from_mat4(xform) * tangent.xyz())
                     .normalize()
                     .extend(tangent.w * sign)
             })

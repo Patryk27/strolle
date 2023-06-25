@@ -50,7 +50,6 @@ impl DirectInitialShadingPass {
 
         let params = gpu::DirectInitialShadingPassParams {
             seed: rand::thread_rng().gen(),
-            frame: camera.frame,
         };
 
         self.pass.run(camera, encoder, size, &params);

@@ -13,7 +13,7 @@ pub fn main(
     #[spirv(push_constant)]
     params: &IndirectInitialShadingPassParams,
     #[spirv(workgroup)]
-    stack: BvhTraversingStack,
+    stack: BvhStack,
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
@@ -81,7 +81,7 @@ fn main_inner(
     global_id: UVec2,
     local_idx: u32,
     params: &IndirectInitialShadingPassParams,
-    stack: BvhTraversingStack,
+    stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
     lights: LightsView,
@@ -143,7 +143,7 @@ fn main_inner(
     let mut reservoir = DirectReservoir::default();
 
     if indirect_hit.is_some() {
-        let material = materials.get(MaterialId::new(indirect_hit.material_id));
+        let material = materials.get(indirect_hit.material_id);
 
         let albedo = material
             .albedo(atlas_tex, atlas_sampler, indirect_hit.uv)

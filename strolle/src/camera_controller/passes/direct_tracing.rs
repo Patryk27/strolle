@@ -21,7 +21,6 @@ impl DirectTracingPass {
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
-                &engine.world.bind_readable(),
             ])
             .bind([
                 &buffers.camera.bind_readable(),

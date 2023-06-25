@@ -13,7 +13,7 @@ pub fn main(
     #[spirv(push_constant)]
     params: &DirectInitialShadingPassParams,
     #[spirv(workgroup)]
-    stack: BvhTraversingStack,
+    stack: BvhStack,
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
@@ -71,7 +71,7 @@ fn main_inner(
     screen_pos: UVec2,
     local_idx: u32,
     mut noise: Noise,
-    stack: BvhTraversingStack,
+    stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
     lights: LightsView,
@@ -100,7 +100,7 @@ fn main_inner(
     let mut reservoir = DirectReservoir::default();
 
     if hit.is_some() {
-        let material = materials.get(MaterialId::new(hit.material_id));
+        let mat = materials.get(hit.material_id);
         let mut light_idx = 0;
 
         while light_idx < world.light_count {
@@ -121,7 +121,7 @@ fn main_inner(
             // TODO add support for specular lightning
             let light_contribution = lights
                 .get(light_id)
-                .contribution(material, hit, ray, albedo)
+                .contribution(mat, hit, ray, albedo)
                 .diffuse;
 
             let sample = DirectReservoirSample {
@@ -198,6 +198,8 @@ fn main_inner(
     // we don't have to deal with zero p_hats:
     let light = light.max(Vec3::splat(0.000001));
 
-    direct_initial_samples[screen_idx] =
-        light.extend(f32::from_bits(light_id.get()));
+    unsafe {
+        *direct_initial_samples.get_unchecked_mut(screen_idx) =
+            light.extend(f32::from_bits(light_id.get()));
+    }
 }

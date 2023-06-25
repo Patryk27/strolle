@@ -13,6 +13,6 @@ pub enum BvhNode {
 
     Leaf {
         bb: BoundingBox,
-        tris: Vec<(gpu::TriangleId, gpu::MaterialId)>,
+        triangles: Vec<(gpu::TriangleId, gpu::MaterialId)>,
     },
 }

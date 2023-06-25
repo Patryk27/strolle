@@ -5,7 +5,6 @@
 #![allow(clippy::manual_range_contains)]
 
 mod atmosphere;
-mod bvh_ptr;
 mod bvh_view;
 mod camera;
 mod hit;
@@ -26,7 +25,6 @@ mod utils;
 mod world;
 
 pub use self::atmosphere::*;
-pub use self::bvh_ptr::*;
 pub use self::bvh_view::*;
 pub use self::camera::*;
 pub use self::hit::*;
@@ -61,7 +59,7 @@ pub mod prelude {
 ///
 /// For performance reasons, we use a per-workgroup shared memory array where
 /// each workgroup-thread simply indexes into a different slice of this memory.
-pub type BvhTraversingStack<'a> = &'a mut [u32; BVH_STACK_SIZE * 8 * 8];
+pub type BvhStack<'a> = &'a mut [u32; BVH_STACK_SIZE * 8 * 8];
 
 /// Maximum stack size per each workgroup-thread.
 ///

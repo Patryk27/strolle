@@ -23,10 +23,17 @@ impl IndirectReservoir {
     }
 
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
-        let d0 = buffer[4 * id];
-        let d1 = buffer[4 * id + 1];
-        let d2 = buffer[4 * id + 2];
-        let d3 = buffer[4 * id + 3];
+        let d0;
+        let d1;
+        let d2;
+        let d3;
+
+        unsafe {
+            d0 = *buffer.get_unchecked(4 * id);
+            d1 = *buffer.get_unchecked(4 * id + 1);
+            d2 = *buffer.get_unchecked(4 * id + 2);
+            d3 = *buffer.get_unchecked(4 * id + 3);
+        }
 
         Self {
             reservoir: Reservoir {
@@ -50,10 +57,12 @@ impl IndirectReservoir {
         let d2 = self.sample.sample_point.extend(f32::from_bits(self.frame));
         let d3 = self.sample.sample_normal.extend(Default::default());
 
-        buffer[4 * id] = d0;
-        buffer[4 * id + 1] = d1;
-        buffer[4 * id + 2] = d2;
-        buffer[4 * id + 3] = d3;
+        unsafe {
+            *buffer.get_unchecked_mut(4 * id) = d0;
+            *buffer.get_unchecked_mut(4 * id + 1) = d1;
+            *buffer.get_unchecked_mut(4 * id + 2) = d2;
+            *buffer.get_unchecked_mut(4 * id + 3) = d3;
+        }
     }
 
     pub fn age(&self, frame: u32) -> u32 {

@@ -54,9 +54,15 @@ fn main_inner(
     let global_idx = camera.half_screen_to_idx(global_id);
 
     let sample = {
-        let d0 = indirect_initial_samples[3 * global_idx];
-        let d1 = indirect_initial_samples[3 * global_idx + 1];
-        let d2 = indirect_initial_samples[3 * global_idx + 2];
+        let d0;
+        let d1;
+        let d2;
+
+        unsafe {
+            d0 = *indirect_initial_samples.get_unchecked(3 * global_idx);
+            d1 = *indirect_initial_samples.get_unchecked(3 * global_idx + 1);
+            d2 = *indirect_initial_samples.get_unchecked(3 * global_idx + 2);
+        }
 
         IndirectReservoirSample {
             radiance: d0.xyz(),

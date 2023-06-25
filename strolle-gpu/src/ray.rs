@@ -1,7 +1,7 @@
-use glam::{Vec3, Vec4Swizzles};
+use glam::Vec3;
 
 use crate::{
-    BvhTraversingStack, BvhView, Hit, MaterialId, TriangleId, TrianglesView,
+    BvhNode, BvhStack, BvhView, Hit, MaterialId, TriangleId, TrianglesView,
     BVH_STACK_SIZE,
 };
 
@@ -35,7 +35,7 @@ impl Ray {
         local_idx: u32,
         triangles: TrianglesView,
         bvh: BvhView,
-        stack: BvhTraversingStack,
+        stack: BvhStack,
     ) -> (Hit, u32) {
         let mut hit = Hit::none();
 
@@ -59,7 +59,7 @@ impl Ray {
         local_idx: u32,
         triangles: TrianglesView,
         bvh: BvhView,
-        stack: BvhTraversingStack,
+        stack: BvhStack,
         max_distance: f32,
     ) -> bool {
         let mut hit = Hit {
@@ -86,7 +86,7 @@ impl Ray {
         local_idx: u32,
         triangles: TrianglesView,
         bvh: BvhView,
-        stack: BvhTraversingStack,
+        stack: BvhStack,
         mode: TracingMode,
         mut distance: f32,
         hit: &mut Hit,
@@ -96,8 +96,7 @@ impl Ray {
         // Index into the `bvh` array; points at the currently processed node
         let mut bvh_ptr = 0;
 
-        // Where this particular thread's stack starts at; see
-        // `BvhTraversingStack`
+        // Where this particular thread's stack starts at; see `BvhStack`
         let stack_begins_at = local_idx * (BVH_STACK_SIZE as u32);
 
         // Index into the `stack` array; our stack spans from here up to +
@@ -111,28 +110,15 @@ impl Ray {
 
             if is_internal {
                 let left_ptr = bvh_ptr + 1;
+                let left_distance = self.distance_to_node(bvh.get(left_ptr));
+
                 let right_ptr = arg0;
+                let right_distance = self.distance_to_node(bvh.get(right_ptr));
 
-                let left_dist = {
-                    let node = bvh.get(left_ptr);
-                    let bb_min = node.d0.yzw();
-                    let bb_max = node.d1.xyz();
+                let near_distance = left_distance.min(right_distance);
+                let far_distance = left_distance.max(right_distance);
 
-                    self.hits_box_at(bb_min, bb_max)
-                };
-
-                let right_dist = {
-                    let node = bvh.get(right_ptr);
-                    let bb_min = node.d0.yzw();
-                    let bb_max = node.d1.xyz();
-
-                    self.hits_box_at(bb_min, bb_max)
-                };
-
-                let near_distance = left_dist.min(right_dist);
-                let far_distance = left_dist.max(right_dist);
-
-                let (near_ptr, far_ptr) = if left_dist < right_dist {
+                let (near_ptr, far_ptr) = if left_distance < right_distance {
                     (left_ptr, right_ptr)
                 } else {
                     (right_ptr, left_ptr)
@@ -164,7 +150,7 @@ impl Ray {
                 let material_id = MaterialId::new(arg1);
 
                 if triangles.get(triangle_id).hit(self, hit) {
-                    hit.material_id = material_id.get();
+                    hit.material_id = material_id;
 
                     match mode {
                         TracingMode::Nearest => {
@@ -203,9 +189,9 @@ impl Ray {
 
     /// Performs ray <-> AABB-box hit-testing and returns the closest hit (or
     /// `f32::MAX` if this ray doesn't hit given box).
-    fn hits_box_at(self, bb_min: Vec3, bb_max: Vec3) -> f32 {
-        let hit_min = (bb_min - self.origin) * self.inv_direction;
-        let hit_max = (bb_max - self.origin) * self.inv_direction;
+    fn distance_to_node(self, node: BvhNode) -> f32 {
+        let hit_min = (node.bb_min() - self.origin) * self.inv_direction;
+        let hit_max = (node.bb_max() - self.origin) * self.inv_direction;
 
         let tmin = hit_min.min(hit_max).max_element();
         let tmax = hit_min.max(hit_max).min_element();

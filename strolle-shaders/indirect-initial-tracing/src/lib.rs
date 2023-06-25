@@ -13,7 +13,7 @@ pub fn main(
     #[spirv(push_constant)]
     params: &IndirectInitialTracingPassParams,
     #[spirv(workgroup)]
-    stack: BvhTraversingStack,
+    stack: BvhStack,
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
@@ -46,7 +46,7 @@ fn main_inner(
     global_id: UVec2,
     local_idx: u32,
     params: &IndirectInitialTracingPassParams,
-    stack: BvhTraversingStack,
+    stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
     direct_hits_d0: TexRgba32f,

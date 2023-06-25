@@ -74,7 +74,7 @@ fn main_inner(
                 albedo * reservoir.sample.light_contribution
             } else {
                 let ray = camera.ray(screen_pos);
-                let material = materials.get(MaterialId::new(hit.material_id));
+                let material = materials.get(hit.material_id);
 
                 // TODO add support for specular lightning
                 //      (it's a tad difficult since it's visibly more noisy than
@@ -90,7 +90,7 @@ fn main_inner(
             Vec3::ZERO
         }
     } else {
-        direct_initial_samples[screen_idx].xyz()
+        unsafe { direct_initial_samples.get_unchecked(screen_idx).xyz() }
     };
 
     unsafe {
