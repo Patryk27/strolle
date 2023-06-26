@@ -92,37 +92,42 @@ impl CameraController {
     ) where
         P: Params,
     {
+        let has_any_objects = !engine.instances.is_empty();
+
         if let CameraMode::BvhHeatmap = self.camera.mode {
             self.passes.direct_tracing.run(self, encoder);
             self.passes.output_drawing.run(self, encoder, view);
         } else {
             self.passes.atmosphere.run(engine, self, encoder);
             self.passes.direct_raster.run(engine, self, encoder);
-            self.passes.reprojection.run(self, encoder);
 
-            if self.camera.mode.needs_direct_lightning() {
-                self.passes.direct_initial_shading.run(self, encoder);
-                self.passes.direct_temporal_resampling.run(self, encoder);
-                self.passes.direct_spatial_resampling.run(self, encoder);
-                self.passes.direct_resolving.run(self, encoder);
-                self.passes.direct_denoising.run(self, encoder);
-            }
+            if has_any_objects {
+                self.passes.reprojection.run(self, encoder);
 
-            if self.camera.mode.needs_indirect_lightning() {
-                let seed = rand::thread_rng().gen();
+                if self.camera.mode.needs_direct_lightning() {
+                    self.passes.direct_initial_shading.run(self, encoder);
+                    self.passes.direct_temporal_resampling.run(self, encoder);
+                    self.passes.direct_spatial_resampling.run(self, encoder);
+                    self.passes.direct_resolving.run(self, encoder);
+                    self.passes.direct_denoising.run(self, encoder);
+                }
 
-                self.passes
-                    .indirect_initial_tracing
-                    .run(self, encoder, seed);
+                if self.camera.mode.needs_indirect_lightning() {
+                    let seed = rand::thread_rng().gen();
 
-                self.passes
-                    .indirect_initial_shading
-                    .run(self, encoder, seed);
+                    self.passes
+                        .indirect_initial_tracing
+                        .run(self, encoder, seed);
 
-                self.passes.indirect_temporal_resampling.run(self, encoder);
-                self.passes.indirect_spatial_resampling.run(self, encoder);
-                self.passes.indirect_resolving.run(self, encoder);
-                self.passes.indirect_denoising.run(self, encoder);
+                    self.passes
+                        .indirect_initial_shading
+                        .run(self, encoder, seed);
+
+                    self.passes.indirect_temporal_resampling.run(self, encoder);
+                    self.passes.indirect_spatial_resampling.run(self, encoder);
+                    self.passes.indirect_resolving.run(self, encoder);
+                    self.passes.indirect_denoising.run(self, encoder);
+                }
             }
 
             self.passes.output_drawing.run(self, encoder, view);

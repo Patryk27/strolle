@@ -51,6 +51,10 @@ where
         self.dirty = true;
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.instances.is_empty()
+    }
+
     pub fn refresh(
         &mut self,
         meshes: &Meshes<P>,
