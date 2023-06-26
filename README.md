@@ -19,11 +19,10 @@ Windows, Mac & Linux (with WebGPU support possible in the future).
 ## Examples & Demo
 
 ``` shell
-$ cargo build-shaders
 $ cargo run --release --example demo
 ```
 
-Shows a little dungeon-like tech demo, as in the render above.
+Shows a dungeon tech demo, as in the render above.
 
 Use WASD to move, mouse to navigate the camera; extra controls include:
 

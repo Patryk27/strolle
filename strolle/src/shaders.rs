@@ -12,10 +12,7 @@ macro_rules! shaders {
                 $(
                     info!("Initializing shader: {}", stringify!($name));
 
-                    let $name = device.create_shader_module(wgpu::include_spirv!(concat!(
-                        "../../target/",
-                        $file,
-                    )));
+                    let $name = device.create_shader_module(wgpu::include_spirv!(env!($file)));
                 )*
 
                 Self {
@@ -27,20 +24,20 @@ macro_rules! shaders {
 }
 
 shaders!([
-    atmosphere => "atmosphere.spv",
-    direct_denoising => "direct-denoising.spv",
-    direct_initial_shading => "direct-initial-shading.spv",
-    direct_raster => "direct-raster.spv",
-    direct_resolving => "direct-resolving.spv",
-    direct_spatial_resampling => "direct-spatial-resampling.spv",
-    direct_temporal_resampling => "direct-temporal-resampling.spv",
-    direct_tracing => "direct-tracing.spv",
-    indirect_denoising => "indirect-denoising.spv",
-    indirect_initial_shading => "indirect-initial-shading.spv",
-    indirect_initial_tracing => "indirect-initial-tracing.spv",
-    indirect_resolving => "indirect-resolving.spv",
-    indirect_spatial_resampling => "indirect-spatial-resampling.spv",
-    indirect_temporal_resampling => "indirect-temporal-resampling.spv",
-    output_drawing => "output-drawing.spv",
-    reprojection => "reprojection.spv",
+    atmosphere => "strolle_atmosphere_shader.spv",
+    direct_denoising => "strolle_direct_denoising_shader.spv",
+    direct_initial_shading => "strolle_direct_initial_shading_shader.spv",
+    direct_raster => "strolle_direct_raster_shader.spv",
+    direct_resolving => "strolle_direct_resolving_shader.spv",
+    direct_spatial_resampling => "strolle_direct_spatial_resampling_shader.spv",
+    direct_temporal_resampling => "strolle_direct_temporal_resampling_shader.spv",
+    direct_tracing => "strolle_direct_tracing_shader.spv",
+    indirect_denoising => "strolle_indirect_denoising_shader.spv",
+    indirect_initial_shading => "strolle_indirect_initial_shading_shader.spv",
+    indirect_initial_tracing => "strolle_indirect_initial_tracing_shader.spv",
+    indirect_resolving => "strolle_indirect_resolving_shader.spv",
+    indirect_spatial_resampling => "strolle_indirect_spatial_resampling_shader.spv",
+    indirect_temporal_resampling => "strolle_indirect_temporal_resampling_shader.spv",
+    output_drawing => "strolle_output_drawing_shader.spv",
+    reprojection => "strolle_reprojection_shader.spv",
 ]);
