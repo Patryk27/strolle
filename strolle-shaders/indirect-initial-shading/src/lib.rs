@@ -178,13 +178,14 @@ fn main_inner(
     let mut sky_normal = Vec3::ZERO;
 
     if sky_weight > 0.0 {
-        // If we hit nothing, we know that our indirect-hit's normal must point
-        // towards the sky - great, let's use it!
+        // If we indirectly-hit nothing, we know that our indirect-ray must be
+        // pointing towards the sky - great, let's use it!
         //
-        // If we hit something, we don't know in which way we can sample the
-        // sky, so just take a random guess on the hemisphere on our surface.
+        // If we indirectly-hit something, we don't know in which way we can
+        // sample the sky, so just take a random guess on the hemisphere on our
+        // surface.
         sky_normal = if indirect_hit.is_none() {
-            indirect_hit.normal
+            indirect_ray.direction()
         } else {
             noise.sample_hemisphere(indirect_hit.normal)
         };
@@ -196,12 +197,11 @@ fn main_inner(
         //
         // It's pretty so-so (and increases variance), but it helps a bit as
         // well.
-        let sky_exposure = if indirect_hit.is_none() { 9.0 } else { 4.5 };
+        let sky_exposure = if indirect_hit.is_some() { 9.0 } else { 4.5 };
 
-        let sky =
-            sky_exposure * atmosphere.eval(world.sun_direction(), sky_normal);
-
-        let sample = DirectReservoirSample::sky(sky);
+        let sample = DirectReservoirSample::sky(
+            sky_exposure * atmosphere.eval(world.sun_direction(), sky_normal),
+        );
 
         reservoir.add(&mut noise, sample, sample.p_hat());
     }
@@ -223,27 +223,24 @@ fn main_inner(
         lights.get(light_id)
     };
 
-    let light_visibility = light.visibility(
-        local_idx,
-        triangles,
-        bvh,
-        stack,
-        &mut noise,
-        indirect_hit,
-    );
-
-    let mut color = light_contribution * light_visibility;
-
-    if reservoir.sample.is_sky() {
-        // Cursed:
-        //
-        // Since we only support single-bounce GI, let's avoid getting the image
-        // extra dark by skipping the cosine term of the rendering equation.
-        //
-        // psst don't tell anybody
+    // If we indirectly-hit nothing, we know that our indirect-ray must be
+    // pointing towards the sky - great, no need to actually trace the ray!
+    let light_visibility = if indirect_hit.is_none() {
+        1.0
     } else {
-        color *= indirect_ray.direction().dot(direct_hit.normal);
-    }
+        light.visibility(
+            local_idx,
+            triangles,
+            bvh,
+            stack,
+            &mut noise,
+            indirect_hit,
+        )
+    };
+
+    let color = light_contribution
+        * light_visibility
+        * indirect_ray.direction().dot(direct_hit.normal);
 
     // Setting a mininimum radiance is technically wrong, but at least this way
     // we don't have to deal with zero p_hats:
@@ -256,7 +253,7 @@ fn main_inner(
         indirect_normal = Normal::encode(indirect_hit.normal);
         indirect_point = indirect_hit.point;
     } else {
-        indirect_normal = Normal::encode(-indirect_ray.direction());
+        indirect_normal = Normal::encode(-sky_normal);
         indirect_point = sky_normal * World::SUN_DISTANCE;
     }
 
