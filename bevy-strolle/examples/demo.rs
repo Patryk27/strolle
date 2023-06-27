@@ -130,6 +130,7 @@ fn adjust_materials(mut materials: ResMut<Assets<StandardMaterial>>) {
 }
 
 fn process_input(
+    mut commands: Commands,
     keys: Res<Input<KeyCode>>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
     mut camera: Query<(
@@ -192,7 +193,20 @@ fn process_input(
 
     // TODO just for testing purposes
     if keys.just_pressed(KeyCode::Return) {
-        println!("{:?}", camera_transform.translation);
+        commands.spawn(PointLightBundle {
+            point_light: PointLight {
+                color: Color::WHITE,
+                range: 35.0,
+                radius: 0.25,
+                intensity: 3500.0,
+                shadows_enabled: true,
+                ..default()
+            },
+            transform: Transform::from_translation(
+                camera_transform.translation,
+            ),
+            ..default()
+        });
     }
 
     if keys.just_pressed(KeyCode::O) {
