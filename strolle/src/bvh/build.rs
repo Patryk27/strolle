@@ -119,10 +119,6 @@ impl SahBvhNode {
                 let split_cost = (left_counts[i] as f32) * left_areas[i]
                     + (right_counts[i] as f32) * right_areas[i];
 
-                if split_cost == 0.0 {
-                    continue;
-                }
-
                 let is_current_bin_better = best
                     .map_or(true, |(_, _, best_cost)| split_cost < best_cost);
 
