@@ -7,8 +7,8 @@ use bevy::render::render_resource::PrimitiveTopology;
 use strolle as st;
 
 use crate::state::{
-    ExtractedImages, ExtractedInstances, ExtractedLights, ExtractedMaterials,
-    ExtractedMeshes, ExtractedSun,
+    ExtractedImageData, ExtractedImages, ExtractedInstances, ExtractedLights,
+    ExtractedMaterials, ExtractedMeshes, ExtractedSun,
 };
 use crate::utils::GlamCompat;
 use crate::{EngineResource, MaterialLike};
@@ -20,54 +20,64 @@ pub(crate) fn meshes(
     for mesh_handle in meshes
         .removed
         .iter()
-        .chain(meshes.changed.iter().map(|(k, _)| k))
+        .chain(meshes.changed.iter().map(|mesh| &mesh.handle))
     {
         engine.remove_mesh(mesh_handle);
     }
 
-    for (mesh_handle, mesh) in meshes.changed.drain(..) {
-        assert_eq!(mesh.primitive_topology(), PrimitiveTopology::TriangleList);
+    for mesh in mem::take(&mut meshes.changed) {
+        assert_eq!(
+            mesh.mesh.primitive_topology(),
+            PrimitiveTopology::TriangleList
+        );
 
         let mesh_positions = mesh
+            .mesh
             .attribute(Mesh::ATTRIBUTE_POSITION)
             .and_then(VertexAttributeValues::as_float3)
             .unwrap_or_else(|| {
-                panic!("Mesh {mesh_handle:?} has no positions");
+                panic!("Mesh {:?} has no positions", mesh.handle);
             });
 
         let mesh_normals = mesh
+            .mesh
             .attribute(Mesh::ATTRIBUTE_NORMAL)
             .and_then(VertexAttributeValues::as_float3)
             .unwrap_or_else(|| {
-                panic!("Mesh {mesh_handle:?} has no normals");
+                panic!("Mesh {:?} has no normals", mesh.handle);
             });
 
         let mesh_uvs = mesh
+            .mesh
             .attribute(Mesh::ATTRIBUTE_UV_0)
             .map(|uvs| match uvs {
                 VertexAttributeValues::Float32x2(uvs) => uvs,
                 _ => panic!(
-                    "Mesh {mesh_handle:?} uses unsupported format for UVs"
+                    "Mesh {:?} has unsupported format for UVs",
+                    mesh.handle
                 ),
             })
             .map(|uvs| uvs.as_slice())
             .unwrap_or(&[]);
 
         let mesh_tans = mesh
+            .mesh
             .attribute(Mesh::ATTRIBUTE_TANGENT)
             .map(|uvs| match uvs {
                 VertexAttributeValues::Float32x4(tangents) => tangents,
                 _ => panic!(
-                    "Mesh {mesh_handle:?} uses unsupported format for tangents"
+                    "Mesh {:?} has unsupported format for tangents",
+                    mesh.handle
                 ),
             })
             .map(|tangents| tangents.as_slice())
             .unwrap_or(&[]);
 
         let mesh_indices: Vec<_> = mesh
+            .mesh
             .indices()
             .unwrap_or_else(|| {
-                panic!("Mesh {mesh_handle:?} has no indices");
+                panic!("Mesh {:?} has no indices", mesh.handle);
             })
             .iter()
             .collect();
@@ -99,7 +109,7 @@ pub(crate) fn meshes(
             })
             .collect();
 
-        engine.add_mesh(mesh_handle, st::Mesh::new(mesh_triangles));
+        engine.add_mesh(mesh.handle, st::Mesh::new(mesh_triangles));
     }
 }
 
@@ -113,10 +123,10 @@ pub(crate) fn materials<M>(
         engine.remove_material(&M::map_handle(material_handle.clone_weak()));
     }
 
-    for (material_handle, material) in materials.changed.drain(..) {
+    for material in materials.changed.drain(..) {
         engine.add_material(
-            M::map_handle(material_handle),
-            material.into_material(),
+            M::map_handle(material.handle),
+            material.material.into_material(),
         );
     }
 }
@@ -186,19 +196,19 @@ pub(crate) fn instances<M>(
 ) where
     M: MaterialLike,
 {
-    for (entity, mesh_handle, material_handle, transform) in
-        instances.changed.drain(..)
-    {
-        let material_handle = M::map_handle(material_handle);
-
-        engine.add_instance(
-            entity,
-            st::Instance::new(mesh_handle, material_handle, transform.compat()),
-        );
+    for instance_handle in mem::take(&mut instances.removed) {
+        engine.remove_instance(&instance_handle);
     }
 
-    for entity in instances.removed.drain(..) {
-        engine.remove_instance(&entity);
+    for instance in mem::take(&mut instances.changed) {
+        engine.add_instance(
+            instance.handle,
+            st::Instance::new(
+                instance.mesh_handle,
+                M::map_handle(instance.material_handle),
+                instance.xform.compat(),
+            ),
+        );
     }
 }
 
@@ -206,10 +216,12 @@ pub(crate) fn lights(
     mut engine: ResMut<EngineResource>,
     mut lights: ResMut<ExtractedLights>,
 ) {
-    engine.remove_all_lights();
+    for light_handle in &lights.removed {
+        engine.remove_light(light_handle);
+    }
 
-    for (entity, light) in lights.items.drain(..) {
-        engine.add_light(entity, light);
+    for light in mem::take(&mut lights.changed) {
+        engine.add_light(light.handle, light.light);
     }
 }
 

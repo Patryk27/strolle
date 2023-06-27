@@ -258,13 +258,6 @@ where
         self.lights.remove(light_handle);
     }
 
-    /// Removes all lights¹.
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn remove_all_lights(&mut self) {
-        self.lights.clear();
-    }
-
     /// Changes sun's parameters.
     pub fn set_sun(&mut self, sun: Sun) {
         self.sun = sun;

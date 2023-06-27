@@ -27,26 +27,42 @@ impl SyncedState {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct SyncedCamera {
     pub handle: st::CameraHandle,
 }
 
-#[derive(Resource)]
+#[derive(Debug, Resource)]
 pub(crate) struct ExtractedMeshes {
-    pub changed: Vec<(Handle<Mesh>, Mesh)>,
+    pub changed: Vec<ExtractedMesh>,
     pub removed: Vec<Handle<Mesh>>,
 }
 
-#[derive(Resource)]
+#[derive(Debug)]
+pub(crate) struct ExtractedMesh {
+    pub handle: Handle<Mesh>,
+    pub mesh: Mesh,
+}
+
+#[derive(Debug, Resource)]
 pub(crate) struct ExtractedMaterials<M>
 where
     M: MaterialLike,
 {
-    pub changed: Vec<(Handle<M>, M)>,
+    pub changed: Vec<ExtractedMaterial<M>>,
     pub removed: Vec<Handle<M>>,
 }
 
-#[derive(Resource)]
+#[derive(Debug)]
+pub(crate) struct ExtractedMaterial<M>
+where
+    M: MaterialLike,
+{
+    pub handle: Handle<M>,
+    pub material: M,
+}
+
+#[derive(Debug, Resource)]
 pub(crate) struct ExtractedImages {
     pub changed: Vec<ExtractedImage>,
     pub removed: Vec<Handle<Image>>,
@@ -66,27 +82,46 @@ pub(crate) enum ExtractedImageData {
     Texture { is_dynamic: bool },
 }
 
+#[derive(Debug, Resource)]
 pub(crate) struct ExtractedInstances<M>
 where
     M: MaterialLike,
 {
-    pub changed: Vec<(Entity, Handle<Mesh>, Handle<M>, Mat4)>,
+    pub changed: Vec<ExtractedInstance<M>>,
     pub removed: Vec<Entity>,
 }
 
-#[derive(Resource)]
-pub(crate) struct ExtractedLights {
-    pub items: Vec<(Entity, st::Light)>,
+#[derive(Debug)]
+pub(crate) struct ExtractedInstance<M>
+where
+    M: MaterialLike,
+{
+    pub handle: Entity,
+    pub mesh_handle: Handle<Mesh>,
+    pub material_handle: Handle<M>,
+    pub xform: Mat4,
 }
 
-#[derive(Component)]
+#[derive(Debug, Resource)]
+pub(crate) struct ExtractedLights {
+    pub changed: Vec<ExtractedLight>,
+    pub removed: Vec<Entity>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ExtractedLight {
+    pub handle: Entity,
+    pub light: st::Light,
+}
+
+#[derive(Debug, Component)]
 pub(crate) struct ExtractedCamera {
     pub transform: GlobalTransform,
     pub projection: PerspectiveProjection,
     pub mode: Option<st::CameraMode>,
 }
 
-#[derive(Resource)]
+#[derive(Debug, Resource)]
 pub(crate) struct ExtractedSun {
     pub sun: Option<st::Sun>,
 }

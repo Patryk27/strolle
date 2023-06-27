@@ -26,11 +26,6 @@ where
         }
     }
 
-    pub fn clear(&mut self) {
-        self.buffer.clear();
-        self.index.clear();
-    }
-
     pub fn add(&mut self, light_handle: P::LightHandle, light: Light) {
         let light = light.build();
 

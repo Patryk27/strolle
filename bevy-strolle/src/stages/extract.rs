@@ -8,8 +8,10 @@ use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::state::{
-    ExtractedCamera, ExtractedImages, ExtractedInstances, ExtractedLights,
-    ExtractedMaterials, ExtractedMeshes, ExtractedSun,
+    ExtractedCamera, ExtractedImage, ExtractedImageData, ExtractedImages,
+    ExtractedInstance, ExtractedInstances, ExtractedLight, ExtractedLights,
+    ExtractedMaterial, ExtractedMaterials, ExtractedMesh, ExtractedMeshes,
+    ExtractedSun,
 };
 use crate::utils::{color_to_vec3, GlamCompat};
 use crate::{MaterialLike, StrolleCamera, StrolleEvent, StrolleSun};
@@ -29,33 +31,35 @@ pub(crate) fn meshes(
                 changed.insert(handle.clone_weak());
             }
             AssetEvent::Removed { handle } => {
-                changed.remove(handle);
                 removed.push(handle.clone_weak());
             }
         }
     }
 
-    let changed = changed
-        .into_iter()
-        .flat_map(|handle| {
-            if let Some(mesh) = meshes.get(&handle) {
-                Some((handle, mesh.to_owned()))
-            } else {
-                removed.push(handle.clone_weak());
-                None
-            }
-        })
-        .collect();
+    let changed = changed.into_iter().flat_map(|handle| {
+        if let Some(mesh) = meshes.get(&handle) {
+            Some(ExtractedMesh {
+                handle,
+                mesh: mesh.to_owned(),
+            })
+        } else {
+            removed.push(handle.clone_weak());
+            None
+        }
+    });
 
-    commands.insert_resource(ExtractedMeshes { changed, removed });
+    commands.insert_resource(ExtractedMeshes {
+        changed: changed.collect(),
+        removed,
+    });
 }
 
-pub(crate) fn materials<M>(
+pub(crate) fn materials<Material>(
     mut commands: Commands,
-    mut events: Extract<EventReader<AssetEvent<M>>>,
-    materials: Extract<Res<Assets<M>>>,
+    mut events: Extract<EventReader<AssetEvent<Material>>>,
+    materials: Extract<Res<Assets<Material>>>,
 ) where
-    M: MaterialLike,
+    Material: MaterialLike,
 {
     let mut changed = HashSet::default();
     let mut removed = Vec::new();
@@ -67,25 +71,27 @@ pub(crate) fn materials<M>(
                 changed.insert(handle.clone_weak());
             }
             AssetEvent::Removed { handle } => {
-                changed.remove(handle);
                 removed.push(handle.clone_weak());
             }
         }
     }
 
-    let changed = changed
-        .into_iter()
-        .flat_map(|handle| {
-            if let Some(material) = materials.get(&handle) {
-                Some((handle, material.to_owned()))
-            } else {
-                removed.push(handle.clone_weak());
-                None
-            }
-        })
-        .collect();
+    let changed = changed.into_iter().flat_map(|handle| {
+        if let Some(material) = materials.get(&handle) {
+            Some(ExtractedMaterial {
+                handle,
+                material: material.to_owned(),
+            })
+        } else {
+            removed.push(handle.clone_weak());
+            None
+        }
+    });
 
-    commands.insert_resource(ExtractedMaterials { changed, removed });
+    commands.insert_resource(ExtractedMaterials {
+        changed: changed.collect(),
+        removed,
+    });
 }
 
 pub(crate) fn images(
@@ -178,76 +184,74 @@ pub(crate) fn images(
 }
 
 #[allow(clippy::type_complexity)]
-pub(crate) fn instances<M>(
+pub(crate) fn instances<Material>(
     mut commands: Commands,
-    all: Extract<Query<Entity, (&Handle<Mesh>, &Handle<M>, &GlobalTransform)>>,
     changed: Extract<
         Query<
-            (Entity, &Handle<Mesh>, &Handle<M>, &GlobalTransform),
+            (Entity, &Handle<Mesh>, &Handle<Material>, &GlobalTransform),
             Or<(
                 Changed<Handle<Mesh>>,
-                Changed<Handle<M>>,
+                Changed<Handle<Material>>,
                 Changed<GlobalTransform>,
             )>,
         >,
     >,
-    mut known: Local<HashSet<Entity>>,
+    mut removed: Extract<RemovedComponents<Handle<Mesh>>>,
 ) where
-    M: MaterialLike,
+    Material: MaterialLike,
 {
-    let changed: Vec<_> = changed
+    let changed = changed
         .iter()
-        .map(|(entity, mesh_handle, material_handle, transform)| {
-            (
-                entity,
-                mesh_handle.clone_weak(),
-                material_handle.clone_weak(),
-                transform.compute_matrix(),
-            )
+        .map(|(handle, mesh_handle, material_handle, transform)| {
+            ExtractedInstance {
+                handle,
+                mesh_handle: mesh_handle.clone_weak(),
+                material_handle: material_handle.clone_weak(),
+                xform: transform.compute_matrix(),
+            }
         })
         .collect();
 
-    known.extend(changed.iter().map(|(entity, _, _, _)| entity));
-
-    // ---
-
-    // TODO use `RemovedComponents` instead
-
-    let removed: Vec<_> = known
-        .difference(&all.iter().collect::<HashSet<_>>())
-        .copied()
+    let removed = removed
+        .iter()
+        .map(|removed| removed.clone().into())
         .collect();
-
-    for removed in &removed {
-        known.remove(removed);
-    }
-
-    // ---
 
     commands.insert_resource(ExtractedInstances { changed, removed });
 }
 
-// TODO use `Changed` to avoid extracting all lights each frame
 pub(crate) fn lights(
     mut commands: Commands,
-    lights: Extract<Query<(Entity, &PointLight, &GlobalTransform)>>,
+    changed: Extract<
+        Query<
+            (Entity, &PointLight, &GlobalTransform),
+            Or<(Changed<PointLight>, Changed<GlobalTransform>)>,
+        >,
+    >,
+    mut removed: Extract<RemovedComponents<PointLight>>,
 ) {
-    let mut items = Vec::new();
+    let changed = changed
+        .iter()
+        .map(|(handle, light, xform)| {
+            let lum_intensity = light.intensity / (4.0 * PI);
 
-    for (entity, light, transform) in lights.iter() {
-        let lum_intensity = light.intensity / (4.0 * PI);
+            let light = st::Light::point(
+                xform.translation().compat(),
+                light.radius,
+                (color_to_vec3(light.color) * lum_intensity).compat(),
+                light.range,
+            );
 
-        let light = st::Light::point(
-            transform.translation().compat(),
-            light.radius,
-            (color_to_vec3(light.color) * lum_intensity).compat(),
-            light.range,
-        );
+            ExtractedLight { handle, light }
+        })
+        .collect();
 
-        items.push((entity, light));
-    }
+    let removed = removed
+        .iter()
+        .map(|removed| removed.clone().into())
+        .collect();
 
-    commands.insert_resource(ExtractedLights { items });
+    commands.insert_resource(ExtractedLights { changed, removed });
 }
 
 #[allow(clippy::type_complexity)]
