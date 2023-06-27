@@ -26,8 +26,8 @@ impl<P> Images<P>
 where
     P: Params,
 {
-    const ATLAS_WIDTH: u32 = 4096;
-    const ATLAS_HEIGHT: u32 = 4096;
+    const ATLAS_WIDTH: u32 = 8192;
+    const ATLAS_HEIGHT: u32 = 8192;
 
     pub fn new(device: &wgpu::Device) -> Self {
         let atlas = AtlasAllocator::new(size2(
