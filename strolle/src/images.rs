@@ -7,7 +7,7 @@ use glam::{uvec2, vec4, Vec4};
 use guillotiere::{size2, Allocation, AtlasAllocator};
 use log::warn;
 
-use crate::{Bindable, Params, Texture};
+use crate::{Bindable, Image, ImageData, Params, Texture};
 
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -18,8 +18,9 @@ where
     #[derivative(Debug = "ignore")]
     atlas: AtlasAllocator,
     atlas_texture: Texture,
-    atlas_changes: Vec<AtlasChange>,
+    atlas_changes: Vec<AtlasChange<P>>,
     images: HashMap<P::ImageHandle, Allocation>,
+    dynamic_textures: Vec<(P::ImageTexture, Allocation)>,
 }
 
 impl<P> Images<P>
@@ -47,33 +48,14 @@ where
             atlas_texture,
             atlas_changes: Default::default(),
             images: Default::default(),
+            dynamic_textures: Default::default(),
         }
     }
 
-    pub fn add(
-        &mut self,
-        image_handle: P::ImageHandle,
-        image_data: Vec<u8>,
-        image_texture: wgpu::TextureDescriptor,
-        _image_sampler: wgpu::SamplerDescriptor,
-    ) {
-        assert_eq!(image_texture.mip_level_count, 1);
-        assert_eq!(image_texture.sample_count, 1);
-        assert_eq!(image_texture.dimension, wgpu::TextureDimension::D2);
-
-        // TODO we should convert textures to a common format
-        assert!([
-            wgpu::TextureFormat::Rgba8Unorm,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
-        ]
-        .contains(&image_texture.format));
-
-        // TODO propagate sampler's addressing modes to the shader so that we
-        //      know whether the texture should be repeated, etc.
-
+    pub fn add(&mut self, image_handle: P::ImageHandle, image: Image<P>) {
         let image_size = size2(
-            image_texture.size.width as i32,
-            image_texture.size.height as i32,
+            image.texture_descriptor.size.width as i32,
+            image.texture_descriptor.size.height as i32,
         );
 
         let image_alloc =
@@ -96,13 +78,27 @@ where
 
         self.images.insert(image_handle, image_alloc);
 
-        self.atlas_changes.push(AtlasChange::Add {
-            x: image_alloc.rectangle.min.x as u32,
-            y: image_alloc.rectangle.min.y as u32,
-            w: image_alloc.rectangle.width() as u32,
-            h: image_alloc.rectangle.height() as u32,
-            data: image_data,
-        });
+        match image.data {
+            data @ (ImageData::Raw { .. }
+            | ImageData::Texture {
+                is_dynamic: false, ..
+            }) => {
+                self.atlas_changes.push(AtlasChange::Set {
+                    x: image_alloc.rectangle.min.x as u32,
+                    y: image_alloc.rectangle.min.y as u32,
+                    w: image_alloc.rectangle.width() as u32,
+                    h: image_alloc.rectangle.height() as u32,
+                    data,
+                });
+            }
+
+            ImageData::Texture {
+                texture,
+                is_dynamic: true,
+            } => {
+                self.dynamic_textures.push((texture, image_alloc));
+            }
+        }
     }
 
     pub fn remove(&mut self, image_handle: &P::ImageHandle) {
@@ -129,31 +125,95 @@ where
         self.lookup(image_handle?)
     }
 
-    pub fn flush(&mut self, queue: &wgpu::Queue) {
+    pub fn flush(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+        let mut encoder = None;
+
         for change in mem::take(&mut self.atlas_changes) {
             match change {
-                AtlasChange::Add { x, y, w, h, data } => {
-                    queue.write_texture(
-                        wgpu::ImageCopyTexture {
-                            texture: self.atlas_texture.tex(),
-                            mip_level: 0,
-                            origin: wgpu::Origin3d { x, y, z: 0 },
-                            aspect: wgpu::TextureAspect::All,
-                        },
-                        &data,
-                        wgpu::ImageDataLayout {
-                            offset: 0,
-                            bytes_per_row: NonZeroU32::new(w * 4),
-                            rows_per_image: None,
-                        },
-                        wgpu::Extent3d {
-                            width: w,
-                            height: h,
-                            depth_or_array_layers: 1,
-                        },
-                    );
+                AtlasChange::Set { x, y, w, h, data } => {
+                    let size = wgpu::Extent3d {
+                        width: w,
+                        height: h,
+                        depth_or_array_layers: 1,
+                    };
+
+                    match data {
+                        ImageData::Raw { data } => {
+                            queue.write_texture(
+                                wgpu::ImageCopyTexture {
+                                    texture: self.atlas_texture.tex(),
+                                    mip_level: 0,
+                                    origin: wgpu::Origin3d { x, y, z: 0 },
+                                    aspect: wgpu::TextureAspect::All,
+                                },
+                                &data,
+                                wgpu::ImageDataLayout {
+                                    offset: 0,
+                                    bytes_per_row: NonZeroU32::new(w * 4),
+                                    rows_per_image: None,
+                                },
+                                wgpu::Extent3d {
+                                    width: w,
+                                    height: h,
+                                    depth_or_array_layers: 1,
+                                },
+                            );
+                        }
+
+                        ImageData::Texture { texture, .. } => {
+                            let encoder = encoder.get_or_insert_with(|| {
+                                device.create_command_encoder(
+                                    &wgpu::CommandEncoderDescriptor {
+                                        label: Some("strolle_atlas"),
+                                    },
+                                )
+                            });
+
+                            encoder.copy_texture_to_texture(
+                                texture.as_image_copy(),
+                                wgpu::ImageCopyTexture {
+                                    texture: self.atlas_texture.tex(),
+                                    mip_level: 0,
+                                    origin: wgpu::Origin3d { x, y, z: 0 },
+                                    aspect: wgpu::TextureAspect::All,
+                                },
+                                size,
+                            );
+                        }
+                    }
                 }
             }
+        }
+
+        for (texture, alloc) in &self.dynamic_textures {
+            let encoder = encoder.get_or_insert_with(|| {
+                device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("strolle_atlas"),
+                })
+            });
+
+            encoder.copy_texture_to_texture(
+                texture.as_image_copy(),
+                wgpu::ImageCopyTexture {
+                    texture: self.atlas_texture.tex(),
+                    mip_level: 0,
+                    origin: wgpu::Origin3d {
+                        x: alloc.rectangle.min.x as u32,
+                        y: alloc.rectangle.min.y as u32,
+                        z: 0,
+                    },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::Extent3d {
+                    width: alloc.rectangle.size().width as u32,
+                    height: alloc.rectangle.size().height as u32,
+                    depth_or_array_layers: 1,
+                },
+            )
+        }
+
+        if let Some(encoder) = encoder {
+            queue.submit([encoder.finish()]);
         }
     }
 
@@ -164,14 +224,17 @@ where
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-enum AtlasChange {
-    Add {
+enum AtlasChange<P>
+where
+    P: Params,
+{
+    Set {
         x: u32,
         y: u32,
         w: u32,
         h: u32,
 
         #[derivative(Debug = "ignore")]
-        data: Vec<u8>,
+        data: ImageData<P>,
     },
 }

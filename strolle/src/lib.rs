@@ -50,6 +50,7 @@ mod bvh;
 mod camera;
 mod camera_controller;
 mod camera_controllers;
+mod image;
 mod images;
 mod instance;
 mod instances;
@@ -68,6 +69,7 @@ mod utils;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::mem;
+use std::ops::Deref;
 use std::time::Instant;
 
 pub use glam;
@@ -79,6 +81,7 @@ pub(self) use self::bvh::*;
 pub use self::camera::*;
 pub(self) use self::camera_controller::*;
 pub(self) use self::camera_controllers::*;
+pub use self::image::*;
 pub(self) use self::images::*;
 pub use self::instance::*;
 pub(self) use self::instances::*;
@@ -199,16 +202,8 @@ where
     /// Creates an image¹ or updates the existing one.
     ///
     /// ¹ see the module-level comment for details
-    pub fn add_image(
-        &mut self,
-        image_handle: P::ImageHandle,
-        image_data: Vec<u8>,
-        image_texture: wgpu::TextureDescriptor,
-        image_sampler: wgpu::SamplerDescriptor,
-    ) {
-        self.images
-            .add(image_handle, image_data, image_texture, image_sampler);
-
+    pub fn add_image(&mut self, image_handle: P::ImageHandle, image: Image<P>) {
+        self.images.add(image_handle, image);
         self.has_dirty_images = true;
     }
 
@@ -287,11 +282,12 @@ where
         let any_material_modified = mem::take(&mut self.has_dirty_materials);
         let any_image_modified = mem::take(&mut self.has_dirty_images);
 
+        self.images.flush(device, queue);
+
         // TODO instead of refreshing all materials if any material was changed,
         //      it could be nicer to use an incremental approach here and only
         //      rebuild materials that were actually modified
         if any_material_modified || any_image_modified {
-            self.images.flush(queue);
             self.materials.refresh(&self.images);
         }
 
@@ -414,6 +410,12 @@ where
     /// This corresponds to `Handle<Image>` in Bevy, but a simpler
     /// implementation can use just `usize` or `String`.
     type ImageHandle: Eq + Hash + Clone + Debug;
+
+    /// Image's texture.
+    ///
+    /// This corresponds to `Texture` in Bevy as it doesn't provide direct
+    /// access to owned `wgpu::Texture`.
+    type ImageTexture: Debug + Deref<Target = wgpu::Texture>;
 
     /// Handle used to lookup instances of meshes.
     ///

@@ -1,7 +1,9 @@
+use std::mem;
+
 use bevy::prelude::*;
 use bevy::render::mesh::VertexAttributeValues;
+use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::PrimitiveTopology;
-use bevy::render::texture::ImageSampler;
 use strolle as st;
 
 use crate::state::{
@@ -121,17 +123,18 @@ pub(crate) fn materials<M>(
 
 pub(crate) fn images(
     mut engine: ResMut<EngineResource>,
+    textures: Res<RenderAssets<Image>>,
     mut images: ResMut<ExtractedImages>,
 ) {
-    for image_handle in images.removed.iter() {
+    for image_handle in &images.removed {
         engine.remove_image(image_handle);
     }
 
-    for (image_handle, image) in images.changed.drain(..) {
-        // HACK because we .add_image() all images we can find instead of making
-        //      sure to load only images used by any material, we unavoidably
-        //      stumble upon some 1D / 3D images that Bevy (or something?)
-        //      preloads
+    for image in mem::take(&mut images.changed) {
+        // HACK because we .add_image() all images we can find (instead of
+        //      making sure to load only images used by any material), we
+        //      unavoidably stumble upon some 1D / 3D images that Bevy (or
+        //      something?) preloads for some internal reasons
         //
         //      bottom line is:
         //      this condition shouldn't be necessary if we realize the "load
@@ -140,14 +143,19 @@ pub(crate) fn images(
             continue;
         }
 
-        let sampler_descriptor = match image.sampler_descriptor {
-            ImageSampler::Default => {
-                // TODO as per Bevy's docs, this should actually read the
-                //      defaults as specified in the `ImagePlugin`'s setup
-                ImageSampler::nearest_descriptor()
-            }
+        let data = match image.data {
+            ExtractedImageData::Raw { data } => st::ImageData::Raw { data },
 
-            ImageSampler::Descriptor(descriptor) => descriptor,
+            ExtractedImageData::Texture { is_dynamic } => {
+                st::ImageData::Texture {
+                    texture: textures
+                        .get(&image.handle)
+                        .unwrap()
+                        .texture
+                        .clone(),
+                    is_dynamic,
+                }
+            }
         };
 
         // TODO we should add only those images which are used by at least one
@@ -162,10 +170,12 @@ pub(crate) fn images(
         //      material, in which case a simple condition right here will not
         //      be sufficient
         engine.add_image(
-            image_handle,
-            image.data,
-            image.texture_descriptor,
-            sampler_descriptor,
+            image.handle,
+            st::Image::new(
+                data,
+                image.texture_descriptor,
+                image.sampler_descriptor,
+            ),
         );
     }
 }

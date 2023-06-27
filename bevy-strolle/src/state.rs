@@ -48,11 +48,24 @@ where
 
 #[derive(Resource)]
 pub(crate) struct ExtractedImages {
-    pub changed: Vec<(Handle<Image>, Image)>,
+    pub changed: Vec<ExtractedImage>,
     pub removed: Vec<Handle<Image>>,
 }
 
-#[derive(Resource)]
+#[derive(Debug)]
+pub(crate) struct ExtractedImage {
+    pub handle: Handle<Image>,
+    pub texture_descriptor: wgpu::TextureDescriptor<'static>,
+    pub sampler_descriptor: wgpu::SamplerDescriptor<'static>,
+    pub data: ExtractedImageData,
+}
+
+#[derive(Debug)]
+pub(crate) enum ExtractedImageData {
+    Raw { data: Vec<u8> },
+    Texture { is_dynamic: bool },
+}
+
 pub(crate) struct ExtractedInstances<M>
 where
     M: MaterialLike,

@@ -2,6 +2,7 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
+use bevy::render::texture::ImageSampler;
 use bevy::render::Extract;
 use bevy::utils::HashSet;
 use strolle as st;
@@ -11,7 +12,7 @@ use crate::state::{
     ExtractedMaterials, ExtractedMeshes, ExtractedSun,
 };
 use crate::utils::{color_to_vec3, GlamCompat};
-use crate::{MaterialLike, StrolleCamera, StrolleSun};
+use crate::{MaterialLike, StrolleCamera, StrolleEvent, StrolleSun};
 
 pub(crate) fn meshes(
     mut commands: Commands,
@@ -89,13 +90,25 @@ pub(crate) fn materials<M>(
 
 pub(crate) fn images(
     mut commands: Commands,
-    mut events: Extract<EventReader<AssetEvent<Image>>>,
+    mut events: Extract<EventReader<StrolleEvent>>,
+    mut asset_events: Extract<EventReader<AssetEvent<Image>>>,
     images: Extract<Res<Assets<Image>>>,
+    mut dynamic_images: Local<HashSet<Handle<Image>>>,
 ) {
+    for event in events.iter() {
+        match event {
+            StrolleEvent::MarkImageAsDynamic { handle } => {
+                dynamic_images.insert(handle.clone_weak());
+            }
+        }
+    }
+
+    // ---
+
     let mut changed = HashSet::default();
     let mut removed = Vec::new();
 
-    for event in events.iter() {
+    for event in asset_events.iter() {
         match event {
             AssetEvent::Created { handle }
             | AssetEvent::Modified { handle } => {
@@ -104,23 +117,64 @@ pub(crate) fn images(
             AssetEvent::Removed { handle } => {
                 changed.remove(handle);
                 removed.push(handle.clone_weak());
+                dynamic_images.remove(handle);
             }
         }
     }
 
-    let changed = changed
-        .into_iter()
-        .flat_map(|handle| {
-            if let Some(image) = images.get(&handle) {
-                Some((handle, image.to_owned()))
-            } else {
-                removed.push(handle.clone_weak());
-                None
-            }
-        })
-        .collect();
+    let changed = changed.into_iter().flat_map(|handle| -> Option<_> {
+        let Some(image) = images.get(&handle) else {
+            removed.push(handle);
+            return None;
+        };
 
-    commands.insert_resource(ExtractedImages { changed, removed });
+        let texture_descriptor = image.texture_descriptor.clone();
+
+        let sampler_descriptor = match &image.sampler_descriptor {
+            ImageSampler::Default => {
+                // According to Bevy's docs, this should read the defaults as
+                // specified in the `ImagePlugin`'s setup, but it seems that it
+                // is not actually possible for us to access that value in here.
+                //
+                // So let's to the next best thing: assume our own default!
+                ImageSampler::nearest_descriptor()
+            }
+
+            ImageSampler::Descriptor(descriptor) => descriptor.clone(),
+        };
+
+        let data = if dynamic_images.contains(&handle) {
+            let is_legal = image
+                .texture_descriptor
+                .usage
+                .contains(wgpu::TextureUsages::COPY_SRC);
+
+            assert!(
+                is_legal,
+                "Image `{:?}` was marked as dynamic but it is missing the \
+                 COPY_SRC usage; please add that usage and try again",
+                handle
+            );
+
+            ExtractedImageData::Texture { is_dynamic: true }
+        } else {
+            ExtractedImageData::Raw {
+                data: image.data.clone(),
+            }
+        };
+
+        Some(ExtractedImage {
+            handle,
+            texture_descriptor,
+            sampler_descriptor,
+            data,
+        })
+    });
+
+    commands.insert_resource(ExtractedImages {
+        changed: changed.collect(),
+        removed,
+    });
 }
 
 #[allow(clippy::type_complexity)]
