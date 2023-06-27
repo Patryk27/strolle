@@ -18,6 +18,7 @@ pub struct CameraBuffers {
     pub direct_hits_d0: Texture,
     pub direct_hits_d1: Texture,
     pub direct_hits_d2: Texture,
+    pub direct_hits_d3: Texture,
     pub raw_direct_colors: Texture,
     pub direct_colors: DoubleBuffered<Texture>,
     pub direct_initial_samples: UnmappedStorageBuffer,
@@ -93,6 +94,14 @@ impl CameraBuffers {
             .build(device);
 
         let direct_hits_d2 = Texture::builder("direct_hits_d2")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
+
+        let direct_hits_d3 = Texture::builder("direct_hits_d3")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
@@ -214,6 +223,7 @@ impl CameraBuffers {
             direct_hits_d0,
             direct_hits_d1,
             direct_hits_d2,
+            direct_hits_d3,
             raw_direct_colors,
             direct_colors,
             direct_initial_samples,

@@ -8,6 +8,8 @@ use spirv_std::{Image, Sampler};
 pub struct Material {
     pub base_color: Vec4,
     pub base_color_texture: Vec4,
+    pub emissive: Vec4,
+    pub emissive_texture: Vec4,
     pub perceptual_roughness: f32,
     pub metallic: f32,
     pub reflectance: f32,
@@ -24,7 +26,38 @@ impl Material {
         &self,
         atlas_tex: &Image!(2D, type=f32, sampled),
         atlas_sampler: &Sampler,
+        hit_uv: Vec2,
+    ) -> Vec4 {
+        Self::sample_atlas(
+            atlas_tex,
+            atlas_sampler,
+            hit_uv,
+            self.base_color,
+            self.base_color_texture,
+        )
+    }
+
+    pub fn emissive(
+        &self,
+        atlas_tex: &Image!(2D, type=f32, sampled),
+        atlas_sampler: &Sampler,
+        hit_uv: Vec2,
+    ) -> Vec4 {
+        Self::sample_atlas(
+            atlas_tex,
+            atlas_sampler,
+            hit_uv,
+            self.emissive,
+            self.emissive_texture,
+        )
+    }
+
+    fn sample_atlas(
+        atlas_tex: &Image!(2D, type=f32, sampled),
+        atlas_sampler: &Sampler,
         mut hit_uv: Vec2,
+        multiplier: Vec4,
+        texture: Vec4,
     ) -> Vec4 {
         // TODO this assumes the texture's sampler is configured to U/V-repeat
         //      which might not be the case; we should propagate sampler info up
@@ -37,16 +70,15 @@ impl Material {
             }
         };
 
-        if self.base_color_texture == Vec4::ZERO {
-            self.base_color
+        if texture == Vec4::ZERO {
+            multiplier
         } else {
             hit_uv.x = wrap(hit_uv.x);
             hit_uv.y = wrap(hit_uv.y);
 
-            let uv = self.base_color_texture.xy()
-                + hit_uv * self.base_color_texture.zw();
+            let uv = texture.xy() + hit_uv * texture.zw();
 
-            self.base_color * atlas_tex.sample_by_lod(*atlas_sampler, uv, 0.0)
+            multiplier * atlas_tex.sample_by_lod(*atlas_sampler, uv, 0.0)
         }
     }
 

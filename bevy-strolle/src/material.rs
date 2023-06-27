@@ -76,6 +76,8 @@ impl MaterialLike for StandardMaterial {
         st::Material::default()
             .with_base_color(base_color.compat())
             .with_base_color_texture(self.base_color_texture)
+            .with_emissive(color_to_vec4(self.emissive).compat())
+            .with_emissive_texture(self.emissive_texture)
             .with_perceptual_roughness(self.perceptual_roughness)
             .with_metallic(self.metallic)
             .with_reflectance(self.reflectance)

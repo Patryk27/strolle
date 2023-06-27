@@ -134,6 +134,11 @@ impl DirectRasterPass {
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
+                        Some(wgpu::ColorTargetState {
+                            format: wgpu::TextureFormat::Rgba32Float,
+                            blend: Some(wgpu::BlendState::REPLACE),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        }),
                     ],
                 }),
                 multiview: None,
@@ -178,6 +183,14 @@ impl DirectRasterPass {
                 }),
                 Some(wgpu::RenderPassColorAttachment {
                     view: camera.buffers.direct_hits_d2.view(),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: true,
+                    },
+                }),
+                Some(wgpu::RenderPassColorAttachment {
+                    view: camera.buffers.direct_hits_d3.view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),

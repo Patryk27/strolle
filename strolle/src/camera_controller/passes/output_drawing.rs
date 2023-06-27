@@ -29,6 +29,7 @@ impl OutputDrawingPass {
             .add(&buffers.camera.bind_readable())
             .add(&buffers.direct_colors.curr().bind_sampled())
             .add(&buffers.direct_hits_d2.bind_sampled())
+            .add(&buffers.direct_hits_d3.bind_sampled())
             .add(&buffers.indirect_colors.curr().bind_sampled())
             .add(&buffers.surface_map.curr().bind_sampled())
             .build(device);

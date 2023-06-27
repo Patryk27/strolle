@@ -27,10 +27,12 @@ pub fn main_fs(
     #[spirv(descriptor_set = 0, binding = 2)] direct_colors_sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 3)] direct_hits_d2_tex: &Image!(2D, type=f32, sampled),
     #[spirv(descriptor_set = 0, binding = 4)] direct_hits_d2_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 5)] indirect_colors_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 6)] indirect_colors_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 7)] surface_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 8)] surface_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 5)] direct_hits_d3_tex: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 6)] direct_hits_d3_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 7)] indirect_colors_tex: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 8)] indirect_colors_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 9)] surface_tex: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 10)] surface_sampler: &Sampler,
     frag_color: &mut Vec4,
 ) {
     let texel_xy = {
@@ -49,6 +51,10 @@ pub fn main_fs(
                 .sample(*direct_hits_d2_sampler, texel_xy)
                 .xyz();
 
+            let emissive = direct_hits_d3_tex
+                .sample(*direct_hits_d3_sampler, texel_xy)
+                .xyz();
+
             let direct = direct_colors_tex
                 .sample(*direct_colors_sampler, texel_xy)
                 .xyz();
@@ -57,7 +63,7 @@ pub fn main_fs(
                 .sample(*indirect_colors_sampler, texel_xy)
                 .xyz();
 
-            ((direct + albedo * indirect), true)
+            ((direct + emissive + indirect * albedo), true)
         }
 
         1 => {
@@ -65,7 +71,11 @@ pub fn main_fs(
                 .sample(*direct_colors_sampler, texel_xy)
                 .xyz();
 
-            (direct, true)
+            let emissive = direct_hits_d3_tex
+                .sample(*direct_hits_d3_sampler, texel_xy)
+                .xyz();
+
+            (direct + emissive, true)
         }
 
         2 => {
