@@ -26,10 +26,10 @@ pub(crate) fn meshes(
     }
 
     for mesh in mem::take(&mut meshes.changed) {
-        assert_eq!(
-            mesh.mesh.primitive_topology(),
-            PrimitiveTopology::TriangleList
-        );
+        // HACK
+        if mesh.mesh.primitive_topology() != PrimitiveTopology::TriangleList {
+            continue;
+        }
 
         let mesh_positions = mesh
             .mesh
