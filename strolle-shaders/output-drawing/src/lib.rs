@@ -31,8 +31,8 @@ pub fn main_fs(
     #[spirv(descriptor_set = 0, binding = 6)] direct_hits_d3_sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 7)] indirect_colors_tex: &Image!(2D, type=f32, sampled),
     #[spirv(descriptor_set = 0, binding = 8)] indirect_colors_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 9)] surface_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 10)] surface_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 9)] surface_map_tex: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 10)] surface_map_sampler: &Sampler,
     frag_color: &mut Vec4,
 ) {
     let texel_xy = {
@@ -87,7 +87,9 @@ pub fn main_fs(
         }
 
         3 => {
-            let normal = surface_tex.sample(*surface_sampler, texel_xy).xyz();
+            let normal =
+                surface_map_tex.sample(*surface_map_sampler, texel_xy).xyz();
+
             let normal = Vec3::splat(0.5) + normal * 0.5;
 
             (normal, false)

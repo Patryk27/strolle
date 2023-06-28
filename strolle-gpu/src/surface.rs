@@ -2,12 +2,13 @@ use glam::{UVec2, Vec3, Vec3Swizzles, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::TexRgba32f;
+use crate::{Normal, TexRgba32f};
 
 #[derive(Clone, Copy)]
 pub struct Surface {
     pub normal: Vec3,
     pub depth: f32,
+    pub instance_uuid: u32,
 }
 
 impl Surface {
@@ -45,8 +46,9 @@ impl<'a> SurfaceMap<'a> {
         let d0 = self.tex.read(screen_pos);
 
         Surface {
-            normal: d0.xyz(),
-            depth: d0.w,
+            normal: Normal::decode(d0.xy()),
+            depth: d0.z,
+            instance_uuid: d0.w.to_bits(),
         }
     }
 

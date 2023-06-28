@@ -1,4 +1,4 @@
-use bevy::math::{vec3, vec4};
+use bevy::math::{vec3, vec4, Affine3A, Mat3A, Vec3A};
 use bevy::prelude::*;
 use strolle as st;
 
@@ -35,9 +35,34 @@ impl GlamCompat<st::glam::Vec3> for Vec3 {
     }
 }
 
+impl GlamCompat<st::glam::Vec3A> for Vec3A {
+    fn compat(self) -> st::glam::Vec3A {
+        st::glam::Vec3A::new(self.x, self.y, self.z)
+    }
+}
+
 impl GlamCompat<st::glam::Vec4> for Vec4 {
     fn compat(self) -> st::glam::Vec4 {
         st::glam::Vec4::new(self.x, self.y, self.z, self.w)
+    }
+}
+
+impl GlamCompat<st::glam::Affine3A> for Affine3A {
+    fn compat(self) -> st::glam::Affine3A {
+        st::glam::Affine3A {
+            matrix3: self.matrix3.compat(),
+            translation: self.translation.compat(),
+        }
+    }
+}
+
+impl GlamCompat<st::glam::Mat3A> for Mat3A {
+    fn compat(self) -> st::glam::Mat3A {
+        st::glam::Mat3A {
+            x_axis: self.x_axis.compat(),
+            y_axis: self.y_axis.compat(),
+            z_axis: self.z_axis.compat(),
+        }
     }
 }
 

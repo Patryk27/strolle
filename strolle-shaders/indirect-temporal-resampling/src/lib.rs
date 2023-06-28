@@ -80,7 +80,7 @@ fn main_inner(
     let reprojection =
         reprojection_map.get(upsample(global_id, params.frame - 1));
 
-    if reprojection.is_valid() {
+    if reprojection.is_some() {
         // Where our reservoir was located in the previous frame
         let from_screen_pos =
             upsample(reprojection.past_screen_pos() / 2, params.frame - 1);

@@ -1,3 +1,4 @@
+use bevy::math::Affine3A;
 use bevy::prelude::*;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::utils::HashMap;
@@ -99,7 +100,7 @@ where
     pub handle: Entity,
     pub mesh_handle: Handle<Mesh>,
     pub material_handle: Handle<M>,
-    pub xform: Mat4,
+    pub xform: Affine3A,
 }
 
 #[derive(Debug, Resource)]

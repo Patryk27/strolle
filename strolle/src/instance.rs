@@ -1,4 +1,4 @@
-use spirv_std::glam::{Mat4, Vec4};
+use glam::Affine3A;
 
 use crate::Params;
 
@@ -7,9 +7,10 @@ pub struct Instance<P>
 where
     P: Params,
 {
-    mesh_handle: P::MeshHandle,
-    material_handle: P::MaterialHandle,
-    transform: Mat4,
+    pub(crate) mesh_handle: P::MeshHandle,
+    pub(crate) material_handle: P::MaterialHandle,
+    pub(crate) transform: Affine3A,
+    pub(crate) transform_inverse: Affine3A,
 }
 
 impl<P> Instance<P>
@@ -19,29 +20,13 @@ where
     pub fn new(
         mesh_handle: P::MeshHandle,
         material_handle: P::MaterialHandle,
-        transform: Mat4,
+        transform: Affine3A,
     ) -> Self {
-        assert!(
-            transform.row(3).abs_diff_eq(Vec4::W, 1e-6),
-            "Instances cannot have perspective projections"
-        );
-
         Self {
             mesh_handle,
             material_handle,
             transform,
+            transform_inverse: transform.inverse(),
         }
-    }
-
-    pub fn mesh_handle(&self) -> &P::MeshHandle {
-        &self.mesh_handle
-    }
-
-    pub fn material_handle(&self) -> &P::MaterialHandle {
-        &self.material_handle
-    }
-
-    pub fn transform(&self) -> Mat4 {
-        self.transform
     }
 }

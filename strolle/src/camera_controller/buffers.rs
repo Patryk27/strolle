@@ -1,3 +1,5 @@
+//! TODO lots of the textures here could use simpler formats
+
 use log::debug;
 use spirv_std::glam::UVec2;
 
@@ -35,13 +37,12 @@ pub struct CameraBuffers {
 
     pub surface_map: DoubleBuffered<Texture>,
     pub reprojection_map: Texture,
+    pub velocity_map: Texture,
 }
 
 impl CameraBuffers {
     pub fn new(device: &wgpu::Device, camera: &Camera) -> Self {
         debug!("Initializing camera buffers");
-
-        // TODO lots of the textures here could use simpler formats
 
         let camera_uniform =
             MappedUniformBuffer::new(device, "camera", camera.serialize());
@@ -212,6 +213,14 @@ impl CameraBuffers {
             .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
+        let velocity_map = Texture::builder("reprojection_map")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
+
         Self {
             camera: camera_uniform,
             past_camera,
@@ -240,6 +249,7 @@ impl CameraBuffers {
 
             surface_map,
             reprojection_map,
+            velocity_map,
         }
     }
 }

@@ -69,7 +69,7 @@ fn main_inner(
     // Reprojecting a spatial reservoir follows a similar pattern as
     // reprojecting a temporal reservoir so comments here were ommitted for
     // brevity:
-    if reprojection.is_valid() {
+    if reprojection.is_some() {
         let from_screen_pos =
             upsample(reprojection.past_screen_pos() / 2, params.frame - 1);
 

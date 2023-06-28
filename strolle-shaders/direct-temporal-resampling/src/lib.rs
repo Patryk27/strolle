@@ -58,7 +58,7 @@ fn main_inner(
     let mut reservoir = DirectReservoir::new(sample, p_hat, params.frame);
     let reprojection = reprojection_map.get(screen_pos);
 
-    if reprojection.is_valid() {
+    if reprojection.is_some() {
         let mut past_reservoir = DirectReservoir::read(
             past_direct_temporal_reservoirs,
             camera.screen_to_idx(reprojection.past_screen_pos()),

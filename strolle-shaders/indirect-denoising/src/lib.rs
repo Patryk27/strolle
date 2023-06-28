@@ -56,7 +56,7 @@ fn main_inner(
     let past_color = {
         let reprojection = reprojection_map.get(screen_pos);
 
-        if reprojection.is_valid() {
+        if reprojection.is_some() {
             past_indirect_colors.read(reprojection.past_screen_pos())
         } else {
             Default::default()

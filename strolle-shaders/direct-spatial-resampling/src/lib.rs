@@ -54,7 +54,7 @@ fn main_inner(
 
     let reprojection = reprojection_map.get(screen_pos);
 
-    if reprojection.is_valid() {
+    if reprojection.is_some() {
         let mut past_reservoir = DirectReservoir::read(
             past_direct_spatial_reservoirs,
             camera.screen_to_idx(reprojection.past_screen_pos()),

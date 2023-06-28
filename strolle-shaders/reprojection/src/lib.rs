@@ -14,20 +14,20 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, uniform)]
     past_camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)]
-    direct_hits_d0: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 2)]
     surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 3)]
+    #[spirv(descriptor_set = 0, binding = 2)]
     past_surface_map: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 3)]
+    velocity_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 4)]
     reprojection_map: TexRgba32f,
 ) {
     main_inner(
         global_id.xy(),
         past_camera,
-        direct_hits_d0,
         SurfaceMap::new(surface_map),
         SurfaceMap::new(past_surface_map),
+        velocity_map,
         ReprojectionMap::new(reprojection_map),
     )
 }
@@ -36,39 +36,38 @@ pub fn main(
 fn main_inner(
     screen_pos: UVec2,
     past_camera: &Camera,
-    direct_hits_d0: TexRgba32f,
     surface_map: SurfaceMap,
     past_surface_map: SurfaceMap,
+    velocity_map: TexRgba32f,
     reprojection_map: ReprojectionMap,
 ) {
     let mut reprojection = Reprojection::default();
-    let viewport_size = past_camera.viewport_size().as_vec2();
-
-    // Look at the current world-space hit-point and re-project it using the
-    // previous camera's view-projection matrix.
-    //
-    // tl;dr this gives us a screen-space coordinates of where this hit-point
-    //       would be displayed on the past frame camera's viewport
-    let past_screen_pos = past_camera.world_to_screen(Hit::deserialize_point(
-        direct_hits_d0.read(screen_pos),
-    ));
-
     let screen_surface = surface_map.get(screen_pos);
-    let mut sample_delta = vec2(-1.0, -1.0);
+
+    let velocity = velocity_map.read(screen_pos).xy();
+    let past_screen_pos = screen_pos.as_ivec2() - velocity.round().as_ivec2();
+
+    let mut sample_delta = ivec2(-1, -1);
 
     loop {
         let sample_screen_pos = past_screen_pos + sample_delta;
 
-        if sample_screen_pos.x >= 0.0
-            && sample_screen_pos.y >= 0.0
-            && sample_screen_pos.x < viewport_size.x
-            && sample_screen_pos.y < viewport_size.y
-        {
+        if past_camera.contains(sample_screen_pos) {
             let sample_screen_pos = sample_screen_pos.as_uvec2();
 
             // TODO optimization opportunity: preload neighbours into shared
             //      memory
             let sample_surface = past_surface_map.get(sample_screen_pos);
+
+            // Check if the pixel we're looking at shades the same object; if
+            // it's not, there's no point in reusing its sample later.
+            let instance_diff = if sample_surface.instance_uuid
+                == screen_surface.instance_uuid
+            {
+                0.0
+            } else {
+                1.0
+            };
 
             // Compute the difference between normals; this allows us to reject
             // candidates that have wildly different geometric features from our
@@ -86,14 +85,22 @@ fn main_inner(
             // which - in turn - reduces bleeding from background into
             // foreground objects.
             let depth_diff =
-                (sample_surface.depth - screen_surface.depth).abs();
+                if sample_surface.depth == 0.0 || screen_surface.depth == 0.0 {
+                    // Edge case: don't reproject sky; this can cause indirect
+                    // lightning to bleed
+                    1.0
+                } else {
+                    (sample_surface.depth - screen_surface.depth).abs()
+                };
 
             // Finally, take into account the screen-space distance; this
             // prevents us from choosing far-away samples when our neighbourhood
             // looks uniform~ish.
-            let distance_diff = sample_delta.abs().length_squared() / 10.0;
+            let distance_diff =
+                sample_delta.abs().as_vec2().length_squared() * 0.1;
 
-            let confidence = 1.0 - (normal_diff + depth_diff + distance_diff);
+            let confidence = 1.0
+                - (instance_diff + normal_diff + depth_diff + distance_diff);
 
             if confidence > reprojection.confidence {
                 reprojection = Reprojection {
@@ -108,13 +115,13 @@ fn main_inner(
             // side of the screen if the camera strafes to right).
         }
 
-        sample_delta.x += 1.0;
+        sample_delta.x += 1;
 
-        if sample_delta.x >= 2.0 {
-            sample_delta.x = -2.0;
-            sample_delta.y += 1.0;
+        if sample_delta.x >= 2 {
+            sample_delta.x = -2;
+            sample_delta.y += 1;
 
-            if sample_delta.y >= 2.0 {
+            if sample_delta.y >= 2 {
                 break;
             }
         }

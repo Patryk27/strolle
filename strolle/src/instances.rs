@@ -2,6 +2,9 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem;
 
+use glam::Affine3A;
+use rand::Rng;
+
 use crate::meshes::Meshes;
 use crate::triangles::Triangles;
 use crate::{Instance, Params};
@@ -11,7 +14,7 @@ pub struct Instances<P>
 where
     P: Params,
 {
-    instances: HashMap<P::InstanceHandle, (Instance<P>, bool)>,
+    instances: HashMap<P::InstanceHandle, InstanceEntry<P>>,
     dirty: bool,
 }
 
@@ -25,12 +28,21 @@ where
         instance: Instance<P>,
     ) {
         match self.instances.entry(instance_handle) {
-            Entry::Occupied(entry) => {
-                *entry.into_mut() = (instance, true);
+            Entry::Occupied(mut entry) => {
+                let entry = entry.get_mut();
+
+                entry.past_transform = entry.instance.transform;
+                entry.instance = instance;
+                entry.dirty = true;
             }
 
             Entry::Vacant(entry) => {
-                entry.insert((instance, true));
+                entry.insert(InstanceEntry {
+                    past_transform: instance.transform,
+                    uuid: rand::thread_rng().gen(),
+                    dirty: true,
+                    instance,
+                });
             }
         }
 
@@ -39,11 +51,13 @@ where
 
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = (&P::InstanceHandle, &Instance<P>)> + Clone + '_
+    ) -> impl Iterator<Item = (&P::InstanceHandle, &InstanceEntry<P>)> + Clone + '_
     {
         self.instances
             .iter()
-            .map(|(instance_handle, (instance, _))| (instance_handle, instance))
+            .map(|(instance_handle, instance_entry)| {
+                (instance_handle, instance_entry)
+            })
     }
 
     pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
@@ -64,24 +78,26 @@ where
             return false;
         }
 
-        for (instance_handle, (instance, dirty)) in &mut self.instances {
-            if !mem::take(dirty) {
+        for (instance_handle, entry) in &mut self.instances {
+            if !mem::take(&mut entry.dirty) {
                 continue;
             }
 
-            let Some(mesh) = meshes.get(instance.mesh_handle()) else {
+            let Some(mesh) = meshes.get(&entry.instance.mesh_handle) else {
                 // If the mesh is not yet available, it might be still being
                 // loaded in the background - in that case let's try again next
                 // frame:
-                *dirty = true;
+                entry.dirty = true;
                 self.dirty = true;
                 continue;
             };
 
-            let mesh_triangles = mesh
-                .triangles()
-                .iter()
-                .map(|triangle| triangle.with_transform(instance.transform()));
+            let mesh_triangles = mesh.triangles().iter().map(|triangle| {
+                triangle.with_transform(
+                    entry.instance.transform,
+                    entry.instance.transform_inverse,
+                )
+            });
 
             if let Some(count) = triangles.count(instance_handle) {
                 if mesh.triangles().len() == count {
@@ -110,4 +126,15 @@ where
             dirty: Default::default(),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct InstanceEntry<P>
+where
+    P: Params,
+{
+    pub instance: Instance<P>,
+    pub uuid: u32,
+    pub past_transform: Affine3A,
+    pub dirty: bool,
 }

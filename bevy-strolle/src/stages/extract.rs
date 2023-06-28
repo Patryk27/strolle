@@ -207,7 +207,7 @@ pub(crate) fn instances<Material>(
                 handle,
                 mesh_handle: mesh_handle.clone_weak(),
                 material_handle: material_handle.clone_weak(),
-                xform: transform.compute_matrix(),
+                xform: transform.affine(),
             }
         })
         .collect();

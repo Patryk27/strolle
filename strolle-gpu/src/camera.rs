@@ -25,8 +25,12 @@ impl Camera {
 
     /// Transforms point from world-coordinates into screen-coordinates.
     pub fn world_to_screen(&self, pos: Vec3) -> Vec2 {
-        let clip = self.world_to_clip(pos);
-        let ndc = clip.xy() / clip.w;
+        self.clip_to_screen(self.world_to_clip(pos))
+    }
+
+    /// Transforms point from clip-coordinates into screen-coordinates.
+    pub fn clip_to_screen(&self, pos: Vec4) -> Vec2 {
+        let ndc = pos.xy() / pos.w;
         let ndc = vec2(ndc.x, -ndc.y);
 
         (0.5 * ndc + 0.5) * self.viewport_size().as_vec2()

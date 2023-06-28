@@ -50,20 +50,25 @@ impl Bvh {
         }
 
         let bvh_triangles =
-            instances.iter().flat_map(|(inst_handle, instance)| {
-                let material_id = materials.lookup(instance.material_handle());
+            instances
+                .iter()
+                .flat_map(|(instance_handle, instance_entry)| {
+                    let material_id = materials
+                        .lookup(&instance_entry.instance.material_handle);
 
-                material_id.into_iter().flat_map(|material_id| {
-                    triangles.iter(inst_handle).map(
-                        move |(triangle_id, triangle)| BvhTriangle {
-                            bb: BoundingBox::from_points(triangle.positions()),
-                            center: triangle.center(),
-                            triangle_id,
-                            material_id,
-                        },
-                    )
-                })
-            });
+                    material_id.into_iter().flat_map(|material_id| {
+                        triangles.iter(instance_handle).map(
+                            move |(triangle_id, triangle)| BvhTriangle {
+                                bb: BoundingBox::from_points(
+                                    triangle.positions(),
+                                ),
+                                center: triangle.center(),
+                                triangle_id,
+                                material_id,
+                            },
+                        )
+                    })
+                });
 
         let root = build::run(self.root.as_ref(), bvh_triangles);
 

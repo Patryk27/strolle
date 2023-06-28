@@ -31,7 +31,7 @@ impl Reprojection {
         uvec2(self.past_x, self.past_y)
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn is_some(&self) -> bool {
         self.confidence > 0.0
     }
 }

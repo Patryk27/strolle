@@ -1,5 +1,5 @@
-use glam::Vec3Swizzles;
-use spirv_std::glam::{Mat3, Mat3A, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
+use glam::{Affine3A, Vec3Swizzles};
+use spirv_std::glam::{Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
 
 use crate::gpu;
 
@@ -44,7 +44,11 @@ impl Triangle {
         self.uvs
     }
 
-    pub(crate) fn with_transform(&self, xform: Mat4) -> Self {
+    pub(crate) fn with_transform(
+        &self,
+        xform: Affine3A,
+        xform_inv: Affine3A,
+    ) -> Self {
         let positions =
             self.positions.map(|vertex| xform.transform_point3(vertex));
 
@@ -53,22 +57,21 @@ impl Triangle {
             // matrix in order to get correct results under scaling, see:
             //
             // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
-            let mat = xform.inverse().transpose();
+            let mat = Mat4::from(xform_inv).transpose();
 
             self.normals
                 .map(|normal| mat.transform_vector3(normal).normalize())
         };
 
         let tangents = {
-            let sign =
-                if Mat3A::from_mat4(xform).determinant().is_sign_positive() {
-                    1.0
-                } else {
-                    -1.0
-                };
+            let sign = if xform.matrix3.determinant().is_sign_positive() {
+                1.0
+            } else {
+                -1.0
+            };
 
             self.tangents.map(|tangent| {
-                (Mat3::from_mat4(xform) * tangent.xyz())
+                (xform.matrix3 * tangent.xyz())
                     .normalize()
                     .extend(tangent.w * sign)
             })

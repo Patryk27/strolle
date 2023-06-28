@@ -1,6 +1,7 @@
 use std::mem;
 use std::ops::Range;
 
+use glam::vec4;
 use log::debug;
 
 use crate::{
@@ -45,6 +46,7 @@ impl DirectRasterPass {
 
         let bg1 = BindGroup::builder("direct_raster_bg1")
             .add(&buffers.camera.bind_readable())
+            .add(&buffers.past_camera.bind_readable())
             .build(device);
 
         let pipeline_layout =
@@ -52,7 +54,7 @@ impl DirectRasterPass {
                 label: Some("strolle_direct_raster_pipeline_layout"),
                 bind_group_layouts: &[bg0.layout(), bg1.layout()],
                 push_constant_ranges: &[wgpu::PushConstantRange {
-                    stages: wgpu::ShaderStages::FRAGMENT,
+                    stages: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     range: Range {
                         start: 0,
                         end: mem::size_of::<gpu::DirectRasterPassParams>()
@@ -114,6 +116,11 @@ impl DirectRasterPass {
                     module: &engine.shaders.direct_raster,
                     entry_point: "main_fs",
                     targets: &[
+                        Some(wgpu::ColorTargetState {
+                            format: wgpu::TextureFormat::Rgba32Float,
+                            blend: Some(wgpu::BlendState::REPLACE),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        }),
                         Some(wgpu::ColorTargetState {
                             format: wgpu::TextureFormat::Rgba32Float,
                             blend: Some(wgpu::BlendState::REPLACE),
@@ -205,6 +212,14 @@ impl DirectRasterPass {
                         store: true,
                     },
                 }),
+                Some(wgpu::RenderPassColorAttachment {
+                    view: camera.buffers.velocity_map.view(),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: true,
+                    },
+                }),
             ],
             depth_stencil_attachment: Some(
                 wgpu::RenderPassDepthStencilAttachment {
@@ -222,13 +237,36 @@ impl DirectRasterPass {
         pass.set_bind_group(0, self.bg0.get(alternate), &[]);
         pass.set_bind_group(1, self.bg1.get(alternate), &[]);
 
-        for (instance_handle, instance) in engine.instances.iter() {
-            let Some(material_id) = engine.materials.lookup(instance.material_handle()) else {
+        for (instance_handle, instance_entry) in engine.instances.iter() {
+            let instance = &instance_entry.instance;
+
+            let Some(material_id) = engine.materials.lookup(&instance.material_handle) else {
                 continue;
             };
 
-            let params = gpu::DirectRasterPassParams {
-                material_id: material_id.get(),
+            let params = {
+                let curr_xform_inv = gpu::DirectRasterPassParams::encode_affine(
+                    instance.transform_inverse,
+                );
+
+                let past_xform = gpu::DirectRasterPassParams::encode_affine(
+                    instance_entry.past_transform,
+                );
+
+                gpu::DirectRasterPassParams {
+                    payload: vec4(
+                        f32::from_bits(instance_entry.uuid),
+                        f32::from_bits(material_id.get()),
+                        Default::default(),
+                        Default::default(),
+                    ),
+                    curr_xform_inv_d0: curr_xform_inv[0],
+                    curr_xform_inv_d1: curr_xform_inv[1],
+                    curr_xform_inv_d2: curr_xform_inv[2],
+                    past_xform_d0: past_xform[0],
+                    past_xform_d1: past_xform[1],
+                    past_xform_d2: past_xform[2],
+                }
             };
 
             let (vertices, vertex_buffer) =
@@ -237,7 +275,7 @@ impl DirectRasterPass {
             pass.set_vertex_buffer(0, vertex_buffer);
 
             pass.set_push_constants(
-                wgpu::ShaderStages::FRAGMENT,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
                 0,
                 bytemuck::bytes_of(&params),
             );
