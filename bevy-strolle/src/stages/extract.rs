@@ -3,6 +3,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::render::texture::ImageSampler;
+use bevy::render::view::RenderLayers;
 use bevy::render::Extract;
 use bevy::utils::HashSet;
 use strolle as st;
@@ -188,11 +189,18 @@ pub(crate) fn instances<Material>(
     mut commands: Commands,
     changed: Extract<
         Query<
-            (Entity, &Handle<Mesh>, &Handle<Material>, &GlobalTransform),
+            (
+                Entity,
+                &Handle<Mesh>,
+                &Handle<Material>,
+                &GlobalTransform,
+                Option<&RenderLayers>,
+            ),
             Or<(
                 Changed<Handle<Mesh>>,
                 Changed<Handle<Material>>,
                 Changed<GlobalTransform>,
+                Changed<RenderLayers>,
             )>,
         >,
     >,
@@ -202,14 +210,25 @@ pub(crate) fn instances<Material>(
 {
     let changed = changed
         .iter()
-        .map(|(handle, mesh_handle, material_handle, transform)| {
-            ExtractedInstance {
-                handle,
-                mesh_handle: mesh_handle.clone_weak(),
-                material_handle: material_handle.clone_weak(),
-                xform: transform.affine(),
-            }
-        })
+        .filter_map(
+            |(handle, mesh_handle, material_handle, transform, layers)| {
+                // TODO this is invalid (but good enough for now); instead, we
+                //      should probably propagate the layers up to the BVH
+                //      leaves and adjust the ray-tracer to read those
+                if let Some(layers) = layers {
+                    if *layers != RenderLayers::all() {
+                        return None;
+                    }
+                }
+
+                Some(ExtractedInstance {
+                    handle,
+                    mesh_handle: mesh_handle.clone_weak(),
+                    material_handle: material_handle.clone_weak(),
+                    xform: transform.affine(),
+                })
+            },
+        )
         .collect();
 
     let removed = removed
