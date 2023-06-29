@@ -1,3 +1,5 @@
+use core::mem;
+
 use glam::Vec3;
 
 use crate::{
@@ -45,7 +47,6 @@ impl Ray {
             bvh,
             stack,
             TracingMode::Nearest,
-            f32::MAX,
             &mut hit,
         );
 
@@ -73,7 +74,6 @@ impl Ray {
             bvh,
             stack,
             TracingMode::Any,
-            max_distance,
             &mut hit,
         );
 
@@ -88,7 +88,6 @@ impl Ray {
         bvh: BvhView,
         stack: BvhStack,
         mode: TracingMode,
-        mut distance: f32,
         hit: &mut Hit,
     ) -> u32 {
         let mut traversed_nodes = 0;
@@ -97,7 +96,7 @@ impl Ray {
         let mut bvh_ptr = 0;
 
         // Where this particular thread's stack starts at; see `BvhStack`
-        let stack_begins_at = local_idx * (BVH_STACK_SIZE as u32);
+        let stack_begins_at = (local_idx as usize) * BVH_STACK_SIZE;
 
         // Index into the `stack` array; our stack spans from here up to +
         // BVH_STACK_SIZE items
@@ -109,38 +108,36 @@ impl Ray {
             let (is_internal, arg0, arg1) = bvh.get(bvh_ptr).deserialize();
 
             if is_internal {
-                let left_ptr = bvh_ptr + 1;
-                let left_distance = self.distance_to_node(bvh.get(left_ptr));
+                let mut near_ptr = bvh_ptr + 1;
 
-                let right_ptr = arg0;
-                let right_distance = self.distance_to_node(bvh.get(right_ptr));
+                let mut near_distance =
+                    self.distance_to_node(bvh.get(near_ptr));
 
-                let near_distance = left_distance.min(right_distance);
-                let far_distance = left_distance.max(right_distance);
+                let mut far_ptr = arg0;
 
-                let (near_ptr, far_ptr) = if left_distance < right_distance {
-                    (left_ptr, right_ptr)
-                } else {
-                    (right_ptr, left_ptr)
-                };
+                let mut far_distance = self.distance_to_node(bvh.get(far_ptr));
 
-                // Now, if the nearest child (either left or right) is closer
-                // than our current best shot, check that child first; use stack
-                // to save the other node for later.
+                if far_distance < near_distance {
+                    mem::swap(&mut near_ptr, &mut far_ptr);
+                    mem::swap(&mut near_distance, &mut far_distance);
+                }
+
+                // If the nearest child is closer than our current best shot,
+                // let's check that child first; use stack to save the other
+                // node for later.
                 //
                 // The reasoning here goes that the closer child is more likely
                 // to contain a triangle we can hit; but if we don't hit that
                 // triangle (kind of a "cache miss" kind of thing), we still
                 // have to check the other node.
-                if near_distance < distance {
-                    if far_distance < distance {
-                        *unsafe {
-                            stack.get_unchecked_mut(stack_ptr as usize)
-                        } = far_ptr;
-
+                if far_distance < hit.distance {
+                    unsafe {
+                        *stack.get_unchecked_mut(stack_ptr) = far_ptr;
                         stack_ptr += 1;
                     }
+                }
 
+                if near_distance < hit.distance {
                     bvh_ptr = near_ptr;
                     continue;
                 }
@@ -152,13 +149,8 @@ impl Ray {
                 if triangles.get(triangle_id).hit(self, hit) {
                     hit.material_id = material_id;
 
-                    match mode {
-                        TracingMode::Nearest => {
-                            distance = distance.min(hit.distance);
-                        }
-                        TracingMode::Any => {
-                            break;
-                        }
+                    if let TracingMode::Any = mode {
+                        break;
                     }
                 }
 
@@ -177,8 +169,10 @@ impl Ray {
             let does_stack_contain_anything = stack_ptr > stack_begins_at;
 
             if does_stack_contain_anything {
-                stack_ptr -= 1;
-                bvh_ptr = unsafe { *stack.get_unchecked(stack_ptr as usize) };
+                unsafe {
+                    stack_ptr -= 1;
+                    bvh_ptr = *stack.get_unchecked(stack_ptr);
+                }
             } else {
                 break;
             }
@@ -199,7 +193,7 @@ impl Ray {
         if tmax >= tmin && tmax >= 0.0 {
             tmin
         } else {
-            f32::MAX
+            f32::INFINITY
         }
     }
 }
