@@ -21,7 +21,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     direct_spatial_reservoirs: &mut [Vec4],
     #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
-    past_direct_spatial_reservoirs: &[Vec4],
+    prev_direct_spatial_reservoirs: &[Vec4],
 ) {
     main_inner(
         global_id.xy(),
@@ -31,7 +31,7 @@ pub fn main(
         ReprojectionMap::new(reprojection_map),
         direct_temporal_reservoirs,
         direct_spatial_reservoirs,
-        past_direct_spatial_reservoirs,
+        prev_direct_spatial_reservoirs,
     )
 }
 
@@ -44,7 +44,7 @@ fn main_inner(
     reprojection_map: ReprojectionMap,
     direct_temporal_reservoirs: &[Vec4],
     direct_spatial_reservoirs: &mut [Vec4],
-    past_direct_spatial_reservoirs: &[Vec4],
+    prev_direct_spatial_reservoirs: &[Vec4],
 ) {
     let mut noise = Noise::new(params.seed, screen_pos);
     let global_idx = camera.screen_to_idx(screen_pos);
@@ -55,18 +55,18 @@ fn main_inner(
     let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
-        let mut past_reservoir = DirectReservoir::read(
-            past_direct_spatial_reservoirs,
-            camera.screen_to_idx(reprojection.past_screen_pos()),
+        let mut prev_reservoir = DirectReservoir::read(
+            prev_direct_spatial_reservoirs,
+            camera.screen_to_idx(reprojection.prev_screen_pos()),
         );
 
-        past_reservoir.m_sum *=
+        prev_reservoir.m_sum *=
             (reprojection.confidence * reprojection.confidence).max(0.1);
 
         reservoir.merge(
             &mut noise,
-            &past_reservoir,
-            past_reservoir.sample.p_hat(),
+            &prev_reservoir,
+            prev_reservoir.sample.p_hat(),
         );
     }
 

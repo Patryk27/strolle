@@ -30,7 +30,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 4)]
     indirect_colors: TexRgba16f,
     #[spirv(descriptor_set = 0, binding = 5)]
-    past_indirect_colors: TexRgba16f,
+    prev_indirect_colors: TexRgba16f,
 ) {
     main_inner(
         global_id.xy(),
@@ -39,7 +39,7 @@ pub fn main(
         SurfaceMap::new(surface_map),
         raw_indirect_colors,
         indirect_colors,
-        past_indirect_colors,
+        prev_indirect_colors,
     )
 }
 
@@ -51,20 +51,20 @@ fn main_inner(
     surface_map: SurfaceMap,
     raw_indirect_colors: TexRgba16f,
     indirect_colors: TexRgba16f,
-    past_indirect_colors: TexRgba16f,
+    prev_indirect_colors: TexRgba16f,
 ) {
-    let past_color = {
+    let prev_color = {
         let reprojection = reprojection_map.get(screen_pos);
 
         if reprojection.is_some() {
-            past_indirect_colors.read(reprojection.past_screen_pos())
+            prev_indirect_colors.read(reprojection.prev_screen_pos())
         } else {
             Default::default()
         }
     };
 
-    let mut color = past_color.xyz();
-    let mix_rate = past_color.w.min(0.5);
+    let mut color = prev_color.xyz();
+    let mix_rate = prev_color.w.min(0.5);
     let in0 = raw_indirect_colors.read(screen_pos).xyz();
 
     color = (color * color).lerp(in0 * in0, mix_rate);

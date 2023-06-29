@@ -23,11 +23,11 @@ impl IndirectTemporalResamplingPass {
             .bind([
                 &buffers.camera.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
-                &buffers.surface_map.past().bind_readable(),
+                &buffers.surface_map.prev().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.indirect_initial_samples.bind_readable(),
                 &buffers.indirect_temporal_reservoirs.curr().bind_writable(),
-                &buffers.indirect_temporal_reservoirs.past().bind_readable(),
+                &buffers.indirect_temporal_reservoirs.prev().bind_readable(),
             ])
             .build(device, &engine.shaders.indirect_temporal_resampling);
 

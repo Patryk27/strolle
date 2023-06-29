@@ -24,11 +24,11 @@ impl IndirectSpatialResamplingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.direct_hits_d0.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
-                &buffers.surface_map.past().bind_readable(),
+                &buffers.surface_map.prev().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.indirect_temporal_reservoirs.curr().bind_readable(),
                 &buffers.indirect_spatial_reservoirs.curr().bind_writable(),
-                &buffers.indirect_spatial_reservoirs.past().bind_readable(),
+                &buffers.indirect_spatial_reservoirs.prev().bind_readable(),
             ])
             .build(device, &engine.shaders.indirect_spatial_resampling);
 

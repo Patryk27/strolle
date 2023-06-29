@@ -4,16 +4,16 @@ use crate::TexRgba32f;
 
 #[derive(Clone, Copy, Default)]
 pub struct Reprojection {
-    pub past_x: u32,
-    pub past_y: u32,
+    pub prev_x: u32,
+    pub prev_y: u32,
     pub confidence: f32,
 }
 
 impl Reprojection {
     pub fn serialize(&self) -> Vec4 {
         vec4(
-            f32::from_bits(self.past_x),
-            f32::from_bits(self.past_y),
+            f32::from_bits(self.prev_x),
+            f32::from_bits(self.prev_y),
             Default::default(),
             self.confidence,
         )
@@ -21,14 +21,14 @@ impl Reprojection {
 
     pub fn deserialize(d0: Vec4) -> Self {
         Self {
-            past_x: d0.x.to_bits(),
-            past_y: d0.y.to_bits(),
+            prev_x: d0.x.to_bits(),
+            prev_y: d0.y.to_bits(),
             confidence: d0.w,
         }
     }
 
-    pub fn past_screen_pos(&self) -> UVec2 {
-        uvec2(self.past_x, self.past_y)
+    pub fn prev_screen_pos(&self) -> UVec2 {
+        uvec2(self.prev_x, self.prev_y)
     }
 
     pub fn is_some(&self) -> bool {

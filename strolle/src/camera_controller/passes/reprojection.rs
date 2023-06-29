@@ -19,9 +19,9 @@ impl ReprojectionPass {
     {
         let pass = CameraComputePass::builder("reprojection")
             .bind([
-                &buffers.past_camera.bind_readable(),
+                &buffers.prev_camera.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
-                &buffers.surface_map.past().bind_readable(),
+                &buffers.surface_map.prev().bind_readable(),
                 &buffers.velocity_map.bind_readable(),
                 &buffers.reprojection_map.bind_writable(),
             ])

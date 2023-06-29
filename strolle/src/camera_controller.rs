@@ -53,7 +53,7 @@ impl CameraController {
         let is_invalidated = self.camera.is_invalidated_by(&camera);
 
         self.camera = camera;
-        *self.buffers.past_camera.deref_mut() = *self.buffers.camera;
+        *self.buffers.prev_camera.deref_mut() = *self.buffers.camera;
         *self.buffers.camera.deref_mut() = self.camera.serialize();
 
         if is_invalidated {
@@ -81,7 +81,7 @@ impl CameraController {
     pub fn flush(&mut self, queue: &wgpu::Queue) {
         self.frame += 1;
         self.buffers.camera.flush(queue);
-        self.buffers.past_camera.flush(queue);
+        self.buffers.prev_camera.flush(queue);
     }
 
     pub fn render<P>(

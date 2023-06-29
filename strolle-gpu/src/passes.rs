@@ -9,9 +9,9 @@ pub struct DirectRasterPassParams {
     pub curr_xform_inv_d0: Vec4,
     pub curr_xform_inv_d1: Vec4,
     pub curr_xform_inv_d2: Vec4,
-    pub past_xform_d0: Vec4,
-    pub past_xform_d1: Vec4,
-    pub past_xform_d2: Vec4,
+    pub prev_xform_d0: Vec4,
+    pub prev_xform_d1: Vec4,
+    pub prev_xform_d2: Vec4,
 }
 
 impl DirectRasterPassParams {
@@ -31,11 +31,11 @@ impl DirectRasterPassParams {
         ])
     }
 
-    pub fn past_xform(&self) -> Affine3A {
+    pub fn prev_xform(&self) -> Affine3A {
         Self::decode_affine([
-            self.past_xform_d0,
-            self.past_xform_d1,
-            self.past_xform_d2,
+            self.prev_xform_d0,
+            self.prev_xform_d1,
+            self.prev_xform_d2,
         ])
     }
 

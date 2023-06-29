@@ -12,7 +12,7 @@ pub fn main_vs(
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1, uniform)]
-    past_camera: &Camera,
+    prev_camera: &Camera,
 
     // Inputs
     vertex_d0: Vec4,
@@ -22,14 +22,14 @@ pub fn main_vs(
     #[spirv(position)]
     out_vertex: &mut Vec4,
     out_curr_vertex: &mut Vec4,
-    out_past_vertex: &mut Vec4,
+    out_prev_vertex: &mut Vec4,
     out_hit_point: &mut Vec3,
     out_hit_normal: &mut Vec3,
     out_hit_uv: &mut Vec2,
 ) {
     let position = vertex_d0.xyz();
 
-    let past_position = params.past_xform().transform_point3(
+    let prev_position = params.prev_xform().transform_point3(
         params.curr_xform_inv().transform_point3(position)
     );
 
@@ -38,7 +38,7 @@ pub fn main_vs(
 
     *out_vertex = camera.world_to_clip(position);
     *out_curr_vertex = camera.world_to_clip(position);
-    *out_past_vertex = past_camera.world_to_clip(past_position);
+    *out_prev_vertex = prev_camera.world_to_clip(prev_position);
     *out_hit_point = position;
     *out_hit_normal = normal;
     *out_hit_uv = uv;
@@ -60,11 +60,11 @@ pub fn main_fs(
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1, uniform)]
-    past_camera: &Camera,
+    prev_camera: &Camera,
 
     // Inputs
     curr_vertex: Vec4,
-    past_vertex: Vec4,
+    prev_vertex: Vec4,
     hit_point: Vec3,
     hit_normal: Vec3,
     hit_uv: Vec2,
@@ -103,8 +103,8 @@ pub fn main_fs(
 
     *out_velocity_map = {
         let curr_scren_pos = camera.clip_to_screen(curr_vertex);
-        let past_screen_pos = past_camera.clip_to_screen(past_vertex);
+        let prev_screen_pos = prev_camera.clip_to_screen(prev_vertex);
 
-        (curr_scren_pos - past_screen_pos).extend(0.0).extend(0.0)
+        (curr_scren_pos - prev_screen_pos).extend(0.0).extend(0.0)
     };
 }

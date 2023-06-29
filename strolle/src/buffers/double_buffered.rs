@@ -102,7 +102,7 @@ impl<T> DoubleBuffered<T> {
         }
     }
 
-    pub fn past(&self) -> DoubleBuffered<&T> {
+    pub fn prev(&self) -> DoubleBuffered<&T> {
         DoubleBuffered {
             a: &self.b,
             b: &self.a,

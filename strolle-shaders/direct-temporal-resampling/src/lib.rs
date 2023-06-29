@@ -19,7 +19,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     direct_temporal_reservoirs: &mut [Vec4],
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
-    past_direct_temporal_reservoirs: &[Vec4],
+    prev_direct_temporal_reservoirs: &[Vec4],
 ) {
     main_inner(
         global_id.xy(),
@@ -28,7 +28,7 @@ pub fn main(
         ReprojectionMap::new(reprojection_map),
         direct_initial_samples,
         direct_temporal_reservoirs,
-        past_direct_temporal_reservoirs,
+        prev_direct_temporal_reservoirs,
     )
 }
 
@@ -40,7 +40,7 @@ fn main_inner(
     reprojection_map: ReprojectionMap,
     direct_initial_samples: &[Vec4],
     direct_temporal_reservoirs: &mut [Vec4],
-    past_direct_temporal_reservoirs: &[Vec4],
+    prev_direct_temporal_reservoirs: &[Vec4],
 ) {
     let mut noise = Noise::new(params.seed, screen_pos);
     let screen_idx = camera.screen_to_idx(screen_pos);
@@ -59,23 +59,23 @@ fn main_inner(
     let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
-        let mut past_reservoir = DirectReservoir::read(
-            past_direct_temporal_reservoirs,
-            camera.screen_to_idx(reprojection.past_screen_pos()),
+        let mut prev_reservoir = DirectReservoir::read(
+            prev_direct_temporal_reservoirs,
+            camera.screen_to_idx(reprojection.prev_screen_pos()),
         );
 
-        let past_p_hat = past_reservoir.sample.p_hat();
-        let past_age = past_reservoir.age(params.frame);
+        let prev_p_hat = prev_reservoir.sample.p_hat();
+        let prev_age = prev_reservoir.age(params.frame);
 
-        if past_age > 6 {
-            past_reservoir.m_sum *= 1.0 - ((past_age - 6) as f32 / 32.0);
+        if prev_age > 6 {
+            prev_reservoir.m_sum *= 1.0 - ((prev_age - 6) as f32 / 32.0);
         }
 
-        past_reservoir.m_sum *= reprojection.confidence;
+        prev_reservoir.m_sum *= reprojection.confidence;
 
-        if reservoir.merge(&mut noise, &past_reservoir, past_p_hat) {
-            p_hat = past_p_hat;
-            reservoir.frame = past_reservoir.frame;
+        if reservoir.merge(&mut noise, &prev_reservoir, prev_p_hat) {
+            p_hat = prev_p_hat;
+            reservoir.frame = prev_reservoir.frame;
         }
     }
 

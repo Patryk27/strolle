@@ -23,7 +23,7 @@ impl IndirectDenoisingPass {
                 &buffers.surface_map.curr().bind_readable(),
                 &buffers.raw_indirect_colors.bind_readable(),
                 &buffers.indirect_colors.curr().bind_writable(),
-                &buffers.indirect_colors.past().bind_writable(),
+                &buffers.indirect_colors.prev().bind_writable(),
             ])
             .build(device, &engine.shaders.indirect_denoising);
 

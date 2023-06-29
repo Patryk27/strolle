@@ -25,7 +25,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 3)]
     direct_colors: TexRgba16f,
     #[spirv(descriptor_set = 0, binding = 4)]
-    past_direct_colors: TexRgba16f,
+    prev_direct_colors: TexRgba16f,
 ) {
     main_inner(
         global_id.xy(),
@@ -33,7 +33,7 @@ pub fn main(
         ReprojectionMap::new(reprojection_map),
         raw_direct_colors,
         direct_colors,
-        past_direct_colors,
+        prev_direct_colors,
     )
 }
 
@@ -44,7 +44,7 @@ fn main_inner(
     reprojection_map: ReprojectionMap,
     raw_direct_colors: TexRgba16f,
     direct_colors: TexRgba16f,
-    past_direct_colors: TexRgba16f,
+    prev_direct_colors: TexRgba16f,
 ) {
     let curr_color = raw_direct_colors.read(screen_pos).xyz();
     let reprojection = reprojection_map.get(screen_pos);
@@ -78,12 +78,12 @@ fn main_inner(
             }
         }
 
-        let past_color = past_direct_colors
-            .read(reprojection.past_screen_pos())
+        let prev_color = prev_direct_colors
+            .read(reprojection.prev_screen_pos())
             .xyz()
             .clip(min_color, max_color);
 
-        past_color * 0.75 + curr_color * 0.25
+        prev_color * 0.75 + curr_color * 0.25
     } else {
         curr_color
     };

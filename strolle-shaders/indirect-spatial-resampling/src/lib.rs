@@ -17,7 +17,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 2)]
     surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
-    past_surface_map: TexRgba32f,
+    prev_surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 4)]
     reprojection_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
@@ -25,7 +25,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
     indirect_spatial_reservoirs: &mut [Vec4],
     #[spirv(descriptor_set = 0, binding = 7, storage_buffer)]
-    past_indirect_spatial_reservoirs: &[Vec4],
+    prev_indirect_spatial_reservoirs: &[Vec4],
 ) {
     main_inner(
         global_id.xy(),
@@ -33,11 +33,11 @@ pub fn main(
         camera,
         direct_hits_d0,
         SurfaceMap::new(surface_map),
-        SurfaceMap::new(past_surface_map),
+        SurfaceMap::new(prev_surface_map),
         ReprojectionMap::new(reprojection_map),
         indirect_temporal_reservoirs,
         indirect_spatial_reservoirs,
-        past_indirect_spatial_reservoirs,
+        prev_indirect_spatial_reservoirs,
     )
 }
 
@@ -48,11 +48,11 @@ fn main_inner(
     camera: &Camera,
     direct_hits_d0: TexRgba32f,
     surface_map: SurfaceMap,
-    past_surface_map: SurfaceMap,
+    prev_surface_map: SurfaceMap,
     reprojection_map: ReprojectionMap,
     indirect_temporal_reservoirs: &[Vec4],
     indirect_spatial_reservoirs: &mut [Vec4],
-    past_indirect_spatial_reservoirs: &[Vec4],
+    prev_indirect_spatial_reservoirs: &[Vec4],
 ) {
     let mut noise = Noise::new(params.seed, global_id);
     let global_idx = camera.half_screen_to_idx(global_id);
@@ -71,28 +71,28 @@ fn main_inner(
     // brevity:
     if reprojection.is_some() {
         let from_screen_pos =
-            upsample(reprojection.past_screen_pos() / 2, params.frame - 1);
+            upsample(reprojection.prev_screen_pos() / 2, params.frame - 1);
 
         let to_screen_pos = upsample(global_id, params.frame);
 
-        let migration_compatibility = past_surface_map
+        let migration_compatibility = prev_surface_map
             .get(from_screen_pos)
             .evaluate_similarity_to(surface_map.get(to_screen_pos));
 
-        let mut past_reservoir = IndirectReservoir::read(
-            past_indirect_spatial_reservoirs,
+        let mut prev_reservoir = IndirectReservoir::read(
+            prev_indirect_spatial_reservoirs,
             camera.half_screen_to_idx(from_screen_pos / 2),
         );
 
-        past_reservoir.m_sum *=
+        prev_reservoir.m_sum *=
             (reprojection.confidence * reprojection.confidence).max(0.1);
 
-        past_reservoir.m_sum *= migration_compatibility;
+        prev_reservoir.m_sum *= migration_compatibility;
 
         reservoir.merge(
             &mut noise,
-            &past_reservoir,
-            past_reservoir.sample.p_hat(),
+            &prev_reservoir,
+            prev_reservoir.sample.p_hat(),
         );
     }
 

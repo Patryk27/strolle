@@ -31,14 +31,14 @@ where
             Entry::Occupied(mut entry) => {
                 let entry = entry.get_mut();
 
-                entry.past_transform = entry.instance.transform;
+                entry.prev_transform = entry.instance.transform;
                 entry.instance = instance;
                 entry.dirty = true;
             }
 
             Entry::Vacant(entry) => {
                 entry.insert(InstanceEntry {
-                    past_transform: instance.transform,
+                    prev_transform: instance.transform,
                     uuid: rand::thread_rng().gen(),
                     dirty: true,
                     instance,
@@ -135,6 +135,6 @@ where
 {
     pub instance: Instance<P>,
     pub uuid: u32,
-    pub past_transform: Affine3A,
+    pub prev_transform: Affine3A,
     pub dirty: bool,
 }

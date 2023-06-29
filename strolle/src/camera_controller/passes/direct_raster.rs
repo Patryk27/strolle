@@ -46,7 +46,7 @@ impl DirectRasterPass {
 
         let bg1 = BindGroup::builder("direct_raster_bg1")
             .add(&buffers.camera.bind_readable())
-            .add(&buffers.past_camera.bind_readable())
+            .add(&buffers.prev_camera.bind_readable())
             .build(device);
 
         let pipeline_layout =
@@ -249,8 +249,8 @@ impl DirectRasterPass {
                     instance.transform_inverse,
                 );
 
-                let past_xform = gpu::DirectRasterPassParams::encode_affine(
-                    instance_entry.past_transform,
+                let prev_xform = gpu::DirectRasterPassParams::encode_affine(
+                    instance_entry.prev_transform,
                 );
 
                 gpu::DirectRasterPassParams {
@@ -263,9 +263,9 @@ impl DirectRasterPass {
                     curr_xform_inv_d0: curr_xform_inv[0],
                     curr_xform_inv_d1: curr_xform_inv[1],
                     curr_xform_inv_d2: curr_xform_inv[2],
-                    past_xform_d0: past_xform[0],
-                    past_xform_d1: past_xform[1],
-                    past_xform_d2: past_xform[2],
+                    prev_xform_d0: prev_xform[0],
+                    prev_xform_d1: prev_xform[1],
+                    prev_xform_d2: prev_xform[2],
                 }
             };
 

@@ -22,7 +22,7 @@ impl DirectDenoisingPass {
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.raw_direct_colors.bind_readable(),
                 &buffers.direct_colors.curr().bind_writable(),
-                &buffers.direct_colors.past().bind_readable(),
+                &buffers.direct_colors.prev().bind_readable(),
             ])
             .build(device, &engine.shaders.direct_denoising);
 

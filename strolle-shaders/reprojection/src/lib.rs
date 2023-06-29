@@ -12,11 +12,11 @@ pub fn main(
     #[spirv(global_invocation_id)]
     global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)]
-    past_camera: &Camera,
+    prev_camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)]
     surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 2)]
-    past_surface_map: TexRgba32f,
+    prev_surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
     velocity_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 4)]
@@ -24,9 +24,9 @@ pub fn main(
 ) {
     main_inner(
         global_id.xy(),
-        past_camera,
+        prev_camera,
         SurfaceMap::new(surface_map),
-        SurfaceMap::new(past_surface_map),
+        SurfaceMap::new(prev_surface_map),
         velocity_map,
         ReprojectionMap::new(reprojection_map),
     )
@@ -35,9 +35,9 @@ pub fn main(
 #[allow(clippy::too_many_arguments)]
 fn main_inner(
     screen_pos: UVec2,
-    past_camera: &Camera,
+    prev_camera: &Camera,
     surface_map: SurfaceMap,
-    past_surface_map: SurfaceMap,
+    prev_surface_map: SurfaceMap,
     velocity_map: TexRgba32f,
     reprojection_map: ReprojectionMap,
 ) {
@@ -45,19 +45,19 @@ fn main_inner(
     let screen_surface = surface_map.get(screen_pos);
 
     let velocity = velocity_map.read(screen_pos).xy();
-    let past_screen_pos = screen_pos.as_ivec2() - velocity.round().as_ivec2();
+    let prev_screen_pos = screen_pos.as_ivec2() - velocity.round().as_ivec2();
 
     let mut sample_delta = ivec2(-1, -1);
 
     loop {
-        let sample_screen_pos = past_screen_pos + sample_delta;
+        let sample_screen_pos = prev_screen_pos + sample_delta;
 
-        if past_camera.contains(sample_screen_pos) {
+        if prev_camera.contains(sample_screen_pos) {
             let sample_screen_pos = sample_screen_pos.as_uvec2();
 
             // TODO optimization opportunity: preload neighbours into shared
             //      memory
-            let sample_surface = past_surface_map.get(sample_screen_pos);
+            let sample_surface = prev_surface_map.get(sample_screen_pos);
 
             // Check if the pixel we're looking at shades the same object; if
             // it's not, there's no point in reusing its sample later.
@@ -104,8 +104,8 @@ fn main_inner(
 
             if confidence > reprojection.confidence {
                 reprojection = Reprojection {
-                    past_x: sample_screen_pos.x,
-                    past_y: sample_screen_pos.y,
+                    prev_x: sample_screen_pos.x,
+                    prev_y: sample_screen_pos.y,
                     confidence,
                 };
             }

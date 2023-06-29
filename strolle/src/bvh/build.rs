@@ -12,7 +12,7 @@ use crate::{Axis, BoundingBox, BvhNode, BvhTriangle};
 /// Special thanks to:
 /// - https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/.
 pub fn run(
-    past: Option<&BvhNode>,
+    prev: Option<&BvhNode>,
     triangles: impl IntoIterator<Item = BvhTriangle>,
 ) -> BvhNode {
     let mut root = SahBvhNode::default();
@@ -21,7 +21,7 @@ pub fn run(
         root.add(triangle);
     }
 
-    root.balance(past);
+    root.balance(prev);
     root.map()
 }
 
@@ -30,7 +30,7 @@ struct SahBvhNode {
     bb: BoundingBox,
     triangles: Vec<BvhTriangle>,
     children: Option<[(Box<Self>, u64); 2]>,
-    past: Option<BvhNode>,
+    prev: Option<BvhNode>,
 }
 
 impl SahBvhNode {
@@ -39,14 +39,14 @@ impl SahBvhNode {
         self.triangles.push(triangle);
     }
 
-    fn balance(&mut self, past: Option<&BvhNode>) {
+    fn balance(&mut self, prev: Option<&BvhNode>) {
         if let Some((split_by, split_at, split_cost)) =
             self.find_splitting_plane()
         {
             let current_cost = (self.triangles.len() as f32) * self.bb.area();
 
             if split_cost < current_cost {
-                self.split(past, split_by, split_at);
+                self.split(prev, split_by, split_at);
             }
         }
     }
@@ -134,7 +134,7 @@ impl SahBvhNode {
         best
     }
 
-    fn split(&mut self, past: Option<&BvhNode>, split_by: Axis, split_at: f32) {
+    fn split(&mut self, prev: Option<&BvhNode>, split_by: Axis, split_at: f32) {
         let mut left = Self::default();
         let mut left_hasher = DefaultHasher::default();
 
@@ -159,29 +159,29 @@ impl SahBvhNode {
         let right_hash = right_hasher.finish();
 
         if let Some(BvhNode::Internal {
-            left: past_left,
-            left_hash: past_left_hash,
-            right: past_right,
-            right_hash: past_right_hash,
+            left: prev_left,
+            left_hash: prev_left_hash,
+            right: prev_right,
+            right_hash: prev_right_hash,
             ..
-        }) = past
+        }) = prev
         {
-            if *past_left_hash == left_hash {
+            if *prev_left_hash == left_hash {
                 left = SahBvhNode {
-                    past: Some((**past_left).clone()),
+                    prev: Some((**prev_left).clone()),
                     ..Default::default()
                 };
             } else {
-                left.balance(Some(past_left));
+                left.balance(Some(prev_left));
             }
 
-            if *past_right_hash == right_hash {
+            if *prev_right_hash == right_hash {
                 right = SahBvhNode {
-                    past: Some((**past_right).clone()),
+                    prev: Some((**prev_right).clone()),
                     ..Default::default()
                 };
             } else {
-                right.balance(Some(past_right));
+                right.balance(Some(prev_right));
             }
         } else {
             left.balance(None);
@@ -193,7 +193,7 @@ impl SahBvhNode {
     }
 
     fn map(mut self) -> BvhNode {
-        if let Some(node) = self.past.take() {
+        if let Some(node) = self.prev.take() {
             return node;
         }
 

@@ -26,7 +26,7 @@ impl DirectSpatialResamplingPass {
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.direct_temporal_reservoirs.curr().bind_readable(),
                 &buffers.direct_spatial_reservoirs.curr().bind_writable(),
-                &buffers.direct_spatial_reservoirs.past().bind_readable(),
+                &buffers.direct_spatial_reservoirs.prev().bind_readable(),
             ])
             .build(device, &engine.shaders.direct_spatial_resampling);
 

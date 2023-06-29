@@ -11,7 +11,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CameraBuffers {
     pub camera: MappedUniformBuffer<gpu::Camera>,
-    pub past_camera: MappedUniformBuffer<gpu::Camera>,
+    pub prev_camera: MappedUniformBuffer<gpu::Camera>,
 
     pub atmosphere_transmittance_lut: Texture,
     pub atmosphere_scattering_lut: Texture,
@@ -47,8 +47,8 @@ impl CameraBuffers {
         let camera_uniform =
             MappedUniformBuffer::new(device, "camera", camera.serialize());
 
-        let past_camera =
-            MappedUniformBuffer::new(device, "past_camera", camera.serialize());
+        let prev_camera =
+            MappedUniformBuffer::new(device, "prev_camera", camera.serialize());
 
         // ---------------------------------------------------------------------
 
@@ -223,7 +223,7 @@ impl CameraBuffers {
 
         Self {
             camera: camera_uniform,
-            past_camera,
+            prev_camera,
 
             atmosphere_transmittance_lut,
             atmosphere_scattering_lut,
