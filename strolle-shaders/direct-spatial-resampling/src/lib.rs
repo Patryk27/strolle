@@ -76,11 +76,11 @@ fn main_inner(
     let screen_surface = surface_map.get(screen_pos);
 
     let mut sample_idx = 0;
-    let mut sample_radius = 24.0f32;
+    let mut sample_radius = 20.0f32;
 
     while sample_idx < 4 {
         let rhs_pos =
-            screen_pos.as_vec2() + noise.sample_disk() * sample_radius.max(3.0);
+            screen_pos.as_vec2() + noise.sample_disk() * sample_radius.max(2.5);
 
         let rhs_pos = rhs_pos.as_ivec2();
 
@@ -116,6 +116,6 @@ fn main_inner(
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(p_hat, 10.0, 500.0);
+    reservoir.normalize(p_hat, 1000.0, 250.0);
     reservoir.write(direct_spatial_reservoirs, global_idx);
 }
