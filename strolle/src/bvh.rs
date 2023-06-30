@@ -20,14 +20,12 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Bvh {
-    root: Option<BvhNode>,
     buffer: MappedStorageBuffer<Vec<Vec4>>,
 }
 
 impl Bvh {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
-            root: None,
             buffer: MappedStorageBuffer::new_default(device, "bvh"),
         }
     }
@@ -49,35 +47,34 @@ impl Bvh {
             return;
         }
 
-        let bvh_triangles =
-            instances
-                .iter()
-                .flat_map(|(instance_handle, instance_entry)| {
-                    let material_id = materials
-                        .lookup(&instance_entry.instance.material_handle);
+        let mut triangles: Vec<_> = instances
+            .iter()
+            .flat_map(|(instance_handle, instance_entry)| {
+                let material_id =
+                    materials.lookup(&instance_entry.instance.material_handle);
 
-                    material_id.into_iter().flat_map(|material_id| {
-                        triangles.iter(instance_handle).map(
-                            move |(triangle_id, triangle)| BvhTriangle {
-                                bb: BoundingBox::from_points(
-                                    triangle.positions(),
-                                ),
-                                center: triangle.center(),
-                                triangle_id,
-                                material_id,
-                            },
-                        )
-                    })
-                });
+                material_id.into_iter().flat_map(|material_id| {
+                    triangles.iter(instance_handle).map(
+                        move |(triangle_id, triangle)| BvhTriangle {
+                            bb: triangle.positions().into_iter().collect(),
+                            center: triangle.center(),
+                            triangle_id,
+                            material_id,
+                        },
+                    )
+                })
+            })
+            .collect();
 
-        let root = build::run(self.root.as_ref(), bvh_triangles);
+        let mut nodes = Vec::new();
+
+        nodes.resize(2 * triangle_count - 1, Default::default());
+
+        let nodes = build::run(nodes, &mut triangles);
 
         self.buffer.clear();
-        self.buffer.reserve_exact((2 * triangle_count - 1) * 2);
 
-        serialize::run(&mut self.buffer, &root);
-
-        self.root = Some(root);
+        serialize::run(&nodes, &mut self.buffer);
     }
 
     pub fn flush(

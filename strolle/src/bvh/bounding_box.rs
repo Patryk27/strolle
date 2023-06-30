@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 use spirv_std::glam::Vec3;
 
@@ -9,13 +9,8 @@ pub struct BoundingBox {
 }
 
 impl BoundingBox {
-    pub fn from_points(points: impl IntoIterator<Item = Vec3>) -> Self {
-        points.into_iter().fold(Self::default(), Self::add)
-    }
-
-    pub fn grow(&mut self, p: Vec3) {
-        self.min = self.min.min(p);
-        self.max = self.max.max(p);
+    pub fn new(min: Vec3, max: Vec3) -> Self {
+        Self { min, max }
     }
 
     pub fn min(&self) -> Vec3 {
@@ -39,10 +34,7 @@ impl BoundingBox {
 
 impl Default for BoundingBox {
     fn default() -> Self {
-        Self {
-            min: Vec3::splat(f32::MAX),
-            max: Vec3::splat(f32::MIN),
-        }
+        Self::new(Vec3::splat(f32::MAX), Vec3::splat(f32::MIN))
     }
 }
 
@@ -50,8 +42,30 @@ impl Add<Vec3> for BoundingBox {
     type Output = Self;
 
     fn add(mut self, rhs: Vec3) -> Self::Output {
-        self.grow(rhs);
+        self += rhs;
         self
+    }
+}
+
+impl AddAssign<Vec3> for BoundingBox {
+    fn add_assign(&mut self, rhs: Vec3) {
+        self.min = self.min.min(rhs);
+        self.max = self.max.max(rhs);
+    }
+}
+
+impl FromIterator<Vec3> for BoundingBox {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = Vec3>,
+    {
+        let mut this = Self::default();
+
+        for item in iter {
+            this += item;
+        }
+
+        this
     }
 }
 
@@ -59,14 +73,34 @@ impl Add<Self> for BoundingBox {
     type Output = Self;
 
     fn add(mut self, rhs: Self) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
+impl AddAssign<Self> for BoundingBox {
+    fn add_assign(&mut self, rhs: Self) {
         if rhs.min != Self::default().min {
-            self.grow(rhs.min);
+            *self += rhs.min;
         }
 
         if rhs.max != Self::default().max {
-            self.grow(rhs.max);
+            *self += rhs.max;
+        }
+    }
+}
+
+impl FromIterator<Self> for BoundingBox {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = Self>,
+    {
+        let mut this = Self::default();
+
+        for item in iter {
+            this += item;
         }
 
-        self
+        this
     }
 }

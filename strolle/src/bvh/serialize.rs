@@ -2,21 +2,23 @@ use spirv_std::glam::{vec4, Vec4};
 
 use super::*;
 
-pub fn run(out: &mut Vec<Vec4>, node: &BvhNode) -> u32 {
+pub fn run(nodes: &[BvhNode], out: &mut Vec<Vec4>) {
+    run_ex(nodes, out, 0);
+}
+
+fn run_ex(nodes: &[BvhNode], out: &mut Vec<Vec4>, node_id: u32) -> u32 {
     const OP_INTERNAL: u32 = 0;
     const OP_LEAF: u32 = 1;
 
     let ptr = out.len();
 
-    match node {
-        BvhNode::Internal {
-            bb, left, right, ..
-        } => {
+    match &nodes[node_id as usize] {
+        BvhNode::Internal { bb, left_node_id } => {
             out.push(Default::default());
             out.push(Default::default());
 
-            let _left_ptr = run(out, left);
-            let right_ptr = run(out, right);
+            let _left_ptr = run_ex(nodes, out, *left_node_id);
+            let right_ptr = run_ex(nodes, out, left_node_id + 1);
 
             out[ptr] = vec4(
                 bb.min().x,
@@ -30,20 +32,18 @@ pub fn run(out: &mut Vec<Vec4>, node: &BvhNode) -> u32 {
         }
 
         BvhNode::Leaf { bb, triangles } => {
-            for (triangle_idx, (triangle_id, material_id)) in
-                triangles.iter().enumerate()
-            {
-                let arg0 = triangle_id.get() << 1;
+            for (n, triangle) in triangles.iter().enumerate() {
+                let arg0 = triangle.triangle_id.get() << 1;
 
                 // If there are more triangles following this one, toggle the
                 // first bit
-                let arg0 = if triangle_idx + 1 == triangles.len() {
+                let arg0 = if n + 1 == triangles.len() {
                     arg0
                 } else {
                     arg0 | 1
                 };
 
-                let arg1 = material_id.get();
+                let arg1 = triangle.material_id.get();
 
                 out.push(vec4(
                     bb.min().x,
