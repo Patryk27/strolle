@@ -87,8 +87,9 @@ pub fn main_fs(
         }
 
         3 => {
-            let normal =
-                surface_map_tex.sample(*surface_map_sampler, texel_xy).xyz();
+            let normal = Normal::decode(
+                surface_map_tex.sample(*surface_map_sampler, texel_xy).xy(),
+            );
 
             let normal = Vec3::splat(0.5) + normal * 0.5;
 
