@@ -53,27 +53,32 @@ fn main_inner(
     let mut noise = Noise::new(params.seed, global_id);
     let global_idx = camera.half_screen_to_idx(global_id);
 
-    let sample = {
-        let d0;
-        let d1;
-        let d2;
+    // -------------------------------------------------------------------------
 
-        unsafe {
-            d0 = *indirect_initial_samples.get_unchecked(3 * global_idx);
-            d1 = *indirect_initial_samples.get_unchecked(3 * global_idx + 1);
-            d2 = *indirect_initial_samples.get_unchecked(3 * global_idx + 2);
-        }
+    let d0 = unsafe { *indirect_initial_samples.get_unchecked(3 * global_idx) };
 
-        IndirectReservoirSample {
-            radiance: d0.xyz(),
-            hit_point: d1.xyz(),
-            sample_point: d2.xyz(),
-            sample_normal: Normal::decode(vec2(d0.w, d1.w)),
-        }
+    let d1 =
+        unsafe { *indirect_initial_samples.get_unchecked(3 * global_idx + 1) };
+
+    let d2 =
+        unsafe { *indirect_initial_samples.get_unchecked(3 * global_idx + 2) };
+
+    let sample = IndirectReservoirSample {
+        radiance: d0.xyz(),
+        hit_point: d1.xyz(),
+        sample_point: d2.xyz(),
+        sample_normal: Normal::decode(vec2(d0.w, d1.w)),
     };
 
+    let is_sample_valid = d2.w.to_bits() == 1;
+
     let mut p_hat = sample.p_hat();
-    let mut reservoir = IndirectReservoir::new(sample, p_hat, params.frame);
+
+    let mut reservoir = if is_sample_valid {
+        IndirectReservoir::new(sample, p_hat, params.frame)
+    } else {
+        IndirectReservoir::empty(params.frame)
+    };
 
     // -------------------------------------------------------------------------
 

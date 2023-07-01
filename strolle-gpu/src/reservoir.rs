@@ -42,7 +42,7 @@ where
             sample,
             w_sum: weight,
             w: 1.0,
-            m_sum: if weight == 0.0 { 0.0 } else { 1.0 },
+            m_sum: 1.0,
         }
     }
 
@@ -59,6 +59,20 @@ where
     }
 
     pub fn merge(&mut self, noise: &mut Noise, rhs: &Self, p_hat: f32) -> bool {
+        // If the reservoir is empty, reject its sample as soon as possible.
+        //
+        // Note that it looks like the code below would do it anyway (since we
+        // multiply by m_sum there), but the thing is that if both `self` *and*
+        // `rhs` are empty reservoirs, without this explicit `if` here we would
+        // merge `rhs` into `self` even if it doesn't actually contain any valid
+        // sample.
+        //
+        // This comes up mostly (only?) for indirect lightning reservoirs which
+        // can contain illegal samples (e.g. with zeroed-out normals) if the
+        // player is looking at the sky - and if we didn't handle those illegal
+        // samples here, we could propagate those zeroed-out normals and other
+        // funky numbers up to the spatial resampling pass which would then end
+        // up generating NaN and INFs Jacobians: baaaad.
         if rhs.m_sum <= 0.0 {
             return false;
         }

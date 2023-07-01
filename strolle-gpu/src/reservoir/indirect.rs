@@ -22,6 +22,13 @@ impl IndirectReservoir {
         }
     }
 
+    pub fn empty(frame: u32) -> Self {
+        Self {
+            reservoir: Default::default(),
+            frame,
+        }
+    }
+
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
         let d0;
         let d1;

@@ -100,7 +100,7 @@ fn main_inner(
     let mut reservoir = DirectReservoir::default();
 
     if hit.is_some() {
-        let mat = materials.get(hit.material_id);
+        let material = materials.get(hit.material_id);
         let mut light_idx = 0;
 
         while light_idx < world.light_count {
@@ -121,7 +121,7 @@ fn main_inner(
             // TODO add support for specular lightning
             let light_contribution = lights
                 .get(light_id)
-                .contribution(mat, hit, ray, albedo)
+                .contribution(material, hit, ray, albedo)
                 .diffuse;
 
             let sample = DirectReservoirSample {
@@ -193,10 +193,6 @@ fn main_inner(
     };
 
     let light = light_contribution * light_visibility;
-
-    // Setting a mininimum radiance is technically wrong, but at least this way
-    // we don't have to deal with zero p_hats:
-    let light = light.max(Vec3::splat(0.000001));
 
     unsafe {
         *direct_initial_samples.get_unchecked_mut(screen_idx) =

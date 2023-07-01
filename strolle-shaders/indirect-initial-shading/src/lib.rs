@@ -242,10 +242,6 @@ fn main_inner(
         * light_visibility
         * indirect_ray.direction().dot(direct_hit.normal);
 
-    // Setting a mininimum radiance is technically wrong, but at least this way
-    // we don't have to deal with zero p_hats:
-    let color = color.max(Vec3::splat(0.000001));
-
     let indirect_normal;
     let indirect_point;
 
@@ -265,6 +261,6 @@ fn main_inner(
             direct_hit.point.extend(indirect_normal.y);
 
         *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
-            indirect_point.extend(Default::default());
+            indirect_point.extend(f32::from_bits(1));
     }
 }
