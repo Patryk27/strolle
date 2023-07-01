@@ -94,7 +94,7 @@ fn setup(
                 color: Color::WHITE,
                 range: 35.0,
                 radius: 0.25,
-                intensity: 3500.0,
+                intensity: 6000.0,
                 shadows_enabled: true,
                 ..default()
             },
