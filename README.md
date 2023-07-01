@@ -4,7 +4,7 @@ Strolle (coming from _strålspårning_) is an experimental real-time renderer th
 supports global illumination:
 
 <p align="center">
-  <img width="512" height="512" src="_readme/demo-v3.jpg" />
+  <img width="512" height="512" src="_readme/demo-v4.jpg" />
 </p>
 
 Our goal is to create an engine that is able to produce a good-looking image on
