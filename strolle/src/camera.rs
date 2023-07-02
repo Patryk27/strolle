@@ -84,6 +84,9 @@ pub enum CameraMode {
     /// Shows only indirect lightning
     IndirectLightning,
 
+    /// Shows only demodulated indirect lightning (i.e. without albedo)
+    DemodulatedIndirectLightning,
+
     /// Shows only normals
     Normals,
 
@@ -93,13 +96,7 @@ pub enum CameraMode {
 
 impl CameraMode {
     pub(crate) fn serialize(&self) -> u32 {
-        match self {
-            CameraMode::Image => 0,
-            CameraMode::DirectLightning => 1,
-            CameraMode::IndirectLightning => 2,
-            CameraMode::Normals => 3,
-            CameraMode::BvhHeatmap => 4,
-        }
+        *self as u32
     }
 
     pub(crate) fn needs_direct_lightning(&self) -> bool {
@@ -107,7 +104,12 @@ impl CameraMode {
     }
 
     pub(crate) fn needs_indirect_lightning(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectLightning)
+        matches!(
+            self,
+            Self::Image
+                | Self::IndirectLightning
+                | Self::DemodulatedIndirectLightning
+        )
     }
 }
 

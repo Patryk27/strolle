@@ -145,5 +145,5 @@ pub struct IndirectResolvingPassParams {
 #[derive(Copy, Clone, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct OutputDrawingPassParams {
-    pub viewport_mode: u32,
+    pub camera_mode: u32,
 }

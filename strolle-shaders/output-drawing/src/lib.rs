@@ -45,7 +45,8 @@ pub fn main_fs(
         vec2(x, y)
     };
 
-    let (color, apply_color_adjustments) = match params.viewport_mode {
+    let (color, apply_color_adjustments) = match params.camera_mode {
+        // CameraMode::Image
         0 => {
             let albedo = direct_hits_d2_tex
                 .sample(*direct_hits_d2_sampler, texel_xy)
@@ -66,6 +67,7 @@ pub fn main_fs(
             ((direct + emissive + indirect * albedo), true)
         }
 
+        // CameraMode::DirectLightning
         1 => {
             let direct = direct_colors_tex
                 .sample(*direct_colors_sampler, texel_xy)
@@ -78,7 +80,21 @@ pub fn main_fs(
             (direct + emissive, true)
         }
 
+        // CameraMode::DirectLightning
         2 => {
+            let albedo = direct_hits_d2_tex
+                .sample(*direct_hits_d2_sampler, texel_xy)
+                .xyz();
+
+            let indirect = indirect_colors_tex
+                .sample(*indirect_colors_sampler, texel_xy)
+                .xyz();
+
+            (albedo * indirect, true)
+        }
+
+        // CameraMode::DemodulatedDirectLightning
+        3 => {
             let indirect = indirect_colors_tex
                 .sample(*indirect_colors_sampler, texel_xy)
                 .xyz();
@@ -86,7 +102,8 @@ pub fn main_fs(
             (indirect, true)
         }
 
-        3 => {
+        // CameraMode::Normals
+        4 => {
             let normal = Normal::decode(
                 surface_map_tex.sample(*surface_map_sampler, texel_xy).xy(),
             );
@@ -96,7 +113,8 @@ pub fn main_fs(
             (normal, false)
         }
 
-        4 => {
+        // CameraMode::BvhHeatmap
+        5 => {
             let heatmap = direct_colors_tex
                 .sample(*direct_colors_sampler, texel_xy)
                 .xyz();

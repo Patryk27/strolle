@@ -111,11 +111,12 @@ fn main_inner(
             // this time using the correct albedo.
             //
             // We do that because if the object we're shading is textured, we
-            // would carry nasty reprojection artifacts through from reservoirs up
-            // to the user, and those look *bad*.
+            // would carry nasty reprojection artifacts through from reservoirs
+            // up to the user, and those look *bad*.
             //
-            // Currently those reprojection artifacts simply stay in temporal and
-            // spatial reservoirs, and just cause some bias - that's managable, tho.
+            // Currently those reprojection artifacts simply stay in temporal
+            // and spatial reservoirs, and just cause some bias - that's
+            // managable, tho.
             let albedo = Vec3::ONE;
 
             // TODO add support for specular lightning

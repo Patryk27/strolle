@@ -165,10 +165,15 @@ fn process_input(
 
     if keys.just_pressed(KeyCode::Key4) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Normals;
+        camera.mode = st::CameraMode::DemodulatedIndirectLightning;
     }
 
     if keys.just_pressed(KeyCode::Key5) {
+        camera_render_graph.set(bevy_strolle::graph::NAME);
+        camera.mode = st::CameraMode::Normals;
+    }
+
+    if keys.just_pressed(KeyCode::Key6) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
         camera.mode = st::CameraMode::BvhHeatmap;
     }

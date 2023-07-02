@@ -97,7 +97,7 @@ impl OutputDrawingPass {
         });
 
         let params = gpu::OutputDrawingPassParams {
-            viewport_mode: camera.camera.mode.serialize(),
+            camera_mode: camera.camera.mode.serialize(),
         };
 
         pass.set_scissor_rect(
