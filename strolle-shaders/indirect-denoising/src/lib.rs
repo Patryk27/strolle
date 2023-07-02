@@ -84,13 +84,13 @@ fn main_inner(
             //
             // Note that instead of returning `Vec3::ZERO`, we return the center
             // sample since otherwise we could unnecessarily darken corners or
-            // pixels nearby complex surface.
+            // pixels nearby complex surfaces.
             return in0;
         }
 
         let pos = pos.as_uvec2();
 
-        if surface_map.get(pos).evaluate_similarity_to(screen_surface) < 0.25 {
+        if surface_map.get(pos).evaluate_similarity_to(screen_surface) < 0.33 {
             // If our neighbour is too different from us geometrically (e.g. has
             // normal pointing towards a very different direction), reject the
             // sample.
@@ -160,9 +160,9 @@ fn main_inner(
     }
 }
 
+// TODO we should do gamma correction here, but something's off with spotlights
+//      and indirect lightning then
 fn encode_pal_yuv(rgb: Vec3) -> Vec3 {
-    let rgb = rgb.powf(2.0);
-
     vec3(
         rgb.dot(vec3(0.299, 0.587, 0.114)),
         rgb.dot(vec3(-0.14713, -0.28886, 0.436)),
@@ -170,12 +170,12 @@ fn encode_pal_yuv(rgb: Vec3) -> Vec3 {
     )
 }
 
+// TODO we should do gamma correction here, but something's off with spotlights
+//      and indirect lightning then
 fn decode_pal_yuv(yuv: Vec3) -> Vec3 {
-    let rgb = vec3(
+    vec3(
         yuv.dot(vec3(1.0, 0., 1.13983)),
         yuv.dot(vec3(1.0, -0.39465, -0.58060)),
-        yuv.dot(vec3(1.0, 2.03211, 0.)),
-    );
-
-    rgb.powf(1.0 / 2.0)
+        yuv.dot(vec3(1.0, 2.03211, 0.0)),
+    )
 }

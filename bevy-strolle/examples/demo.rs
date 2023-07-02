@@ -1,6 +1,8 @@
 #[path = "_common.rs"]
 mod common;
 
+use std::f32::consts::PI;
+
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::math::vec3;
 use bevy::prelude::*;
@@ -33,8 +35,11 @@ fn main() {
         .insert_resource(Sun::default())
         .add_startup_system(setup)
         .add_system(adjust_materials)
-        .add_system(process_input)
+        .add_system(process_input_camera)
+        .add_system(process_input_flashlight)
+        .add_system(process_input_sun)
         .add_system(animate_sun)
+        .add_system(animate_flashlight)
         .run();
 }
 
@@ -102,6 +107,22 @@ fn setup(
             ..default()
         });
     }
+
+    commands
+        .spawn(SpotLightBundle {
+            spot_light: SpotLight {
+                color: Color::WHITE,
+                range: 100.0,
+                radius: 0.1,
+                intensity: 0.0,
+                shadows_enabled: true,
+                inner_angle: 0.1 * PI,
+                outer_angle: 0.1 * PI,
+                ..default()
+            },
+            ..default()
+        })
+        .insert(Flashlight { enabled: false });
 }
 
 /// Most of the materials seem to have too low metalicness which makes them look
@@ -129,20 +150,18 @@ fn adjust_materials(mut materials: ResMut<Assets<StandardMaterial>>) {
     }
 }
 
-fn process_input(
-    mut commands: Commands,
+fn process_input_camera(
     keys: Res<Input<KeyCode>>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
     mut camera: Query<(
-        &mut Transform,
+        &Transform,
         &mut CameraRenderGraph,
         &mut StrolleCamera,
         &mut FpsCameraController,
     )>,
-    mut sun: ResMut<Sun>,
 ) {
     let (
-        camera_transform,
+        camera_xform,
         mut camera_render_graph,
         mut camera,
         mut fps_camera_controller,
@@ -196,24 +215,34 @@ fn process_input(
         };
     }
 
-    // TODO just for testing purposes
-    if keys.just_pressed(KeyCode::Return) {
-        commands.spawn(PointLightBundle {
-            point_light: PointLight {
-                color: Color::WHITE,
-                range: 35.0,
-                radius: 0.25,
-                intensity: 3500.0,
-                shadows_enabled: true,
-                ..default()
-            },
-            transform: Transform::from_translation(
-                camera_transform.translation,
-            ),
-            ..default()
-        });
+    if keys.just_pressed(KeyCode::T) {
+        println!("{:?}", camera_xform.translation);
     }
+}
 
+fn process_input_flashlight(
+    keys: Res<Input<KeyCode>>,
+    mut flashlight: Query<(&mut Flashlight, &mut SpotLight)>,
+    mut lights: Query<&mut PointLight>,
+) {
+    let (mut flashlight, mut flashlight_spot) = flashlight.single_mut();
+
+    if keys.just_pressed(KeyCode::F) {
+        flashlight.enabled = !flashlight.enabled;
+
+        if flashlight.enabled {
+            flashlight_spot.intensity = 16000.0;
+        } else {
+            flashlight_spot.intensity = 0.0;
+        }
+
+        for mut light in lights.iter_mut() {
+            light.intensity = if flashlight.enabled { 0.0 } else { 6000.0 };
+        }
+    }
+}
+
+fn process_input_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
     if keys.just_pressed(KeyCode::O) {
         sun.altitude -= 0.05;
     }
@@ -222,6 +251,8 @@ fn process_input(
         sun.altitude += 0.05;
     }
 }
+
+// -----------------------------------------------------------------------------
 
 #[derive(Resource)]
 struct Sun {
@@ -243,4 +274,23 @@ fn animate_sun(
 ) {
     strolle_sun.altitude = strolle_sun.altitude
         + (our_sun.altitude - strolle_sun.altitude) * time.delta_seconds();
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Component)]
+struct Flashlight {
+    enabled: bool,
+}
+
+fn animate_flashlight(
+    camera: Query<&Transform, With<Camera>>,
+    mut flashlight: Query<&mut Transform, (With<Flashlight>, Without<Camera>)>,
+) {
+    let camera = camera.single();
+    let mut flashlight = flashlight.single_mut();
+
+    *flashlight =
+        Transform::from_translation(camera.translation - vec3(0.0, 0.25, 0.0))
+            .with_rotation(camera.rotation);
 }

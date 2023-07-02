@@ -1,12 +1,14 @@
 mod eval;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec3, Vec4, Vec4Swizzles};
+use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
 use self::eval::*;
-use crate::{BvhStack, BvhView, Hit, Material, Noise, Ray, TrianglesView};
+use crate::{
+    BvhStack, BvhView, Hit, Material, Noise, Normal, Ray, TrianglesView,
+};
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -18,18 +20,33 @@ pub struct Light {
     /// w - radius
     pub d0: Vec4,
 
-    /// x - color R
-    /// y - color G
-    /// z - color B
+    /// x - color r
+    /// y - color g
+    /// z - color b
     /// w - range
     pub d1: Vec4,
+
+    /// x - (as u32) light type: 0 - point light, 1 - spot light
+    /// y - if it's a spot light: direction
+    /// z - if it's a spot light: direction
+    /// w - if it's a spot light: angle
+    pub d2: Vec4,
 }
 
 impl Light {
+    pub const TYPE_POINT: u32 = 0;
+    pub const TYPE_SPOT: u32 = 1;
+
     pub fn sun(pos: Vec3) -> Self {
         Self {
             d0: pos.extend(10.0),
             d1: Default::default(),
+            d2: vec4(
+                f32::from_bits(Self::TYPE_POINT),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            ),
         }
     }
 
@@ -49,6 +66,18 @@ impl Light {
         self.d1.w
     }
 
+    pub fn is_point(&self) -> bool {
+        self.d2.x.to_bits() == Self::TYPE_POINT
+    }
+
+    pub fn spot_direction(&self) -> Vec3 {
+        Normal::decode(self.d2.yz())
+    }
+
+    pub fn spot_angle(&self) -> f32 {
+        self.d2.w
+    }
+
     /// TODO check out https://blog.demofox.org/2020/05/16/using-blue-noise-for-raytraced-soft-shadows/
     /// TODO check out https://schuttejoe.github.io/post/arealightsampling/
     pub fn position(&self, noise: &mut Noise) -> Vec3 {
@@ -62,6 +91,20 @@ impl Light {
         ray: Ray,
         albedo: Vec3,
     ) -> LightContribution {
+        let cone_factor = if self.is_point() {
+            1.0
+        } else {
+            let angle = self
+                .spot_direction()
+                .angle_between(hit.point - self.center());
+
+            (1.0 - (angle / self.spot_angle()).powf(3.0)).clamp(0.0, 1.0)
+        };
+
+        if cone_factor < 0.01 {
+            return Default::default();
+        }
+
         let roughness =
             perceptual_roughness_to_roughness(material.perceptual_roughness);
 
@@ -127,9 +170,14 @@ impl Light {
             * diffuse_color
             * self.color()
             * distance_attenuation
-            * n_o_l;
+            * n_o_l
+            * cone_factor;
 
-        let specular = specular * self.color() * distance_attenuation * n_o_l;
+        let specular = specular
+            * self.color()
+            * distance_attenuation
+            * n_o_l
+            * cone_factor;
 
         LightContribution { diffuse, specular }
     }
@@ -175,7 +223,7 @@ impl LightId {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct LightContribution {
     pub diffuse: Vec3,
     pub specular: Vec3,

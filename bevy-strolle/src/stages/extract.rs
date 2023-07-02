@@ -241,33 +241,77 @@ pub(crate) fn instances<Material>(
 
 pub(crate) fn lights(
     mut commands: Commands,
-    changed: Extract<
+    changed_point_lights: Extract<
         Query<
             (Entity, &PointLight, &GlobalTransform),
             Or<(Changed<PointLight>, Changed<GlobalTransform>)>,
         >,
     >,
-    mut removed: Extract<RemovedComponents<PointLight>>,
+    changed_spot_lights: Extract<
+        Query<
+            (Entity, &SpotLight, &GlobalTransform),
+            Or<(Changed<SpotLight>, Changed<GlobalTransform>)>,
+        >,
+    >,
+    mut removed_point_lights: Extract<RemovedComponents<PointLight>>,
+    mut removed_spot_lights: Extract<RemovedComponents<SpotLight>>,
 ) {
-    let changed = changed
+    let mut removed: Vec<_> = removed_point_lights
         .iter()
-        .map(|(handle, light, xform)| {
-            let lum_intensity = light.intensity / (4.0 * PI);
+        .chain(removed_spot_lights.iter())
+        .map(|removed| removed.clone().into())
+        .collect();
 
-            let light = st::Light::point(
-                xform.translation().compat(),
-                light.radius,
-                (color_to_vec3(light.color) * lum_intensity).compat(),
-                light.range,
-            );
+    let changed_point_lights: Vec<_> = changed_point_lights
+        .iter()
+        .filter_map(|(handle, light, xform)| {
+            let intensity = light.intensity / (4.0 * PI);
 
-            ExtractedLight { handle, light }
+            if intensity < 0.0001 {
+                removed.push(handle);
+                return None;
+            }
+
+            let light = st::Light::Point {
+                position: xform.translation().compat(),
+                radius: light.radius,
+                color: (color_to_vec3(light.color) * intensity).compat(),
+                range: light.range,
+            };
+
+            Some(ExtractedLight { handle, light })
         })
         .collect();
 
-    let removed = removed
+    let changed_spot_lights: Vec<_> = changed_spot_lights
         .iter()
-        .map(|removed| removed.clone().into())
+        .filter_map(|(handle, light, xform)| {
+            let intensity = light.intensity / (4.0 * PI);
+
+            if intensity < 0.0001 {
+                removed.push(handle);
+                return None;
+            }
+
+            let (_, rotation, translation) =
+                xform.to_scale_rotation_translation();
+
+            let light = st::Light::Spot {
+                position: translation.compat(),
+                radius: light.radius,
+                color: (color_to_vec3(light.color) * intensity).compat(),
+                range: light.range,
+                direction: -(rotation * Vec3::Z).normalize().compat(),
+                angle: light.outer_angle,
+            };
+
+            Some(ExtractedLight { handle, light })
+        })
+        .collect();
+
+    let changed = changed_point_lights
+        .into_iter()
+        .chain(changed_spot_lights)
         .collect();
 
     commands.insert_resource(ExtractedLights { changed, removed });

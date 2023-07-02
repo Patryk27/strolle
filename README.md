@@ -33,6 +33,7 @@ Use WASD to move and mouse to navigate the camera; extra controls include:
 - 5: Switch camera to a normals-only mode,
 - 6: Switch camera to a bvh-heatmap mode,
 - 0: Switch camera to Bevy's renderer,
+- F: Toggle flashlight,
 - Semicolon: Toggle camera's controls on/off - useful for taking screenshots,
 - O/P: Adjust sun's altitude.
 
