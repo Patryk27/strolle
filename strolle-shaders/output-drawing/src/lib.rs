@@ -80,7 +80,7 @@ pub fn main_fs(
             (direct + emissive, true)
         }
 
-        // CameraMode::DirectLightning
+        // CameraMode::IndirectLightning
         2 => {
             let albedo = direct_hits_d2_tex
                 .sample(*direct_hits_d2_sampler, texel_xy)
@@ -93,7 +93,7 @@ pub fn main_fs(
             (albedo * indirect, true)
         }
 
-        // CameraMode::DemodulatedDirectLightning
+        // CameraMode::DemodulatedIndirectLightning
         3 => {
             let indirect = indirect_colors_tex
                 .sample(*indirect_colors_sampler, texel_xy)
