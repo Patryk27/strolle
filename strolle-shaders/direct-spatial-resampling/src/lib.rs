@@ -47,11 +47,12 @@ fn main_inner(
     prev_direct_spatial_reservoirs: &[Vec4],
 ) {
     let mut noise = Noise::new(params.seed, screen_pos);
-    let global_idx = camera.screen_to_idx(screen_pos);
+    let screen_idx = camera.screen_to_idx(screen_pos);
     let mut reservoir = DirectReservoir::default();
 
     // -------------------------------------------------------------------------
 
+    let screen_surface = surface_map.get(screen_pos);
     let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
@@ -60,8 +61,42 @@ fn main_inner(
             camera.screen_to_idx(reprojection.prev_screen_pos()),
         );
 
-        prev_reservoir.m_sum *=
-            (reprojection.confidence * reprojection.confidence).max(0.1);
+        let default_sample = prev_reservoir
+            .sample
+            .light_contribution
+            .extend(prev_reservoir.w);
+
+        let filter =
+            BilinearFilter::from_reprojection(reprojection, move |pos| {
+                if !camera.contains(pos) {
+                    return default_sample;
+                }
+
+                let pos = pos.as_uvec2();
+
+                let reservoir = DirectReservoir::read(
+                    prev_direct_spatial_reservoirs,
+                    camera.screen_to_idx(pos),
+                );
+
+                if reservoir.sample.light_id != prev_reservoir.sample.light_id {
+                    return default_sample;
+                }
+
+                if surface_map.get(pos).evaluate_similarity_to(&screen_surface)
+                    < 0.33
+                {
+                    return default_sample;
+                }
+
+                reservoir.sample.light_contribution.extend(reservoir.w)
+            });
+
+        let sample = filter.eval_reprojection(reprojection);
+
+        prev_reservoir.sample.light_contribution = sample.xyz();
+        prev_reservoir.w = sample.w.clamp(0.0, 1000.0);
+        prev_reservoir.m_sum *= reprojection.confidence;
 
         reservoir.merge(
             &mut noise,
@@ -73,30 +108,34 @@ fn main_inner(
     // -------------------------------------------------------------------------
 
     let mut p_hat = reservoir.sample.p_hat();
-    let screen_surface = surface_map.get(screen_pos);
 
-    let mut sample_idx = 0;
-    let mut sample_radius = 20.0f32;
+    let mut sample_idx = 0.0f32;
+    let mut sample_radius = 12.0f32;
 
-    while sample_idx < 4 {
+    while sample_idx <= 4.0 {
         let rhs_pos =
-            screen_pos.as_vec2() + noise.sample_disk() * sample_radius.max(2.5);
+            screen_pos.as_vec2() + noise.sample_disk() * sample_radius.max(3.0);
 
         let rhs_pos = rhs_pos.as_ivec2();
 
         if !camera.contains(rhs_pos) {
-            sample_idx += 1;
-            sample_radius *= 0.5;
+            sample_idx += 0.25;
+            sample_radius *= 0.75;
             continue;
         }
 
         let rhs_pos = rhs_pos.as_uvec2();
-        let rhs_surface = surface_map.get(rhs_pos);
-        let rhs_similarity = screen_surface.evaluate_similarity_to(rhs_surface);
+
+        // TODO add a screen-space occlusion check
+        let rhs_similarity = surface_map.evaluate_similarity_between(
+            screen_pos,
+            screen_surface,
+            rhs_pos,
+        );
 
         if rhs_similarity < 0.5 {
-            sample_idx += 1;
-            sample_radius *= 0.5;
+            sample_idx += 0.25;
+            sample_radius *= 0.75;
             continue;
         }
 
@@ -111,11 +150,11 @@ fn main_inner(
             p_hat = rhs_p_hat;
         }
 
-        sample_idx += 1;
+        sample_idx += 1.0;
     }
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(p_hat, 1000.0, 250.0);
-    reservoir.write(direct_spatial_reservoirs, global_idx);
+    reservoir.normalize(p_hat, 1000.0, 125.0);
+    reservoir.write(direct_spatial_reservoirs, screen_idx);
 }

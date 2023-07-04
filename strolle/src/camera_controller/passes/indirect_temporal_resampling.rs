@@ -22,8 +22,6 @@ impl IndirectTemporalResamplingPass {
         let pass = CameraComputePass::builder("indirect_temporal_resampling")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.surface_map.curr().bind_readable(),
-                &buffers.surface_map.prev().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.indirect_initial_samples.bind_readable(),
                 &buffers.indirect_temporal_reservoirs.curr().bind_writable(),
@@ -39,8 +37,8 @@ impl IndirectTemporalResamplingPass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
     ) {
-        // This pass uses half-scaled viewport and 8x8 warps:
-        let size = camera.camera.viewport.size / 2 / 8;
+        // This pass uses 8x8 warps:
+        let size = camera.camera.viewport.size / 8;
 
         let params = gpu::IndirectTemporalResamplingPassParams {
             seed: rand::thread_rng().gen(),

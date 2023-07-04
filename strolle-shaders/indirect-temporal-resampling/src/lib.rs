@@ -13,24 +13,18 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)]
-    surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 2)]
-    prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 3)]
     reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
     indirect_initial_samples: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     indirect_temporal_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     prev_indirect_temporal_reservoirs: &[Vec4],
 ) {
     main_inner(
         global_id.xy(),
         params,
         camera,
-        SurfaceMap::new(surface_map),
-        SurfaceMap::new(prev_surface_map),
         ReprojectionMap::new(reprojection_map),
         indirect_initial_samples,
         indirect_temporal_reservoirs,
@@ -40,28 +34,27 @@ pub fn main(
 
 #[allow(clippy::too_many_arguments)]
 fn main_inner(
-    global_id: UVec2,
+    scren_pos: UVec2,
     params: &IndirectTemporalResamplingPassParams,
     camera: &Camera,
-    surface_map: SurfaceMap,
-    prev_surface_map: SurfaceMap,
     reprojection_map: ReprojectionMap,
     indirect_initial_samples: &[Vec4],
     indirect_temporal_reservoirs: &mut [Vec4],
     prev_indirect_temporal_reservoirs: &[Vec4],
 ) {
-    let mut noise = Noise::new(params.seed, global_id);
-    let global_idx = camera.half_screen_to_idx(global_id);
+    let mut noise = Noise::new(params.seed, scren_pos);
+    let screen_idx = camera.screen_to_idx(scren_pos);
 
     // -------------------------------------------------------------------------
 
-    let d0 = unsafe { *indirect_initial_samples.get_unchecked(3 * global_idx) };
+    let d0 =
+        unsafe { *indirect_initial_samples.get_unchecked(3 * screen_idx + 0) };
 
     let d1 =
-        unsafe { *indirect_initial_samples.get_unchecked(3 * global_idx + 1) };
+        unsafe { *indirect_initial_samples.get_unchecked(3 * screen_idx + 1) };
 
     let d2 =
-        unsafe { *indirect_initial_samples.get_unchecked(3 * global_idx + 2) };
+        unsafe { *indirect_initial_samples.get_unchecked(3 * screen_idx + 2) };
 
     let sample = IndirectReservoirSample {
         radiance: d0.xyz(),
@@ -82,48 +75,12 @@ fn main_inner(
 
     // -------------------------------------------------------------------------
 
-    let reprojection =
-        reprojection_map.get(upsample(global_id, params.frame - 1));
+    let reprojection = reprojection_map.get(scren_pos);
 
     if reprojection.is_some() {
-        // Where our reservoir was located in the previous frame
-        let from_screen_pos =
-            upsample(reprojection.prev_screen_pos() / 2, params.frame - 1);
-
-        // Where our reservoir is going to be located in the current frame
-        let to_screen_pos = upsample(global_id, params.frame);
-
-        // Now, because we're going to use our previous reservoir's sample and
-        // kinda "migrate" it into a new screen position, we've got an important
-        // factor to consider:
-        //
-        // What if our previous reservoir's surface is different from our to-be
-        // reservoir's surface?
-        //
-        // For instance, if our prev-reservoir is tracking a background object,
-        // we can't suddently reproject it into a foreground pixel because that
-        // would cause the light to bleed.
-        //
-        // Usually this is solved by relying solely on the reprojection map, but
-        // because we're rendering reservoirs at half-res (and our reprojection
-        // map is full-res), we have to additionally check if our reprojected
-        // pixel's reservoir is "reprojectable" here.
-        //
-        // In particular:
-        //
-        // - score of 1.0 means that probably the camera is stationary and we're
-        //   just reprojecting exactly the same reservoir into exactly the same
-        //   pixel,
-        //
-        // - score of 0.0 means that we'd try to reproject a totally different
-        //   reservoir into current pixel, so let's better not.
-        let migration_compatibility = prev_surface_map
-            .get(from_screen_pos)
-            .evaluate_similarity_to(surface_map.get(to_screen_pos));
-
         let mut prev_reservoir = IndirectReservoir::read(
             prev_indirect_temporal_reservoirs,
-            camera.half_screen_to_idx(from_screen_pos / 2),
+            camera.screen_to_idx(reprojection.prev_screen_pos()),
         );
 
         let prev_p_hat = prev_reservoir.sample.p_hat();
@@ -140,8 +97,6 @@ fn main_inner(
         prev_reservoir.m_sum *=
             reprojection.confidence * reprojection.confidence;
 
-        prev_reservoir.m_sum *= migration_compatibility;
-
         if reservoir.merge(&mut noise, &prev_reservoir, prev_p_hat) {
             p_hat = prev_p_hat;
             reservoir.frame = prev_reservoir.frame;
@@ -151,5 +106,5 @@ fn main_inner(
     // -------------------------------------------------------------------------
 
     reservoir.normalize(p_hat, 10.0, 30.0);
-    reservoir.write(indirect_temporal_reservoirs, global_idx);
+    reservoir.write(indirect_temporal_reservoirs, screen_idx);
 }

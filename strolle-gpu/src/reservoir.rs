@@ -26,7 +26,7 @@ pub struct Reservoir<T> {
     ///   things like `m_sum *= 0.25;`
     pub m_sum: f32,
 
-    /// Re-weighting factor, following the ReSTIR paper.
+    /// Reweighting factor, following the ReSTIR paper.
     ///
     /// It's capped to a certain limit, depending on the reservoir's kind, over
     /// the temporal and spatial resampling passes.

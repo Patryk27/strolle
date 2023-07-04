@@ -1,5 +1,5 @@
 //! This pass performs indirect lightning resolving, i.e. it takes the spatial
-//! reservoirs (rendered at half-res) and upscales them into a full-res picture.
+//! reservoirs and resolves them into a concrete color.
 //!
 //! Later this picture is also fed to a dedicated indirect lightning denoiser.
 
@@ -52,34 +52,21 @@ fn main_inner(
     while sample_idx < 8 {
         let reservoir_distance = sample_idx as f32;
 
-        // Because we render reservoirs at half-res, if we just upscaled them
-        // bilinearly, a single bad reservoir (i.e. too bright) could affect 4+
-        // nearby pixels - that happens and it looks just bad.
-        //
-        // That's why instead of doing basic upscaling, we sample our pixel's
-        // neighbourhood and select a few reservoirs at random; later denoising
-        // hides any artifacts of that pretty well.
-        let reservoir_pos = screen_pos.as_vec2() * 0.5
-            + noise.sample_circle() * reservoir_distance;
+        let reservoir_pos =
+            screen_pos.as_vec2() + noise.sample_circle() * reservoir_distance;
 
         let reservoir_pos = reservoir_pos.as_ivec2();
 
-        if reservoir_pos.x < 0 || reservoir_pos.y < 0 {
+        if !camera.contains(reservoir_pos) {
             sample_idx += 1;
             continue;
         }
 
         let reservoir_pos = reservoir_pos.as_uvec2();
-        let reservoir_screen_pos = upsample(reservoir_pos, params.frame);
-
-        if !camera.contains(reservoir_screen_pos.as_ivec2()) {
-            sample_idx += 1;
-            continue;
-        }
 
         let reservoir = IndirectReservoir::read(
             indirect_spatial_reservoirs,
-            camera.half_screen_to_idx(reservoir_pos),
+            camera.screen_to_idx(reservoir_pos),
         );
 
         if reservoir.m_sum <= 0.0 {
@@ -98,7 +85,7 @@ fn main_inner(
         //
         // If that happens, we can't reuse this reservoir's radiance.
         reservoir_weight *= screen_surface
-            .evaluate_similarity_to(surface_map.get(reservoir_screen_pos));
+            .evaluate_similarity_to(&surface_map.get(reservoir_pos));
 
         // What's more, we can incorporate here a very useful metric: m_sum.
         //

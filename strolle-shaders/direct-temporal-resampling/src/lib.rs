@@ -68,8 +68,7 @@ fn main_inner(
         let prev_age = prev_reservoir.age(params.frame);
 
         if prev_age > 4 {
-            prev_reservoir.m_sum *=
-                1.0 - ((prev_age - 4) as f32 / 4.0).min(1.0);
+            prev_reservoir.m_sum *= 1.0 - ((prev_age - 4) as f32 / 4.0);
         }
 
         prev_reservoir.m_sum *= reprojection.confidence;
@@ -80,6 +79,6 @@ fn main_inner(
         }
     }
 
-    reservoir.normalize(p_hat, 1000.0, 7.5);
+    reservoir.normalize(p_hat, 1000.0, 10.0);
     reservoir.write(direct_temporal_reservoirs, screen_idx);
 }

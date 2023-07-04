@@ -44,15 +44,6 @@ impl Camera {
         (pos.y * self.viewport_size().x + pos.x) as usize
     }
 
-    /// Transforms point from half-screen-cordinates into a unique index (as
-    /// long as the given point is within of half the viewport size).
-    ///
-    /// Used to index screen-space structures that work on the downsampled
-    /// viewport.
-    pub fn half_screen_to_idx(&self, pos: UVec2) -> usize {
-        (pos.y * self.viewport_size().x / 2 + pos.x) as usize
-    }
-
     pub fn contains(&self, pos: IVec2) -> bool {
         let viewport_size = self.viewport_size().as_ivec2();
 

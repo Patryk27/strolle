@@ -24,7 +24,6 @@ impl IndirectSpatialResamplingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.direct_hits_d0.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
-                &buffers.surface_map.prev().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.indirect_temporal_reservoirs.curr().bind_readable(),
                 &buffers.indirect_spatial_reservoirs.curr().bind_writable(),
@@ -40,8 +39,8 @@ impl IndirectSpatialResamplingPass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
     ) {
-        // This pass uses half-scaled viewport and 8x8 warps:
-        let size = camera.camera.viewport.size / 2 / 8;
+        // This pass uses 8x8 warps:
+        let size = camera.camera.viewport.size / 8;
 
         let params = gpu::IndirectSpatialResamplingPassParams {
             seed: rand::thread_rng().gen(),

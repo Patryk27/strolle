@@ -1,19 +1,19 @@
-use glam::{uvec2, vec4, UVec2, Vec4};
+use glam::{vec2, vec4, UVec2, Vec4};
 
 use crate::TexRgba32f;
 
 #[derive(Clone, Copy, Default)]
 pub struct Reprojection {
-    pub prev_x: u32,
-    pub prev_y: u32,
+    pub prev_x: f32,
+    pub prev_y: f32,
     pub confidence: f32,
 }
 
 impl Reprojection {
     pub fn serialize(&self) -> Vec4 {
         vec4(
-            f32::from_bits(self.prev_x),
-            f32::from_bits(self.prev_y),
+            self.prev_x,
+            self.prev_y,
             Default::default(),
             self.confidence,
         )
@@ -21,18 +21,22 @@ impl Reprojection {
 
     pub fn deserialize(d0: Vec4) -> Self {
         Self {
-            prev_x: d0.x.to_bits(),
-            prev_y: d0.y.to_bits(),
+            prev_x: d0.x,
+            prev_y: d0.y,
             confidence: d0.w,
         }
     }
 
-    pub fn prev_screen_pos(&self) -> UVec2 {
-        uvec2(self.prev_x, self.prev_y)
-    }
-
     pub fn is_some(&self) -> bool {
         self.confidence > 0.0
+    }
+
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
+    }
+
+    pub fn prev_screen_pos(&self) -> UVec2 {
+        vec2(self.prev_x, self.prev_y).round().as_uvec2()
     }
 }
 

@@ -8,7 +8,6 @@ use crate::{Normal, TexRgba32f};
 pub struct Surface {
     pub normal: Vec3,
     pub depth: f32,
-    pub instance_uuid: u32,
 }
 
 impl Surface {
@@ -16,23 +15,21 @@ impl Surface {
     /// surfaces.
     ///
     /// See also: [`SurfaceMap::evaulate_similarity_between()`].
-    pub fn evaluate_similarity_to(&self, other: Self) -> f32 {
-        let normal = self.normal.dot(other.normal).max(0.0);
+    pub fn evaluate_similarity_to(&self, other: &Self) -> f32 {
+        let normal_score = self.normal.dot(other.normal).max(0.0);
 
-        let depth = {
-            let depth = (self.depth - other.depth).abs();
-
-            if depth >= 1.0 {
-                0.0
-            } else {
-                1.0 - depth
-            }
+        // TODO a continuous function here would be much, much better
+        let depth_score = if self.depth < 35.0 && other.depth < 35.0 {
+            1.0 - (self.depth - other.depth).abs().min(1.0)
+        } else {
+            1.0 - (self.depth.log2() - other.depth.log2()).abs().min(1.0)
         };
 
-        normal * depth
+        normal_score * depth_score
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct SurfaceMap<'a> {
     tex: TexRgba32f<'a>,
 }
@@ -48,7 +45,6 @@ impl<'a> SurfaceMap<'a> {
         Surface {
             normal: Normal::decode(d0.xy()),
             depth: d0.z,
-            instance_uuid: d0.w.to_bits(),
         }
     }
 
@@ -75,7 +71,7 @@ impl<'a> SurfaceMap<'a> {
         let rhs_surface = self.get(rhs);
 
         if steps == 1 {
-            return lhs_surface.evaluate_similarity_to(rhs_surface);
+            return lhs_surface.evaluate_similarity_to(&rhs_surface);
         }
 
         let lhs = lhs.as_vec2().extend(lhs_surface.depth);

@@ -28,10 +28,12 @@ impl OutputDrawingPass {
         let bg0 = BindGroup::builder("output_drawing_bg0")
             .add(&buffers.camera.bind_readable())
             .add(&buffers.direct_colors.curr().bind_sampled())
+            .add(&buffers.direct_hits_d0.bind_sampled())
             .add(&buffers.direct_hits_d2.bind_sampled())
             .add(&buffers.direct_hits_d3.bind_sampled())
             .add(&buffers.indirect_colors.curr().bind_sampled())
             .add(&buffers.surface_map.curr().bind_sampled())
+            .add(&buffers.velocity_map.bind_sampled())
             .build(device);
 
         let pipeline_layout =

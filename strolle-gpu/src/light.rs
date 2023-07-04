@@ -89,7 +89,6 @@ impl Light {
         material: Material,
         hit: Hit,
         ray: Ray,
-        albedo: Vec3,
     ) -> LightContribution {
         let cone_factor = if self.is_point() {
             1.0
@@ -109,7 +108,7 @@ impl Light {
             perceptual_roughness_to_roughness(material.perceptual_roughness);
 
         let hit_to_light = self.center() - hit.point;
-        let diffuse_color = albedo * (1.0 - material.metallic);
+        let diffuse_color = Vec3::ONE * (1.0 - material.metallic);
         let v = -ray.direction();
         let n_dot_v = hit.normal.dot(v).max(0.0001);
         let r = reflect(-v, hit.normal);
@@ -118,7 +117,7 @@ impl Light {
             * material.reflectance
             * material.reflectance
             * (1.0 - material.metallic)
-            + albedo * material.metallic;
+            + Vec3::ONE * material.metallic;
 
         let range = self.range();
 
@@ -209,7 +208,7 @@ impl Light {
     }
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct LightId(u32);
 
@@ -230,6 +229,12 @@ pub struct LightContribution {
 }
 
 impl LightContribution {
+    pub fn with_albedo(mut self, albedo: Vec3) -> Self {
+        // TODO support specular
+        self.diffuse *= albedo;
+        self
+    }
+
     pub fn sum(&self) -> Vec3 {
         self.diffuse + self.specular
     }

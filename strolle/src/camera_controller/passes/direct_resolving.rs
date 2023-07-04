@@ -25,7 +25,6 @@ impl DirectResolvingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.direct_hits_d0.bind_readable(),
                 &buffers.direct_hits_d1.bind_readable(),
-                &buffers.direct_hits_d2.bind_readable(),
                 &buffers.direct_initial_samples.bind_readable(),
                 &buffers.raw_direct_colors.bind_writable(),
                 &buffers.direct_spatial_reservoirs.curr().bind_readable(),

@@ -91,6 +91,7 @@ pub fn main_fs(
     };
 
     let hit_normal_encoded = Normal::encode(hit_normal);
+    let hit_distance = camera.origin().distance(hit_point);
 
     *out_direct_hits_d0 = hit_point.extend(f32::from_bits(params.material_id()));
     *out_direct_hits_d1 = hit_normal_encoded.extend(hit_uv.x).extend(hit_uv.y);
@@ -98,13 +99,23 @@ pub fn main_fs(
     *out_direct_hits_d3 = hit_emissive;
 
     *out_surface_map = hit_normal_encoded
-        .extend(curr_vertex.z)
-        .extend(f32::from_bits(params.material_id()));
+        .extend(hit_distance)
+        .extend(Default::default());
 
     *out_velocity_map = {
         let curr_scren_pos = camera.clip_to_screen(curr_vertex);
         let prev_screen_pos = prev_camera.clip_to_screen(prev_vertex);
 
-        (curr_scren_pos - prev_screen_pos).extend(0.0).extend(0.0)
+        let velocity = (curr_scren_pos - prev_screen_pos).extend(0.0).extend(0.0);
+
+        if velocity.length_squared() >= 0.001 {
+            velocity
+        } else {
+            // Due to floting-point inaccuracies, stationary objects can end up
+            // having a very small velocity instead of a zero one - this causes
+            // our reprojection shader to freak out later, so let's meet it in
+            // the middle:
+            Default::default()
+        }
     };
 }

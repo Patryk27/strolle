@@ -75,22 +75,28 @@ impl Camera {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CameraMode {
-    /// The default mode - shows the final image
+    /// Default mode - shows the final image
     Image,
 
-    /// Shows only direct lightning
+    /// Shows direct lightning
     DirectLightning,
 
-    /// Shows only indirect lightning
+    /// Shows demodulated direct lightning (i.e. without albedo)
+    DemodulatedDirectLightning,
+
+    /// Shows indirect lightning
     IndirectLightning,
 
-    /// Shows only demodulated indirect lightning (i.e. without albedo)
+    /// Shows demodulated indirect lightning (i.e. without albedo)
     DemodulatedIndirectLightning,
 
-    /// Shows only normals
-    Normals,
+    /// Shows normals
+    NormalMap,
 
-    /// Shows a heatmap of the BVH tree
+    /// Shows velocities used for reprojection
+    VelocityMap,
+
+    /// Shows BVH tree's heatmap
     BvhHeatmap,
 }
 
@@ -100,7 +106,12 @@ impl CameraMode {
     }
 
     pub(crate) fn needs_direct_lightning(&self) -> bool {
-        matches!(self, Self::Image | Self::DirectLightning)
+        matches!(
+            self,
+            Self::Image
+                | Self::DirectLightning
+                | Self::DemodulatedDirectLightning
+        )
     }
 
     pub(crate) fn needs_indirect_lightning(&self) -> bool {

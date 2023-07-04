@@ -18,13 +18,11 @@ pub fn main(
     direct_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 2)]
     direct_hits_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)]
-    direct_hits_d2: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 3, storage_buffer)]
     direct_initial_samples: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 5)]
+    #[spirv(descriptor_set = 1, binding = 4)]
     raw_direct_colors: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
     direct_spatial_reservoirs: &[Vec4],
 ) {
     main_inner(
@@ -34,7 +32,6 @@ pub fn main(
         camera,
         direct_hits_d0,
         direct_hits_d1,
-        direct_hits_d2,
         direct_initial_samples,
         raw_direct_colors,
         direct_spatial_reservoirs,
@@ -49,7 +46,6 @@ fn main_inner(
     camera: &Camera,
     direct_hits_d0: TexRgba32f,
     direct_hits_d1: TexRgba32f,
-    direct_hits_d2: TexRgba32f,
     direct_initial_samples: &[Vec4],
     raw_direct_colors: TexRgba16f,
     direct_spatial_reservoirs: &[Vec4],
@@ -61,8 +57,6 @@ fn main_inner(
         direct_hits_d1.read(screen_pos),
     );
 
-    let albedo = direct_hits_d2.read(screen_pos).xyz();
-
     let out = if hit.is_some() {
         let reservoir = DirectReservoir::read(
             direct_spatial_reservoirs,
@@ -71,7 +65,7 @@ fn main_inner(
 
         if reservoir.w > 0.0 {
             let contribution = if reservoir.sample.is_sky() {
-                albedo * reservoir.sample.light_contribution
+                reservoir.sample.light_contribution
             } else {
                 let ray = camera.ray(screen_pos);
                 let material = materials.get(hit.material_id);
@@ -81,7 +75,7 @@ fn main_inner(
                 //      diffuse)
                 lights
                     .get(reservoir.sample.light_id)
-                    .contribution(material, hit, ray, albedo)
+                    .contribution(material, hit, ray)
                     .diffuse
             };
 

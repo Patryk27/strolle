@@ -23,16 +23,14 @@ pub fn main_fs(
     #[spirv(frag_coord)] pos: Vec4,
     #[spirv(push_constant)] params: &OutputDrawingPassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] direct_colors_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 2)] direct_colors_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 3)] direct_hits_d2_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 4)] direct_hits_d2_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 5)] direct_hits_d3_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 6)] direct_hits_d3_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 7)] indirect_colors_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 8)] indirect_colors_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 9)] surface_map_tex: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 10)] surface_map_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 2)] sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 3)] direct_hits_d0: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 5)] direct_hits_d2: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 7)] direct_hits_d3: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 9)] indirect_colors: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 11)] surface_map: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 13)] velocity_map: &Image!(2D, type=f32, sampled),
     frag_color: &mut Vec4,
 ) {
     let texel_xy = {
@@ -48,76 +46,84 @@ pub fn main_fs(
     let (color, apply_color_adjustments) = match params.camera_mode {
         // CameraMode::Image
         0 => {
-            let albedo = direct_hits_d2_tex
-                .sample(*direct_hits_d2_sampler, texel_xy)
-                .xyz();
+            let point = Hit::deserialize_point(
+                direct_hits_d0.sample(*sampler, texel_xy),
+            );
 
-            let emissive = direct_hits_d3_tex
-                .sample(*direct_hits_d3_sampler, texel_xy)
-                .xyz();
+            let albedo = direct_hits_d2.sample(*sampler, texel_xy).xyz();
+            let direct = direct_colors.sample(*sampler, texel_xy).xyz();
+            let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
+            let emissive = direct_hits_d3.sample(*sampler, texel_xy).xyz();
 
-            let direct = direct_colors_tex
-                .sample(*direct_colors_sampler, texel_xy)
-                .xyz();
+            let color = if point == Default::default() {
+                // If we hit nothing, the `direct` color will contain sky but
+                // `albedo` is going to be all black, so we need to handle it
+                // separately and not multply by albedo then:
+                direct
+            } else {
+                albedo * (direct + indirect) + emissive
+            };
 
-            let indirect = indirect_colors_tex
-                .sample(*indirect_colors_sampler, texel_xy)
-                .xyz();
-
-            ((direct + emissive + indirect * albedo), true)
+            (color, true)
         }
 
         // CameraMode::DirectLightning
         1 => {
-            let direct = direct_colors_tex
-                .sample(*direct_colors_sampler, texel_xy)
-                .xyz();
+            let albedo = direct_hits_d2.sample(*sampler, texel_xy).xyz();
+            let direct = direct_colors.sample(*sampler, texel_xy).xyz();
 
-            let emissive = direct_hits_d3_tex
-                .sample(*direct_hits_d3_sampler, texel_xy)
-                .xyz();
+            (albedo * direct, true)
+        }
 
-            (direct + emissive, true)
+        // CameraMode::DemodulatedDirectLightning
+        2 => {
+            let direct = direct_colors.sample(*sampler, texel_xy).xyz();
+
+            (direct, true)
         }
 
         // CameraMode::IndirectLightning
-        2 => {
-            let albedo = direct_hits_d2_tex
-                .sample(*direct_hits_d2_sampler, texel_xy)
-                .xyz();
-
-            let indirect = indirect_colors_tex
-                .sample(*indirect_colors_sampler, texel_xy)
-                .xyz();
+        3 => {
+            let albedo = direct_hits_d2.sample(*sampler, texel_xy).xyz();
+            let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
 
             (albedo * indirect, true)
         }
 
         // CameraMode::DemodulatedIndirectLightning
-        3 => {
-            let indirect = indirect_colors_tex
-                .sample(*indirect_colors_sampler, texel_xy)
-                .xyz();
+        4 => {
+            let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
 
             (indirect, true)
         }
 
-        // CameraMode::Normals
-        4 => {
-            let normal = Normal::decode(
-                surface_map_tex.sample(*surface_map_sampler, texel_xy).xy(),
-            );
+        // CameraMode::NormalMap
+        5 => {
+            let surface = surface_map.sample(*sampler, texel_xy).xyz();
 
-            let normal = Vec3::splat(0.5) + normal * 0.5;
+            let normal = if surface.z == 0.0 {
+                Default::default()
+            } else {
+                Vec3::splat(0.5) + Normal::decode(surface.xy()) * 0.5
+            };
 
             (normal, false)
         }
 
+        // CameraMode::VelocityMap
+        6 => {
+            let velocity = velocity_map
+                .sample(*sampler, texel_xy)
+                .xy()
+                .abs()
+                .extend(0.0);
+
+            (velocity, false)
+        }
+
         // CameraMode::BvhHeatmap
-        5 => {
-            let heatmap = direct_colors_tex
-                .sample(*direct_colors_sampler, texel_xy)
-                .xyz();
+        7 => {
+            let heatmap = direct_colors.sample(*sampler, texel_xy).xyz();
 
             (heatmap, false)
         }

@@ -1,7 +1,7 @@
 # strolle
 
-Strolle (coming from _strålspårning_) is an experimental real-time renderer that
-supports global illumination:
+Strolle (coming from _strålspårning_) is an experimental pixel-art~ish real-time
+renderer that supports global illumination:
 
 <p align="center">
   <img width="512" height="512" src="_readme/demo-v4.jpg" />
@@ -28,10 +28,12 @@ Use WASD to move and mouse to navigate the camera; extra controls include:
 
 - 1: Switch camera to the default mode,
 - 2: Switch camera to a direct lightning only mode,
-- 3: Switch camera to an indirect lightning only mode,
-- 4: Switch camera to a demodulated indirect lightning only mode,
-- 5: Switch camera to a normals-only mode,
-- 6: Switch camera to a bvh-heatmap mode,
+- 3: Switch camera to a demodulated direct lightning only mode,
+- 4: Switch camera to an indirect lightning only mode,
+- 5: Switch camera to a demodulated indirect lightning only mode,
+- 6: Switch camera to a normals-only mode,
+- 7: Switch camera to a velocity-only mode,
+- 8: Switch camera to a bvh-heatmap mode,
 - 0: Switch camera to Bevy's renderer,
 - F: Toggle flashlight,
 - Semicolon: Toggle camera's controls on/off - useful for taking screenshots,

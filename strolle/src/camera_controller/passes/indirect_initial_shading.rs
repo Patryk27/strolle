@@ -47,8 +47,8 @@ impl IndirectInitialShadingPass {
         encoder: &mut wgpu::CommandEncoder,
         seed: u32,
     ) {
-        // This pass uses half-scaled viewport and 8x8 warps:
-        let size = camera.camera.viewport.size / 2 / 8;
+        // This pass uses 8x8 warps:
+        let size = camera.camera.viewport.size / 8;
 
         let params = gpu::IndirectInitialShadingPassParams {
             seed,

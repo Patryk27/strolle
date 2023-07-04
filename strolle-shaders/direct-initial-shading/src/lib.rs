@@ -106,23 +106,10 @@ fn main_inner(
         while light_idx < world.light_count {
             let light_id = LightId::new(light_idx);
 
-            // We're hard-coding albedo here because later, during the resolving
-            // pass, we're going to re-compute this light's contribution anyway,
-            // this time using the correct albedo.
-            //
-            // We do that because if the object we're shading is textured, we
-            // would carry nasty reprojection artifacts through from reservoirs
-            // up to the user, and those look *bad*.
-            //
-            // Currently those reprojection artifacts simply stay in temporal
-            // and spatial reservoirs, and just cause some bias - that's
-            // managable, tho.
-            let albedo = Vec3::ONE;
-
             // TODO add support for specular lightning
             let light_contribution = lights
                 .get(light_id)
-                .contribution(material, hit, ray, albedo)
+                .contribution(material, hit, ray)
                 .diffuse;
 
             let sample = DirectReservoirSample {

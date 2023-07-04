@@ -43,7 +43,7 @@ pub fn main(
 
 #[allow(clippy::too_many_arguments)]
 fn main_inner(
-    global_id: UVec2,
+    screen_pos: UVec2,
     local_idx: u32,
     params: &IndirectInitialTracingPassParams,
     stack: BvhStack,
@@ -54,8 +54,7 @@ fn main_inner(
     indirect_hits_d0: TexRgba32f,
     indirect_hits_d1: TexRgba32f,
 ) {
-    let mut noise = Noise::new(params.seed, global_id);
-    let screen_pos = upsample(global_id, params.frame);
+    let mut noise = Noise::new(params.seed, screen_pos);
 
     let direct_hit = Hit::deserialize(
         direct_hits_d0.read(screen_pos),
@@ -76,7 +75,7 @@ fn main_inner(
     let [d0, d1] = indirect_hit.serialize();
 
     unsafe {
-        indirect_hits_d0.write(global_id, d0);
-        indirect_hits_d1.write(global_id, d1);
+        indirect_hits_d0.write(screen_pos, d0);
+        indirect_hits_d1.write(screen_pos, d1);
     }
 }

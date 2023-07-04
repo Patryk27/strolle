@@ -78,7 +78,7 @@ pub fn main(
 
 #[allow(clippy::too_many_arguments)]
 fn main_inner(
-    global_id: UVec2,
+    screen_pos: UVec2,
     local_idx: u32,
     params: &IndirectInitialShadingPassParams,
     stack: BvhStack,
@@ -97,9 +97,8 @@ fn main_inner(
     indirect_hits_d1: TexRgba32f,
     indirect_initial_samples: &mut [Vec4],
 ) {
-    let mut noise = Noise::new(params.seed, global_id);
-    let global_idx = camera.half_screen_to_idx(global_id);
-    let screen_pos = upsample(global_id, params.frame);
+    let mut noise = Noise::new(params.seed, screen_pos);
+    let screen_idx = camera.screen_to_idx(screen_pos);
 
     // -------------------------------------------------------------------------
 
@@ -110,13 +109,13 @@ fn main_inner(
 
     if direct_hit.is_none() {
         unsafe {
-            *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
+            *indirect_initial_samples.get_unchecked_mut(3 * screen_idx + 0) =
                 Default::default();
 
-            *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 1) =
+            *indirect_initial_samples.get_unchecked_mut(3 * screen_idx + 1) =
                 Default::default();
 
-            *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
+            *indirect_initial_samples.get_unchecked_mut(3 * screen_idx + 2) =
                 Default::default();
         }
 
@@ -127,8 +126,8 @@ fn main_inner(
         Ray::new(direct_hit.point, noise.sample_hemisphere(direct_hit.normal));
 
     let indirect_hit = Hit::deserialize(
-        indirect_hits_d0.read(global_id),
-        indirect_hits_d1.read(global_id),
+        indirect_hits_d0.read(screen_pos),
+        indirect_hits_d1.read(screen_pos),
     );
 
     // -------------------------------------------------------------------------
@@ -156,7 +155,8 @@ fn main_inner(
 
             let light_contribution = lights
                 .get(light_id)
-                .contribution(material, indirect_hit, indirect_ray, albedo)
+                .contribution(material, indirect_hit, indirect_ray)
+                .with_albedo(albedo)
                 .sum();
 
             let sample = DirectReservoirSample {
@@ -254,13 +254,13 @@ fn main_inner(
     }
 
     unsafe {
-        *indirect_initial_samples.get_unchecked_mut(3 * global_idx) =
+        *indirect_initial_samples.get_unchecked_mut(3 * screen_idx + 0) =
             color.extend(indirect_normal.x);
 
-        *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 1) =
+        *indirect_initial_samples.get_unchecked_mut(3 * screen_idx + 1) =
             direct_hit.point.extend(indirect_normal.y);
 
-        *indirect_initial_samples.get_unchecked_mut(3 * global_idx + 2) =
+        *indirect_initial_samples.get_unchecked_mut(3 * screen_idx + 2) =
             indirect_point.extend(f32::from_bits(1));
     }
 }

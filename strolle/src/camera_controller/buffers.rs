@@ -83,6 +83,7 @@ impl CameraBuffers {
         let direct_hits_d0 = Texture::builder("direct_hits_d0")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
+            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
@@ -148,13 +149,13 @@ impl CameraBuffers {
         // ---------------------------------------------------------------------
 
         let indirect_hits_d0 = Texture::builder("indirect_hits_d0")
-            .with_size(camera.viewport.size / 2)
+            .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
         let indirect_hits_d1 = Texture::builder("indirect_hits_d1")
-            .with_size(camera.viewport.size / 2)
+            .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .add_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -178,21 +179,21 @@ impl CameraBuffers {
         let indirect_initial_samples = UnmappedStorageBuffer::new(
             device,
             "indirect_initial_samples",
-            viewport_buffer_size(camera.viewport.size / 2, 3 * 4 * 4),
+            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
         );
 
         let indirect_temporal_reservoirs =
             DoubleBuffered::<UnmappedStorageBuffer>::new(
                 device,
                 "indirect_temporal_reservoirs",
-                viewport_buffer_size(camera.viewport.size / 2, 4 * 4 * 4),
+                viewport_buffer_size(camera.viewport.size, 4 * 4 * 4),
             );
 
         let indirect_spatial_reservoirs =
             DoubleBuffered::<UnmappedStorageBuffer>::new(
                 device,
                 "indirect_spatial_reservoirs",
-                viewport_buffer_size(camera.viewport.size / 2, 4 * 4 * 4),
+                viewport_buffer_size(camera.viewport.size, 4 * 4 * 4),
             );
 
         // ---------------------------------------------------------------------
