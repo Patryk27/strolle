@@ -38,15 +38,8 @@ impl Bvh {
     ) where
         P: Params,
     {
-        let triangle_count: usize = instances
-            .iter()
-            .filter_map(|(instance_handle, _)| triangles.count(instance_handle))
-            .sum();
-
-        if triangle_count == 0 {
-            return;
-        }
-
+        // TODO it would be nice not to re-collect all triangles every frame
+        //      (it doesn't seem to be a bottleneck, though)
         let mut triangles: Vec<_> = instances
             .iter()
             .flat_map(|(instance_handle, instance_entry)| {
@@ -56,7 +49,7 @@ impl Bvh {
                 material_id.into_iter().flat_map(|material_id| {
                     triangles.iter(instance_handle).map(
                         move |(triangle_id, triangle)| BvhTriangle {
-                            bb: triangle.positions().into_iter().collect(),
+                            bounds: triangle.positions().into_iter().collect(),
                             center: triangle.center(),
                             triangle_id,
                             material_id,
@@ -66,9 +59,17 @@ impl Bvh {
             })
             .collect();
 
+        if triangles.is_empty() {
+            return;
+        }
+
+        // TODO it would be nice not to re-allocate the nodes every frame
+        //      (it doesn't seem to be a bottleneck, though)
         let mut nodes = Vec::new();
 
-        nodes.resize(2 * triangle_count - 1, Default::default());
+        // BVH, being a binary tree, can consist of at most 2 * leafes - 1
+        // nodes, so let's preallocate it:
+        nodes.resize(2 * triangles.len() - 1, Default::default());
 
         let nodes = build::run(nodes, &mut triangles);
 

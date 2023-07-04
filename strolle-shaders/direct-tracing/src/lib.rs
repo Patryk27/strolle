@@ -15,7 +15,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[BvhNode],
+    bvh: &[Vec4],
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
@@ -42,7 +42,7 @@ fn main_inner(
     camera: &Camera,
     direct_colors: TexRgba16f,
 ) {
-    let (_, traversed_nodes) = camera
+    let (_, used_memory) = camera
         .ray(screen_pos)
         .trace_nearest(local_idx, triangles, bvh, stack);
 
@@ -53,7 +53,7 @@ fn main_inner(
             vec3(1.0, 0.0, 0.0),
             vec3(0.0, 0.0, 0.0),
         ],
-        traversed_nodes as f32 / 150.0,
+        used_memory as f32 / 8192.0,
     );
 
     unsafe {

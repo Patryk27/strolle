@@ -13,56 +13,64 @@ fn run_ex(nodes: &[BvhNode], out: &mut Vec<Vec4>, node_id: u32) -> u32 {
     let ptr = out.len();
 
     match &nodes[node_id as usize] {
-        BvhNode::Internal { bb, left_node_id } => {
+        BvhNode::Internal { left_node_id, .. } => {
+            out.push(Default::default());
+            out.push(Default::default());
             out.push(Default::default());
             out.push(Default::default());
 
-            let _left_ptr = run_ex(nodes, out, *left_node_id);
-            let right_ptr = run_ex(nodes, out, left_node_id + 1);
+            let left_node_id = *left_node_id;
+            let right_node_id = left_node_id + 1;
+
+            let left_bb = nodes[left_node_id as usize].bounds();
+            let right_bb = nodes[right_node_id as usize].bounds();
+
+            let _left_ptr = run_ex(nodes, out, left_node_id);
+            let right_ptr = run_ex(nodes, out, right_node_id);
 
             out[ptr] = vec4(
-                bb.min().x,
-                bb.min().y,
-                bb.min().z,
-                f32::from_bits(OP_INTERNAL | (right_ptr << 1)),
+                left_bb.min().x,
+                left_bb.min().y,
+                left_bb.min().z,
+                f32::from_bits(OP_INTERNAL),
             );
 
-            out[ptr + 1] =
-                vec4(bb.max().x, bb.max().y, bb.max().z, Default::default());
+            out[ptr + 1] = vec4(
+                left_bb.max().x,
+                left_bb.max().y,
+                left_bb.max().z,
+                f32::from_bits(right_ptr),
+            );
+
+            out[ptr + 2] = vec4(
+                right_bb.min().x,
+                right_bb.min().y,
+                right_bb.min().z,
+                Default::default(),
+            );
+
+            out[ptr + 3] = vec4(
+                right_bb.max().x,
+                right_bb.max().y,
+                right_bb.max().z,
+                Default::default(),
+            );
         }
 
-        BvhNode::Leaf { bb, triangles } => {
+        BvhNode::Leaf { triangles, .. } => {
             for (n, triangle) in triangles.iter().enumerate() {
-                let arg0 = triangle.triangle_id.get() << 1;
-
-                // If there are more triangles following this one, toggle the
-                // first bit
-                let arg0 = if n + 1 == triangles.len() {
-                    arg0
-                } else {
-                    arg0 | 1
-                };
-
-                let arg1 = triangle.material_id.get();
+                let has_more_triangles =
+                    if n + 1 == triangles.len() { 0 } else { 1 };
 
                 out.push(vec4(
-                    bb.min().x,
-                    bb.min().y,
-                    bb.min().z,
-                    f32::from_bits(OP_LEAF | (arg0 << 1)),
-                ));
-
-                out.push(vec4(
-                    bb.max().x,
-                    bb.max().y,
-                    bb.max().z,
-                    f32::from_bits(arg1),
+                    f32::from_bits(has_more_triangles),
+                    f32::from_bits(triangle.triangle_id.get()),
+                    f32::from_bits(triangle.material_id.get()),
+                    f32::from_bits(OP_LEAF),
                 ));
             }
         }
     }
 
-    // In the shader we use `BvhNode` that takes 2 * Vec4 of space and so here
-    // we divide by two in order to compensate for that
-    (ptr / 2) as u32
+    ptr as u32
 }

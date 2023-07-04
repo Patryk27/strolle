@@ -17,7 +17,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[BvhNode],
+    bvh: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
     lights: &[Light],
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]

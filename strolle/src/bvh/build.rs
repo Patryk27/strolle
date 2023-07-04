@@ -8,10 +8,6 @@ use crossbeam::channel::{self, Receiver, Sender};
 use crate::{Axis, BoundingBox, BvhNode, BvhTriangle};
 
 /// Number of worker-threads to spawn for processing the tree.
-///
-/// Somewhat surprisingly, three seems to work the best - probably because more
-/// threads cause the algorithm to get stuck on CPU <-> RAM data transmission
-/// more often.
 const THREADS: usize = 3;
 
 /// Number of bins to use when looking for the optimal splitting plane¹.
@@ -22,7 +18,7 @@ const THREADS: usize = 3;
 /// ¹ see: binned SAH
 const BINS: usize = 16;
 
-/// Constructs BVH using a multi-threaded binned SAH approach.
+/// Constructs BVH using a multi-threaded binned SAH algorithm.
 ///
 /// Thanks to:
 /// https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/.
@@ -34,11 +30,11 @@ pub fn run<'a>(
     let (queue_tx, queue_rx) = channel::unbounded();
 
     _ = queue_tx.send({
-        let bb = triangles.iter().map(|triangle| triangle.bb).collect();
+        let bounds = triangles.iter().map(|triangle| triangle.bounds).collect();
 
         WorkerMsg::BalanceNode {
             node_id: 0,
-            node: BvhNode::Leaf { bb, triangles },
+            node: BvhNode::Leaf { bounds, triangles },
         }
     });
 
@@ -139,7 +135,7 @@ struct SplittingPlane {
 
 #[derive(Clone, Copy, Default, Debug)]
 struct Bin {
-    bb: BoundingBox,
+    bounds: BoundingBox,
     count: u32,
 }
 
@@ -148,9 +144,7 @@ fn find_splitting_plane(node: &BvhNode) -> Option<SplittingPlane> {
         return None;
     };
 
-    // If this node has just a few triangles, it's not worth to split it further
-    // since the cost of BVH traversal is non-zero, after all
-    if triangles.len() <= 3 {
+    if triangles.len() <= 1 {
         return None;
     }
 
@@ -169,7 +163,7 @@ fn find_splitting_plane(node: &BvhNode) -> Option<SplittingPlane> {
 
             let bin_idx = (bin_idx as usize).min(BINS - 1);
 
-            bins[bin_idx].bb = bins[bin_idx].bb + triangle.bb;
+            bins[bin_idx].bounds = bins[bin_idx].bounds + triangle.bounds;
             bins[bin_idx].count += 1;
         }
 
@@ -188,13 +182,13 @@ fn find_splitting_plane(node: &BvhNode) -> Option<SplittingPlane> {
             left_count += bins[i].count;
             left_counts[i] = left_count;
 
-            left_bb += bins[i].bb;
+            left_bb += bins[i].bounds;
             left_areas[i] = left_bb.area();
 
             right_count += bins[BINS - 1 - i].count;
             right_counts[BINS - 2 - i] = right_count;
 
-            right_bb += bins[BINS - 1 - i].bb;
+            right_bb += bins[BINS - 1 - i].bounds;
             right_areas[BINS - 2 - i] = right_bb.area();
         }
 
@@ -231,12 +225,12 @@ fn split<'a>(
     split_by: Axis,
     split_at: f32,
 ) -> (BvhNode<'a>, Option<(u32, BvhNode<'a>, u32, BvhNode<'a>)>) {
-    let (bb, triangles) = match node {
-        BvhNode::Internal { bb, left_node_id } => {
-            return (BvhNode::Internal { bb, left_node_id }, None);
-        }
+    let (bounds, triangles) = match node {
+        BvhNode::Leaf { bounds, triangles } => (bounds, triangles),
 
-        BvhNode::Leaf { bb, triangles } => (bb, triangles),
+        node => {
+            return (node, None);
+        }
     };
 
     // ---
@@ -244,19 +238,19 @@ fn split<'a>(
     let mut i = 0;
     let mut j = triangles.len() - 1;
 
-    let mut left_bb = BoundingBox::default();
-    let mut right_bb = BoundingBox::default();
+    let mut left_bounds = BoundingBox::default();
+    let mut right_bounds = BoundingBox::default();
 
     while i <= j {
         let triangle = triangles[i as usize];
 
         if triangle.center[split_by] <= split_at {
             i += 1;
-            left_bb += triangle.bb;
+            left_bounds += triangle.bounds;
         } else {
             triangles.swap(i as usize, j as usize);
             j -= 1;
-            right_bb += triangle.bb;
+            right_bounds += triangle.bounds;
         }
     }
 
@@ -267,17 +261,17 @@ fn split<'a>(
     let right_id = left_id + 1;
 
     let parent = BvhNode::Internal {
-        bb,
+        bounds,
         left_node_id: left_id,
     };
 
     let left = BvhNode::Leaf {
-        bb: left_bb,
+        bounds: left_bounds,
         triangles: left_tris,
     };
 
     let right = BvhNode::Leaf {
-        bb: right_bb,
+        bounds: right_bounds,
         triangles: right_tris,
     };
 

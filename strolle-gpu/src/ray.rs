@@ -1,9 +1,9 @@
 use core::mem;
 
-use glam::Vec3;
+use glam::{Vec3, Vec4, Vec4Swizzles};
 
 use crate::{
-    BvhNode, BvhStack, BvhView, Hit, MaterialId, TriangleId, TrianglesView,
+    BvhStack, BvhView, Hit, MaterialId, Triangle, TriangleId, TrianglesView,
     BVH_STACK_SIZE,
 };
 
@@ -90,7 +90,9 @@ impl Ray {
         mode: TracingMode,
         hit: &mut Hit,
     ) -> u32 {
-        let mut traversed_nodes = 0;
+        // An estimation of the memory used when travelling the BVH; useful for
+        // debugging
+        let mut used_memory = 0;
 
         // Index into the `bvh` array; points at the currently processed node
         let mut bvh_ptr = 0;
@@ -103,19 +105,26 @@ impl Ray {
         let mut stack_ptr = stack_begins_at;
 
         loop {
-            traversed_nodes += 1;
+            used_memory += mem::size_of::<Vec4>() as u32;
 
-            let (is_internal, arg0, arg1) = bvh.get(bvh_ptr).deserialize();
+            let d0 = bvh.get(bvh_ptr);
+            let is_internal_node = d0.w.to_bits() == 0;
 
-            if is_internal {
-                let mut near_ptr = bvh_ptr + 1;
+            if is_internal_node {
+                used_memory += 3 * mem::size_of::<Vec4>() as u32;
+
+                let d1 = bvh.get(bvh_ptr + 1);
+                let d2 = bvh.get(bvh_ptr + 2);
+                let d3 = bvh.get(bvh_ptr + 3);
+
+                let mut near_ptr = bvh_ptr + 4;
+                let mut far_ptr = d1.w.to_bits();
 
                 let mut near_distance =
-                    self.distance_to_node(bvh.get(near_ptr));
+                    self.distance_to_node(d0.xyz(), d1.xyz());
 
-                let mut far_ptr = arg0;
-
-                let mut far_distance = self.distance_to_node(bvh.get(far_ptr));
+                let mut far_distance =
+                    self.distance_to_node(d2.xyz(), d3.xyz());
 
                 if far_distance < near_distance {
                     mem::swap(&mut near_ptr, &mut far_ptr);
@@ -142,9 +151,11 @@ impl Ray {
                     continue;
                 }
             } else {
-                let has_more_triangles = arg0 & 1 == 1;
-                let triangle_id = TriangleId::new(arg0 >> 1);
-                let material_id = MaterialId::new(arg1);
+                used_memory += mem::size_of::<Triangle>() as u32;
+
+                let has_more_triangles = d0.x.to_bits() & 1 == 1;
+                let triangle_id = TriangleId::new(d0.y.to_bits());
+                let material_id = MaterialId::new(d0.z.to_bits());
 
                 if triangles.get(triangle_id).hit(self, hit) {
                     hit.material_id = material_id;
@@ -166,9 +177,7 @@ impl Ray {
             // In any case, now it's the time to pop the next node from the
             // stack and investigate it; if the stack is empty, then we've
             // tested all nodes and we can safely bail out.
-            let does_stack_contain_anything = stack_ptr > stack_begins_at;
-
-            if does_stack_contain_anything {
+            if stack_ptr > stack_begins_at {
                 unsafe {
                     stack_ptr -= 1;
                     bvh_ptr = *stack.get_unchecked(stack_ptr);
@@ -178,14 +187,12 @@ impl Ray {
             }
         }
 
-        traversed_nodes
+        used_memory
     }
 
-    /// Performs ray <-> AABB-box hit-testing and returns the closest hit (or
-    /// `f32::MAX` if this ray doesn't hit given box).
-    fn distance_to_node(self, node: BvhNode) -> f32 {
-        let hit_min = (node.bb_min() - self.origin) * self.inv_direction;
-        let hit_max = (node.bb_max() - self.origin) * self.inv_direction;
+    fn distance_to_node(self, aabb_min: Vec3, aabb_max: Vec3) -> f32 {
+        let hit_min = (aabb_min - self.origin) * self.inv_direction;
+        let hit_max = (aabb_max - self.origin) * self.inv_direction;
 
         let tmin = hit_min.min(hit_max).max_element();
         let tmax = hit_min.max(hit_max).min_element();
@@ -193,7 +200,7 @@ impl Ray {
         if tmax >= tmin && tmax >= 0.0 {
             tmin
         } else {
-            f32::INFINITY
+            f32::MAX
         }
     }
 }
