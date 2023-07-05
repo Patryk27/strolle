@@ -95,7 +95,7 @@ impl CameraController {
         let has_any_objects = !engine.instances.is_empty();
 
         if let CameraMode::BvhHeatmap = self.camera.mode {
-            self.passes.direct_tracing.run(self, encoder);
+            self.passes.bvh_heatmap.run(self, encoder);
             self.passes.output_drawing.run(self, encoder, view);
         } else {
             self.passes.atmosphere.run(engine, self, encoder);

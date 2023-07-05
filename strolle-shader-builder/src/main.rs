@@ -6,13 +6,13 @@ use spirv_builder::{Capability, SpirvBuilder};
 
 const CRATES: &[&str] = &[
     "atmosphere",
+    "bvh-heatmap",
     "direct-denoising",
     "direct-initial-shading",
     "direct-raster",
     "direct-resolving",
     "direct-spatial-resampling",
     "direct-temporal-resampling",
-    "direct-tracing",
     "indirect-denoising",
     "indirect-initial-shading",
     "indirect-initial-tracing",

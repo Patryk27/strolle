@@ -110,8 +110,15 @@ pub fn main_fs(
             (normal, false)
         }
 
-        // CameraMode::VelocityMap
+        // CameraMode::BvhHeatmap
         6 => {
+            let heatmap = direct_colors.sample(*sampler, texel_xy).xyz();
+
+            (heatmap, false)
+        }
+
+        // CameraMode::VelocityMap
+        7 => {
             let velocity = velocity_map
                 .sample(*sampler, texel_xy)
                 .xy()
@@ -119,13 +126,6 @@ pub fn main_fs(
                 .extend(0.0);
 
             (velocity, false)
-        }
-
-        // CameraMode::BvhHeatmap
-        7 => {
-            let heatmap = direct_colors.sample(*sampler, texel_xy).xyz();
-
-            (heatmap, false)
         }
 
         _ => Default::default(),

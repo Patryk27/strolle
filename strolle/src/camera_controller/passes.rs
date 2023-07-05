@@ -1,11 +1,11 @@
 mod atmosphere;
+mod bvh_heatmap;
 mod direct_denoising;
 mod direct_initial_shading;
 mod direct_raster;
 mod direct_resolving;
 mod direct_spatial_resampling;
 mod direct_temporal_resampling;
-mod direct_tracing;
 mod indirect_denoising;
 mod indirect_initial_shading;
 mod indirect_initial_tracing;
@@ -18,13 +18,13 @@ mod reprojection;
 use log::debug;
 
 pub use self::atmosphere::*;
+pub use self::bvh_heatmap::*;
 pub use self::direct_denoising::*;
 pub use self::direct_initial_shading::*;
 pub use self::direct_raster::*;
 pub use self::direct_resolving::*;
 pub use self::direct_spatial_resampling::*;
 pub use self::direct_temporal_resampling::*;
-pub use self::direct_tracing::*;
 pub use self::indirect_denoising::*;
 pub use self::indirect_initial_shading::*;
 pub use self::indirect_initial_tracing::*;
@@ -38,6 +38,7 @@ use crate::{Camera, CameraBuffers, Engine, Params};
 #[derive(Debug)]
 pub struct CameraPasses {
     pub atmosphere: AtmospherePass,
+    pub bvh_heatmap: BvhHeatmapPass,
 
     pub direct_denoising: DirectDenoisingPass,
     pub direct_initial_shading: DirectInitialShadingPass,
@@ -45,7 +46,6 @@ pub struct CameraPasses {
     pub direct_resolving: DirectResolvingPass,
     pub direct_spatial_resampling: DirectSpatialResamplingPass,
     pub direct_temporal_resampling: DirectTemporalResamplingPass,
-    pub direct_tracing: DirectTracingPass,
 
     pub indirect_denoising: IndirectDenoisingPass,
     pub indirect_initial_shading: IndirectInitialShadingPass,
@@ -72,6 +72,7 @@ impl CameraPasses {
 
         Self {
             atmosphere: AtmospherePass::new(engine, device, buffers),
+            bvh_heatmap: BvhHeatmapPass::new(engine, device, buffers),
 
             direct_denoising: DirectDenoisingPass::new(engine, device, buffers),
             direct_initial_shading: DirectInitialShadingPass::new(
@@ -87,7 +88,6 @@ impl CameraPasses {
             direct_temporal_resampling: DirectTemporalResamplingPass::new(
                 engine, device, buffers,
             ),
-            direct_tracing: DirectTracingPass::new(engine, device, buffers),
 
             indirect_denoising: IndirectDenoisingPass::new(
                 engine, device, buffers,

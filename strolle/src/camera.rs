@@ -93,11 +93,11 @@ pub enum CameraMode {
     /// Shows normals
     NormalMap,
 
-    /// Shows velocities used for reprojection
-    VelocityMap,
-
     /// Shows BVH tree's heatmap
     BvhHeatmap,
+
+    /// Shows velocities used for reprojection
+    VelocityMap,
 }
 
 impl CameraMode {

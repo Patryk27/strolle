@@ -1,5 +1,5 @@
 [package]
-name = "strolle-direct-tracing-shader"
+name = "strolle-bvh-heatmap-shader"
 version = "0.1.0"
 edition = "2021"
 

@@ -25,13 +25,13 @@ macro_rules! shaders {
 
 shaders!([
     atmosphere => "strolle_atmosphere_shader.spv",
+    bvh_heatmap => "strolle_bvh_heatmap_shader.spv",
     direct_denoising => "strolle_direct_denoising_shader.spv",
     direct_initial_shading => "strolle_direct_initial_shading_shader.spv",
     direct_raster => "strolle_direct_raster_shader.spv",
     direct_resolving => "strolle_direct_resolving_shader.spv",
     direct_spatial_resampling => "strolle_direct_spatial_resampling_shader.spv",
     direct_temporal_resampling => "strolle_direct_temporal_resampling_shader.spv",
-    direct_tracing => "strolle_direct_tracing_shader.spv",
     indirect_denoising => "strolle_indirect_denoising_shader.spv",
     indirect_initial_shading => "strolle_indirect_initial_shading_shader.spv",
     indirect_initial_tracing => "strolle_indirect_initial_tracing_shader.spv",

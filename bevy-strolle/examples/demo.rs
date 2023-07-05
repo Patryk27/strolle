@@ -269,12 +269,12 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::Key7) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::VelocityMap;
+        camera.mode = st::CameraMode::BvhHeatmap;
     }
 
     if keys.just_pressed(KeyCode::Key8) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::BvhHeatmap;
+        camera.mode = st::CameraMode::VelocityMap;
     }
 
     if keys.just_pressed(KeyCode::Key0) {

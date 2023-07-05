@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DirectTracingPass {
+pub struct BvhHeatmapPass {
     pass: CameraComputePass,
 }
 
-impl DirectTracingPass {
+impl BvhHeatmapPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -17,7 +17,7 @@ impl DirectTracingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("direct_tracing")
+        let pass = CameraComputePass::builder("bvh_heatmap")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -26,7 +26,7 @@ impl DirectTracingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.direct_colors.curr().bind_writable(),
             ])
-            .build(device, &engine.shaders.direct_tracing);
+            .build(device, &engine.shaders.bvh_heatmap);
 
         Self { pass }
     }
