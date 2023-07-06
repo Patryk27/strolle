@@ -26,7 +26,7 @@ pub fn main(
 ) {
     main_inner(
         global_id.xy(),
-        params,
+        WhiteNoise::new(params.seed, global_id.xy()),
         camera,
         SurfaceMap::new(surface_map),
         raw_indirect_colors,
@@ -37,23 +37,22 @@ pub fn main(
 #[allow(clippy::too_many_arguments)]
 fn main_inner(
     screen_pos: UVec2,
-    params: &IndirectResolvingPassParams,
+    mut wnoise: WhiteNoise,
     camera: &Camera,
     surface_map: SurfaceMap,
     raw_indirect_colors: TexRgba16f,
     indirect_spatial_reservoirs: &[Vec4],
 ) {
-    let mut noise = Noise::new(params.seed, screen_pos);
+    let screen_surface = surface_map.get(screen_pos);
+
     let mut out = Vec4::ZERO;
     let mut sample_idx = 0;
-
-    let screen_surface = surface_map.get(screen_pos);
 
     while sample_idx < 8 {
         let reservoir_distance = sample_idx as f32;
 
         let reservoir_pos =
-            screen_pos.as_vec2() + noise.sample_circle() * reservoir_distance;
+            screen_pos.as_vec2() + wnoise.sample_circle() * reservoir_distance;
 
         let reservoir_pos = reservoir_pos.as_ivec2();
 

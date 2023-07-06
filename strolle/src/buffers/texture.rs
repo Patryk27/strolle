@@ -74,7 +74,7 @@ pub struct TextureBuilder {
     size: Option<UVec2>,
     format: Option<wgpu::TextureFormat>,
     usage: Option<wgpu::TextureUsages>,
-    linear_sampling: Option<bool>,
+    sampler: wgpu::SamplerDescriptor<'static>,
 }
 
 impl TextureBuilder {
@@ -97,13 +97,14 @@ impl TextureBuilder {
         self
     }
 
-    pub fn add_usage(mut self, usage: wgpu::TextureUsages) -> Self {
+    pub fn with_usage(mut self, usage: wgpu::TextureUsages) -> Self {
         *self.usage.get_or_insert(usage) |= usage;
         self
     }
 
-    pub fn with_linear_sampling(mut self) -> Self {
-        self.linear_sampling = Some(true);
+    pub fn with_linear_filtering_sampler(mut self) -> Self {
+        self.sampler.mag_filter = wgpu::FilterMode::Linear;
+        self.sampler.min_filter = wgpu::FilterMode::Linear;
         self
     }
 
@@ -113,14 +114,13 @@ impl TextureBuilder {
             size,
             format,
             usage,
-            linear_sampling,
+            sampler,
         } = self;
 
         let label = format!("strolle_{}", label);
         let size = size.expect("Missing property: size");
         let format = format.expect("Missing property: format");
         let usage = usage.expect("Missing property: usage");
-        let linear_sampling = linear_sampling.unwrap_or_default();
 
         debug!(
             "Allocating texture `{label}`; size={size:?}, format={format:?}"
@@ -144,23 +144,15 @@ impl TextureBuilder {
             view_formats: &[],
         });
 
-        let view = tex.create_view(&Default::default());
+        let filterable = sampler.mag_filter != wgpu::FilterMode::Nearest
+            || sampler.min_filter != wgpu::FilterMode::Nearest;
 
+        let view = tex.create_view(&Default::default());
         let sampler_label = format!("{label}_sampler");
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some(&sampler_label),
-            mag_filter: if linear_sampling {
-                wgpu::FilterMode::Linear
-            } else {
-                wgpu::FilterMode::Nearest
-            },
-            min_filter: if linear_sampling {
-                wgpu::FilterMode::Linear
-            } else {
-                wgpu::FilterMode::Nearest
-            },
-            ..Default::default()
+            ..sampler
         });
 
         Texture {
@@ -168,7 +160,7 @@ impl TextureBuilder {
             format,
             view,
             sampler,
-            filterable: linear_sampling,
+            filterable,
         }
     }
 }

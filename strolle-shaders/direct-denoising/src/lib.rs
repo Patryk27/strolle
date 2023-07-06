@@ -15,10 +15,12 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 2)]
     surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
-    raw_direct_colors: TexRgba16f,
+    prev_surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 4)]
-    direct_colors: TexRgba16f,
+    raw_direct_colors: TexRgba16f,
     #[spirv(descriptor_set = 0, binding = 5)]
+    direct_colors: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 6)]
     prev_direct_colors: TexRgba16f,
 ) {
     main_inner(
@@ -26,6 +28,7 @@ pub fn main(
         camera,
         ReprojectionMap::new(reprojection_map),
         SurfaceMap::new(surface_map),
+        SurfaceMap::new(prev_surface_map),
         raw_direct_colors,
         direct_colors,
         prev_direct_colors,
@@ -38,6 +41,7 @@ fn main_inner(
     camera: &Camera,
     reprojection_map: ReprojectionMap,
     surface_map: SurfaceMap,
+    prev_surface_map: SurfaceMap,
     raw_direct_colors: TexRgba16f,
     direct_colors: TexRgba16f,
     prev_direct_colors: TexRgba16f,
@@ -46,6 +50,7 @@ fn main_inner(
         camera,
         reprojection_map,
         surface_map,
+        prev_surface_map,
         input: raw_direct_colors,
         output: direct_colors,
         prev_output: prev_direct_colors,

@@ -1,6 +1,6 @@
 //! Common structs, algorithms etc. used by Strolle's shaders and renderer.
 
-#![no_std]
+#![cfg_attr(target_arch = "spirv", no_std)]
 #![allow(clippy::len_without_is_empty)]
 #![allow(clippy::manual_range_contains)]
 

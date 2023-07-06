@@ -39,8 +39,8 @@ where
         let atlas_texture = Texture::builder("atlas")
             .with_size(uvec2(Self::ATLAS_WIDTH, Self::ATLAS_HEIGHT))
             .with_format(wgpu::TextureFormat::Rgba8UnormSrgb)
-            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .add_usage(wgpu::TextureUsages::COPY_DST)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::COPY_DST)
             .build(device);
 
         Self {

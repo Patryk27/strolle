@@ -21,6 +21,7 @@ impl IndirectDenoisingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
+                &buffers.surface_map.prev().bind_readable(),
                 &buffers.raw_indirect_colors.bind_readable(),
                 &buffers.indirect_colors.curr().bind_writable(),
                 &buffers.indirect_colors.prev().bind_writable(),

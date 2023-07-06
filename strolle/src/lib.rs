@@ -60,6 +60,7 @@ mod material;
 mod materials;
 mod mesh;
 mod meshes;
+mod noise;
 mod shaders;
 mod sun;
 mod triangle;
@@ -91,6 +92,7 @@ pub use self::material::*;
 pub(self) use self::materials::*;
 pub use self::mesh::*;
 pub(self) use self::meshes::*;
+pub(self) use self::noise::*;
 pub(self) use self::shaders::*;
 pub use self::sun::*;
 pub use self::triangle::*;
@@ -102,6 +104,7 @@ where
     P: Params,
 {
     shaders: Shaders,
+    noise: Noise,
     meshes: Meshes<P>,
     instances: Instances<P>,
     triangles: Triangles<P>,
@@ -125,6 +128,7 @@ where
 
         Self {
             shaders: Shaders::new(device),
+            noise: Noise::new(device),
             meshes: Meshes::default(),
             instances: Instances::default(),
             triangles: Triangles::new(device),
@@ -275,6 +279,7 @@ where
         let any_material_modified = mem::take(&mut self.has_dirty_materials);
         let any_image_modified = mem::take(&mut self.has_dirty_images);
 
+        self.noise.flush(queue);
         self.images.flush(device, queue);
 
         // TODO instead of refreshing all materials if any material was changed,

@@ -61,6 +61,8 @@ pub fn main_fs(
                 // separately and not multply by albedo then:
                 direct
             } else {
+                // TODO multiplying direct by albedo is not correct here
+                //      (same case as in `LightContribution::with_albedo()`)
                 albedo * (direct + indirect) + emissive
             };
 

@@ -27,7 +27,7 @@ pub fn main(
 ) {
     main_inner(
         global_id.xy(),
-        params,
+        WhiteNoise::new(params.seed, global_id.xy()),
         camera,
         direct_hits_d0,
         SurfaceMap::new(surface_map),
@@ -41,7 +41,7 @@ pub fn main(
 #[allow(clippy::too_many_arguments)]
 fn main_inner(
     screen_pos: UVec2,
-    params: &IndirectSpatialResamplingPassParams,
+    mut wnoise: WhiteNoise,
     camera: &Camera,
     direct_hits_d0: TexRgba32f,
     surface_map: SurfaceMap,
@@ -50,11 +50,21 @@ fn main_inner(
     indirect_spatial_reservoirs: &mut [Vec4],
     prev_indirect_spatial_reservoirs: &[Vec4],
 ) {
-    let mut noise = Noise::new(params.seed, screen_pos);
     let screen_idx = camera.screen_to_idx(screen_pos);
     let mut reservoir = IndirectReservoir::default();
+    let screen_surface = surface_map.get(screen_pos);
+
+    let direct_hit_point =
+        Hit::deserialize_point(direct_hits_d0.read(screen_pos));
 
     // -------------------------------------------------------------------------
+    // Step 1:
+    //
+    // Try reprojecting reservoir from the previous frame.
+    //
+    // TODO we could use some interpolation here, but it's kinda difficult to
+    //      apply due to extra metadata stored in the reservoirs (sample normals
+    //      etc.)
 
     let reprojection = reprojection_map.get(screen_pos);
 
@@ -64,32 +74,36 @@ fn main_inner(
             camera.screen_to_idx(reprojection.prev_screen_pos()),
         );
 
-        prev_reservoir.m_sum *=
-            (reprojection.confidence * reprojection.confidence).max(0.1);
+        prev_reservoir.m_sum *= reprojection.confidence;
 
         reservoir.merge(
-            &mut noise,
+            &mut wnoise,
             &prev_reservoir,
             prev_reservoir.sample.p_hat(),
         );
     }
 
     // -------------------------------------------------------------------------
+    // Step 2:
+    //
+    // Analyze our screen-space neighbourhood and try to incorporate samples
+    // from temporal reservoirs around us into our current reservoir.
+    //
+    // As compared to the direct-spatial-resampling pass, in here we simply
+    // gather a few random samples around our current pixel and call it a day.
+    //
+    // TODO consider using blue noise (initial experiments proven it to be
+    //      somewhat less stable here, though)
 
     let mut p_hat = reservoir.sample.p_hat();
-    let screen_surface = surface_map.get(screen_pos);
-
-    let direct_hit_point =
-        Hit::deserialize_point(direct_hits_d0.read(screen_pos));
-
     let mut sample_idx = 0.0f32;
     let mut sample_radius = 32.0f32;
 
     let max_samples = if reservoir.m_sum <= 350.0 { 6.0 } else { 3.0 };
 
     while sample_idx <= max_samples {
-        let rhs_pos =
-            screen_pos.as_vec2() + noise.sample_disk() * sample_radius.max(3.0);
+        let rhs_pos = screen_pos.as_vec2()
+            + wnoise.sample_disk() * sample_radius.max(3.0);
 
         let rhs_pos = rhs_pos.as_ivec2();
 
@@ -132,7 +146,7 @@ fn main_inner(
         let rhs_jacobian = rhs_jacobian.clamp(1.0 / 3.0, 3.0);
 
         if reservoir.merge(
-            &mut noise,
+            &mut wnoise,
             &rhs,
             rhs_p_hat * rhs_similarity * rhs_jacobian,
         ) {

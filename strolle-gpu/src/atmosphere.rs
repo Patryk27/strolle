@@ -5,6 +5,8 @@ use glam::{uvec2, vec2, vec3, UVec2, Vec3, Vec4Swizzles};
 use spirv_std::num_traits::Float;
 use spirv_std::{Image, Sampler};
 
+use crate::F32Ext;
+
 pub struct Atmosphere<'a> {
     transmittance_lut_tex: &'a Image!(2D, type=f32, sampled),
     transmittance_lut_sampler: &'a Sampler,
@@ -216,10 +218,10 @@ impl<'a> Atmosphere<'a> {
         let sun_cos_zenith_angle = sun_dir.dot(up);
 
         let uv = vec2(
-            (0.5 + 0.5 * sun_cos_zenith_angle).clamp(0.0, 1.0),
+            (0.5 + 0.5 * sun_cos_zenith_angle).saturate(),
             ((height - Self::GROUND_RADIUS_MM)
                 / (Self::ATMOSPHERE_RADIUS_MM - Self::GROUND_RADIUS_MM))
-                .clamp(0.0, 1.0),
+                .saturate(),
         );
 
         lut_tex.sample_by_lod(*lut_sampler, uv, 0.0).xyz()

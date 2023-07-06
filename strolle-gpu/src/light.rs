@@ -1,13 +1,16 @@
 mod eval;
 
+use core::f32::consts::PI;
+
 use bytemuck::{Pod, Zeroable};
-use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
+use glam::{vec2, vec3, vec4, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
 use self::eval::*;
 use crate::{
-    BvhStack, BvhView, Hit, Material, Noise, Normal, Ray, TrianglesView,
+    BlueNoise, BvhStack, BvhView, F32Ext, Hit, Material, Normal, Ray,
+    TrianglesView, Vec3Ext, WhiteNoise,
 };
 
 #[repr(C)]
@@ -78,12 +81,11 @@ impl Light {
         self.d2.w
     }
 
-    /// TODO check out https://blog.demofox.org/2020/05/16/using-blue-noise-for-raytraced-soft-shadows/
-    /// TODO check out https://schuttejoe.github.io/post/arealightsampling/
-    pub fn position(&self, noise: &mut Noise) -> Vec3 {
-        self.center() + self.radius() * noise.sample_sphere()
-    }
-
+    /// Evaluates this light on given material and return its contribution (i.e.
+    /// unshaded color).
+    ///
+    /// Note that this function doesn't perform visibility check (see:
+    /// [`Self::visibility()`]).
     pub fn contribution(
         &self,
         material: Material,
@@ -97,80 +99,81 @@ impl Light {
                 .spot_direction()
                 .angle_between(hit.point - self.center());
 
-            (1.0 - (angle / self.spot_angle()).powf(3.0)).clamp(0.0, 1.0)
+            (1.0 - (angle / self.spot_angle()).powf(3.0)).saturate()
         };
 
         if cone_factor < 0.01 {
             return Default::default();
         }
 
-        let roughness =
-            perceptual_roughness_to_roughness(material.perceptual_roughness);
-
-        let hit_to_light = self.center() - hit.point;
-        let diffuse_color = Vec3::ONE * (1.0 - material.metallic);
-        let v = -ray.direction();
-        let n_dot_v = hit.normal.dot(v).max(0.0001);
-        let r = reflect(-v, hit.normal);
-
-        let f0 = 0.16
-            * material.reflectance
-            * material.reflectance
-            * (1.0 - material.metallic)
-            + Vec3::ONE * material.metallic;
-
         let range = self.range();
-
+        let hit_to_light = self.center() - hit.point;
+        let v = (ray.origin() - hit.point).normalize();
         let l = hit_to_light.normalize();
-        let n_o_l = saturate(hit.normal.dot(l));
+        let n_o_l = hit.normal.dot(l).saturate();
 
-        let diffuse = diffuse_light(l, v, hit, roughness, n_o_l);
-        let center_to_ray = hit_to_light.dot(r) * r - hit_to_light;
+        let diffuse = {
+            let diffuse_color = Vec3::ONE * (1.0 - material.metallic);
 
-        let closest_point = hit_to_light
-            + center_to_ray
-                * saturate(
-                    self.radius()
-                        * inverse_sqrt(center_to_ray.dot(center_to_ray)),
-                );
+            diffuse(l, v, hit, material.roughness, n_o_l) * diffuse_color
+        };
 
-        let l_spec_length_inverse =
-            inverse_sqrt(closest_point.dot(closest_point));
+        let specular = {
+            let n_dot_v = hit.normal.dot(v).max(0.0001);
+            let r = (-v).reflect(hit.normal);
 
-        let normalization_factor = roughness
-            / saturate(
-                roughness + (self.radius() * 0.5 * l_spec_length_inverse),
-            );
+            let f0 = 0.16
+                * material.reflectance
+                * material.reflectance
+                * (1.0 - material.metallic)
+                + Vec3::ONE * material.metallic;
 
-        let specular_intensity = normalization_factor * normalization_factor;
+            let center_to_ray = hit_to_light.dot(r) * r - hit_to_light;
 
-        let l = closest_point * l_spec_length_inverse;
-        let h = (l + v).normalize();
-        let n_o_l = saturate(hit.normal.dot(l));
-        let n_o_h = saturate(hit.normal.dot(h));
-        let l_o_h = saturate(l.dot(h));
+            let closest_point = {
+                let t = self.radius()
+                    * center_to_ray.dot(center_to_ray).inverse_sqrt();
 
-        let specular = specular(
-            f0,
-            roughness,
-            n_dot_v,
-            n_o_l,
-            n_o_h,
-            l_o_h,
-            specular_intensity,
-        );
+                hit_to_light + center_to_ray * t.saturate()
+            };
+
+            let l_spec_length_inverse =
+                closest_point.dot(closest_point).inverse_sqrt();
+
+            let normalization_factor = {
+                let t = material.roughness
+                    + self.radius() * 0.5 * l_spec_length_inverse;
+
+                material.roughness / t.saturate()
+            };
+
+            let specular_intensity =
+                normalization_factor * normalization_factor;
+
+            let l = closest_point * l_spec_length_inverse;
+            let h = (l + v).normalize();
+            let n_o_l = hit.normal.dot(l).saturate();
+            let n_o_h = hit.normal.dot(h).saturate();
+            let l_o_h = l.dot(h).saturate();
+
+            specular(
+                f0,
+                material.roughness,
+                n_dot_v,
+                n_o_l,
+                n_o_h,
+                l_o_h,
+                specular_intensity,
+            )
+        };
 
         let distance_attenuation = distance_attenuation(
             hit_to_light.length_squared(),
             1.0 / range.powf(2.0),
         );
 
-        let diffuse = diffuse
-            * diffuse_color
-            * self.color()
-            * distance_attenuation
-            * n_o_l
-            * cone_factor;
+        let diffuse =
+            diffuse * self.color() * distance_attenuation * n_o_l * cone_factor;
 
         let specular = specular
             * self.color()
@@ -181,24 +184,80 @@ impl Light {
         LightContribution { diffuse, specular }
     }
 
+    /// Casts a shadow ray and returns 0.0 if this light is occluded or 1.0 if
+    /// this light is visible from given hit point.
+    ///
+    /// See also: [`Self::visibility_bnoise()`].
     pub fn visibility(
         &self,
         local_idx: u32,
         triangles: TrianglesView,
         bvh: BvhView,
         stack: BvhStack,
-        noise: &mut Noise,
+        wnoise: &mut WhiteNoise,
         hit: Hit,
     ) -> f32 {
-        let is_occluded = {
-            let light_pos = self.position(noise);
-            let light_to_hit = hit.point - light_pos;
+        let light_pos = self.center() + self.radius() * wnoise.sample_sphere();
+        let light_to_hit = hit.point - light_pos;
+        let shadow_ray = Ray::new(light_pos, light_to_hit.normalize());
+        let max_distance = light_to_hit.length();
 
-            let shadow_ray = Ray::new(light_pos, light_to_hit.normalize());
-            let max_distance = light_to_hit.length();
+        let is_occluded = shadow_ray.trace_any(
+            local_idx,
+            triangles,
+            bvh,
+            stack,
+            max_distance,
+        );
 
-            shadow_ray.trace_any(local_idx, triangles, bvh, stack, max_distance)
+        if is_occluded {
+            0.0
+        } else {
+            1.0
+        }
+    }
+
+    /// Like [`Self::visiblity()`] but using blue noise; we use this for direct
+    /// lightning because blue noise yields more useful samples.
+    pub fn visibility_bnoise(
+        &self,
+        local_idx: u32,
+        triangles: TrianglesView,
+        bvh: BvhView,
+        stack: BvhStack,
+        bnoise: BlueNoise,
+        hit: Hit,
+    ) -> f32 {
+        let to_light = self.center() - hit.point;
+        let light_dir = to_light.normalize();
+        let light_distance = to_light.length();
+        let light_radius = self.radius() / light_distance;
+        let light_tangent = light_dir.cross(vec3(0.0, 1.0, 0.0)).normalize();
+        let light_bitangent = light_tangent.cross(light_dir).normalize();
+
+        let disk_point = {
+            let sample = bnoise.first_sample();
+            let angle = 2.0 * PI * sample.x;
+            let length = sample.y.sqrt();
+
+            vec2(angle.sin(), angle.cos()) * length * light_radius
         };
+
+        let shadow_ray_dir = light_dir
+            + disk_point.x * light_tangent
+            + disk_point.y * light_bitangent;
+
+        let shadow_ray_dir = shadow_ray_dir.normalize();
+        let shadow_ray = Ray::new(hit.point, shadow_ray_dir);
+        let max_distance = light_distance;
+
+        let is_occluded = shadow_ray.trace_any(
+            local_idx,
+            triangles,
+            bvh,
+            stack,
+            max_distance,
+        );
 
         if is_occluded {
             0.0
@@ -230,8 +289,11 @@ pub struct LightContribution {
 
 impl LightContribution {
     pub fn with_albedo(mut self, albedo: Vec3) -> Self {
-        // TODO support specular
+        // TODO that's not correct (we're missing information about material's
+        //      metallicness)
         self.diffuse *= albedo;
+
+        // TODO support specular
         self
     }
 

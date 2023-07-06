@@ -84,6 +84,7 @@ impl DirectRasterPassParams {
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectInitialShadingPassParams {
     pub seed: u32,
+    pub frame: u32,
 }
 
 #[repr(C)]
@@ -99,6 +100,7 @@ pub struct DirectTemporalResamplingPassParams {
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectSpatialResamplingPassParams {
     pub seed: u32,
+    pub frame: u32,
 }
 
 #[repr(C)]

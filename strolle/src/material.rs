@@ -97,7 +97,7 @@ where
             emissive_texture: images
                 .lookup_opt(self.emissive_texture.as_ref())
                 .unwrap_or_default(),
-            perceptual_roughness: self.perceptual_roughness,
+            roughness: self.perceptual_roughness.clamp(0.089, 1.0).powf(2.0),
             metallic: self.metallic,
             reflectance: self.reflectance,
             refraction: self.refraction,

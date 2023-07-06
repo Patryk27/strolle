@@ -8,6 +8,7 @@ pub struct TemporalDenoiser<'a> {
     pub camera: &'a Camera,
     pub reprojection_map: ReprojectionMap<'a>,
     pub surface_map: SurfaceMap<'a>,
+    pub prev_surface_map: SurfaceMap<'a>,
     pub input: TexRgba16f<'a>,
     pub output: TexRgba16f<'a>,
     pub prev_output: TexRgba16f<'a>,
@@ -41,7 +42,7 @@ impl<'a> TemporalDenoiser<'a> {
                     let pos = pos.as_uvec2();
 
                     if self
-                        .surface_map
+                        .prev_surface_map
                         .get(pos)
                         .evaluate_similarity_to(&screen_surface)
                         < 0.33

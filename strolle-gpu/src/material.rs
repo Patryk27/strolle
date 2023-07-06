@@ -10,7 +10,7 @@ pub struct Material {
     pub base_color_texture: Vec4,
     pub emissive: Vec4,
     pub emissive_texture: Vec4,
-    pub perceptual_roughness: f32,
+    pub roughness: f32,
     pub metallic: f32,
     pub reflectance: f32,
     pub refraction: f32,
@@ -22,6 +22,15 @@ pub struct Material {
 }
 
 impl Material {
+    /// Adjusts material so that it's ready for computing indirect lightning.
+    pub fn adjust_for_indirect(&mut self) {
+        // When an indirect ray hits a specular highlight, it causes lots of
+        // random pixels to turn white - that's almost impossible to denoise.
+        //
+        // So, following the typical advice, let's clamp the roughness:
+        self.roughness = self.roughness.max(0.75 * 0.75);
+    }
+
     pub fn albedo(
         &self,
         atlas_tex: &Image!(2D, type=f32, sampled),

@@ -2,7 +2,7 @@ use core::ops::{Deref, DerefMut};
 
 use glam::{vec3, Vec3, Vec4, Vec4Swizzles};
 
-use crate::Reservoir;
+use crate::{F32Ext, Reservoir};
 
 #[derive(Clone, Copy, Default)]
 pub struct IndirectReservoir {
@@ -116,7 +116,7 @@ impl IndirectReservoirSample {
     fn partial_jacobian(&self, hit_point: Vec3) -> (f32, f32) {
         let vec = hit_point - self.sample_point;
         let distance = vec.length();
-        let cosine = self.sample_normal.dot(vec / distance).clamp(0.0, 1.0);
+        let cosine = self.sample_normal.dot(vec / distance).saturate();
 
         (distance, cosine)
     }

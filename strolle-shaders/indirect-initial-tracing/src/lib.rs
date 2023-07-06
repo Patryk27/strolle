@@ -30,7 +30,7 @@ pub fn main(
     main_inner(
         global_id.xy(),
         local_idx,
-        params,
+        WhiteNoise::new(params.seed, global_id.xy()),
         stack,
         TrianglesView::new(triangles),
         BvhView::new(bvh),
@@ -45,7 +45,7 @@ pub fn main(
 fn main_inner(
     screen_pos: UVec2,
     local_idx: u32,
-    params: &IndirectInitialTracingPassParams,
+    mut wnoise: WhiteNoise,
     stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
@@ -54,8 +54,6 @@ fn main_inner(
     indirect_hits_d0: TexRgba32f,
     indirect_hits_d1: TexRgba32f,
 ) {
-    let mut noise = Noise::new(params.seed, screen_pos);
-
     let direct_hit = Hit::deserialize(
         direct_hits_d0.read(screen_pos),
         direct_hits_d1.read(screen_pos),
@@ -66,7 +64,7 @@ fn main_inner(
     } else {
         let ray = Ray::new(
             direct_hit.point,
-            noise.sample_hemisphere(direct_hit.normal),
+            wnoise.sample_hemisphere(direct_hit.normal),
         );
 
         ray.trace_nearest(local_idx, triangles, bvh, stack).0

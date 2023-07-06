@@ -24,6 +24,7 @@ pub fn main(
     main_inner(
         global_id.xy(),
         params,
+        WhiteNoise::new(params.seed, global_id.xy()),
         camera,
         ReprojectionMap::new(reprojection_map),
         indirect_initial_samples,
@@ -34,18 +35,21 @@ pub fn main(
 
 #[allow(clippy::too_many_arguments)]
 fn main_inner(
-    scren_pos: UVec2,
+    screen_pos: UVec2,
     params: &IndirectTemporalResamplingPassParams,
+    mut wnoise: WhiteNoise,
     camera: &Camera,
     reprojection_map: ReprojectionMap,
     indirect_initial_samples: &[Vec4],
     indirect_temporal_reservoirs: &mut [Vec4],
     prev_indirect_temporal_reservoirs: &[Vec4],
 ) {
-    let mut noise = Noise::new(params.seed, scren_pos);
-    let screen_idx = camera.screen_to_idx(scren_pos);
+    let screen_idx = camera.screen_to_idx(screen_pos);
 
     // -------------------------------------------------------------------------
+    // Step 1:
+    //
+    // Load sample created in the indirect-temporal-resampmling pass.
 
     let d0 =
         unsafe { *indirect_initial_samples.get_unchecked(3 * screen_idx + 0) };
@@ -74,8 +78,11 @@ fn main_inner(
     };
 
     // -------------------------------------------------------------------------
+    // Step 2:
+    //
+    // Try reprojecting reservoir from the previous frame.
 
-    let reprojection = reprojection_map.get(scren_pos);
+    let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
         let mut prev_reservoir = IndirectReservoir::read(
@@ -83,21 +90,20 @@ fn main_inner(
             camera.screen_to_idx(reprojection.prev_screen_pos()),
         );
 
+        prev_reservoir.m_sum *= reprojection.confidence;
+
         let prev_p_hat = prev_reservoir.sample.p_hat();
 
-        // Older reservoirs are worse because they represent older state of the
-        // world - and so if we're dealing with an older reservoir, let's reduce
-        // its score:
+        // Older reservoirs are worse candidates for resampling because they
+        // represent an older state of the world; so if our reservoir is "old",
+        // let's gradually decrease its likelyhood of being chosen:
         let prev_age = prev_reservoir.age(params.frame);
 
-        if prev_age > 16 {
-            prev_reservoir.m_sum *= 1.0 - ((prev_age - 16) as f32 / 32.0);
+        if prev_age > 8 {
+            prev_reservoir.m_sum *= 1.0 - ((prev_age - 8) as f32 / 8.0);
         }
 
-        prev_reservoir.m_sum *=
-            reprojection.confidence * reprojection.confidence;
-
-        if reservoir.merge(&mut noise, &prev_reservoir, prev_p_hat) {
+        if reservoir.merge(&mut wnoise, &prev_reservoir, prev_p_hat) {
             p_hat = prev_p_hat;
             reservoir.frame = prev_reservoir.frame;
         }

@@ -26,6 +26,10 @@ Shows a dungeon tech demo, as in the render above.
 
 Use WASD to move and mouse to navigate the camera; extra controls include:
 
+- F: Toggle flashlight,
+- O/P: Adjust sun's altitude,
+- M: Toggle between diffusive and specular materials,
+- T: Disable textures,
 - 1: Switch camera to the default mode,
 - 2: Switch camera to a direct lightning only mode,
 - 3: Switch camera to a demodulated direct lightning only mode,
@@ -35,9 +39,7 @@ Use WASD to move and mouse to navigate the camera; extra controls include:
 - 7: Switch camera to a bvh-heatmap mode,
 - 8: Switch camera to a velocity-only mode,
 - 0: Switch camera to Bevy's renderer,
-- F: Toggle flashlight,
-- Semicolon: Toggle camera's controls on/off - useful for taking screenshots,
-- O/P: Adjust sun's altitude.
+- ;: Toggle camera's controls on/off - useful for taking screenshots.
 
 Model thanks to:    
 https://sketchfab.com/3d-models/low-poly-game-level-82b7a937ae504cfa9f277d9bf6874ad2

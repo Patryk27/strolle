@@ -21,6 +21,7 @@ impl DirectInitialShadingPass {
     {
         let pass = CameraComputePass::builder("direct_initial_shading")
             .bind([
+                &engine.noise.bind_blue_noise_texture(),
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.lights.bind_readable(),
@@ -50,6 +51,7 @@ impl DirectInitialShadingPass {
 
         let params = gpu::DirectInitialShadingPassParams {
             seed: rand::thread_rng().gen(),
+            frame: camera.frame,
         };
 
         self.pass.run(camera, encoder, size, &params);

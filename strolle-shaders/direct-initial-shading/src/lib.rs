@@ -14,15 +14,17 @@ pub fn main(
     params: &DirectInitialShadingPassParams,
     #[spirv(workgroup)]
     stack: BvhStack,
-    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
-    triangles: &[Triangle],
+    #[spirv(descriptor_set = 0, binding = 0)]
+    blue_noise_tex: TexRgba8f,
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[Vec4],
+    triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
-    lights: &[Light],
+    bvh: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
+    lights: &[Light],
+    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 4, uniform)]
+    #[spirv(descriptor_set = 0, binding = 5, uniform)]
     world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
@@ -41,12 +43,11 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
     direct_initial_samples: &mut [Vec4],
 ) {
-    let noise = Noise::new(params.seed, global_id.xy());
-
     main_inner(
         global_id.xy(),
         local_idx,
-        noise,
+        BlueNoise::new(blue_noise_tex,  global_id.xy(), params.frame),
+        WhiteNoise::new(params.seed, global_id.xy()),
         stack,
         TrianglesView::new(triangles),
         BvhView::new(bvh),
@@ -70,7 +71,8 @@ pub fn main(
 fn main_inner(
     screen_pos: UVec2,
     local_idx: u32,
-    mut noise: Noise,
+    bnoise: BlueNoise,
+    mut wnoise: WhiteNoise,
     stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
@@ -92,7 +94,7 @@ fn main_inner(
     );
 
     // -------------------------------------------------------------------------
-    // Phase 1:
+    // Step 1:
     //
     // Select the best light-candidate, judging lights by their *unshadowed*
     // contribution (i.e. during this phase we don't cast shadow rays).
@@ -106,7 +108,6 @@ fn main_inner(
         while light_idx < world.light_count {
             let light_id = LightId::new(light_idx);
 
-            // TODO add support for specular lightning
             let light_contribution = lights
                 .get(light_id)
                 .contribution(material, hit, ray)
@@ -117,7 +118,8 @@ fn main_inner(
                 light_contribution,
             };
 
-            reservoir.add(&mut noise, sample, sample.p_hat());
+            // TODO shouldn't we incorporate light's PDF as well?
+            reservoir.add(&mut wnoise, sample, sample.p_hat());
             light_idx += 1;
         }
     } else {
@@ -154,11 +156,11 @@ fn main_inner(
 
         let sample = DirectReservoirSample::sky(sky);
 
-        reservoir.add(&mut noise, sample, sample.p_hat());
+        reservoir.add(&mut wnoise, sample, sky_weight * sample.p_hat());
     }
 
     // -------------------------------------------------------------------------
-    // Phase 2:
+    // Step 2:
     //
     // Select the best light-candidate and cast a shadow ray to check if that
     // light (which might be sun) is actually visible to us.
@@ -177,7 +179,7 @@ fn main_inner(
             lights.get(reservoir.sample.light_id)
         };
 
-        light.visibility(local_idx, triangles, bvh, stack, &mut noise, hit)
+        light.visibility_bnoise(local_idx, triangles, bvh, stack, bnoise, hit)
     };
 
     let light = light_contribution * light_visibility;

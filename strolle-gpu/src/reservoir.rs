@@ -3,7 +3,7 @@ mod indirect;
 
 pub use self::direct::*;
 pub use self::indirect::*;
-use crate::Noise;
+use crate::WhiteNoise;
 
 /// Reservoir for sampling using ReSTIR.
 ///
@@ -46,11 +46,16 @@ where
         }
     }
 
-    pub fn add(&mut self, noise: &mut Noise, s_new: T, w_new: f32) -> bool {
+    pub fn add(
+        &mut self,
+        wnoise: &mut WhiteNoise,
+        s_new: T,
+        w_new: f32,
+    ) -> bool {
         self.w_sum += w_new;
         self.m_sum += 1.0;
 
-        if noise.sample() <= w_new / self.w_sum {
+        if wnoise.sample() <= w_new / self.w_sum {
             self.sample = s_new;
             true
         } else {
@@ -58,7 +63,12 @@ where
         }
     }
 
-    pub fn merge(&mut self, noise: &mut Noise, rhs: &Self, p_hat: f32) -> bool {
+    pub fn merge(
+        &mut self,
+        wnoise: &mut WhiteNoise,
+        rhs: &Self,
+        p_hat: f32,
+    ) -> bool {
         // If the reservoir is empty, reject its sample as soon as possible.
         //
         // Note that it looks like the code below would do it anyway (since we
@@ -78,7 +88,7 @@ where
         }
 
         self.m_sum += rhs.m_sum - 1.0;
-        self.add(noise, rhs.sample, rhs.w * rhs.m_sum * p_hat)
+        self.add(wnoise, rhs.sample, rhs.w * rhs.m_sum * p_hat)
     }
 
     pub fn normalize(&mut self, p_hat: f32, max_w: f32, max_m_sum: f32) {

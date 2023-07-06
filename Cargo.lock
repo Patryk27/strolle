@@ -3115,6 +3115,7 @@ dependencies = [
  "glam 0.24.1",
  "guillotiere",
  "humantime",
+ "image",
  "log",
  "rand",
  "spirv-std",

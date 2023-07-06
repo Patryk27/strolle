@@ -45,6 +45,7 @@ fn main() {
         .insert_resource(Sun::default())
         .add_startup_system(setup)
         .add_system(adjust_materials)
+        .add_system(handle_materials)
         .add_system(handle_camera)
         .add_system(handle_sun)
         .add_system(animate_sun)
@@ -193,8 +194,10 @@ fn setup(
         ));
 }
 
-/// Most of the materials seem to have too low metalicness which makes them look
-/// suspicious in Strolle; let's fix that!
+// -----------------------------------------------------------------------------
+
+/// Most of materials in our demo-scene seem to have too low metalicness, making
+/// them seem kinda suspicious - let's fix that!
 ///
 /// Arguably, a somewhat better approach would be to adjust the *.glb asset, but
 /// doing this via code here is just simpler.
@@ -215,6 +218,29 @@ fn adjust_materials(mut materials: ResMut<Assets<StandardMaterial>>) {
 
         material.metallic = 0.25;
         material.unlit = false;
+    }
+}
+
+fn handle_materials(
+    keys: Res<Input<KeyCode>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if keys.just_pressed(KeyCode::M) {
+        for (_, material) in materials.iter_mut() {
+            if material.perceptual_roughness == 0.0 {
+                material.perceptual_roughness = 0.85;
+                material.reflectance = 0.75;
+            } else {
+                material.perceptual_roughness = 0.0;
+                material.reflectance = 0.0;
+            }
+        }
+    }
+
+    if keys.just_pressed(KeyCode::T) {
+        for (_, material) in materials.iter_mut() {
+            material.base_color_texture = None;
+        }
     }
 }
 
@@ -317,11 +343,11 @@ impl Default for Sun {
 
 fn handle_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
     if keys.just_pressed(KeyCode::O) {
-        sun.altitude -= 0.05;
+        sun.altitude += 0.05;
     }
 
     if keys.just_pressed(KeyCode::P) {
-        sun.altitude += 0.05;
+        sun.altitude -= 0.05;
     }
 }
 

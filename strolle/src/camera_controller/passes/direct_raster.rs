@@ -35,8 +35,8 @@ impl DirectRasterPass {
         let depth_texture = Texture::builder("direct_raster_depth")
             .with_size(camera.viewport.size)
             .with_format(DEPTH_TEXTURE_FORMAT)
-            .add_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .add_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
 
         let bg0 = BindGroup::builder("direct_raster_bg0")

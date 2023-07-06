@@ -52,7 +52,7 @@ pub fn main(
     main_inner(
         global_id.xy(),
         local_idx,
-        params,
+        WhiteNoise::new(params.seed, global_id.xy()),
         stack,
         TrianglesView::new(triangles),
         BvhView::new(bvh),
@@ -80,7 +80,7 @@ pub fn main(
 fn main_inner(
     screen_pos: UVec2,
     local_idx: u32,
-    params: &IndirectInitialShadingPassParams,
+    mut wnoise: WhiteNoise,
     stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
@@ -97,7 +97,6 @@ fn main_inner(
     indirect_hits_d1: TexRgba32f,
     indirect_initial_samples: &mut [Vec4],
 ) {
-    let mut noise = Noise::new(params.seed, screen_pos);
     let screen_idx = camera.screen_to_idx(screen_pos);
 
     // -------------------------------------------------------------------------
@@ -122,8 +121,10 @@ fn main_inner(
         return;
     }
 
-    let indirect_ray =
-        Ray::new(direct_hit.point, noise.sample_hemisphere(direct_hit.normal));
+    let indirect_ray = Ray::new(
+        direct_hit.point,
+        wnoise.sample_hemisphere(direct_hit.normal),
+    );
 
     let indirect_hit = Hit::deserialize(
         indirect_hits_d0.read(screen_pos),
@@ -131,7 +132,7 @@ fn main_inner(
     );
 
     // -------------------------------------------------------------------------
-    // Phase 1:
+    // Step 1:
     //
     // Similarly as for direct lightning, let's start by selecting the best
     // light-candidate, judging lights by their *unshadowed* contribution.
@@ -142,7 +143,9 @@ fn main_inner(
     let mut reservoir = DirectReservoir::default();
 
     if indirect_hit.is_some() {
-        let material = materials.get(indirect_hit.material_id);
+        let mut material = materials.get(indirect_hit.material_id);
+
+        material.adjust_for_indirect();
 
         let albedo = material
             .albedo(atlas_tex, atlas_sampler, indirect_hit.uv)
@@ -164,7 +167,8 @@ fn main_inner(
                 light_contribution,
             };
 
-            reservoir.add(&mut noise, sample, sample.p_hat());
+            // TODO shouldn't we incorporate light's PDF as well?
+            reservoir.add(&mut wnoise, sample, sample.p_hat());
             light_idx += 1;
         }
     }
@@ -187,7 +191,7 @@ fn main_inner(
         sky_normal = if indirect_hit.is_none() {
             indirect_ray.direction()
         } else {
-            noise.sample_hemisphere(indirect_hit.normal)
+            wnoise.sample_hemisphere(indirect_hit.normal)
         };
 
         // Cursed:
@@ -203,11 +207,11 @@ fn main_inner(
             sky_exposure * atmosphere.eval(world.sun_direction(), sky_normal),
         );
 
-        reservoir.add(&mut noise, sample, sample.p_hat());
+        reservoir.add(&mut wnoise, sample, sky_weight * sample.p_hat());
     }
 
     // -------------------------------------------------------------------------
-    // Phase 2:
+    // Step 2:
     //
     // Select the best light-candidate and cast a shadow ray to check if that
     // light (which might be sun) is actually visible to us.
@@ -233,7 +237,7 @@ fn main_inner(
             triangles,
             bvh,
             stack,
-            &mut noise,
+            &mut wnoise,
             indirect_hit,
         )
     };

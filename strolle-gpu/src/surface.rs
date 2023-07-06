@@ -61,16 +61,16 @@ impl<'a> SurfaceMap<'a> {
         lhs_surface: Surface,
         rhs: UVec2,
     ) -> f32 {
-        let steps = lhs.as_vec2().distance(rhs.as_vec2()) / 3.0;
-        let steps = steps.min(4.0) as i32;
-
-        if steps == 0 {
+        if lhs == rhs {
             return 1.0;
         }
 
+        let steps = lhs.as_vec2().distance(rhs.as_vec2()) / 3.0;
+        let steps = steps.min(4.0) as i32;
+
         let rhs_surface = self.get(rhs);
 
-        if steps == 1 {
+        if steps <= 1 {
             return lhs_surface.evaluate_similarity_to(&rhs_surface);
         }
 

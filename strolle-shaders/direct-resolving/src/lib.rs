@@ -70,13 +70,10 @@ fn main_inner(
                 let ray = camera.ray(screen_pos);
                 let material = materials.get(hit.material_id);
 
-                // TODO add support for specular lightning
-                //      (it's a tad difficult since it's visibly more noisy than
-                //      diffuse)
                 lights
                     .get(reservoir.sample.light_id)
                     .contribution(material, hit, ray)
-                    .diffuse
+                    .sum()
             };
 
             contribution * reservoir.w
