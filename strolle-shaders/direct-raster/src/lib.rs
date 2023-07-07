@@ -1,5 +1,6 @@
 #![no_std]
 
+use spirv_std::arch;
 use strolle_gpu::prelude::*;
 
 #[rustfmt::skip]
@@ -81,6 +82,11 @@ pub fn main_fs(
         .get(MaterialId::new(params.material_id()));
 
     let hit_albedo = material.albedo(atlas_tex, atlas_sampler, hit_uv);
+
+    if hit_albedo.w < 0.01 {
+        arch::kill();
+    }
+
     let hit_emissive = material.emissive(atlas_tex, atlas_sampler, hit_uv);
 
     let hit_normal = {
