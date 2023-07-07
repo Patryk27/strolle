@@ -163,7 +163,7 @@ fn find_splitting_plane(node: &BvhNode) -> Option<SplittingPlane> {
 
             let bin_idx = (bin_idx as usize).min(BINS - 1);
 
-            bins[bin_idx].bounds = bins[bin_idx].bounds + triangle.bounds;
+            bins[bin_idx].bounds += triangle.bounds;
             bins[bin_idx].count += 1;
         }
 
@@ -201,7 +201,7 @@ fn find_splitting_plane(node: &BvhNode) -> Option<SplittingPlane> {
                 + (right_counts[i] as f32) * right_areas[i];
 
             let is_current_bin_better =
-                best.map_or(true, |best| split_cost < best.split_cost);
+                best.map_or(true, |best| split_cost <= best.split_cost);
 
             if is_current_bin_better {
                 let split_at =
@@ -235,8 +235,8 @@ fn split<'a>(
 
     // ---
 
-    let mut i = 0;
-    let mut j = triangles.len() - 1;
+    let mut i = 0 as i32;
+    let mut j = (triangles.len() - 1) as i32;
 
     let mut left_bounds = BoundingBox::default();
     let mut right_bounds = BoundingBox::default();
@@ -244,7 +244,7 @@ fn split<'a>(
     while i <= j {
         let triangle = triangles[i as usize];
 
-        if triangle.center[split_by] <= split_at {
+        if triangle.center[split_by] < split_at {
             i += 1;
             left_bounds += triangle.bounds;
         } else {
@@ -256,7 +256,7 @@ fn split<'a>(
 
     // ---
 
-    let (left_tris, right_tris) = triangles.split_at_mut(i);
+    let (left_tris, right_tris) = triangles.split_at_mut(i as usize);
     let left_id = allocated_nodes.fetch_add(2, Ordering::Relaxed);
     let right_id = left_id + 1;
 
