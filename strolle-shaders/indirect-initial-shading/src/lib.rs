@@ -142,13 +142,17 @@ fn main_inner(
 
     let mut reservoir = DirectReservoir::default();
 
-    if indirect_hit.is_some() {
+    let emissive = if indirect_hit.is_some() {
         let mut material = materials.get(indirect_hit.material_id);
 
         material.adjust_for_indirect();
 
         let albedo = material
             .albedo(atlas_tex, atlas_sampler, indirect_hit.uv)
+            .xyz();
+
+        let emissive = material
+            .emissive(atlas_tex, atlas_sampler, indirect_hit.uv)
             .xyz();
 
         let mut light_idx = 0;
@@ -171,7 +175,11 @@ fn main_inner(
             reservoir.add(&mut wnoise, sample, sample.p_hat());
             light_idx += 1;
         }
-    }
+
+        emissive
+    } else {
+        Default::default()
+    };
 
     let sky_weight = if reservoir.w_sum == 0.0 {
         1.0
@@ -242,8 +250,7 @@ fn main_inner(
         )
     };
 
-    let color = light_contribution
-        * light_visibility
+    let color = (light_contribution * light_visibility + emissive)
         * indirect_ray.direction().dot(direct_hit.normal);
 
     let indirect_normal;

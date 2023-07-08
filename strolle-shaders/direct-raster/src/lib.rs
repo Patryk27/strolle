@@ -83,6 +83,9 @@ pub fn main_fs(
 
     let hit_albedo = material.albedo(atlas_tex, atlas_sampler, hit_uv);
 
+    // If our fragment is fully transparent, instead of relying on ray tracing
+    // to find the next hit, let's just kill the fragment and re-use GPU to
+    // locate the next triangle.
     if hit_albedo.w < 0.01 {
         arch::kill();
     }
@@ -118,9 +121,8 @@ pub fn main_fs(
             velocity
         } else {
             // Due to floting-point inaccuracies, stationary objects can end up
-            // having a very small velocity instead of a zero one - this causes
-            // our reprojection shader to freak out later, so let's meet it in
-            // the middle:
+            // having a very small velocity instead of zero - this causes our
+            // reprojection shader to freak out, so let's meet in the middle:
             Default::default()
         }
     };
