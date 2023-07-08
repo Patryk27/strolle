@@ -134,31 +134,13 @@ pub fn main_fs(
     };
 
     *frag_color = if apply_color_adjustments {
-        let color = apply_tone_mapping(color);
         let color = apply_debanding(pos.xy(), color);
+        let color = apply_tone_mapping(color);
 
         color.extend(1.0)
     } else {
         color.extend(1.0)
     };
-}
-
-/// Applies Reinhard tone mapping.
-fn apply_tone_mapping(color: Vec3) -> Vec3 {
-    fn luminance(color: Vec3) -> f32 {
-        color.dot(vec3(0.2126, 0.7152, 0.0722))
-    }
-
-    fn change_luminance(color: Vec3, l_out: f32) -> Vec3 {
-        let l_in = luminance(color);
-
-        color * (l_out / l_in)
-    }
-
-    let l_old = luminance(color);
-    let l_new = l_old / (1.0 + l_old);
-
-    change_luminance(color, l_new)
 }
 
 /// Applies screen-space debanding using a simple dither.
@@ -177,4 +159,22 @@ fn apply_debanding(pos: Vec2, color: Vec3) -> Vec3 {
     let color = color + screen_space_dither(pos);
 
     color.powf(2.2)
+}
+
+/// Applies Reinhard tone mapping.
+fn apply_tone_mapping(color: Vec3) -> Vec3 {
+    fn luminance(color: Vec3) -> f32 {
+        color.dot(vec3(0.2126, 0.7152, 0.0722))
+    }
+
+    fn change_luminance(color: Vec3, l_out: f32) -> Vec3 {
+        let l_in = luminance(color);
+
+        color * (l_out / l_in)
+    }
+
+    let l_old = luminance(color);
+    let l_new = l_old / (1.0 + l_old);
+
+    change_luminance(color, l_new)
 }
