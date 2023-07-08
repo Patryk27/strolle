@@ -44,41 +44,47 @@ fn main_inner(
     let mut reprojection = Reprojection::default();
     let screen_surface = surface_map.get(screen_pos);
 
-    let prev_screen_pos =
-        screen_pos.as_vec2() - velocity_map.read(screen_pos).xy();
+    if screen_surface.depth > 0.0 {
+        let prev_screen_pos =
+            screen_pos.as_vec2() - velocity_map.read(screen_pos).xy();
 
-    let check_sample =
-        move |dx: i32, dy: i32, reprojection: &mut Reprojection| {
-            let prev_screen_pos = prev_screen_pos + vec2(dx as f32, dy as f32);
+        let check_sample =
+            move |dx: i32, dy: i32, reprojection: &mut Reprojection| {
+                let prev_screen_pos =
+                    prev_screen_pos + vec2(dx as f32, dy as f32);
 
-            if !prev_camera.contains(prev_screen_pos.round().as_ivec2()) {
-                return false;
-            }
+                if !prev_camera.contains(prev_screen_pos.round().as_ivec2()) {
+                    return false;
+                }
 
-            let sample_surface =
-                prev_surface_map.get(prev_screen_pos.round().as_uvec2());
+                let sample_surface =
+                    prev_surface_map.get(prev_screen_pos.round().as_uvec2());
 
-            let sample_confidence =
-                sample_surface.evaluate_similarity_to(&screen_surface);
+                let sample_confidence =
+                    sample_surface.evaluate_similarity_to(&screen_surface);
 
-            if sample_confidence > reprojection.confidence {
-                *reprojection = Reprojection {
-                    prev_x: prev_screen_pos.x,
-                    prev_y: prev_screen_pos.y,
-                    confidence: sample_confidence,
-                };
-            }
+                if sample_confidence > reprojection.confidence {
+                    *reprojection = Reprojection {
+                        prev_x: prev_screen_pos.x,
+                        prev_y: prev_screen_pos.y,
+                        confidence: sample_confidence,
+                    };
+                }
 
-            sample_confidence >= 0.5
-        };
+                sample_confidence >= 0.5
+            };
 
-    if check_sample(0, 0, &mut reprojection) {
-        //
+        if check_sample(0, 0, &mut reprojection) {
+            //
+        } else {
+            check_sample(-1, 0, &mut reprojection);
+            check_sample(1, 0, &mut reprojection);
+            check_sample(0, -1, &mut reprojection);
+            check_sample(0, 1, &mut reprojection);
+        }
     } else {
-        check_sample(-1, 0, &mut reprojection);
-        check_sample(1, 0, &mut reprojection);
-        check_sample(0, -1, &mut reprojection);
-        check_sample(0, 1, &mut reprojection);
+        // Don't reproject sky; this causes artifacts with indirect lightning
+        // (which doesn't exist at sky's location, after all)
     }
 
     reprojection_map.set(screen_pos, &reprojection);
