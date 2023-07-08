@@ -115,7 +115,7 @@ fn main_inner(
         let sample = filter.eval_reprojection(reprojection);
 
         prev_reservoir.sample.light_contribution = sample.xyz();
-        prev_reservoir.w = sample.w;
+        prev_reservoir.w = sample.w.clamp(0.0, 1000.0);
         prev_reservoir.m_sum *= reprojection.confidence;
 
         reservoir.merge(
