@@ -321,7 +321,7 @@ fn handle_camera(
         };
     }
 
-    if keys.just_pressed(KeyCode::T) {
+    if keys.just_pressed(KeyCode::X) {
         println!("{:?}", camera_xform.translation);
     }
 }
