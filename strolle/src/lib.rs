@@ -282,9 +282,6 @@ where
         self.noise.flush(queue);
         self.images.flush(device, queue);
 
-        // TODO instead of refreshing all materials if any material was changed,
-        //      it could be nicer to use an incremental approach here and only
-        //      rebuild materials that were actually modified
         if any_material_modified || any_image_modified {
             self.materials.refresh(&self.images);
         }
@@ -294,7 +291,8 @@ where
         let any_instance_modified =
             self.instances.refresh(&self.meshes, &mut self.triangles);
 
-        if any_instance_modified {
+        if any_material_modified || any_image_modified || any_instance_modified
+        {
             utils::measure("bvh.refresh", || {
                 self.bvh.refresh(
                     &self.instances,

@@ -32,8 +32,11 @@ impl DirectInitialShadingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.atmosphere_transmittance_lut.bind_sampled(),
                 &buffers.atmosphere_sky_lut.bind_sampled(),
-                &buffers.direct_hits_d0.bind_readable(),
-                &buffers.direct_hits_d1.bind_readable(),
+                &buffers.direct_primary_hits_d0.bind_readable(),
+                &buffers.direct_primary_hits_d1.bind_readable(),
+                &buffers.direct_secondary_rays.bind_readable(),
+                &buffers.direct_secondary_hits_d0.bind_readable(),
+                &buffers.direct_secondary_hits_d1.bind_readable(),
                 &buffers.direct_initial_samples.bind_writable(),
             ])
             .build(device, &engine.shaders.direct_initial_shading);

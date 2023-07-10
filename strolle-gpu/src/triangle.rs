@@ -65,7 +65,7 @@ impl Triangle {
         self.positions().into_iter().sum::<Vec3>() / 3.0
     }
 
-    pub fn hit(&self, ray: Ray, hit: &mut Hit) -> bool {
+    pub fn hit(&self, ray: Ray, hit: &mut Hit, double_sided: bool) -> bool {
         let v0v1 = self.position1() - self.position0();
         let v0v2 = self.position2() - self.position0();
 
@@ -74,8 +74,14 @@ impl Triangle {
         let pvec = ray.direction().cross(v0v2);
         let det = v0v1.dot(pvec);
 
-        if det.abs() < f32::EPSILON {
-            return false;
+        if double_sided {
+            if det.abs() < f32::EPSILON {
+                return false;
+            }
+        } else {
+            if det < f32::EPSILON {
+                return false;
+            }
         }
 
         // ---

@@ -23,7 +23,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     materials: &[Material],
     #[spirv(descriptor_set = 0, binding = 4)]
-    atlas_tex: &Image!(2D, type=f32, sampled),
+    atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 5)]
     atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 6, uniform)]
@@ -31,17 +31,17 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
-    atmosphere_transmittance_lut_tex: &Image!(2D, type=f32, sampled),
+    atmosphere_transmittance_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 2)]
     atmosphere_transmittance_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 3)]
-    atmosphere_sky_lut_tex: &Image!(2D, type=f32, sampled),
+    atmosphere_sky_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 4)]
     atmosphere_sky_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 5)]
-    direct_hits_d0: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 6)]
-    direct_hits_d1: TexRgba32f,
+    direct_primary_hits_d1: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 7)]
     indirect_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 8)]
@@ -68,8 +68,8 @@ pub fn main(
         atlas_sampler,
         world,
         camera,
-        direct_hits_d0,
-        direct_hits_d1,
+        direct_primary_hits_d0,
+        direct_primary_hits_d1,
         indirect_hits_d0,
         indirect_hits_d1,
         indirect_initial_samples,
@@ -87,12 +87,12 @@ fn main_inner(
     lights: LightsView,
     materials: MaterialsView,
     atmosphere: Atmosphere,
-    atlas_tex: &Image!(2D, type=f32, sampled),
+    atlas_tex: Tex,
     atlas_sampler: &Sampler,
     world: &World,
     camera: &Camera,
-    direct_hits_d0: TexRgba32f,
-    direct_hits_d1: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
+    direct_primary_hits_d1: TexRgba32f,
     indirect_hits_d0: TexRgba32f,
     indirect_hits_d1: TexRgba32f,
     indirect_initial_samples: &mut [Vec4],
@@ -102,8 +102,8 @@ fn main_inner(
     // -------------------------------------------------------------------------
 
     let direct_hit = Hit::deserialize(
-        direct_hits_d0.read(screen_pos),
-        direct_hits_d1.read(screen_pos),
+        direct_primary_hits_d0.read(screen_pos),
+        direct_primary_hits_d1.read(screen_pos),
     );
 
     if direct_hit.is_none() {
@@ -171,7 +171,6 @@ fn main_inner(
                 light_contribution,
             };
 
-            // TODO shouldn't we incorporate light's PDF as well?
             reservoir.add(&mut wnoise, sample, sample.p_hat());
             light_idx += 1;
         }

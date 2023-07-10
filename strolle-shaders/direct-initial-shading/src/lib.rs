@@ -29,18 +29,24 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
-    atmosphere_transmittance_lut_tex: &Image!(2D, type=f32, sampled),
+    atmosphere_transmittance_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 2)]
     atmosphere_transmittance_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 3)]
-    atmosphere_sky_lut_tex: &Image!(2D, type=f32, sampled),
+    atmosphere_sky_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 4)]
     atmosphere_sky_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 5)]
-    direct_hits_d0: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 6)]
-    direct_hits_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
+    direct_primary_hits_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 7)]
+    direct_secondary_rays: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 8)]
+    direct_secondary_hits_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 9)]
+    direct_secondary_hits_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 10, storage_buffer)]
     direct_initial_samples: &mut [Vec4],
 ) {
     main_inner(
@@ -61,8 +67,11 @@ pub fn main(
         ),
         world,
         camera,
-        direct_hits_d0,
-        direct_hits_d1,
+        direct_primary_hits_d0,
+        direct_primary_hits_d1,
+        direct_secondary_rays,
+        direct_secondary_hits_d0,
+        direct_secondary_hits_d1,
         direct_initial_samples,
     )
 }
@@ -81,16 +90,23 @@ fn main_inner(
     atmosphere: Atmosphere,
     world: &World,
     camera: &Camera,
-    direct_hits_d0: TexRgba32f,
-    direct_hits_d1: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
+    direct_primary_hits_d1: TexRgba32f,
+    direct_secondary_rays: TexRgba32f,
+    direct_secondary_hits_d0: TexRgba32f,
+    direct_secondary_hits_d1: TexRgba32f,
     direct_initial_samples: &mut [Vec4],
 ) {
     let screen_idx = camera.screen_to_idx(screen_pos);
-    let ray = camera.ray(screen_pos);
 
-    let hit = Hit::deserialize(
-        direct_hits_d0.read(screen_pos),
-        direct_hits_d1.read(screen_pos),
+    let (ray, hit) = Hit::find_direct(
+        camera,
+        direct_primary_hits_d0,
+        direct_primary_hits_d1,
+        direct_secondary_rays,
+        direct_secondary_hits_d0,
+        direct_secondary_hits_d1,
+        screen_pos,
     );
 
     // -------------------------------------------------------------------------
@@ -118,7 +134,6 @@ fn main_inner(
                 light_contribution,
             };
 
-            // TODO shouldn't we incorporate light's PDF as well?
             reservoir.add(&mut wnoise, sample, sample.p_hat());
             light_idx += 1;
         }

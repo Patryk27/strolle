@@ -12,6 +12,7 @@ members = [
     "strolle-shaders/direct-initial-shading",
     "strolle-shaders/direct-raster",
     "strolle-shaders/direct-resolving",
+    "strolle-shaders/direct-secondary-tracing",
     "strolle-shaders/direct-spatial-resampling",
     "strolle-shaders/direct-temporal-resampling",
     "strolle-shaders/indirect-denoising",

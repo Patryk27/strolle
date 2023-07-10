@@ -17,10 +17,16 @@ pub struct CameraBuffers {
     pub atmosphere_scattering_lut: Texture,
     pub atmosphere_sky_lut: Texture,
 
-    pub direct_hits_d0: Texture,
-    pub direct_hits_d1: Texture,
-    pub direct_hits_d2: Texture,
-    pub direct_hits_d3: Texture,
+    pub direct_primary_hits_d0: Texture,
+    pub direct_primary_hits_d1: Texture,
+    pub direct_primary_hits_d2: Texture,
+    pub direct_primary_hits_d3: Texture,
+
+    pub direct_secondary_rays: Texture,
+    pub direct_secondary_hits_d0: Texture,
+    pub direct_secondary_hits_d1: Texture,
+    pub direct_secondary_hits_d2: Texture,
+
     pub raw_direct_colors: Texture,
     pub direct_colors: DoubleBuffered<Texture>,
     pub direct_initial_samples: UnmappedStorageBuffer,
@@ -80,7 +86,7 @@ impl CameraBuffers {
 
         // ---------------------------------------------------------------------
 
-        let direct_hits_d0 = Texture::builder("direct_hits_d0")
+        let direct_primary_hits_d0 = Texture::builder("direct_primary_hits_d0")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
@@ -88,14 +94,7 @@ impl CameraBuffers {
             .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
 
-        let direct_hits_d1 = Texture::builder("direct_hits_d1")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .build(device);
-
-        let direct_hits_d2 = Texture::builder("direct_hits_d2")
+        let direct_primary_hits_d1 = Texture::builder("direct_primary_hits_d1")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
@@ -103,13 +102,49 @@ impl CameraBuffers {
             .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
 
-        let direct_hits_d3 = Texture::builder("direct_hits_d3")
+        let direct_primary_hits_d2 = Texture::builder("direct_primary_hits_d2")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
+
+        let direct_primary_hits_d3 = Texture::builder("direct_primary_hits_d3")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
+
+        let direct_secondary_rays = Texture::builder("direct_secondary_rays")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
+
+        let direct_secondary_hits_d0 =
+            Texture::builder("direct_secondary_hits_d0")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .build(device);
+
+        let direct_secondary_hits_d1 =
+            Texture::builder("direct_secondary_hits_d1")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .build(device);
+
+        let direct_secondary_hits_d2 =
+            Texture::builder("direct_secondary_hits_d2")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .build(device);
 
         let raw_direct_colors = Texture::builder("raw_direct_colors")
             .with_size(camera.viewport.size)
@@ -230,10 +265,16 @@ impl CameraBuffers {
             atmosphere_scattering_lut,
             atmosphere_sky_lut,
 
-            direct_hits_d0,
-            direct_hits_d1,
-            direct_hits_d2,
-            direct_hits_d3,
+            direct_primary_hits_d0,
+            direct_primary_hits_d1,
+            direct_primary_hits_d2,
+            direct_primary_hits_d3,
+
+            direct_secondary_rays,
+            direct_secondary_hits_d0,
+            direct_secondary_hits_d1,
+            direct_secondary_hits_d2,
+
             raw_direct_colors,
             direct_colors,
             direct_initial_samples,

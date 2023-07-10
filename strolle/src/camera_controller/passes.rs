@@ -4,6 +4,7 @@ mod direct_denoising;
 mod direct_initial_shading;
 mod direct_raster;
 mod direct_resolving;
+mod direct_secondary_tracing;
 mod direct_spatial_resampling;
 mod direct_temporal_resampling;
 mod indirect_denoising;
@@ -23,6 +24,7 @@ pub use self::direct_denoising::*;
 pub use self::direct_initial_shading::*;
 pub use self::direct_raster::*;
 pub use self::direct_resolving::*;
+pub use self::direct_secondary_tracing::*;
 pub use self::direct_spatial_resampling::*;
 pub use self::direct_temporal_resampling::*;
 pub use self::indirect_denoising::*;
@@ -44,6 +46,7 @@ pub struct CameraPasses {
     pub direct_initial_shading: DirectInitialShadingPass,
     pub direct_raster: DirectRasterPass,
     pub direct_resolving: DirectResolvingPass,
+    pub direct_secondary_tracing: DirectSecondaryTracingPass,
     pub direct_spatial_resampling: DirectSpatialResamplingPass,
     pub direct_temporal_resampling: DirectTemporalResamplingPass,
 
@@ -70,6 +73,7 @@ impl CameraPasses {
     {
         debug!("Initializing camera passes");
 
+        // TODO use a macro to build them
         Self {
             atmosphere: AtmospherePass::new(engine, device, buffers),
             bvh_heatmap: BvhHeatmapPass::new(engine, device, buffers),
@@ -82,6 +86,9 @@ impl CameraPasses {
                 engine, device, config, buffers,
             ),
             direct_resolving: DirectResolvingPass::new(engine, device, buffers),
+            direct_secondary_tracing: DirectSecondaryTracingPass::new(
+                engine, device, buffers,
+            ),
             direct_spatial_resampling: DirectSpatialResamplingPass::new(
                 engine, device, buffers,
             ),

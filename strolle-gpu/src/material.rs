@@ -1,6 +1,8 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec4, Vec4Swizzles};
-use spirv_std::{Image, Sampler};
+use spirv_std::Sampler;
+
+use crate::Tex;
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Pod, Zeroable)]
@@ -31,9 +33,15 @@ impl Material {
         self.roughness = self.roughness.max(0.75 * 0.75);
     }
 
+    /// Returns whether this material behaves as glass (i.e. either as a mirror
+    /// or as a pass-through surface).
+    pub fn is_glass(&self) -> bool {
+        self.refraction != 1.0 || self.reflectivity > 0.0
+    }
+
     pub fn albedo(
         &self,
-        atlas_tex: &Image!(2D, type=f32, sampled),
+        atlas_tex: Tex,
         atlas_sampler: &Sampler,
         hit_uv: Vec2,
     ) -> Vec4 {
@@ -48,7 +56,7 @@ impl Material {
 
     pub fn emissive(
         &self,
-        atlas_tex: &Image!(2D, type=f32, sampled),
+        atlas_tex: Tex,
         atlas_sampler: &Sampler,
         hit_uv: Vec2,
     ) -> Vec4 {
@@ -62,7 +70,7 @@ impl Material {
     }
 
     fn sample_atlas(
-        atlas_tex: &Image!(2D, type=f32, sampled),
+        atlas_tex: Tex,
         atlas_sampler: &Sampler,
         mut hit_uv: Vec2,
         multiplier: Vec4,

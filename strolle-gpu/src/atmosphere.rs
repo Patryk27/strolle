@@ -3,14 +3,14 @@ use core::f32::consts::PI;
 use glam::{uvec2, vec2, vec3, UVec2, Vec3, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
-use spirv_std::{Image, Sampler};
+use spirv_std::Sampler;
 
-use crate::F32Ext;
+use crate::{F32Ext, Tex};
 
 pub struct Atmosphere<'a> {
-    transmittance_lut_tex: &'a Image!(2D, type=f32, sampled),
+    transmittance_lut_tex: Tex<'a>,
     transmittance_lut_sampler: &'a Sampler,
-    sky_lut_tex: &'a Image!(2D, type=f32, sampled),
+    sky_lut_tex: Tex<'a>,
     sky_lut_sampler: &'a Sampler,
 }
 
@@ -67,9 +67,9 @@ impl<'a> Atmosphere<'a> {
     pub const VIEW_POS: Vec3 = vec3(0.0, Self::GROUND_RADIUS_MM + 0.0002, 0.0);
 
     pub fn new(
-        transmittance_lut_tex: &'a Image!(2D, type=f32, sampled),
+        transmittance_lut_tex: Tex<'a>,
         transmittance_lut_sampler: &'a Sampler,
-        sky_lut_tex: &'a Image!(2D, type=f32, sampled),
+        sky_lut_tex: Tex<'a>,
         sky_lut_sampler: &'a Sampler,
     ) -> Self {
         Self {
@@ -208,7 +208,7 @@ impl<'a> Atmosphere<'a> {
     }
 
     pub fn sample_lut(
-        lut_tex: &Image!(2D, type=f32, sampled),
+        lut_tex: Tex,
         lut_sampler: &Sampler,
         pos: Vec3,
         sun_dir: Vec3,

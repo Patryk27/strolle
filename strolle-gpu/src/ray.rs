@@ -47,6 +47,7 @@ impl Ray {
             bvh,
             stack,
             TracingMode::Nearest,
+            TriangleMode::SingleSided,
             &mut hit,
         );
 
@@ -74,6 +75,7 @@ impl Ray {
             bvh,
             stack,
             TracingMode::Any,
+            TriangleMode::DoubleSided,
             &mut hit,
         );
 
@@ -87,7 +89,8 @@ impl Ray {
         triangles: TrianglesView,
         bvh: BvhView,
         stack: BvhStack,
-        mode: TracingMode,
+        tracing_mode: TracingMode,
+        triangle_mode: TriangleMode,
         hit: &mut Hit,
     ) -> u32 {
         // An estimation of the memory used when travelling the BVH; useful for
@@ -153,14 +156,17 @@ impl Ray {
             } else {
                 used_memory += mem::size_of::<Triangle>() as u32;
 
-                let has_more_triangles = d0.x.to_bits() & 1 == 1;
+                let has_more_triangles = d0.x.to_bits() == 1;
                 let triangle_id = TriangleId::new(d0.y.to_bits());
-                let material_id = MaterialId::new(d0.z.to_bits());
 
-                if triangles.get(triangle_id).hit(self, hit) {
-                    hit.material_id = material_id;
+                if triangles.get(triangle_id).hit(
+                    self,
+                    hit,
+                    triangle_mode == TriangleMode::DoubleSided,
+                ) {
+                    hit.material_id = MaterialId::new(d0.z.to_bits());
 
-                    if let TracingMode::Any = mode {
+                    if let TracingMode::Any = tracing_mode {
                         break;
                     }
                 }
@@ -209,4 +215,10 @@ impl Ray {
 enum TracingMode {
     Nearest,
     Any,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TriangleMode {
+    SingleSided,
+    DoubleSided,
 }

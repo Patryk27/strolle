@@ -1,6 +1,6 @@
-use glam::{Vec2, Vec3, Vec4, Vec4Swizzles};
+use glam::{UVec2, Vec2, Vec3, Vec4, Vec4Swizzles};
 
-use crate::{MaterialId, Normal};
+use crate::{Camera, MaterialId, Normal, Ray, TexRgba32f};
 
 #[derive(Copy, Clone)]
 pub struct Hit {
@@ -68,5 +68,44 @@ impl Hit {
 
     pub fn deserialize_point(d0: Vec4) -> Vec3 {
         d0.xyz()
+    }
+
+    /// Gets the direct hit from opaque surface at given screen-coordinates.
+    ///
+    /// That is, this function returns the primary hit if the primary surface
+    /// (at given screen-coordinates) is opaque, or the secondary hit otherwise.
+    pub fn find_direct(
+        camera: &Camera,
+        direct_primary_hits_d0: TexRgba32f,
+        direct_primary_hits_d1: TexRgba32f,
+        direct_secondary_rays: TexRgba32f,
+        direct_secondary_hits_d0: TexRgba32f,
+        direct_secondary_hits_d1: TexRgba32f,
+        screen_pos: UVec2,
+    ) -> (Ray, Self) {
+        let secondary_ray = direct_secondary_rays.read(screen_pos);
+
+        if secondary_ray == Default::default() {
+            let ray = camera.ray(screen_pos);
+
+            let hit = Hit::deserialize(
+                direct_primary_hits_d0.read(screen_pos),
+                direct_primary_hits_d1.read(screen_pos),
+            );
+
+            (ray, hit)
+        } else {
+            let ray = Ray::new(
+                Hit::deserialize_point(direct_primary_hits_d0.read(screen_pos)),
+                secondary_ray.xyz(),
+            );
+
+            let hit = Hit::deserialize(
+                direct_secondary_hits_d0.read(screen_pos),
+                direct_secondary_hits_d1.read(screen_pos),
+            );
+
+            (ray, hit)
+        }
     }
 }

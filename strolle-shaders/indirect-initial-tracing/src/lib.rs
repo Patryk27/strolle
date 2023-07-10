@@ -19,9 +19,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
     bvh: &[Vec4],
     #[spirv(descriptor_set = 1, binding = 0)]
-    direct_hits_d0: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 1)]
-    direct_hits_d1: TexRgba32f,
+    direct_primary_hits_d1: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 2)]
     indirect_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 3)]
@@ -34,8 +34,8 @@ pub fn main(
         stack,
         TrianglesView::new(triangles),
         BvhView::new(bvh),
-        direct_hits_d0,
-        direct_hits_d1,
+        direct_primary_hits_d0,
+        direct_primary_hits_d1,
         indirect_hits_d0,
         indirect_hits_d1,
     )
@@ -49,14 +49,14 @@ fn main_inner(
     stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
-    direct_hits_d0: TexRgba32f,
-    direct_hits_d1: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
+    direct_primary_hits_d1: TexRgba32f,
     indirect_hits_d0: TexRgba32f,
     indirect_hits_d1: TexRgba32f,
 ) {
     let direct_hit = Hit::deserialize(
-        direct_hits_d0.read(screen_pos),
-        direct_hits_d1.read(screen_pos),
+        direct_primary_hits_d0.read(screen_pos),
+        direct_primary_hits_d1.read(screen_pos),
     );
 
     let indirect_hit = if direct_hit.is_none() {

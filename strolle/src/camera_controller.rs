@@ -105,6 +105,7 @@ impl CameraController {
                 self.passes.reprojection.run(self, encoder);
 
                 if self.camera.mode.needs_direct_lightning() {
+                    self.passes.direct_secondary_tracing.run(self, encoder);
                     self.passes.direct_initial_shading.run(self, encoder);
                     self.passes.direct_temporal_resampling.run(self, encoder);
                     self.passes.direct_spatial_resampling.run(self, encoder);

@@ -13,11 +13,14 @@ use crate::EngineParams;
 pub struct StrolleMaterial {
     pub parent: StandardMaterial,
 
-    /// Specifies the index of refraction.
+    /// Specifies the index of refraction, i.e. how the light behaves when
+    /// exiting this object.
     ///
     /// Defaults to 1.0 and makes sense only for transparent materials (i.e.
     /// when `parent.base_color` and/or `parent.base_color_texture` have
     /// transparency, and `parent.alpha_mode` is non-opaque).
+    ///
+    /// Exclusive with `reflectivity`.
     pub refraction: f32,
 
     /// Specifies the reflectivity level (0.0 ..= 1.0).
@@ -29,6 +32,8 @@ pub struct StrolleMaterial {
     /// reflectance only applies to the specular intensity (i.e. how much
     /// _lights_ are reflected), while setting reflectivity actually causes the
     /// material to reflect the rays.
+    ///
+    /// Exclusive with `refraction`.
     pub reflectivity: f32,
 }
 

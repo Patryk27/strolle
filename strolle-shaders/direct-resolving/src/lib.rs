@@ -15,14 +15,20 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
-    direct_hits_d0: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 2)]
-    direct_hits_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3, storage_buffer)]
-    direct_initial_samples: &[Vec4],
+    direct_primary_hits_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 3)]
+    direct_secondary_rays: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 4)]
+    direct_secondary_hits_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 5)]
+    direct_secondary_hits_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6, storage_buffer)]
+    direct_initial_samples: &[Vec4],
+    #[spirv(descriptor_set = 1, binding = 7)]
     raw_direct_colors: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
     direct_spatial_reservoirs: &[Vec4],
 ) {
     main_inner(
@@ -30,8 +36,11 @@ pub fn main(
         LightsView::new(lights),
         MaterialsView::new(materials),
         camera,
-        direct_hits_d0,
-        direct_hits_d1,
+        direct_primary_hits_d0,
+        direct_primary_hits_d1,
+        direct_secondary_rays,
+        direct_secondary_hits_d0,
+        direct_secondary_hits_d1,
         direct_initial_samples,
         raw_direct_colors,
         direct_spatial_reservoirs,
@@ -44,17 +53,25 @@ fn main_inner(
     lights: LightsView,
     materials: MaterialsView,
     camera: &Camera,
-    direct_hits_d0: TexRgba32f,
-    direct_hits_d1: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
+    direct_primary_hits_d1: TexRgba32f,
+    direct_secondary_rays: TexRgba32f,
+    direct_secondary_hits_d0: TexRgba32f,
+    direct_secondary_hits_d1: TexRgba32f,
     direct_initial_samples: &[Vec4],
     raw_direct_colors: TexRgba16f,
     direct_spatial_reservoirs: &[Vec4],
 ) {
     let screen_idx = camera.screen_to_idx(screen_pos);
 
-    let hit = Hit::deserialize(
-        direct_hits_d0.read(screen_pos),
-        direct_hits_d1.read(screen_pos),
+    let (ray, hit) = Hit::find_direct(
+        camera,
+        direct_primary_hits_d0,
+        direct_primary_hits_d1,
+        direct_secondary_rays,
+        direct_secondary_hits_d0,
+        direct_secondary_hits_d1,
+        screen_pos,
     );
 
     let out = if hit.is_some() {
@@ -67,7 +84,6 @@ fn main_inner(
             let contribution = if reservoir.sample.is_sky() {
                 reservoir.sample.light_contribution
             } else {
-                let ray = camera.ray(screen_pos);
                 let material = materials.get(hit.material_id);
 
                 lights

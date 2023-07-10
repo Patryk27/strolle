@@ -23,14 +23,15 @@ pub fn main_fs(
     #[spirv(frag_coord)] pos: Vec4,
     #[spirv(push_constant)] params: &OutputDrawingPassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: Tex,
     #[spirv(descriptor_set = 0, binding = 2)] sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 3)] direct_hits_d0: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 5)] direct_hits_d2: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 7)] direct_hits_d3: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 9)] indirect_colors: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 11)] surface_map: &Image!(2D, type=f32, sampled),
-    #[spirv(descriptor_set = 0, binding = 13)] velocity_map: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 3)] direct_primary_hits_d0: Tex,
+    #[spirv(descriptor_set = 0, binding = 5)] direct_primary_hits_d2: Tex,
+    #[spirv(descriptor_set = 0, binding = 7)] direct_primary_hits_d3: Tex,
+    #[spirv(descriptor_set = 0, binding = 9)] direct_secondary_hits_d2: Tex,
+    #[spirv(descriptor_set = 0, binding = 11)] indirect_colors: Tex,
+    #[spirv(descriptor_set = 0, binding = 13)] surface_map: Tex,
+    #[spirv(descriptor_set = 0, binding = 15)] velocity_map: Tex,
     frag_color: &mut Vec4,
 ) {
     let texel_xy = {
@@ -46,16 +47,23 @@ pub fn main_fs(
     let (color, apply_color_adjustments) = match params.camera_mode {
         // CameraMode::Image
         0 => {
-            let point = Hit::deserialize_point(
-                direct_hits_d0.sample(*sampler, texel_xy),
+            let primary_point = Hit::deserialize_point(
+                direct_primary_hits_d0.sample(*sampler, texel_xy),
             );
 
-            let albedo = direct_hits_d2.sample(*sampler, texel_xy).xyz();
+            let primary_albedo =
+                direct_primary_hits_d2.sample(*sampler, texel_xy);
+
+            let primary_emissive =
+                direct_primary_hits_d3.sample(*sampler, texel_xy).xyz();
+
+            let secondary_albedo =
+                direct_secondary_hits_d2.sample(*sampler, texel_xy);
+
             let direct = direct_colors.sample(*sampler, texel_xy).xyz();
             let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
-            let emissive = direct_hits_d3.sample(*sampler, texel_xy).xyz();
 
-            let color = if point == Default::default() {
+            let color = if primary_point == Default::default() {
                 // If we hit nothing, the `direct` color will contain sky but
                 // `albedo` is going to be all black, so we need to handle it
                 // separately and not multply by albedo then:
@@ -63,7 +71,21 @@ pub fn main_fs(
             } else {
                 // TODO multiplying direct by albedo is not correct here
                 //      (same case as in `LightContribution::with_albedo()`)
-                albedo * (direct + indirect) + emissive
+                if secondary_albedo == Vec4::ZERO {
+                    primary_albedo.xyz() * (direct + indirect)
+                        + primary_emissive
+                } else {
+                    let primary = primary_albedo.w * primary_albedo.xyz()
+                        + primary_emissive;
+
+                    // TODO missing feature: secondary emissive surfaces
+                    let secondary =
+                        secondary_albedo.xyz() * (direct + indirect);
+
+                    let secondary = (1.0 - primary_albedo.w) * secondary;
+
+                    primary + secondary
+                }
             };
 
             (color, true)
@@ -71,7 +93,9 @@ pub fn main_fs(
 
         // CameraMode::DirectLightning
         1 => {
-            let albedo = direct_hits_d2.sample(*sampler, texel_xy).xyz();
+            let albedo =
+                direct_primary_hits_d2.sample(*sampler, texel_xy).xyz();
+
             let direct = direct_colors.sample(*sampler, texel_xy).xyz();
 
             (albedo * direct, true)
@@ -86,7 +110,9 @@ pub fn main_fs(
 
         // CameraMode::IndirectLightning
         3 => {
-            let albedo = direct_hits_d2.sample(*sampler, texel_xy).xyz();
+            let albedo =
+                direct_primary_hits_d2.sample(*sampler, texel_xy).xyz();
+
             let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
 
             (albedo * indirect, true)

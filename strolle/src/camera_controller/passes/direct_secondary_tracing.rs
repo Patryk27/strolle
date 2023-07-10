@@ -3,11 +3,12 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DirectResolvingPass {
+pub struct DirectSecondaryTracingPass {
     pass: CameraComputePass<()>,
 }
 
-impl DirectResolvingPass {
+impl DirectSecondaryTracingPass {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -16,23 +17,24 @@ impl DirectResolvingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("direct_resolving")
+        let pass = CameraComputePass::builder("direct_secondary_tracing")
             .bind([
-                &engine.lights.bind_readable(),
+                &engine.triangles.bind_readable(),
+                &engine.bvh.bind_readable(),
                 &engine.materials.bind_readable(),
+                &engine.images.bind_sampled(),
             ])
             .bind([
                 &buffers.camera.bind_readable(),
                 &buffers.direct_primary_hits_d0.bind_readable(),
                 &buffers.direct_primary_hits_d1.bind_readable(),
-                &buffers.direct_secondary_rays.bind_readable(),
-                &buffers.direct_secondary_hits_d0.bind_readable(),
-                &buffers.direct_secondary_hits_d1.bind_readable(),
-                &buffers.direct_initial_samples.bind_readable(),
-                &buffers.raw_direct_colors.bind_writable(),
-                &buffers.direct_spatial_reservoirs.curr().bind_readable(),
+                &buffers.direct_primary_hits_d2.bind_readable(),
+                &buffers.direct_secondary_rays.bind_writable(),
+                &buffers.direct_secondary_hits_d0.bind_writable(),
+                &buffers.direct_secondary_hits_d1.bind_writable(),
+                &buffers.direct_secondary_hits_d2.bind_writable(),
             ])
-            .build(device, &engine.shaders.direct_resolving);
+            .build(device, &engine.shaders.direct_secondary_tracing);
 
         Self { pass }
     }

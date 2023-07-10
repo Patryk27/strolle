@@ -13,7 +13,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)]
-    direct_hits_d0: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 2)]
     surface_map: TexRgba32f,
     #[spirv(descriptor_set = 0, binding = 3)]
@@ -29,7 +29,7 @@ pub fn main(
         global_id.xy(),
         WhiteNoise::new(params.seed, global_id.xy()),
         camera,
-        direct_hits_d0,
+        direct_primary_hits_d0,
         SurfaceMap::new(surface_map),
         ReprojectionMap::new(reprojection_map),
         indirect_temporal_reservoirs,
@@ -43,7 +43,7 @@ fn main_inner(
     screen_pos: UVec2,
     mut wnoise: WhiteNoise,
     camera: &Camera,
-    direct_hits_d0: TexRgba32f,
+    direct_primary_hits_d0: TexRgba32f,
     surface_map: SurfaceMap,
     reprojection_map: ReprojectionMap,
     indirect_temporal_reservoirs: &[Vec4],
@@ -55,7 +55,7 @@ fn main_inner(
     let screen_surface = surface_map.get(screen_pos);
 
     let direct_hit_point =
-        Hit::deserialize_point(direct_hits_d0.read(screen_pos));
+        Hit::deserialize_point(direct_primary_hits_d0.read(screen_pos));
 
     // -------------------------------------------------------------------------
     // Step 1:

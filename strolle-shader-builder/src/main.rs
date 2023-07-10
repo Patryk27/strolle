@@ -11,6 +11,7 @@ const CRATES: &[&str] = &[
     "direct-initial-shading",
     "direct-raster",
     "direct-resolving",
+    "direct-secondary-tracing",
     "direct-spatial-resampling",
     "direct-temporal-resampling",
     "indirect-denoising",

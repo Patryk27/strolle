@@ -101,7 +101,7 @@ fn eval_transmittance(pos: Vec3, sun_dir: Vec3) -> Vec3 {
 #[allow(clippy::too_many_arguments)]
 pub fn main_generate_scattering_lut(
     #[spirv(global_invocation_id)] global_id: UVec3,
-    #[spirv(descriptor_set = 0, binding = 0)] transmittance_lut_tex: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 0)] transmittance_lut_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 1)]
     transmittance_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16f,
@@ -143,7 +143,7 @@ pub fn main_generate_scattering_lut(
 }
 
 fn eval_scattering(
-    transmittance_lut_tex: &Image!(2D, type=f32, sampled),
+    transmittance_lut_tex: Tex,
     transmittance_lut_sampler: &Sampler,
     pos: Vec3,
     sun_dir: Vec3,
@@ -283,10 +283,10 @@ fn eval_scattering(
 pub fn main_generate_sky_lut(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] world: &World,
-    #[spirv(descriptor_set = 0, binding = 1)] transmittance_lut_tex: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 1)] transmittance_lut_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 2)]
     transmittance_lut_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 3)] scattering_lut_tex: &Image!(2D, type=f32, sampled),
+    #[spirv(descriptor_set = 0, binding = 3)] scattering_lut_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 4)] scattering_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 5)] out: TexRgba16f,
 ) {
@@ -365,9 +365,9 @@ pub fn main_generate_sky_lut(
 
 #[allow(clippy::too_many_arguments)]
 fn eval_sky(
-    transmittance_lut_tex: &Image!(2D, type=f32, sampled),
+    transmittance_lut_tex: Tex,
     transmittance_lut_sampler: &Sampler,
-    scattering_lut_tex: &Image!(2D, type=f32, sampled),
+    scattering_lut_tex: Tex,
     scattering_lut_sampler: &Sampler,
     pos: Vec3,
     ray_dir: Vec3,

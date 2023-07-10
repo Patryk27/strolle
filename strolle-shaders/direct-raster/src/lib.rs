@@ -55,7 +55,7 @@ pub fn main_fs(
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     materials: &[Material],
     #[spirv(descriptor_set = 0, binding = 1)]
-    atlas_tex: &Image!(2D, type=f32, sampled),
+    atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 2)]
     atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
@@ -71,10 +71,10 @@ pub fn main_fs(
     hit_uv: Vec2,
 
     // Outputs
-    out_direct_hits_d0: &mut Vec4,
-    out_direct_hits_d1: &mut Vec4,
-    out_direct_hits_d2: &mut Vec4,
-    out_direct_hits_d3: &mut Vec4,
+    out_direct_primary_hits_d0: &mut Vec4,
+    out_direct_primary_hits_d1: &mut Vec4,
+    out_direct_primary_hits_d2: &mut Vec4,
+    out_direct_primary_hits_d3: &mut Vec4,
     out_surface_map: &mut Vec4,
     out_velocity_map: &mut Vec4,
 ) {
@@ -83,15 +83,18 @@ pub fn main_fs(
 
     let hit_albedo = material.albedo(atlas_tex, atlas_sampler, hit_uv);
 
-    // If our fragment is fully transparent, instead of relying on ray tracing
-    // to find the next hit, let's just kill the fragment and re-use GPU to
-    // locate the next triangle.
-    if hit_albedo.w < 0.01 {
+    // If our material is fully transparent, we can simply kill the current
+    // fragment to reuse GPU to find the next triangle.
+    //
+    // Note that glass-like materials still require ray tracing to incorporate
+    // reflection and refraction, so this trick only works for non-glassy stuff.
+    if hit_albedo.w < 0.01 && !material.is_glass() {
         arch::kill();
     }
 
     let hit_emissive = material.emissive(atlas_tex, atlas_sampler, hit_uv);
 
+    // TODO bring back normal mapping
     let hit_normal = {
         // If the mesh we're rendering uses per-vertex normals, the normal here
         // will be unnormalized due to the GPU interpolating it in-between
@@ -102,10 +105,17 @@ pub fn main_fs(
     let hit_normal_encoded = Normal::encode(hit_normal);
     let hit_distance = camera.origin().distance(hit_point);
 
-    *out_direct_hits_d0 = hit_point.extend(f32::from_bits(params.material_id()));
-    *out_direct_hits_d1 = hit_normal_encoded.extend(hit_uv.x).extend(hit_uv.y);
-    *out_direct_hits_d2 = hit_albedo;
-    *out_direct_hits_d3 = hit_emissive;
+    *out_direct_primary_hits_d0 =
+        hit_point.extend(f32::from_bits(params.material_id()));
+
+    *out_direct_primary_hits_d1 =
+        hit_normal_encoded.extend(hit_uv.x).extend(hit_uv.y);
+
+    *out_direct_primary_hits_d2 =
+        hit_albedo;
+
+    *out_direct_primary_hits_d3 =
+        hit_emissive;
 
     *out_surface_map = hit_normal_encoded
         .extend(hit_distance)

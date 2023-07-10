@@ -51,13 +51,16 @@ fn main() {
         .add_system(animate_sun)
         .add_system(handle_flashlight)
         .add_system(animate_flashlight)
+        .add_system(animate_spheres)
         .run();
 }
 
 fn setup(
     mut commands: Commands,
-    assets: Res<AssetServer>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
+    assets: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut st_materials: ResMut<Assets<StrolleMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
     let mut window = windows.single_mut();
@@ -114,6 +117,32 @@ fn setup(
             ..default()
         })
         .insert(Flashlight { enabled: false });
+
+    // -------------------------------------------------------------------------
+
+    commands
+        .spawn(MaterialMeshBundle {
+            material: st_materials.add(StrolleMaterial {
+                parent: StandardMaterial {
+                    base_color: Color::rgba(1.0, 1.0, 1.0, 0.0),
+                    alpha_mode: AlphaMode::Blend,
+                    ..default()
+                },
+                reflectivity: 1.0,
+                ..default()
+            }),
+            mesh: meshes.add(
+                Mesh::try_from(shape::Icosphere {
+                    radius: 1.0,
+                    subdivisions: 4,
+                })
+                .unwrap(),
+            ),
+            ..default()
+        })
+        .insert(Sphere {
+            anchor: vec3(-8.0, 0.1, -23.5),
+        });
 
     // -------------------------------------------------------------------------
 
@@ -402,4 +431,22 @@ fn animate_flashlight(
     *flashlight =
         Transform::from_translation(camera.translation - vec3(0.0, 0.25, 0.0))
             .with_rotation(camera.rotation);
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Component)]
+struct Sphere {
+    anchor: Vec3,
+}
+
+fn animate_spheres(
+    time: Res<Time>,
+    mut cubes: Query<(&mut Transform, &Sphere)>,
+) {
+    let tt = time.elapsed_seconds();
+
+    for (mut cube_xform, cube) in cubes.iter_mut() {
+        cube_xform.translation = cube.anchor + vec3(0.0, tt.sin().abs(), 0.0);
+    }
 }

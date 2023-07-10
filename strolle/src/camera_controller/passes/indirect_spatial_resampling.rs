@@ -22,7 +22,7 @@ impl IndirectSpatialResamplingPass {
         let pass = CameraComputePass::builder("indirect_spatial_resampling")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_hits_d0.bind_readable(),
+                &buffers.direct_primary_hits_d0.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.indirect_temporal_reservoirs.curr().bind_readable(),
