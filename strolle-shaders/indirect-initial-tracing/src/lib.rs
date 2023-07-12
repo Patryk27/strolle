@@ -18,6 +18,12 @@ pub fn main(
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
     bvh: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
+    materials: &[Material],
+    #[spirv(descriptor_set = 0, binding = 3)]
+    atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 4)]
+    atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0)]
     direct_primary_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 1)]
@@ -30,10 +36,13 @@ pub fn main(
     main_inner(
         global_id.xy(),
         local_idx,
-        WhiteNoise::new(params.seed, global_id.xy()),
         stack,
+        WhiteNoise::new(params.seed, global_id.xy()),
         TrianglesView::new(triangles),
         BvhView::new(bvh),
+        MaterialsView::new(materials),
+        atlas_tex,
+        atlas_sampler,
         direct_primary_hits_d0,
         direct_primary_hits_d1,
         indirect_hits_d0,
@@ -45,10 +54,13 @@ pub fn main(
 fn main_inner(
     screen_pos: UVec2,
     local_idx: u32,
-    mut wnoise: WhiteNoise,
     stack: BvhStack,
+    mut wnoise: WhiteNoise,
     triangles: TrianglesView,
     bvh: BvhView,
+    materials: MaterialsView,
+    atlas_tex: Tex,
+    atlas_sampler: &Sampler,
     direct_primary_hits_d0: TexRgba32f,
     direct_primary_hits_d1: TexRgba32f,
     indirect_hits_d0: TexRgba32f,
@@ -67,7 +79,16 @@ fn main_inner(
             wnoise.sample_hemisphere(direct_hit.normal),
         );
 
-        ray.trace_nearest(local_idx, triangles, bvh, stack).0
+        ray.trace(
+            local_idx,
+            stack,
+            triangles,
+            bvh,
+            materials,
+            atlas_tex,
+            atlas_sampler,
+        )
+        .0
     };
 
     let [d0, d1] = indirect_hit.serialize();

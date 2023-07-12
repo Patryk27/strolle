@@ -81,7 +81,7 @@ fn main_inner(
     let primary_albedo = direct_primary_hits_d2.read(screen_pos);
 
     // If our fragment is opaque, there's nothing more to do here
-    if primary_albedo.w >= 0.99 {
+    if primary_albedo.w >= 1.0 {
         unsafe {
             direct_secondary_rays.write(screen_pos, Vec4::ZERO);
             direct_secondary_hits_d2.write(screen_pos, Vec4::ZERO);
@@ -149,9 +149,15 @@ fn main_inner(
 
     // -------------------------------------------------------------------------
 
-    // TODO trace up to the nearest *opaque* surface
-    let (secondary_hit, _) =
-        secondary_ray.trace_nearest(local_idx, triangles, bvh, stack);
+    let (secondary_hit, _) = secondary_ray.trace(
+        local_idx,
+        stack,
+        triangles,
+        bvh,
+        materials,
+        atlas_tex,
+        atlas_sampler,
+    );
 
     let secondary_albedo = if secondary_hit.is_some() {
         materials.get(secondary_hit.material_id).albedo(

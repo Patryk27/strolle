@@ -75,7 +75,7 @@ impl Bvh {
 
         self.buffer.clear();
 
-        serialize::run(&nodes, &mut self.buffer);
+        serialize::run(materials, &nodes, &mut self.buffer);
     }
 
     pub fn flush(

@@ -6,7 +6,7 @@ use glam::{vec3, Mat4, Vec3};
 use spirv_std::num_traits::Float;
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct World {
     pub light_count: u32,

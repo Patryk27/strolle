@@ -24,7 +24,11 @@ pub fn main(
     lights: &[Light],
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 5, uniform)]
+    #[spirv(descriptor_set = 0, binding = 5)]
+    atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 6)]
+    atlas_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 7, uniform)]
     world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
@@ -59,6 +63,8 @@ pub fn main(
         BvhView::new(bvh),
         LightsView::new(lights),
         MaterialsView::new(materials),
+        atlas_tex,
+        atlas_sampler,
         Atmosphere::new(
             atmosphere_transmittance_lut_tex,
             atmosphere_transmittance_lut_sampler,
@@ -87,6 +93,8 @@ fn main_inner(
     bvh: BvhView,
     lights: LightsView,
     materials: MaterialsView,
+    atlas_tex: Tex,
+    atlas_sampler: &Sampler,
     atmosphere: Atmosphere,
     world: &World,
     camera: &Camera,
@@ -194,7 +202,17 @@ fn main_inner(
             lights.get(reservoir.sample.light_id)
         };
 
-        light.visibility_bnoise(local_idx, triangles, bvh, stack, bnoise, hit)
+        light.visibility_bnoise(
+            local_idx,
+            stack,
+            triangles,
+            bvh,
+            materials,
+            atlas_tex,
+            atlas_sampler,
+            bnoise,
+            hit,
+        )
     };
 
     let light = light_contribution * light_visibility;

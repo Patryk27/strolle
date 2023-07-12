@@ -21,6 +21,8 @@ impl IndirectInitialTracingPass {
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
+                &engine.materials.bind_readable(),
+                &engine.images.bind_sampled(),
             ])
             .bind([
                 &buffers.direct_primary_hits_d0.bind_readable(),

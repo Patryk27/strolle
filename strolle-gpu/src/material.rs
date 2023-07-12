@@ -5,7 +5,7 @@ use spirv_std::Sampler;
 use crate::Tex;
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, PartialEq, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Material {
     pub base_color: Vec4,
@@ -134,7 +134,7 @@ impl Material {
     // }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug, PartialEq))]
 pub struct MaterialId(u32);
 

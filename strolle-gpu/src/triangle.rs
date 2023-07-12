@@ -3,10 +3,10 @@ use glam::{vec2, Vec2, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{Hit, Ray};
+use crate::{Hit, MaterialId, Ray};
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug, PartialEq))]
 pub struct Triangle {
     pub d0: Vec4,
@@ -65,7 +65,12 @@ impl Triangle {
         self.positions().into_iter().sum::<Vec3>() / 3.0
     }
 
-    pub fn hit(&self, ray: Ray, hit: &mut Hit, double_sided: bool) -> bool {
+    pub fn hit(
+        &self,
+        culling: TriangleCulling,
+        ray: Ray,
+        max_distance: f32,
+    ) -> Hit {
         let v0v1 = self.position1() - self.position0();
         let v0v2 = self.position2() - self.position0();
 
@@ -74,13 +79,16 @@ impl Triangle {
         let pvec = ray.direction().cross(v0v2);
         let det = v0v1.dot(pvec);
 
-        if double_sided {
-            if det.abs() < f32::EPSILON {
-                return false;
+        match culling {
+            TriangleCulling::SingleSided => {
+                if det < f32::EPSILON {
+                    return Hit::none();
+                }
             }
-        } else {
-            if det < f32::EPSILON {
-                return false;
+            TriangleCulling::DoubleSided => {
+                if det.abs() < f32::EPSILON {
+                    return Hit::none();
+                }
             }
         }
 
@@ -98,9 +106,9 @@ impl Triangle {
             | (v < 0.0)
             | (u + v > 1.0)
             | (distance <= 0.0)
-            | (distance >= hit.distance)
+            | (distance >= max_distance)
         {
-            return false;
+            return Hit::none();
         }
 
         let point =
@@ -118,16 +126,17 @@ impl Triangle {
             + (self.uv1() - self.uv0()) * u
             + (self.uv2() - self.uv0()) * v;
 
-        hit.distance = distance;
-        hit.point = point;
-        hit.normal = normal;
-        hit.uv = uv;
-
-        true
+        Hit {
+            distance,
+            point,
+            normal,
+            uv,
+            material_id: MaterialId::new(0),
+        }
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug, PartialEq))]
 pub struct TriangleId(u32);
 
@@ -143,4 +152,10 @@ impl TriangleId {
     pub fn get_mut(&mut self) -> &mut u32 {
         &mut self.0
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TriangleCulling {
+    SingleSided,
+    DoubleSided,
 }

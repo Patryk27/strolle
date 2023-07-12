@@ -19,6 +19,7 @@ where
     refraction: f32,
     reflectivity: f32,
     normal_map_texture: Option<P::ImageHandle>,
+    alpha_mode: AlphaMode,
 }
 
 impl<P> Material<P>
@@ -87,6 +88,15 @@ where
         self
     }
 
+    pub fn with_alpha_mode(mut self, alpha_mode: AlphaMode) -> Self {
+        self.alpha_mode = alpha_mode;
+        self
+    }
+
+    pub(crate) fn alpha_mode(&self) -> AlphaMode {
+        self.alpha_mode
+    }
+
     pub(crate) fn build(&self, images: &Images<P>) -> gpu::Material {
         gpu::Material {
             base_color: self.base_color,
@@ -131,6 +141,31 @@ where
             refraction: 1.0,
             reflectivity: 0.0,
             normal_map_texture: None,
+            alpha_mode: Default::default(),
         }
+    }
+}
+
+/// Specifies if a material is allowed to be transparent
+#[derive(Clone, Copy, Debug)]
+pub enum AlphaMode {
+    /// Material is always opaque (this is the default).
+    ///
+    /// When this is active, the base color's alpha is always set to 1.0.
+    Opaque,
+
+    /// Material is allowed to be transparent (i.e. base color's and base color
+    /// texture's alpha channel is honored).
+    ///
+    /// Note that enabling this option has negative effects on ray-tracing
+    /// performance (non-opaque materials need special handling during the ray
+    /// traversal process), so this option should be enabled conservatively,
+    /// only for materials that actually use transparency.
+    Blend,
+}
+
+impl Default for AlphaMode {
+    fn default() -> Self {
+        AlphaMode::Opaque
     }
 }

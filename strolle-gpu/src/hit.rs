@@ -2,7 +2,7 @@ use glam::{UVec2, Vec2, Vec3, Vec4, Vec4Swizzles};
 
 use crate::{Camera, MaterialId, Normal, Ray, TexRgba32f};
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 pub struct Hit {
     pub distance: f32,
     pub point: Vec3,

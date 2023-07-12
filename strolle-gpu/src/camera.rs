@@ -6,7 +6,7 @@ use spirv_std::num_traits::Float;
 use crate::Ray;
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Camera {
     pub projection_view: Mat4,

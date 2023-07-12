@@ -4,7 +4,7 @@ use glam::{vec2, vec3, UVec2, Vec2, Vec3};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 pub struct WhiteNoise {
     state: u32,
 }

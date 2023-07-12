@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::{vec3a, vec4, Affine3A, Mat3A, Vec4};
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectRasterPassParams {
     pub payload: Vec4,
@@ -80,7 +80,7 @@ impl DirectRasterPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectInitialShadingPassParams {
     pub seed: u32,
@@ -88,7 +88,7 @@ pub struct DirectInitialShadingPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectTemporalResamplingPassParams {
     pub seed: u32,
@@ -96,7 +96,7 @@ pub struct DirectTemporalResamplingPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectSpatialResamplingPassParams {
     pub seed: u32,
@@ -104,7 +104,7 @@ pub struct DirectSpatialResamplingPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct IndirectInitialShadingPassParams {
     pub seed: u32,
@@ -112,7 +112,7 @@ pub struct IndirectInitialShadingPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct IndirectInitialTracingPassParams {
     pub seed: u32,
@@ -120,7 +120,7 @@ pub struct IndirectInitialTracingPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct IndirectTemporalResamplingPassParams {
     pub seed: u32,
@@ -128,7 +128,7 @@ pub struct IndirectTemporalResamplingPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct IndirectSpatialResamplingPassParams {
     pub seed: u32,
@@ -136,7 +136,7 @@ pub struct IndirectSpatialResamplingPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct IndirectResolvingPassParams {
     pub seed: u32,
@@ -144,7 +144,7 @@ pub struct IndirectResolvingPassParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct OutputDrawingPassParams {
     pub camera_mode: u32,

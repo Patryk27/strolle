@@ -16,6 +16,12 @@ pub fn main(
     triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
     bvh: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
+    materials: &[Material],
+    #[spirv(descriptor_set = 0, binding = 3)]
+    atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 4)]
+    atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
@@ -27,6 +33,9 @@ pub fn main(
         stack,
         TrianglesView::new(triangles),
         BvhView::new(bvh),
+        MaterialsView::new(materials),
+        atlas_tex,
+        atlas_sampler,
         camera,
         direct_colors,
     )
@@ -39,12 +48,21 @@ fn main_inner(
     stack: BvhStack,
     triangles: TrianglesView,
     bvh: BvhView,
+    materials: MaterialsView,
+    atlas_tex: Tex,
+    atlas_sampler: &Sampler,
     camera: &Camera,
     direct_colors: TexRgba16f,
 ) {
-    let (_, used_memory) = camera
-        .ray(screen_pos)
-        .trace_nearest(local_idx, triangles, bvh, stack);
+    let (_, used_memory) = camera.ray(screen_pos).trace(
+        local_idx,
+        stack,
+        triangles,
+        bvh,
+        materials,
+        atlas_tex,
+        atlas_sampler,
+    );
 
     let color = gradient(
         [

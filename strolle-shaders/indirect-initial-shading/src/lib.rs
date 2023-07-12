@@ -241,9 +241,12 @@ fn main_inner(
     } else {
         light.visibility(
             local_idx,
+            stack,
             triangles,
             bvh,
-            stack,
+            materials,
+            atlas_tex,
+            atlas_sampler,
             &mut wnoise,
             indirect_hit,
         )

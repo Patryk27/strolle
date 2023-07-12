@@ -21,6 +21,8 @@ impl BvhHeatmapPass {
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
+                &engine.materials.bind_readable(),
+                &engine.images.bind_sampled(),
             ])
             .bind([
                 &buffers.camera.bind_readable(),

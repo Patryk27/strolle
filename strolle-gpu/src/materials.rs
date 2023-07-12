@@ -1,5 +1,6 @@
 use crate::{Material, MaterialId};
 
+#[derive(Clone, Copy)]
 pub struct MaterialsView<'a> {
     items: &'a [Material],
 }

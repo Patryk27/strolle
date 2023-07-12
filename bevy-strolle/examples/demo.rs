@@ -128,7 +128,7 @@ fn setup(
                     alpha_mode: AlphaMode::Blend,
                     ..default()
                 },
-                reflectivity: 1.0,
+                refraction: 1.15,
                 ..default()
             }),
             mesh: meshes.add(

@@ -14,7 +14,7 @@ pub struct StrolleMaterial {
     pub parent: StandardMaterial,
 
     /// Specifies the index of refraction, i.e. how the light behaves when
-    /// exiting this object.
+    /// exiting objects assigned to this material.
     ///
     /// Defaults to 1.0 and makes sense only for transparent materials (i.e.
     /// when `parent.base_color` and/or `parent.base_color_texture` have
@@ -23,7 +23,7 @@ pub struct StrolleMaterial {
     /// Exclusive with `reflectivity`.
     pub refraction: f32,
 
-    /// Specifies the reflectivity level (0.0 ..= 1.0).
+    /// Specifies the reflectivity level (0.0 or 1.0).
     ///
     /// Defaults to 0.0, making the material non-reflective, while the value of
     /// 1.0 means the material will behave as mirror.
@@ -31,7 +31,7 @@ pub struct StrolleMaterial {
     /// Note that it's different from `parent.reflectance` in the sense that
     /// reflectance only applies to the specular intensity (i.e. how much
     /// _lights_ are reflected), while setting reflectivity actually causes the
-    /// material to reflect the rays.
+    /// material to reflect light rays.
     ///
     /// Exclusive with `refraction`.
     pub reflectivity: f32,
@@ -78,6 +78,11 @@ impl MaterialLike for StandardMaterial {
             }
         };
 
+        let alpha_mode = match self.alpha_mode {
+            AlphaMode::Opaque => st::AlphaMode::Opaque,
+            _ => st::AlphaMode::Blend,
+        };
+
         st::Material::default()
             .with_base_color(base_color.compat())
             .with_base_color_texture(self.base_color_texture)
@@ -87,6 +92,7 @@ impl MaterialLike for StandardMaterial {
             .with_metallic(self.metallic)
             .with_reflectance(self.reflectance)
             .with_normal_map_texture(self.normal_map_texture)
+            .with_alpha_mode(alpha_mode)
     }
 
     fn map_handle(handle: Handle<Self>) -> MaterialHandle {

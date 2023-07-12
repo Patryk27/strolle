@@ -1,5 +1,6 @@
 use crate::{Light, LightId};
 
+#[derive(Clone, Copy)]
 pub struct LightsView<'a> {
     items: &'a [Light],
 }

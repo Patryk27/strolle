@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::ops::Index;
 
 use crate::{
     gpu, Bindable, BufferFlushOutcome, Images, MappedStorageBuffer, Material,
@@ -92,5 +93,16 @@ where
 
     pub fn bind_readable(&self) -> impl Bindable + '_ {
         self.buffer.bind_readable()
+    }
+}
+
+impl<P> Index<gpu::MaterialId> for Materials<P>
+where
+    P: Params,
+{
+    type Output = Material<P>;
+
+    fn index(&self, index: gpu::MaterialId) -> &Self::Output {
+        &self.materials[index.get() as usize]
     }
 }

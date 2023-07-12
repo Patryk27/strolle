@@ -26,6 +26,7 @@ impl DirectInitialShadingPass {
                 &engine.bvh.bind_readable(),
                 &engine.lights.bind_readable(),
                 &engine.materials.bind_readable(),
+                &engine.images.bind_sampled(),
                 &engine.world.bind_readable(),
             ])
             .bind([
