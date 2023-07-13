@@ -194,12 +194,14 @@ pub(crate) fn instances<Material>(
                 &Handle<Mesh>,
                 &Handle<Material>,
                 &GlobalTransform,
+                &ComputedVisibility,
                 Option<&RenderLayers>,
             ),
             Or<(
                 Changed<Handle<Mesh>>,
                 Changed<Handle<Material>>,
                 Changed<GlobalTransform>,
+                Changed<ComputedVisibility>,
                 Changed<RenderLayers>,
             )>,
         >,
@@ -208,15 +210,33 @@ pub(crate) fn instances<Material>(
 ) where
     Material: MaterialLike,
 {
+    let mut removed: Vec<_> = removed
+        .iter()
+        .map(|removed| removed.clone().into())
+        .collect();
+
     let changed = changed
         .iter()
         .filter_map(
-            |(handle, mesh_handle, material_handle, transform, layers)| {
+            |(
+                handle,
+                mesh_handle,
+                material_handle,
+                transform,
+                visibility,
+                layers,
+            )| {
+                if !visibility.is_visible_in_hierarchy() {
+                    removed.push(handle);
+                    return None;
+                }
+
                 // TODO this is invalid (but good enough for now); instead, we
                 //      should probably propagate the layers up to the BVH
                 //      leaves and adjust the ray-tracer to read those
                 if let Some(layers) = layers {
                     if *layers != RenderLayers::all() {
+                        removed.push(handle);
                         return None;
                     }
                 }
@@ -229,11 +249,6 @@ pub(crate) fn instances<Material>(
                 })
             },
         )
-        .collect();
-
-    let removed = removed
-        .iter()
-        .map(|removed| removed.clone().into())
         .collect();
 
     commands.insert_resource(ExtractedInstances { changed, removed });

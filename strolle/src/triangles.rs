@@ -68,17 +68,18 @@ where
         instance_handle: &P::InstanceHandle,
         triangles: impl IntoIterator<Item = Triangle>,
     ) {
-        let index = self.index.get_mut(instance_handle).unwrap_or_else(|| {
-            panic!("Instance not known: {instance_handle:?}")
-        });
+        let instance =
+            self.index.get_mut(instance_handle).unwrap_or_else(|| {
+                panic!("Instance not known: {instance_handle:?}")
+            });
 
-        let mut buffer = self.buffer[index.min_triangle_id..].iter_mut();
+        let mut buffer = self.buffer[instance.min_triangle_id..].iter_mut();
 
         for triangle in triangles {
             *buffer.next().unwrap() = triangle.serialize();
         }
 
-        index.dirty = true;
+        instance.dirty = true;
         self.dirty = true;
     }
 
@@ -86,28 +87,16 @@ where
         let Some(instance) = self.index.remove(instance_handle) else { return };
         let removed_triangles = instance.triangle_count();
 
+        let _ = self
+            .buffer
+            .drain(instance.min_triangle_id..=instance.max_triangle_id);
+
         for instance2 in self.index.values_mut() {
             if instance2.min_triangle_id >= instance.max_triangle_id {
-                let old_indices =
-                    instance2.min_triangle_id..=instance2.max_triangle_id;
-
                 instance2.min_triangle_id -= removed_triangles;
                 instance2.max_triangle_id -= removed_triangles;
                 instance2.dirty = true;
-
-                let _ = self.buffer.drain(old_indices);
             }
-        }
-
-        if let Some(max) = self
-            .index
-            .values()
-            .map(|instance| instance.max_triangle_id)
-            .max()
-        {
-            self.buffer.truncate(max);
-        } else {
-            self.buffer.clear();
         }
 
         self.dirty = true;
@@ -150,7 +139,7 @@ where
             ..
         } = &self.index[instance_handle];
 
-        let vertices = max_triangle_id - min_triangle_id + 1;
+        let vertices = 3 * (max_triangle_id - min_triangle_id + 1);
 
         let vertex_buffer = {
             let min = min_triangle_id * mem::size_of::<gpu::Triangle>();
@@ -161,7 +150,7 @@ where
             self.buffer.as_buffer().slice(min..)
         };
 
-        (vertices * 3, vertex_buffer)
+        (vertices, vertex_buffer)
     }
 
     pub fn flush(
