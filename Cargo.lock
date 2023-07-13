@@ -3196,6 +3196,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "strolle-frame-composition-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-frame-reprojection-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
 name = "strolle-gpu"
 version = "0.1.0"
 dependencies = [
@@ -3246,22 +3262,6 @@ dependencies = [
 
 [[package]]
 name = "strolle-indirect-temporal-resampling-shader"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-gpu",
-]
-
-[[package]]
-name = "strolle-output-drawing-shader"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-gpu",
-]
-
-[[package]]
-name = "strolle-reprojection-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",

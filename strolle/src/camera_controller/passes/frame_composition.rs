@@ -8,12 +8,12 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct OutputDrawingPass {
+pub struct FrameCompositionPass {
     bg0: BindGroup,
     pipeline: wgpu::RenderPipeline,
 }
 
-impl OutputDrawingPass {
+impl FrameCompositionPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -23,14 +23,15 @@ impl OutputDrawingPass {
     where
         P: Params,
     {
-        debug!("Initializing pass: output_drawing");
+        debug!("Initializing pass: frame_composition");
 
-        let bg0 = BindGroup::builder("output_drawing_bg0")
+        let bg0 = BindGroup::builder("frame_composition_bg0")
             .add(&buffers.camera.bind_readable())
             .add(&buffers.direct_colors.curr().bind_sampled())
             .add(&buffers.direct_primary_hits_d0.bind_sampled())
             .add(&buffers.direct_primary_hits_d2.bind_sampled())
             .add(&buffers.direct_primary_hits_d3.bind_sampled())
+            .add(&buffers.direct_secondary_hits_d0.bind_sampled())
             .add(&buffers.direct_secondary_hits_d2.bind_sampled())
             .add(&buffers.indirect_colors.curr().bind_sampled())
             .add(&buffers.surface_map.curr().bind_sampled())
@@ -39,13 +40,13 @@ impl OutputDrawingPass {
 
         let pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_output_drawing_pipeline_layout"),
+                label: Some("strolle_frame_composition_pipeline_layout"),
                 bind_group_layouts: &[bg0.layout()],
                 push_constant_ranges: &[wgpu::PushConstantRange {
                     stages: wgpu::ShaderStages::FRAGMENT,
                     range: Range {
                         start: 0,
-                        end: mem::size_of::<gpu::OutputDrawingPassParams>()
+                        end: mem::size_of::<gpu::FrameCompositionPassParams>()
                             as u32,
                     },
                 }],
@@ -53,10 +54,10 @@ impl OutputDrawingPass {
 
         let pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("strolle_output_drawing_pipeline"),
+                label: Some("strolle_frame_composition_pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &engine.shaders.output_drawing,
+                    module: &engine.shaders.frame_composition,
                     entry_point: "main_vs",
                     buffers: &[],
                 },
@@ -64,7 +65,7 @@ impl OutputDrawingPass {
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(wgpu::FragmentState {
-                    module: &engine.shaders.output_drawing,
+                    module: &engine.shaders.frame_composition,
                     entry_point: "main_fs",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: camera.viewport.format,
@@ -87,7 +88,7 @@ impl OutputDrawingPass {
         let alternate = camera.is_alternate();
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("strolle_output_drawing"),
+            label: Some("strolle_frame_composition"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view,
                 resolve_target: None,
@@ -99,7 +100,7 @@ impl OutputDrawingPass {
             depth_stencil_attachment: None,
         });
 
-        let params = gpu::OutputDrawingPassParams {
+        let params = gpu::FrameCompositionPassParams {
             camera_mode: camera.camera.mode.serialize(),
         };
 

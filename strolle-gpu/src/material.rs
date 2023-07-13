@@ -15,11 +15,7 @@ pub struct Material {
     pub roughness: f32,
     pub metallic: f32,
     pub reflectance: f32,
-    pub refraction: f32,
-    pub reflectivity: f32,
-    pub _pad0: f32,
-    pub _pad1: f32,
-    pub _pad2: f32,
+    pub ior: f32,
     pub normal_map_texture: Vec4,
 }
 
@@ -29,17 +25,11 @@ impl Material {
         // When an indirect ray hits a specular highlight, it causes lots of
         // random pixels to turn white - that's almost impossible to denoise.
         //
-        // So, following the typical advice, let's clamp the roughness:
+        // So, following the typical advice, let's clamp the roughness.
         self.roughness = self.roughness.max(0.75 * 0.75);
     }
 
-    /// Returns whether this material behaves as glass (i.e. either as a mirror
-    /// or as a pass-through surface).
-    pub fn is_glass(&self) -> bool {
-        self.refraction != 1.0 || self.reflectivity > 0.0
-    }
-
-    pub fn albedo(
+    pub fn base_color(
         &self,
         atlas_tex: Tex,
         atlas_sampler: &Sampler,

@@ -15,14 +15,14 @@ members = [
     "strolle-shaders/direct-secondary-tracing",
     "strolle-shaders/direct-spatial-resampling",
     "strolle-shaders/direct-temporal-resampling",
+    "strolle-shaders/frame-composition",
+    "strolle-shaders/frame-reprojection",
     "strolle-shaders/indirect-denoising",
     "strolle-shaders/indirect-initial-shading",
     "strolle-shaders/indirect-initial-tracing",
     "strolle-shaders/indirect-resolving",
     "strolle-shaders/indirect-spatial-resampling",
     "strolle-shaders/indirect-temporal-resampling",
-    "strolle-shaders/output-drawing",
-    "strolle-shaders/reprojection",
     "strolle-utils/sandbox",
 ]
 

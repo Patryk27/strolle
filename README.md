@@ -28,7 +28,6 @@ Use WASD to move and mouse to navigate the camera; extra controls include:
 
 - F: Toggle flashlight,
 - O/P: Adjust sun's altitude,
-- M: Toggle between diffusive and specular materials,
 - T: Disable textures,
 - 1: Switch camera to the default mode,
 - 2: Switch camera to a direct lightning only mode,

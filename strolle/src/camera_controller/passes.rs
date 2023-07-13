@@ -7,14 +7,14 @@ mod direct_resolving;
 mod direct_secondary_tracing;
 mod direct_spatial_resampling;
 mod direct_temporal_resampling;
+mod frame_composition;
+mod frame_reprojection;
 mod indirect_denoising;
 mod indirect_initial_shading;
 mod indirect_initial_tracing;
 mod indirect_resolving;
 mod indirect_spatial_resampling;
 mod indirect_temporal_resampling;
-mod output_drawing;
-mod reprojection;
 
 use log::debug;
 
@@ -27,14 +27,14 @@ pub use self::direct_resolving::*;
 pub use self::direct_secondary_tracing::*;
 pub use self::direct_spatial_resampling::*;
 pub use self::direct_temporal_resampling::*;
+pub use self::frame_composition::*;
+pub use self::frame_reprojection::*;
 pub use self::indirect_denoising::*;
 pub use self::indirect_initial_shading::*;
 pub use self::indirect_initial_tracing::*;
 pub use self::indirect_resolving::*;
 pub use self::indirect_spatial_resampling::*;
 pub use self::indirect_temporal_resampling::*;
-pub use self::output_drawing::*;
-pub use self::reprojection::*;
 use crate::{Camera, CameraBuffers, Engine, Params};
 
 #[derive(Debug)]
@@ -57,8 +57,8 @@ pub struct CameraPasses {
     pub indirect_spatial_resampling: IndirectSpatialResamplingPass,
     pub indirect_temporal_resampling: IndirectTemporalResamplingPass,
 
-    pub output_drawing: OutputDrawingPass,
-    pub reprojection: ReprojectionPass,
+    pub frame_composition: FrameCompositionPass,
+    pub frame_reprojection: FrameReprojectionPass,
 }
 
 impl CameraPasses {
@@ -115,10 +115,12 @@ impl CameraPasses {
                 engine, device, buffers,
             ),
 
-            output_drawing: OutputDrawingPass::new(
+            frame_composition: FrameCompositionPass::new(
                 engine, device, config, buffers,
             ),
-            reprojection: ReprojectionPass::new(engine, device, buffers),
+            frame_reprojection: FrameReprojectionPass::new(
+                engine, device, buffers,
+            ),
         }
     }
 }

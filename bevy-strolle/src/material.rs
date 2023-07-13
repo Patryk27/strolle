@@ -13,36 +13,15 @@ use crate::EngineParams;
 pub struct StrolleMaterial {
     pub parent: StandardMaterial,
 
-    /// Specifies the index of refraction, i.e. how the light behaves when
-    /// exiting objects assigned to this material.
-    ///
-    /// Defaults to 1.0 and makes sense only for transparent materials (i.e.
-    /// when `parent.base_color` and/or `parent.base_color_texture` have
-    /// transparency, and `parent.alpha_mode` is non-opaque).
-    ///
-    /// Exclusive with `reflectivity`.
-    pub refraction: f32,
-
-    /// Specifies the reflectivity level (0.0 or 1.0).
-    ///
-    /// Defaults to 0.0, making the material non-reflective, while the value of
-    /// 1.0 means the material will behave as mirror.
-    ///
-    /// Note that it's different from `parent.reflectance` in the sense that
-    /// reflectance only applies to the specular intensity (i.e. how much
-    /// _lights_ are reflected), while setting reflectivity actually causes the
-    /// material to reflect light rays.
-    ///
-    /// Exclusive with `refraction`.
-    pub reflectivity: f32,
+    /// Index of refraction; defaults to 1.0 (air).
+    pub ior: f32,
 }
 
 impl Default for StrolleMaterial {
     fn default() -> Self {
         Self {
             parent: Default::default(),
-            refraction: 1.0,
-            reflectivity: 0.0,
+            ior: 1.0,
         }
     }
 }
@@ -83,16 +62,18 @@ impl MaterialLike for StandardMaterial {
             _ => st::AlphaMode::Blend,
         };
 
-        st::Material::default()
-            .with_base_color(base_color.compat())
-            .with_base_color_texture(self.base_color_texture)
-            .with_emissive(color_to_vec4(self.emissive).compat())
-            .with_emissive_texture(self.emissive_texture)
-            .with_perceptual_roughness(self.perceptual_roughness)
-            .with_metallic(self.metallic)
-            .with_reflectance(self.reflectance)
-            .with_normal_map_texture(self.normal_map_texture)
-            .with_alpha_mode(alpha_mode)
+        st::Material {
+            base_color: base_color.compat(),
+            base_color_texture: self.base_color_texture,
+            emissive: color_to_vec4(self.emissive).compat(),
+            emissive_texture: self.emissive_texture,
+            perceptual_roughness: self.perceptual_roughness,
+            metallic: self.metallic,
+            reflectance: self.reflectance,
+            normal_map_texture: self.normal_map_texture,
+            alpha_mode,
+            ..Default::default()
+        }
     }
 
     fn map_handle(handle: Handle<Self>) -> MaterialHandle {
@@ -110,10 +91,10 @@ impl MaterialLike for StandardMaterial {
 
 impl MaterialLike for StrolleMaterial {
     fn into_material(self) -> st::Material<EngineParams> {
-        self.parent
-            .into_material()
-            .with_refraction(self.refraction)
-            .with_reflectivity(self.reflectivity)
+        st::Material {
+            ior: self.ior,
+            ..self.parent.into_material()
+        }
     }
 
     fn map_handle(handle: Handle<Self>) -> MaterialHandle {

@@ -1,5 +1,5 @@
 [package]
-name = "strolle-output-drawing-shader"
+name = "strolle-frame-composition-shader"
 version = "0.1.0"
 edition = "2021"
 

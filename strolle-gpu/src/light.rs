@@ -302,10 +302,10 @@ pub struct LightContribution {
 }
 
 impl LightContribution {
-    pub fn with_albedo(mut self, albedo: Vec3) -> Self {
+    pub fn with_base_color(mut self, base_color: Vec3) -> Self {
         // TODO that's not correct (we're missing information about material's
         //      metallicness)
-        self.diffuse *= albedo;
+        self.diffuse *= base_color;
 
         // TODO support specular
         self

@@ -204,11 +204,15 @@ impl Ray {
                         used_memory += mem::size_of::<Material>();
                         used_memory += mem::size_of::<Vec4>();
 
-                        let hit_candidate_albedo = materials
+                        let hit_candidate_color = materials
                             .get(hit_candidate.material_id)
-                            .albedo(atlas_tex, atlas_sampler, hit_candidate.uv);
+                            .base_color(
+                                atlas_tex,
+                                atlas_sampler,
+                                hit_candidate.uv,
+                            );
 
-                        hit_candidate_albedo.w >= 1.0
+                        hit_candidate_color.w >= 1.0
                     } else {
                         true
                     };

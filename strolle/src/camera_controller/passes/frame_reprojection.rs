@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ReprojectionPass {
+pub struct FrameReprojectionPass {
     pass: CameraComputePass,
 }
 
-impl ReprojectionPass {
+impl FrameReprojectionPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -17,7 +17,7 @@ impl ReprojectionPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("reprojection")
+        let pass = CameraComputePass::builder("frame_reprojection")
             .bind([
                 &buffers.prev_camera.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
@@ -25,7 +25,7 @@ impl ReprojectionPass {
                 &buffers.velocity_map.bind_readable(),
                 &buffers.reprojection_map.bind_writable(),
             ])
-            .build(device, &engine.shaders.reprojection);
+            .build(device, &engine.shaders.frame_reprojection);
 
         Self { pass }
     }

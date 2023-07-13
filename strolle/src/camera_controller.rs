@@ -96,13 +96,13 @@ impl CameraController {
 
         if let CameraMode::BvhHeatmap = self.camera.mode {
             self.passes.bvh_heatmap.run(self, encoder);
-            self.passes.output_drawing.run(self, encoder, view);
+            self.passes.frame_composition.run(self, encoder, view);
         } else {
             self.passes.atmosphere.run(engine, self, encoder);
             self.passes.direct_raster.run(engine, self, encoder);
 
             if has_any_objects {
-                self.passes.reprojection.run(self, encoder);
+                self.passes.frame_reprojection.run(self, encoder);
 
                 if self.camera.mode.needs_direct_lightning() {
                     self.passes.direct_secondary_tracing.run(self, encoder);
@@ -131,7 +131,7 @@ impl CameraController {
                 }
             }
 
-            self.passes.output_drawing.run(self, encoder, view);
+            self.passes.frame_composition.run(self, encoder, view);
         }
     }
 

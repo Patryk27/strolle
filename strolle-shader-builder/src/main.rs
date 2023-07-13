@@ -14,14 +14,14 @@ const CRATES: &[&str] = &[
     "direct-secondary-tracing",
     "direct-spatial-resampling",
     "direct-temporal-resampling",
+    "frame-composition",
+    "frame-reprojection",
     "indirect-denoising",
     "indirect-initial-shading",
     "indirect-initial-tracing",
     "indirect-resolving",
     "indirect-spatial-resampling",
     "indirect-temporal-resampling",
-    "output-drawing",
-    "reprojection",
 ];
 
 fn main() -> Result<(), Box<dyn Error>> {

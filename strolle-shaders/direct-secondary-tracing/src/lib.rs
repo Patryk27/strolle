@@ -31,12 +31,14 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 3)]
     direct_primary_hits_d2: TexRgba16f,
     #[spirv(descriptor_set = 1, binding = 4)]
-    direct_secondary_rays: TexRgba32f,
+    direct_primary_hits_d3: TexRgba16f,
     #[spirv(descriptor_set = 1, binding = 5)]
-    direct_secondary_hits_d0: TexRgba32f,
+    direct_secondary_rays: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 6)]
-    direct_secondary_hits_d1: TexRgba32f,
+    direct_secondary_hits_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 7)]
+    direct_secondary_hits_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 8)]
     direct_secondary_hits_d2: TexRgba16f,
 ) {
     main_inner(
@@ -52,6 +54,7 @@ pub fn main(
         direct_primary_hits_d0,
         direct_primary_hits_d1,
         direct_primary_hits_d2,
+        direct_primary_hits_d3,
         direct_secondary_rays,
         direct_secondary_hits_d0,
         direct_secondary_hits_d1,
@@ -73,15 +76,18 @@ fn main_inner(
     direct_primary_hits_d0: TexRgba32f,
     direct_primary_hits_d1: TexRgba32f,
     direct_primary_hits_d2: TexRgba16f,
+    direct_primary_hits_d3: TexRgba16f,
     direct_secondary_rays: TexRgba32f,
     direct_secondary_hits_d0: TexRgba32f,
     direct_secondary_hits_d1: TexRgba32f,
     direct_secondary_hits_d2: TexRgba16f,
 ) {
-    let primary_albedo = direct_primary_hits_d2.read(screen_pos);
+    let primary_alpha = direct_primary_hits_d2.read(screen_pos).w;
+    let primary_metallic = direct_primary_hits_d3.read(screen_pos).w;
 
-    // If our fragment is opaque, there's nothing more to do here
-    if primary_albedo.w >= 1.0 {
+    // If our material is an opaque dielectric, the raster pass is sufficient
+    // and we've got nothing more to trace.
+    if primary_alpha >= 1.0 && primary_metallic <= 0.0 {
         unsafe {
             direct_secondary_rays.write(screen_pos, Vec4::ZERO);
             direct_secondary_hits_d2.write(screen_pos, Vec4::ZERO);
@@ -105,32 +111,51 @@ fn main_inner(
     }
 
     let primary_ray = camera.ray(screen_pos);
-    let primary_material = materials.get(primary_hit.material_id);
 
     // -------------------------------------------------------------------------
 
-    let secondary_ray = {
-        let origin = primary_hit.point - primary_hit.normal * 0.02;
+    let secondary_ray_origin;
+    let secondary_ray_direction;
 
-        let direction = if primary_material.reflectivity > 0.0 {
-            primary_ray.direction().reflect(primary_hit.normal)
-        } else {
+    if primary_metallic > 0.0 {
+        // If our primary surface is a conductor, just trace a reflacted ray
+        // from primary hit point.
+
+        secondary_ray_origin = primary_hit.point;
+
+        secondary_ray_direction =
+            primary_ray.direction().reflect(primary_hit.normal);
+    } else {
+        // Otherwise, if our primary surface is a glass, trace a continuing ray
+        // from a *little bit further* than the primary hit, to prevent
+        // self-intersecting with ourselves.
+
+        secondary_ray_origin =
+            primary_hit.point - primary_hit.normal * Hit::NUDGE_OFFSET * 5.0;
+
+        secondary_ray_direction = {
+            let primary_material = materials.get(primary_hit.material_id);
+
             let mut cos_incident_angle =
                 primary_hit.normal.dot(-primary_ray.direction());
 
             let eta = if cos_incident_angle > 0.0 {
-                primary_material.refraction
+                primary_material.ior
             } else {
-                1.0 / primary_material.refraction
+                1.0 / primary_material.ior
             };
 
             let refraction_coeff =
                 1.0 - (1.0 - cos_incident_angle.powi(2)) / eta.powi(2);
 
-            // if refraction_coeff < 0.0 {
-            //     TODO
-            //     return;
-            // }
+            if refraction_coeff < 0.0 {
+                unsafe {
+                    direct_secondary_rays.write(screen_pos, Vec4::ZERO);
+                    direct_secondary_hits_d2.write(screen_pos, Vec4::ZERO);
+                }
+
+                return;
+            }
 
             let mut normal = primary_hit.normal;
             let cos_transmitted_angle = refraction_coeff.sqrt();
@@ -143,11 +168,9 @@ fn main_inner(
             primary_ray.direction() / eta
                 - normal * (cos_transmitted_angle - cos_incident_angle / eta)
         };
+    }
 
-        Ray::new(origin, direction)
-    };
-
-    // -------------------------------------------------------------------------
+    let secondary_ray = Ray::new(secondary_ray_origin, secondary_ray_direction);
 
     let (secondary_hit, _) = secondary_ray.trace(
         local_idx,
@@ -159,8 +182,8 @@ fn main_inner(
         atlas_sampler,
     );
 
-    let secondary_albedo = if secondary_hit.is_some() {
-        materials.get(secondary_hit.material_id).albedo(
+    let secondary_base_color = if secondary_hit.is_some() {
+        materials.get(secondary_hit.material_id).base_color(
             atlas_tex,
             atlas_sampler,
             secondary_hit.uv,
@@ -179,6 +202,6 @@ fn main_inner(
 
         direct_secondary_hits_d0.write(screen_pos, secondary_hit_d0);
         direct_secondary_hits_d1.write(screen_pos, secondary_hit_d1);
-        direct_secondary_hits_d2.write(screen_pos, secondary_albedo);
+        direct_secondary_hits_d2.write(screen_pos, secondary_base_color);
     }
 }

@@ -146,6 +146,6 @@ pub struct IndirectResolvingPassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct OutputDrawingPassParams {
+pub struct FrameCompositionPassParams {
     pub camera_mode: u32,
 }

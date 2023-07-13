@@ -81,14 +81,11 @@ pub fn main_fs(
     let material = MaterialsView::new(materials)
         .get(MaterialId::new(params.material_id()));
 
-    let hit_albedo = material.albedo(atlas_tex, atlas_sampler, hit_uv);
+    let hit_base_color = material.base_color(atlas_tex, atlas_sampler, hit_uv);
 
-    // If our material is fully transparent, we can simply kill the current
-    // fragment to reuse GPU to find the next triangle.
-    //
-    // Note that glass-like materials still require ray tracing to incorporate
-    // reflection and refraction, so this trick only works for non-glassy stuff.
-    if hit_albedo.w < 0.01 && !material.is_glass() {
+    // If our material is fully transparent, and it doesn't rely on refraction,
+    // we can kill the current fragment to ask GPU to find the next triangle
+    if hit_base_color.w < 0.01 && material.ior == 1.0 {
         arch::kill();
     }
 
@@ -98,7 +95,7 @@ pub fn main_fs(
     let hit_normal = {
         // If the mesh we're rendering uses per-vertex normals, the normal here
         // will be unnormalized due to the GPU interpolating it in-between
-        // vertices; no biggie, let's just fix it:
+        // vertices; no biggie, let's just fix it
         hit_normal.normalize()
     };
 
@@ -112,10 +109,10 @@ pub fn main_fs(
         hit_normal_encoded.extend(hit_uv.x).extend(hit_uv.y);
 
     *out_direct_primary_hits_d2 =
-        hit_albedo;
+        hit_base_color;
 
     *out_direct_primary_hits_d3 =
-        hit_emissive;
+        hit_emissive.xyz().extend(material.metallic);
 
     *out_surface_map = hit_normal_encoded
         .extend(hit_distance)
@@ -132,7 +129,8 @@ pub fn main_fs(
         } else {
             // Due to floting-point inaccuracies, stationary objects can end up
             // having a very small velocity instead of zero - this causes our
-            // reprojection shader to freak out, so let's meet in the middle:
+            // reprojection shader to freak out, so let's truncate small
+            // velocities to zero
             Default::default()
         }
     };

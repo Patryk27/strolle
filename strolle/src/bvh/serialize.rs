@@ -79,7 +79,7 @@ where
                     let got_more_triangles = n + 1 < triangles.len();
 
                     let has_alpha_blending =
-                        matches!(material.alpha_mode(), AlphaMode::Blend);
+                        matches!(material.alpha_mode, AlphaMode::Blend);
 
                     (got_more_triangles as u32)
                         | ((has_alpha_blending as u32) << 1)

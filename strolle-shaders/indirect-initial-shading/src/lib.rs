@@ -147,8 +147,8 @@ fn main_inner(
 
         material.adjust_for_indirect();
 
-        let albedo = material
-            .albedo(atlas_tex, atlas_sampler, indirect_hit.uv)
+        let base_color = material
+            .base_color(atlas_tex, atlas_sampler, indirect_hit.uv)
             .xyz();
 
         let emissive = material
@@ -163,7 +163,7 @@ fn main_inner(
             let light_contribution = lights
                 .get(light_id)
                 .contribution(material, indirect_hit, indirect_ray)
-                .with_albedo(albedo)
+                .with_base_color(base_color)
                 .sum();
 
             let sample = DirectReservoirSample {

@@ -128,7 +128,7 @@ fn setup(
                     alpha_mode: AlphaMode::Blend,
                     ..default()
                 },
-                refraction: 1.15,
+                ior: 1.15,
                 ..default()
             }),
             mesh: meshes.add(
@@ -225,47 +225,30 @@ fn setup(
 
 // -----------------------------------------------------------------------------
 
-/// Most of materials in our demo-scene seem to have too low metalicness, making
-/// them seem kinda suspicious - let's fix that!
+/// Most of materials in our demo-scene have the `unlit` flag toggled on, making
+/// it look suspicious - let's fix that!
 ///
 /// Arguably, a somewhat better approach would be to adjust the *.glb asset, but
 /// doing this via code here is just simpler.
-fn adjust_materials(mut materials: ResMut<Assets<StandardMaterial>>) {
-    let suspicious_materials: Vec<_> = materials
-        .iter()
-        .filter_map(|(handle, material)| {
-            if material.metallic != 0.25 || material.unlit {
-                Some(materials.get_handle(handle))
-            } else {
-                None
-            }
-        })
-        .collect();
+fn adjust_materials(
+    mut materials_adjusted: Local<bool>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if *materials_adjusted || materials.len() < 16 {
+        return;
+    }
 
-    for handle in suspicious_materials {
-        let material = materials.get_mut(&handle).unwrap();
-
-        material.metallic = 0.25;
+    for (_, material) in materials.iter_mut() {
         material.unlit = false;
     }
+
+    *materials_adjusted = true;
 }
 
 fn handle_materials(
     keys: Res<Input<KeyCode>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if keys.just_pressed(KeyCode::M) {
-        for (_, material) in materials.iter_mut() {
-            if material.perceptual_roughness == 0.0 {
-                material.perceptual_roughness = 0.85;
-                material.reflectance = 0.75;
-            } else {
-                material.perceptual_roughness = 0.0;
-                material.reflectance = 0.0;
-            }
-        }
-    }
-
     if keys.just_pressed(KeyCode::T) {
         for (_, material) in materials.iter_mut() {
             material.base_color_texture = None;

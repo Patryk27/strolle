@@ -9,94 +9,22 @@ pub struct Material<P>
 where
     P: Params,
 {
-    base_color: Vec4,
-    base_color_texture: Option<P::ImageHandle>,
-    emissive: Vec4,
-    emissive_texture: Option<P::ImageHandle>,
-    perceptual_roughness: f32,
-    metallic: f32,
-    reflectance: f32,
-    refraction: f32,
-    reflectivity: f32,
-    normal_map_texture: Option<P::ImageHandle>,
-    alpha_mode: AlphaMode,
+    pub base_color: Vec4,
+    pub base_color_texture: Option<P::ImageHandle>,
+    pub emissive: Vec4,
+    pub emissive_texture: Option<P::ImageHandle>,
+    pub perceptual_roughness: f32,
+    pub metallic: f32,
+    pub reflectance: f32,
+    pub ior: f32,
+    pub normal_map_texture: Option<P::ImageHandle>,
+    pub alpha_mode: AlphaMode,
 }
 
 impl<P> Material<P>
 where
     P: Params,
 {
-    pub fn with_base_color(mut self, base_color: Vec4) -> Self {
-        self.base_color = base_color;
-        self
-    }
-
-    pub fn with_base_color_texture(
-        mut self,
-        base_color_texture: Option<P::ImageHandle>,
-    ) -> Self {
-        self.base_color_texture = base_color_texture;
-        self
-    }
-
-    pub fn with_emissive(mut self, emissive: Vec4) -> Self {
-        self.emissive = emissive;
-        self
-    }
-
-    pub fn with_emissive_texture(
-        mut self,
-        emissive_texture: Option<P::ImageHandle>,
-    ) -> Self {
-        self.emissive_texture = emissive_texture;
-        self
-    }
-
-    pub fn with_perceptual_roughness(
-        mut self,
-        perceptual_roughness: f32,
-    ) -> Self {
-        self.perceptual_roughness = perceptual_roughness;
-        self
-    }
-
-    pub fn with_metallic(mut self, metallic: f32) -> Self {
-        self.metallic = metallic;
-        self
-    }
-
-    pub fn with_reflectance(mut self, reflectance: f32) -> Self {
-        self.reflectance = reflectance;
-        self
-    }
-
-    pub fn with_refraction(mut self, refraction: f32) -> Self {
-        self.refraction = refraction;
-        self
-    }
-
-    pub fn with_reflectivity(mut self, reflectivity: f32) -> Self {
-        self.reflectivity = reflectivity;
-        self
-    }
-
-    pub fn with_normal_map_texture(
-        mut self,
-        normal_map_texture: Option<P::ImageHandle>,
-    ) -> Self {
-        self.normal_map_texture = normal_map_texture;
-        self
-    }
-
-    pub fn with_alpha_mode(mut self, alpha_mode: AlphaMode) -> Self {
-        self.alpha_mode = alpha_mode;
-        self
-    }
-
-    pub(crate) fn alpha_mode(&self) -> AlphaMode {
-        self.alpha_mode
-    }
-
     pub(crate) fn build(&self, images: &Images<P>) -> gpu::Material {
         gpu::Material {
             base_color: self.base_color,
@@ -110,14 +38,10 @@ where
             roughness: self.perceptual_roughness.clamp(0.089, 1.0).powf(2.0),
             metallic: self.metallic,
             reflectance: self.reflectance,
-            refraction: self.refraction,
-            reflectivity: self.reflectivity,
+            ior: self.ior,
             normal_map_texture: images
                 .lookup_opt(self.normal_map_texture.as_ref())
                 .unwrap_or_default(),
-            _pad0: 0.0,
-            _pad1: 0.0,
-            _pad2: 0.0,
         }
     }
 }
@@ -127,9 +51,6 @@ where
     P: Params,
 {
     fn default() -> Self {
-        // Defaults here more-or-less follow Bevy's `StandardMaterial` (it's not
-        // a requirement though, it's just for convenience)
-
         Self {
             base_color: vec4(1.0, 1.0, 1.0, 1.0),
             base_color_texture: None,
@@ -138,8 +59,7 @@ where
             perceptual_roughness: 0.5,
             metallic: 0.0,
             reflectance: 0.5,
-            refraction: 1.0,
-            reflectivity: 0.0,
+            ior: 1.0,
             normal_map_texture: None,
             alpha_mode: Default::default(),
         }

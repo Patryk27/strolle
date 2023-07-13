@@ -29,6 +29,7 @@ impl DirectSecondaryTracingPass {
                 &buffers.direct_primary_hits_d0.bind_readable(),
                 &buffers.direct_primary_hits_d1.bind_readable(),
                 &buffers.direct_primary_hits_d2.bind_readable(),
+                &buffers.direct_primary_hits_d3.bind_readable(),
                 &buffers.direct_secondary_rays.bind_writable(),
                 &buffers.direct_secondary_hits_d0.bind_writable(),
                 &buffers.direct_secondary_hits_d1.bind_writable(),

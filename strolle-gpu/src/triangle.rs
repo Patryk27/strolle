@@ -111,9 +111,6 @@ impl Triangle {
             return Hit::none();
         }
 
-        let point =
-            ray.origin() + ray.direction() * (distance - Hit::NUDGE_OFFSET);
-
         let normal = {
             let normal = u * self.normal1()
                 + v * self.normal2()
@@ -121,6 +118,10 @@ impl Triangle {
 
             normal.normalize()
         };
+
+        let point = ray.origin()
+            + distance * ray.direction()
+            + normal * Hit::NUDGE_OFFSET;
 
         let uv = self.uv0()
             + (self.uv1() - self.uv0()) * u

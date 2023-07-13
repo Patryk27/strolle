@@ -21,17 +21,18 @@ pub fn main_vs(
 #[allow(clippy::too_many_arguments)]
 pub fn main_fs(
     #[spirv(frag_coord)] pos: Vec4,
-    #[spirv(push_constant)] params: &OutputDrawingPassParams,
+    #[spirv(push_constant)] params: &FrameCompositionPassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)] direct_colors: Tex,
     #[spirv(descriptor_set = 0, binding = 2)] sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 3)] direct_primary_hits_d0: Tex,
     #[spirv(descriptor_set = 0, binding = 5)] direct_primary_hits_d2: Tex,
     #[spirv(descriptor_set = 0, binding = 7)] direct_primary_hits_d3: Tex,
-    #[spirv(descriptor_set = 0, binding = 9)] direct_secondary_hits_d2: Tex,
-    #[spirv(descriptor_set = 0, binding = 11)] indirect_colors: Tex,
-    #[spirv(descriptor_set = 0, binding = 13)] surface_map: Tex,
-    #[spirv(descriptor_set = 0, binding = 15)] velocity_map: Tex,
+    #[spirv(descriptor_set = 0, binding = 9)] direct_secondary_hits_d0: Tex,
+    #[spirv(descriptor_set = 0, binding = 11)] direct_secondary_hits_d2: Tex,
+    #[spirv(descriptor_set = 0, binding = 13)] indirect_colors: Tex,
+    #[spirv(descriptor_set = 0, binding = 15)] surface_map: Tex,
+    #[spirv(descriptor_set = 0, binding = 17)] velocity_map: Tex,
     frag_color: &mut Vec4,
 ) {
     let texel_xy = {
@@ -51,41 +52,88 @@ pub fn main_fs(
                 direct_primary_hits_d0.sample(*sampler, texel_xy),
             );
 
-            let primary_albedo =
+            let primary_base_color =
                 direct_primary_hits_d2.sample(*sampler, texel_xy);
 
-            let primary_emissive =
-                direct_primary_hits_d3.sample(*sampler, texel_xy).xyz();
+            let d3 = direct_primary_hits_d3.sample(*sampler, texel_xy);
+            let primary_emissive = d3.xyz();
+            let primary_metallic = d3.w;
 
-            let secondary_albedo =
+            let secondary_base_color =
                 direct_secondary_hits_d2.sample(*sampler, texel_xy);
+
+            let secondary_point = Hit::deserialize_point(
+                direct_secondary_hits_d0.sample(*sampler, texel_xy),
+            );
 
             let direct = direct_colors.sample(*sampler, texel_xy).xyz();
             let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
 
             let color = if primary_point == Default::default() {
-                // If we hit nothing, the `direct` color will contain sky but
-                // `albedo` is going to be all black, so we need to handle it
-                // separately and not multply by albedo then:
+                // Case 1: We've hit the sky.
+                //
+                // Arguably, this is the easiest case to compose - the direct
+                // resolving pass already handles generating the sky color and
+                // puts it into `direct_colors`, which we have right here.
                 direct
-            } else {
-                // TODO multiplying direct by albedo is not correct here
-                //      (same case as in `LightContribution::with_albedo()`)
-                if secondary_albedo == Vec4::ZERO {
-                    primary_albedo.xyz() * (direct + indirect)
-                        + primary_emissive
+            } else if primary_metallic > 0.0 {
+                // Case 2: We've hit a conductive surface.
+                //
+                // This requires us to blend primary and secondary surfaces
+                // depending on the primary surface's metallicness.
+                //
+                // Intuitively, if the metallic factor is 1.0, then the primary
+                // surface behaves like a mirror.
+                //
+                // Note that ReSTIR reservoirs here are allocated on the
+                // *secondary* surface, so we can't know whether the primary one
+                // is shaded or not, so its base color functions kinda as an
+                // emissive as well.
+                let primary_color = primary_emissive
+                    + ((primary_metallic - 1.0) * primary_base_color.xyz());
+
+                // Case 2a/2b: If the secondary hit is sky, don't multiply by
+                //             base color (which is black then).
+                let secondary_color = if secondary_point == Default::default() {
+                    primary_metallic * direct
                 } else {
-                    let primary = primary_albedo.w * primary_albedo.xyz()
-                        + primary_emissive;
+                    primary_metallic
+                        * secondary_base_color.xyz()
+                        * (direct + indirect)
+                };
 
-                    // TODO missing feature: secondary emissive surfaces
-                    let secondary =
-                        secondary_albedo.xyz() * (direct + indirect);
+                primary_color + secondary_color
+            } else if primary_base_color.w < 1.0 {
+                // Case 3: We've hit a transparent surface.
+                //
+                // Similarly as with metalics, this requires us to blend primary
+                // and secondary surfaces, although this time according to the
+                // primary surface's base color.
+                //
+                // ReSTIR reservoirs here are also allocated on the secondary
+                // surface.
 
-                    let secondary = (1.0 - primary_albedo.w) * secondary;
+                let alpha = primary_base_color.w;
 
-                    primary + secondary
-                }
+                let primary_color =
+                    primary_emissive + (alpha * primary_base_color.xyz());
+
+                // Case 3a/3b: If the secondary hit is sky, don't multiply by
+                //             base color (which is black then).
+                let secondary_color = if secondary_point == Default::default() {
+                    (1.0 - alpha) * direct
+                } else {
+                    (1.0 - alpha)
+                        * secondary_base_color.xyz()
+                        * (direct + indirect)
+                };
+
+                primary_color + secondary_color
+            } else {
+                // Case 4: We've hit an opaque surface.
+
+                primary_emissive
+                    + primary_base_color.xyz() * (direct + indirect)
             };
 
             (color, true)
@@ -93,12 +141,12 @@ pub fn main_fs(
 
         // CameraMode::DirectLightning
         1 => {
-            let albedo =
+            let base_color =
                 direct_primary_hits_d2.sample(*sampler, texel_xy).xyz();
 
             let direct = direct_colors.sample(*sampler, texel_xy).xyz();
 
-            (albedo * direct, true)
+            (base_color * direct, true)
         }
 
         // CameraMode::DemodulatedDirectLightning
@@ -110,12 +158,12 @@ pub fn main_fs(
 
         // CameraMode::IndirectLightning
         3 => {
-            let albedo =
+            let base_color =
                 direct_primary_hits_d2.sample(*sampler, texel_xy).xyz();
 
             let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
 
-            (albedo * indirect, true)
+            (base_color * indirect, true)
         }
 
         // CameraMode::DemodulatedIndirectLightning

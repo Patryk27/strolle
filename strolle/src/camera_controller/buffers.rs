@@ -128,6 +128,7 @@ impl CameraBuffers {
             Texture::builder("direct_secondary_hits_d0")
                 .with_size(camera.viewport.size)
                 .with_format(wgpu::TextureFormat::Rgba32Float)
+                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .build(device);
 
