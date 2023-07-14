@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
@@ -187,6 +188,18 @@ pub(crate) fn images(
 #[allow(clippy::type_complexity)]
 pub(crate) fn instances<Material>(
     mut commands: Commands,
+    children: Extract<Query<(Entity, &Children)>>,
+    changed_visibilities: Extract<Query<Entity, Changed<Visibility>>>,
+    all: Extract<
+        Query<(
+            Entity,
+            &Handle<Mesh>,
+            &Handle<Material>,
+            &GlobalTransform,
+            &ComputedVisibility,
+            Option<&RenderLayers>,
+        )>,
+    >,
     changed: Extract<
         Query<
             (
@@ -201,7 +214,6 @@ pub(crate) fn instances<Material>(
                 Changed<Handle<Mesh>>,
                 Changed<Handle<Material>>,
                 Changed<GlobalTransform>,
-                Changed<ComputedVisibility>,
                 Changed<RenderLayers>,
             )>,
         >,
@@ -210,6 +222,27 @@ pub(crate) fn instances<Material>(
 ) where
     Material: MaterialLike,
 {
+    // TODO switch to `Changed<ComputedVisibility>` after¹ gets fixed
+    //      ¹ https://github.com/bevyengine/bevy/issues/8267
+    let changed_visibilities = {
+        let mut changed = Vec::new();
+        let mut pending: VecDeque<_> = changed_visibilities.iter().collect();
+
+        while let Some(entity) = pending.pop_front() {
+            if let Ok(payload) = all.get(entity) {
+                changed.push(payload);
+            }
+
+            if let Ok((_, children)) = children.get(entity) {
+                pending.extend(children);
+            }
+        }
+
+        changed
+    };
+
+    // ---
+
     let mut removed: Vec<_> = removed
         .iter()
         .map(|removed| removed.clone().into())
@@ -217,6 +250,7 @@ pub(crate) fn instances<Material>(
 
     let changed = changed
         .iter()
+        .chain(changed_visibilities)
         .filter_map(
             |(
                 handle,
