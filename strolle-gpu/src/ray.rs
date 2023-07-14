@@ -142,11 +142,8 @@ impl Ray {
                 let mut near_ptr = bvh_ptr + 4;
                 let mut far_ptr = d1.w.to_bits();
 
-                let mut near_distance =
-                    self.distance_to_node(d0.xyz(), d1.xyz());
-
-                let mut far_distance =
-                    self.distance_to_node(d2.xyz(), d3.xyz());
+                let mut near_distance = self.hit_box(d0.xyz(), d1.xyz());
+                let mut far_distance = self.hit_box(d2.xyz(), d3.xyz());
 
                 if far_distance < near_distance {
                     mem::swap(&mut near_ptr, &mut far_ptr);
@@ -251,14 +248,57 @@ impl Ray {
         used_memory
     }
 
-    fn distance_to_node(self, aabb_min: Vec3, aabb_max: Vec3) -> f32 {
-        let hit_min = (aabb_min - self.origin) * self.inv_direction;
-        let hit_max = (aabb_max - self.origin) * self.inv_direction;
+    /// Checks whether this ray hits given bounding-box and returns their
+    /// nearest intersection distance.
+    ///
+    /// Thanks to:
+    /// https://tavianator.com/2022/ray_box_boundary.html
+    fn hit_box(self, aabb_min: Vec3, aabb_max: Vec3) -> f32 {
+        fn min(x: f32, y: f32) -> f32 {
+            if x < y {
+                x
+            } else {
+                y
+            }
+        }
 
-        let tmin = hit_min.min(hit_max).max_element();
-        let tmax = hit_min.max(hit_max).min_element();
+        fn max(x: f32, y: f32) -> f32 {
+            if x > y {
+                x
+            } else {
+                y
+            }
+        }
 
-        if tmax >= tmin && tmax >= 0.0 {
+        let mut t1;
+        let mut t2;
+        let mut tmin = 0.0;
+        let mut tmax = f32::MAX;
+
+        // ---
+
+        t1 = (aabb_min.x - self.origin.x) * self.inv_direction.x;
+        t2 = (aabb_max.x - self.origin.x) * self.inv_direction.x;
+        tmin = min(max(t1, tmin), max(t2, tmin));
+        tmax = max(min(t1, tmax), min(t2, tmax));
+
+        // ---
+
+        t1 = (aabb_min.y - self.origin.y) * self.inv_direction.y;
+        t2 = (aabb_max.y - self.origin.y) * self.inv_direction.y;
+        tmin = min(max(t1, tmin), max(t2, tmin));
+        tmax = max(min(t1, tmax), min(t2, tmax));
+
+        // ---
+
+        t1 = (aabb_min.z - self.origin.z) * self.inv_direction.z;
+        t2 = (aabb_max.z - self.origin.z) * self.inv_direction.z;
+        tmin = min(max(t1, tmin), max(t2, tmin));
+        tmax = max(min(t1, tmax), min(t2, tmax));
+
+        // ---
+
+        if tmin <= tmax {
             tmin
         } else {
             f32::MAX
