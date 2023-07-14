@@ -1378,8 +1378,7 @@ dependencies = [
 [[package]]
 name = "d3d12"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8f0de2f5a8e7bd4a9eec0e3c781992a4ce1724f68aec7d7a3715344de8b39da"
+source = "git+https://github.com/gfx-rs/d3d12-rs?rev=b940b1d71#b940b1d71ab7083ae80eec697872672dc1f2bd32"
 dependencies = [
  "bitflags",
  "libloading",
@@ -3709,8 +3708,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.15.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdcf61a283adc744bb5453dd88ea91f3f86d5ca6b027661c6c73c7734ae0288b"
+source = "git+https://github.com/Patryk27/wgpu?branch=strolle#24bb2619df172a73f285a3fd86eae5ed7b1b5bc3"
 dependencies = [
  "android_system_properties",
  "arrayvec",
