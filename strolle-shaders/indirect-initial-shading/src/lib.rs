@@ -14,19 +14,21 @@ pub fn main(
     params: &IndirectInitialShadingPassParams,
     #[spirv(workgroup)]
     stack: BvhStack,
-    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
-    triangles: &[Triangle],
+    #[spirv(descriptor_set = 0, binding = 0)]
+    blue_noise_tex: TexRgba8f,
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[Vec4],
+    triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
-    lights: &[Light],
+    bvh: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
+    lights: &[Light],
+    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 4)]
-    atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 5)]
+    atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 6)]
     atlas_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 6, uniform)]
+    #[spirv(descriptor_set = 0, binding = 7, uniform)]
     world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,
@@ -52,6 +54,7 @@ pub fn main(
     main_inner(
         global_id.xy(),
         local_idx,
+        BlueNoise::new(blue_noise_tex, global_id.xy(), params.frame),
         WhiteNoise::new(params.seed, global_id.xy()),
         stack,
         TrianglesView::new(triangles),
@@ -80,6 +83,7 @@ pub fn main(
 fn main_inner(
     screen_pos: UVec2,
     local_idx: u32,
+    bnoise: BlueNoise,
     mut wnoise: WhiteNoise,
     stack: BvhStack,
     triangles: TrianglesView,
@@ -123,7 +127,7 @@ fn main_inner(
 
     let indirect_ray = Ray::new(
         direct_hit.point,
-        wnoise.sample_hemisphere(direct_hit.normal),
+        bnoise.sample_hemisphere(direct_hit.normal),
     );
 
     let indirect_hit = Hit::deserialize(

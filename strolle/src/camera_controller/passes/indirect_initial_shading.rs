@@ -19,6 +19,7 @@ impl IndirectInitialShadingPass {
     {
         let pass = CameraComputePass::builder("indirect_initial_shading")
             .bind([
+                &engine.noise.bind_blue_noise_texture(),
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.lights.bind_readable(),

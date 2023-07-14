@@ -10,7 +10,7 @@ pub fn main(
     global_id: UVec3,
     #[spirv(push_constant)]
     params: &DirectSpatialResamplingPassParams,
-    #[spirv(descriptor_set = 0,binding = 0)]
+    #[spirv(descriptor_set = 0, binding = 0)]
     blue_noise_tex: TexRgba8f,
     #[spirv(descriptor_set = 1, binding = 0, uniform)]
     camera: &Camera,

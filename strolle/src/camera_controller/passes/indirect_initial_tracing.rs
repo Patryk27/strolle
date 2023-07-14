@@ -19,6 +19,7 @@ impl IndirectInitialTracingPass {
     {
         let pass = CameraComputePass::builder("indirect_initial_tracing")
             .bind([
+                &engine.noise.bind_blue_noise_texture(),
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.materials.bind_readable(),

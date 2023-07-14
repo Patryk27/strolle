@@ -14,15 +14,17 @@ pub fn main(
     params: &IndirectInitialTracingPassParams,
     #[spirv(workgroup)]
     stack: BvhStack,
-    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
-    triangles: &[Triangle],
+    #[spirv(descriptor_set = 0, binding = 0)]
+    blue_noise_tex: TexRgba8f,
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    bvh: &[Vec4],
+    triangles: &[Triangle],
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
+    bvh: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 3)]
-    atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 4)]
+    atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 5)]
     atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0)]
     direct_primary_hits_d0: TexRgba32f,
@@ -36,8 +38,8 @@ pub fn main(
     main_inner(
         global_id.xy(),
         local_idx,
+        BlueNoise::new(blue_noise_tex, global_id.xy(), params.frame),
         stack,
-        WhiteNoise::new(params.seed, global_id.xy()),
         TrianglesView::new(triangles),
         BvhView::new(bvh),
         MaterialsView::new(materials),
@@ -54,8 +56,8 @@ pub fn main(
 fn main_inner(
     screen_pos: UVec2,
     local_idx: u32,
+    bnoise: BlueNoise,
     stack: BvhStack,
-    mut wnoise: WhiteNoise,
     triangles: TrianglesView,
     bvh: BvhView,
     materials: MaterialsView,
@@ -76,7 +78,7 @@ fn main_inner(
     } else {
         let ray = Ray::new(
             direct_hit.point,
-            wnoise.sample_hemisphere(direct_hit.normal),
+            bnoise.sample_hemisphere(direct_hit.normal),
         );
 
         ray.trace(

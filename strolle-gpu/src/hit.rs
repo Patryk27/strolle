@@ -72,8 +72,9 @@ impl Hit {
 
     /// Gets the direct hit from opaque surface at given screen-coordinates.
     ///
-    /// That is, this function returns the primary hit if the primary surface
-    /// (at given screen-coordinates) is opaque, or the secondary hit otherwise.
+    /// That is, this function returns the primary hit if the primary surface is
+    /// opaque, otherwise it returns the secondary hit (which is presumed
+    /// opaque).
     pub fn find_direct(
         camera: &Camera,
         direct_primary_hits_d0: TexRgba32f,
