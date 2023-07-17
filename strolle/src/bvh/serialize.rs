@@ -1,7 +1,6 @@
 use spirv_std::glam::{vec4, Vec4};
 
-use super::*;
-use crate::AlphaMode;
+use crate::{AlphaMode, BvhNode, Materials, Params};
 
 pub fn run<P>(materials: &Materials<P>, nodes: &[BvhNode], out: &mut Vec<Vec4>)
 where
@@ -71,12 +70,13 @@ where
             );
         }
 
-        BvhNode::Leaf { triangles, .. } => {
-            for (n, triangle) in triangles.iter().enumerate() {
-                let material = &materials[triangle.material_id];
+        BvhNode::Leaf { primitives, .. } => {
+            for (primitive_idx, primitive) in primitives.iter().enumerate() {
+                let material = &materials[primitive.material_id];
 
                 let flags = {
-                    let got_more_triangles = n + 1 < triangles.len();
+                    let got_more_triangles =
+                        primitive_idx + 1 < primitives.len();
 
                     let has_alpha_blending =
                         matches!(material.alpha_mode, AlphaMode::Blend);
@@ -87,8 +87,8 @@ where
 
                 out.push(vec4(
                     f32::from_bits(flags),
-                    f32::from_bits(triangle.triangle_id.get()),
-                    f32::from_bits(triangle.material_id.get()),
+                    f32::from_bits(primitive.triangle_id.get()),
+                    f32::from_bits(primitive.material_id.get()),
                     f32::from_bits(OP_LEAF),
                 ));
             }

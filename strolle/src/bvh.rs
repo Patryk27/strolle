@@ -1,18 +1,14 @@
-mod axis;
-mod bounding_box;
 mod build;
 mod bvh_node;
-mod bvh_triangle;
+mod bvh_primitive;
 mod serialize;
 
 use std::fmt::Debug;
 
 use spirv_std::glam::Vec4;
 
-pub use self::axis::*;
-pub use self::bounding_box::*;
 pub use self::bvh_node::*;
-pub use self::bvh_triangle::*;
+pub use self::bvh_primitive::*;
 use crate::{
     Bindable, BufferFlushOutcome, Instances, MappedStorageBuffer, Materials,
     Params, Triangles,
@@ -40,7 +36,7 @@ impl Bvh {
     {
         // TODO it would be nice not to re-collect all triangles every frame
         //      (it doesn't seem to be a bottleneck, though)
-        let mut triangles: Vec<_> = instances
+        let mut primitives: Vec<_> = instances
             .iter()
             .flat_map(|(instance_handle, instance_entry)| {
                 let material_id =
@@ -48,7 +44,7 @@ impl Bvh {
 
                 material_id.into_iter().flat_map(|material_id| {
                     triangles.iter(instance_handle).map(
-                        move |(triangle_id, triangle)| BvhTriangle {
+                        move |(triangle_id, triangle)| BvhPrimitive {
                             bounds: triangle.positions().into_iter().collect(),
                             center: triangle.center(),
                             triangle_id,
@@ -59,7 +55,7 @@ impl Bvh {
             })
             .collect();
 
-        if triangles.is_empty() {
+        if primitives.is_empty() {
             return;
         }
 
@@ -67,11 +63,11 @@ impl Bvh {
         //      (it doesn't seem to be a bottleneck, though)
         let mut nodes = Vec::new();
 
-        // BVH, being a binary tree, can consist of at most 2 * leafes - 1
-        // nodes, so let's preallocate it:
-        nodes.resize(2 * triangles.len() - 1, Default::default());
+        // BVH, being a binary tree, can consist of at most `2 * leafes - 1`
+        // nodes:
+        nodes.resize(2 * primitives.len() - 1, Default::default());
 
-        let nodes = build::run(nodes, &mut triangles);
+        let nodes = build::run(nodes, &mut primitives);
 
         self.buffer.clear();
 

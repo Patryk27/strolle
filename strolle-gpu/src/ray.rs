@@ -5,7 +5,7 @@ use spirv_std::Sampler;
 
 use crate::{
     BvhStack, BvhView, Hit, Material, MaterialId, MaterialsView, Tex, Triangle,
-    TriangleCulling, TriangleId, TrianglesView, BVH_STACK_SIZE,
+    TriangleId, TrianglesView, BVH_STACK_SIZE,
 };
 
 #[derive(Clone, Copy)]
@@ -56,7 +56,6 @@ impl Ray {
             atlas_tex,
             atlas_sampler,
             Tracing::ReturnClosest,
-            TriangleCulling::SingleSided,
             &mut hit,
         );
 
@@ -91,7 +90,6 @@ impl Ray {
             atlas_tex,
             atlas_sampler,
             Tracing::ReturnFirst,
-            TriangleCulling::DoubleSided,
             &mut hit,
         );
 
@@ -109,7 +107,6 @@ impl Ray {
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
         tracing: Tracing,
-        culling: TriangleCulling,
         hit: &mut Hit,
     ) -> usize {
         // An estimation of the memory used when travelling the BVH; useful for
@@ -192,7 +189,7 @@ impl Ray {
                 let triangle_id = TriangleId::new(d0.y.to_bits());
 
                 let mut hit_candidate =
-                    triangles.get(triangle_id).hit(culling, self, hit.distance);
+                    triangles.get(triangle_id).hit(self, hit.distance);
 
                 if hit_candidate.distance < hit.distance {
                     hit_candidate.material_id = MaterialId::new(d0.z.to_bits());

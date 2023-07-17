@@ -97,6 +97,7 @@ pub(self) use self::shaders::*;
 pub use self::sun::*;
 pub use self::triangle::*;
 pub(self) use self::triangles::*;
+pub(self) use self::utils::*;
 
 #[derive(Debug)]
 pub struct Engine<P>

@@ -5,7 +5,7 @@ use std::thread;
 
 use crossbeam::channel::{self, Receiver, Sender};
 
-use crate::{Axis, BoundingBox, BvhNode, BvhTriangle};
+use crate::{Axis, BoundingBox, BvhNode, BvhPrimitive};
 
 /// Number of worker-threads to spawn for processing the tree.
 const THREADS: usize = 3;
@@ -16,7 +16,7 @@ const THREADS: usize = 3;
 /// stack size.
 ///
 /// ¹ see: binned SAH
-const BINS: usize = 16;
+const BINS: usize = 32;
 
 /// Constructs BVH using a multi-threaded binned SAH algorithm.
 ///
@@ -24,17 +24,20 @@ const BINS: usize = 16;
 /// https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/.
 pub fn run<'a>(
     nodes: Vec<BvhNode<'a>>,
-    triangles: &'a mut [BvhTriangle],
+    primitives: &'a mut [BvhPrimitive],
 ) -> Vec<BvhNode<'a>> {
     let nodes = Mutex::new(nodes);
     let (queue_tx, queue_rx) = channel::unbounded();
 
     _ = queue_tx.send({
-        let bounds = triangles.iter().map(|triangle| triangle.bounds).collect();
+        let bounds = primitives
+            .iter()
+            .map(|primitive| primitive.bounds)
+            .collect();
 
         WorkerMsg::BalanceNode {
             node_id: 0,
-            node: BvhNode::Leaf { bounds, triangles },
+            node: BvhNode::Leaf { bounds, primitives },
         }
     });
 
@@ -140,30 +143,32 @@ struct Bin {
 }
 
 fn find_splitting_plane(node: &BvhNode) -> Option<SplittingPlane> {
-    let BvhNode::Leaf { triangles, .. } = node else {
+    let BvhNode::Leaf { primitives, .. } = node else {
         return None;
     };
 
-    if triangles.len() <= 1 {
+    if primitives.len() <= 1 {
         return None;
     }
 
     let mut best: Option<SplittingPlane> = None;
 
-    let centroid_bb: BoundingBox =
-        triangles.iter().map(|triangle| triangle.center).collect();
+    let centroid_bb: BoundingBox = primitives
+        .iter()
+        .map(|primitive| primitive.center)
+        .collect();
 
     for split_by in Axis::all() {
         let mut bins = [Bin::default(); BINS];
         let scale = (BINS as f32) / centroid_bb.extent()[split_by];
 
-        for triangle in triangles.iter() {
+        for primitive in primitives.iter() {
             let bin_idx = scale
-                * (triangle.center[split_by] - centroid_bb.min()[split_by]);
+                * (primitive.center[split_by] - centroid_bb.min()[split_by]);
 
             let bin_idx = (bin_idx as usize).min(BINS - 1);
 
-            bins[bin_idx].bounds += triangle.bounds;
+            bins[bin_idx].bounds += primitive.bounds;
             bins[bin_idx].count += 1;
         }
 
@@ -183,13 +188,13 @@ fn find_splitting_plane(node: &BvhNode) -> Option<SplittingPlane> {
             left_counts[i] = left_count;
 
             left_bb += bins[i].bounds;
-            left_areas[i] = left_bb.area();
+            left_areas[i] = left_bb.half_area();
 
             right_count += bins[BINS - 1 - i].count;
             right_counts[BINS - 2 - i] = right_count;
 
             right_bb += bins[BINS - 1 - i].bounds;
-            right_areas[BINS - 2 - i] = right_bb.area();
+            right_areas[BINS - 2 - i] = right_bb.half_area();
         }
 
         // ---
@@ -225,38 +230,34 @@ fn split<'a>(
     split_by: Axis,
     split_at: f32,
 ) -> (BvhNode<'a>, Option<(u32, BvhNode<'a>, u32, BvhNode<'a>)>) {
-    let (bounds, triangles) = match node {
-        BvhNode::Leaf { bounds, triangles } => (bounds, triangles),
-
-        node => {
-            return (node, None);
-        }
+    let BvhNode::Leaf { bounds, primitives } = node else {
+        return (node, None);
     };
 
     // ---
 
     let mut i = 0 as i32;
-    let mut j = (triangles.len() - 1) as i32;
+    let mut j = (primitives.len() - 1) as i32;
 
     let mut left_bounds = BoundingBox::default();
     let mut right_bounds = BoundingBox::default();
 
     while i <= j {
-        let triangle = triangles[i as usize];
+        let primitive = primitives[i as usize];
 
-        if triangle.center[split_by] < split_at {
+        if primitive.center[split_by] < split_at {
             i += 1;
-            left_bounds += triangle.bounds;
+            left_bounds += primitive.bounds;
         } else {
-            triangles.swap(i as usize, j as usize);
+            primitives.swap(i as usize, j as usize);
             j -= 1;
-            right_bounds += triangle.bounds;
+            right_bounds += primitive.bounds;
         }
     }
 
     // ---
 
-    let (left_tris, right_tris) = triangles.split_at_mut(i as usize);
+    let (left_prims, right_prims) = primitives.split_at_mut(i as usize);
     let left_id = allocated_nodes.fetch_add(2, Ordering::Relaxed);
     let right_id = left_id + 1;
 
@@ -267,12 +268,12 @@ fn split<'a>(
 
     let left = BvhNode::Leaf {
         bounds: left_bounds,
-        triangles: left_tris,
+        primitives: left_prims,
     };
 
     let right = BvhNode::Leaf {
         bounds: right_bounds,
-        triangles: right_tris,
+        primitives: right_prims,
     };
 
     (parent, Some((left_id, left, right_id, right)))

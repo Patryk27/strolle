@@ -25,7 +25,7 @@ impl BoundingBox {
         self.max() - self.min()
     }
 
-    pub fn area(&self) -> f32 {
+    pub fn half_area(&self) -> f32 {
         let extent = self.extent();
 
         extent.x * extent.y + extent.y * extent.z + extent.z * extent.x

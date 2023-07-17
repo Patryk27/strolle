@@ -1,4 +1,4 @@
-use super::*;
+use crate::{BoundingBox, BvhPrimitive};
 
 #[derive(Debug)]
 pub enum BvhNode<'a> {
@@ -9,7 +9,7 @@ pub enum BvhNode<'a> {
 
     Leaf {
         bounds: BoundingBox,
-        triangles: &'a mut [BvhTriangle],
+        primitives: &'a mut [BvhPrimitive],
     },
 }
 
@@ -22,8 +22,8 @@ impl<'a> BvhNode<'a> {
     }
 
     pub fn sah_cost(&self) -> f32 {
-        if let BvhNode::Leaf { bounds, triangles } = self {
-            (triangles.len() as f32) * bounds.area()
+        if let BvhNode::Leaf { bounds, primitives } = self {
+            (primitives.len() as f32) * bounds.half_area()
         } else {
             0.0
         }

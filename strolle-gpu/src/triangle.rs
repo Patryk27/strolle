@@ -65,12 +65,7 @@ impl Triangle {
         self.positions().into_iter().sum::<Vec3>() / 3.0
     }
 
-    pub fn hit(
-        &self,
-        culling: TriangleCulling,
-        ray: Ray,
-        max_distance: f32,
-    ) -> Hit {
+    pub fn hit(&self, ray: Ray, max_distance: f32) -> Hit {
         let v0v1 = self.position1() - self.position0();
         let v0v2 = self.position2() - self.position0();
 
@@ -79,17 +74,8 @@ impl Triangle {
         let pvec = ray.direction().cross(v0v2);
         let det = v0v1.dot(pvec);
 
-        match culling {
-            TriangleCulling::SingleSided => {
-                if det < f32::EPSILON {
-                    return Hit::none();
-                }
-            }
-            TriangleCulling::DoubleSided => {
-                if det.abs() < f32::EPSILON {
-                    return Hit::none();
-                }
-            }
+        if det.abs() < f32::EPSILON {
+            return Hit::none();
         }
 
         // ---
@@ -153,10 +139,4 @@ impl TriangleId {
     pub fn get_mut(&mut self) -> &mut u32 {
         &mut self.0
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum TriangleCulling {
-    SingleSided,
-    DoubleSided,
 }
