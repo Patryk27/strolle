@@ -27,7 +27,7 @@ where
     }
 
     pub fn add(&mut self, light_handle: P::LightHandle, light: Light) {
-        let light = light.build();
+        let light = light.serialize();
 
         match self.index.entry(light_handle) {
             Entry::Occupied(entry) => {

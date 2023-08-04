@@ -6,15 +6,10 @@ use log::debug;
 
 use crate::{
     gpu, BindGroup, Camera, CameraBuffers, CameraController, Engine, Params,
-    Texture,
 };
-
-const DEPTH_TEXTURE_FORMAT: wgpu::TextureFormat =
-    wgpu::TextureFormat::Depth32Float;
 
 #[derive(Debug)]
 pub struct DirectRasterPass {
-    depth_texture: Texture,
     bg0: BindGroup,
     bg1: BindGroup,
     pipeline: wgpu::RenderPipeline,
@@ -24,7 +19,7 @@ impl DirectRasterPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
-        camera: &Camera,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
@@ -32,16 +27,9 @@ impl DirectRasterPass {
     {
         debug!("Initializing pass: direct_raster");
 
-        let depth_texture = Texture::builder("direct_raster_depth")
-            .with_size(camera.viewport.size)
-            .with_format(DEPTH_TEXTURE_FORMAT)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .build(device);
-
         let bg0 = BindGroup::builder("direct_raster_bg0")
             .add(&engine.materials.bind_readable())
-            .add(&engine.images.bind_sampled())
+            .add(&engine.images.bind_atlas_sampled())
             .build(device);
 
         let bg1 = BindGroup::builder("direct_raster_bg1")
@@ -105,9 +93,9 @@ impl DirectRasterPass {
                     conservative: false,
                 },
                 depth_stencil: Some(wgpu::DepthStencilState {
-                    format: DEPTH_TEXTURE_FORMAT,
+                    format: wgpu::TextureFormat::Depth32Float,
                     depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less,
+                    depth_compare: wgpu::CompareFunction::GreaterEqual,
                     stencil: wgpu::StencilState::default(),
                     bias: wgpu::DepthBiasState::default(),
                 }),
@@ -127,12 +115,7 @@ impl DirectRasterPass {
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
                         Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba16Float,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }),
-                        Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba16Float,
+                            format: wgpu::TextureFormat::Rgba32Float,
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
@@ -151,12 +134,7 @@ impl DirectRasterPass {
                 multiview: None,
             });
 
-        Self {
-            depth_texture,
-            bg0,
-            bg1,
-            pipeline,
-        }
+        Self { bg0, bg1, pipeline }
     }
 
     pub fn run<P>(
@@ -173,34 +151,26 @@ impl DirectRasterPass {
             label: Some("strolle_direct_raster"),
             color_attachments: &[
                 Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.direct_primary_hits_d0.view(),
+                    view: camera.buffers.direct_hits.view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                         store: true,
                     },
                 }),
                 Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.direct_primary_hits_d1.view(),
+                    view: camera.buffers.direct_gbuffer_d0.view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                         store: true,
                     },
                 }),
                 Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.direct_primary_hits_d2.view(),
+                    view: camera.buffers.direct_gbuffer_d1.view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
-                    },
-                }),
-                Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.direct_primary_hits_d3.view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                         store: true,
                     },
                 }),
@@ -208,7 +178,7 @@ impl DirectRasterPass {
                     view: camera.buffers.surface_map.get(alternate).view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                         store: true,
                     },
                 }),
@@ -216,16 +186,16 @@ impl DirectRasterPass {
                     view: camera.buffers.velocity_map.view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                         store: true,
                     },
                 }),
             ],
             depth_stencil_attachment: Some(
                 wgpu::RenderPassDepthStencilAttachment {
-                    view: self.depth_texture.view(),
+                    view: camera.buffers.direct_depth.view(),
                     depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
+                        load: wgpu::LoadOp::Clear(0.0),
                         store: true,
                     }),
                     stencil_ops: None,

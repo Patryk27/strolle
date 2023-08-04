@@ -1,32 +1,28 @@
+use core::f32::consts::PI;
 use core::ops::{Deref, DerefMut};
 
-use glam::{vec3, Vec3, Vec4, Vec4Swizzles};
+use glam::{vec3, UVec2, Vec3, Vec4, Vec4Swizzles};
 
-use crate::{F32Ext, Reservoir};
+use crate::{F32Ext, Hit, Reservoir, SpecularBrdf};
 
 #[derive(Clone, Copy, Default)]
 pub struct IndirectReservoir {
     reservoir: Reservoir<IndirectReservoirSample>,
-    pub frame: u32,
 }
 
 impl IndirectReservoir {
-    pub fn new(
-        sample: IndirectReservoirSample,
-        p_hat: f32,
-        frame: u32,
-    ) -> Self {
+    pub fn new(sample: IndirectReservoirSample, p_hat: f32) -> Self {
         Self {
             reservoir: Reservoir::new(sample, p_hat),
-            frame,
         }
     }
 
-    pub fn empty(frame: u32) -> Self {
-        Self {
-            reservoir: Default::default(),
-            frame,
-        }
+    pub fn expects_diffuse_sample(screen_pos: UVec2, frame: u32) -> bool {
+        (screen_pos.x % 2) == (frame % 2)
+    }
+
+    pub fn expects_specular_sample(screen_pos: UVec2, frame: u32) -> bool {
+        !Self::expects_diffuse_sample(screen_pos, frame)
     }
 
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
@@ -42,19 +38,24 @@ impl IndirectReservoir {
                     hit_point: d1.xyz(),
                     sample_point: d2.xyz(),
                     sample_normal: d3.xyz(),
+                    frame: d2.w.to_bits(),
                 },
                 w_sum: Default::default(),
                 m_sum: d0.w,
                 w: d1.w,
             },
-            frame: d2.w.to_bits(),
         }
     }
 
     pub fn write(&self, buffer: &mut [Vec4], id: usize) {
         let d0 = self.sample.radiance.extend(self.m_sum);
         let d1 = self.sample.hit_point.extend(self.w);
-        let d2 = self.sample.sample_point.extend(f32::from_bits(self.frame));
+
+        let d2 = self
+            .sample
+            .sample_point
+            .extend(f32::from_bits(self.sample.frame));
+
         let d3 = self.sample.sample_normal.extend(Default::default());
 
         unsafe {
@@ -65,8 +66,8 @@ impl IndirectReservoir {
         }
     }
 
-    pub fn age(&self, frame: u32) -> u32 {
-        frame - self.frame
+    pub fn is_empty(&self) -> bool {
+        self.sample.frame == 0
     }
 }
 
@@ -90,11 +91,42 @@ pub struct IndirectReservoirSample {
     pub hit_point: Vec3,
     pub sample_point: Vec3,
     pub sample_normal: Vec3,
+    pub frame: u32,
 }
 
 impl IndirectReservoirSample {
-    pub fn p_hat(&self) -> f32 {
+    pub fn temporal_p_hat(&self) -> f32 {
         self.radiance.dot(vec3(0.2126, 0.7152, 0.0722))
+    }
+
+    pub fn spatial_p_hat(&self, point: Vec3, normal: Vec3) -> f32 {
+        self.temporal_p_hat() * self.direction(point).dot(normal).max(0.0)
+    }
+
+    pub fn direction(&self, point: Vec3) -> Vec3 {
+        (self.sample_point - point).normalize()
+    }
+
+    pub fn cosine(&self, direct_hit: &Hit) -> f32 {
+        direct_hit
+            .gbuffer
+            .normal
+            .dot(self.direction(direct_hit.point))
+            .max(0.0)
+    }
+
+    pub fn diffuse_brdf(&self) -> f32 {
+        1.0 / PI
+    }
+
+    pub fn specular_brdf(&self, direct_hit: &Hit) -> f32 {
+        let l = (self.sample_point - direct_hit.point).normalize();
+        let v = (direct_hit.origin - direct_hit.point).normalize();
+        let n = direct_hit.gbuffer.normal;
+
+        SpecularBrdf::new(&direct_hit.gbuffer)
+            .eval_f(l, v, n)
+            .clamp(0.0, 1.0)
     }
 
     pub fn jacobian(&self, new_hit_point: Vec3) -> f32 {

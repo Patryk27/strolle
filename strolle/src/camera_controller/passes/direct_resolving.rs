@@ -1,5 +1,5 @@
 use crate::{
-    CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
@@ -11,25 +11,21 @@ impl DirectResolvingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
         P: Params,
     {
         let pass = CameraComputePass::builder("direct_resolving")
-            .bind([
-                &engine.lights.bind_readable(),
-                &engine.materials.bind_readable(),
-            ])
+            .bind([&engine.lights.bind_readable()])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_primary_hits_d0.bind_readable(),
-                &buffers.direct_primary_hits_d1.bind_readable(),
-                &buffers.direct_secondary_rays.bind_readable(),
-                &buffers.direct_secondary_hits_d0.bind_readable(),
-                &buffers.direct_secondary_hits_d1.bind_readable(),
+                &buffers.direct_hits.bind_readable(),
+                &buffers.direct_gbuffer_d0.bind_readable(),
+                &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.direct_initial_samples.bind_readable(),
-                &buffers.raw_direct_colors.bind_writable(),
+                &buffers.direct_samples.bind_writable(),
                 &buffers.direct_spatial_reservoirs.curr().bind_readable(),
             ])
             .build(device, &engine.shaders.direct_resolving);

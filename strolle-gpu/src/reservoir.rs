@@ -79,7 +79,7 @@ where
         //
         // This comes up mostly (only?) for indirect lightning reservoirs which
         // can contain illegal samples (e.g. with zeroed-out normals) if the
-        // player is looking at the sky - and if we didn't handle those illegal
+        // camera is looking at the sky - and if we didn't handle those illegal
         // samples here, we could propagate those zeroed-out normals and other
         // funky numbers up to the spatial resampling pass which would then end
         // up generating NaN and INFs Jacobians: baaaad.

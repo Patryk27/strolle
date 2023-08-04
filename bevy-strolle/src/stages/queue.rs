@@ -48,31 +48,8 @@ pub(crate) fn cameras(
                 }
             },
 
-            projection: {
-                let projection_view =
-                    Mat4::perspective_rh(
-                        ext_camera.projection.fov,
-                        ext_camera.projection.aspect_ratio,
-                        ext_camera.projection.near,
-                        ext_camera.projection.far,
-                    ) * ext_camera.transform.compute_matrix().inverse();
-
-                let origin = ext_camera.transform.translation();
-
-                let look_at = ext_camera.transform.translation()
-                    + ext_camera.transform.forward();
-
-                let up = ext_camera.transform.up();
-                let fov = ext_camera.projection.fov;
-
-                st::CameraProjection {
-                    projection_view: projection_view.compat(),
-                    origin: origin.compat(),
-                    look_at: look_at.compat(),
-                    up: up.compat(),
-                    fov,
-                }
-            },
+            transform: ext_camera.transform.compat(),
+            projection: ext_camera.projection.compat(),
         };
 
         match state.cameras.entry(entity) {

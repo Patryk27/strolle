@@ -10,11 +10,12 @@ use crate::Bindable;
 /// This kind of storage buffer should be used for data structures that don't
 /// have to be accessed on the host machine.
 #[derive(Debug)]
-pub struct UnmappedStorageBuffer {
+pub struct StorageBuffer {
     buffer: Arc<wgpu::Buffer>,
 }
 
-impl UnmappedStorageBuffer {
+impl StorageBuffer {
+    // TODO provide `::builder()` pattern
     pub fn new(
         device: &wgpu::Device,
         label: impl AsRef<str>,
@@ -65,7 +66,7 @@ impl UnmappedStorageBuffer {
 }
 
 pub struct UnmappedStorageBufferBinder<'a> {
-    parent: &'a UnmappedStorageBuffer,
+    parent: &'a StorageBuffer,
     read_only: bool,
 }
 

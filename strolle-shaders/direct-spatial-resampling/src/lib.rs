@@ -2,61 +2,47 @@
 
 use strolle_gpu::prelude::*;
 
-#[rustfmt::skip]
 #[spirv(compute(threads(8, 8)))]
 #[allow(clippy::too_many_arguments)]
 pub fn main(
-    #[spirv(global_invocation_id)]
-    global_id: UVec3,
-    #[spirv(push_constant)]
-    params: &DirectSpatialResamplingPassParams,
-    #[spirv(descriptor_set = 0, binding = 0)]
-    blue_noise_tex: TexRgba8f,
-    #[spirv(descriptor_set = 1, binding = 0, uniform)]
-    camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)]
-    surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)]
-    prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)]
-    reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4, storage_buffer)]
+    #[spirv(global_invocation_id)] global_id: UVec3,
+    #[spirv(push_constant)] params: &PassParams,
+    #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8f,
+    #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 1, binding = 1)] direct_hits: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 4)] surface_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 5)] prev_surface_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6)] reprojection_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
     direct_temporal_reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
     direct_spatial_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 1, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 9, storage_buffer)]
     prev_direct_spatial_reservoirs: &[Vec4],
 ) {
-    main_inner(
-        global_id.xy(),
-        WhiteNoise::new(params.seed, global_id.xy()),
-        BlueNoise::new(blue_noise_tex, global_id.xy(), params.frame),
-        camera,
-        SurfaceMap::new(surface_map),
-        SurfaceMap::new(prev_surface_map),
-        ReprojectionMap::new(reprojection_map),
-        direct_temporal_reservoirs,
-        direct_spatial_reservoirs,
-        prev_direct_spatial_reservoirs,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn main_inner(
-    screen_pos: UVec2,
-    mut wnoise: WhiteNoise,
-    bnoise: BlueNoise,
-    camera: &Camera,
-    surface_map: SurfaceMap,
-    prev_surface_map: SurfaceMap,
-    reprojection_map: ReprojectionMap,
-    direct_temporal_reservoirs: &[Vec4],
-    direct_spatial_reservoirs: &mut [Vec4],
-    prev_direct_spatial_reservoirs: &[Vec4],
-) {
+    let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
-    let mut reservoir = DirectReservoir::default();
+    let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
+    let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
+    let surface_map = SurfaceMap::new(surface_map);
+    let prev_surface_map = SurfaceMap::new(prev_surface_map);
+    let reprojection_map = ReprojectionMap::new(reprojection_map);
+
+    // -------------------------------------------------------------------------
+
     let screen_surface = surface_map.get(screen_pos);
+    let mut reservoir = DirectReservoir::default();
+
+    let hit = Hit::from_direct(
+        camera.ray(screen_pos),
+        direct_hits.read(screen_pos).xyz(),
+        GBufferEntry::unpack([
+            direct_gbuffer_d0.read(screen_pos),
+            direct_gbuffer_d1.read(screen_pos),
+        ]),
+    );
 
     // -------------------------------------------------------------------------
     // Step 1:
@@ -64,25 +50,16 @@ fn main_inner(
     // Try reprojecting reservoir from the previous frame; as an extra, we are
     // using bilinear filtering to reduce smearing in case of camera rotations
     // and movements.
-    //
-    // (Catmull-Rom would be even better but also much more expensive, so...)
-    //
-    // TODO if this fails (e.g. there's no reprojection due to occlusion), it
-    //      would be nice to recover somehow -- maybe we could try merging
-    //      nearby spatial reservoirs as well?
 
     let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
-        let mut prev_reservoir = DirectReservoir::read(
+        let mut rhs = DirectReservoir::read(
             prev_direct_spatial_reservoirs,
             camera.screen_to_idx(reprojection.prev_screen_pos()),
         );
 
-        let default_sample = prev_reservoir
-            .sample
-            .light_contribution
-            .extend(prev_reservoir.w);
+        let default_sample = rhs.sample.light_contribution.extend(rhs.w);
 
         let filter =
             BilinearFilter::from_reprojection(reprojection, move |pos| {
@@ -105,7 +82,7 @@ fn main_inner(
                     return default_sample;
                 }
 
-                if reservoir.sample.light_id == prev_reservoir.sample.light_id {
+                if reservoir.sample.light_id == rhs.sample.light_id {
                     reservoir.sample.light_contribution.extend(reservoir.w)
                 } else {
                     default_sample
@@ -114,15 +91,11 @@ fn main_inner(
 
         let sample = filter.eval_reprojection(reprojection);
 
-        prev_reservoir.sample.light_contribution = sample.xyz();
-        prev_reservoir.w = sample.w.clamp(0.0, 1000.0);
-        prev_reservoir.m_sum *= reprojection.confidence;
+        rhs.sample.light_contribution = sample.xyz();
+        rhs.w = sample.w.clamp(0.0, 1000.0);
+        rhs.m_sum *= reprojection.confidence;
 
-        reservoir.merge(
-            &mut wnoise,
-            &prev_reservoir,
-            prev_reservoir.sample.p_hat(),
-        );
+        reservoir.merge(&mut wnoise, &rhs, rhs.sample.p_hat());
     }
 
     // -------------------------------------------------------------------------
@@ -142,13 +115,13 @@ fn main_inner(
     //
     //     3
     //
-    // (C - our current sample; 1..4 - order of looking at neighbours)
+    // (C - our current sample; 1..5 - order of looking at neighbours)
     // ```
 
     let mut p_hat = reservoir.sample.p_hat();
     let mut sample_radius = 0.0f32;
     let mut sample_angle = 2.0 * PI * bnoise.second_sample().x;
-    let mut max_sample_radius = 12.0;
+    let mut max_sample_radius = lerp(12.0, 6.0, reservoir.m_sum / 250.0);
 
     while sample_radius < max_sample_radius {
         let rhs_pos = screen_pos.as_vec2()
@@ -157,7 +130,7 @@ fn main_inner(
         let rhs_pos = rhs_pos.as_ivec2();
 
         sample_radius += 1.0;
-        sample_angle += PI * 1.61803398875;
+        sample_angle += GOLDEN_ANGLE;
 
         if !camera.contains(rhs_pos) {
             continue;
@@ -165,7 +138,8 @@ fn main_inner(
 
         let rhs_pos = rhs_pos.as_uvec2();
 
-        let rhs_similarity = surface_map.evaluate_similarity_between(
+        // TODO implement a screen-space occlusion check
+        let mut rhs_similarity = surface_map.evaluate_similarity_between(
             screen_pos,
             screen_surface,
             rhs_pos,
@@ -186,31 +160,19 @@ fn main_inner(
             max_sample_radius += 0.75;
         }
 
-        // Since we don't perform occlusion checks, we can't randomly accept all
-        // samples from far-away reservoirs, because that could attenuate small
-        // shadows and make them unnaturally bright.
-        //
-        // At the same time, we *do* want to get some samples from those
-        // far-away reservoirs to reduce boiling, so here's a middle ground:
-        //
-        // We accept samples from far-away reservoirs, but make them less
-        // important.
-        //
-        // TODO implement a screen-space occlusion check
-        let rhs_visibility = (1.0 - (sample_radius * 0.2).min(1.0)).max(0.33);
-
         let rhs = DirectReservoir::read(
             direct_temporal_reservoirs,
             camera.screen_to_idx(rhs_pos),
         );
 
+        // If we're starved for samples, accept samples from far-away
+        // reservoirs; otherwise attenuate them to avoid introducing noise.
+        rhs_similarity *= (1.0 - rhs.sample.hit_point.distance(hit.point))
+            .max(0.1 + 0.5 - 0.5 * reservoir.m_sum.min(500.0) / 500.0);
+
         let rhs_p_hat = rhs.sample.p_hat();
 
-        if reservoir.merge(
-            &mut wnoise,
-            &rhs,
-            rhs_p_hat * rhs_similarity * rhs_visibility,
-        ) {
+        if reservoir.merge(&mut wnoise, &rhs, rhs_p_hat * rhs_similarity) {
             p_hat = rhs_p_hat;
         }
     }

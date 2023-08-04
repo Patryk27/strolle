@@ -1,10 +1,10 @@
 use crate::{
-    CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
 pub struct FrameReprojectionPass {
-    pass: CameraComputePass,
+    pass: CameraComputePass<()>,
 }
 
 impl FrameReprojectionPass {
@@ -12,6 +12,7 @@ impl FrameReprojectionPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
@@ -19,6 +20,7 @@ impl FrameReprojectionPass {
     {
         let pass = CameraComputePass::builder("frame_reprojection")
             .bind([
+                &buffers.camera.bind_readable(),
                 &buffers.prev_camera.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
                 &buffers.surface_map.prev().bind_readable(),

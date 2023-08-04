@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use bevy::render::camera::CameraRenderGraph;
+use bevy::render::camera::{CameraProjection, CameraRenderGraph};
 use bevy::render::texture::ImageSampler;
 use bevy::render::view::RenderLayers;
 use bevy::render::Extract;
@@ -393,11 +393,9 @@ pub(crate) fn cameras(
             continue;
         }
 
-        let Projection::Perspective(projection) = projection else { continue };
-
         commands.get_or_spawn(entity).insert(ExtractedCamera {
-            transform: *transform,
-            projection: projection.clone(),
+            transform: transform.compute_matrix(),
+            projection: projection.get_projection_matrix(),
             mode: strolle_camera.map(|camera| camera.mode),
         });
     }

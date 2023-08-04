@@ -1,6 +1,5 @@
 use crate::{
-    Bindable, DoubleBufferedBindable, Texture, TextureBuilder,
-    UnmappedStorageBuffer,
+    Bindable, DoubleBufferedBindable, StorageBuffer, Texture, TextureBuilder,
 };
 
 #[derive(Debug)]
@@ -25,14 +24,6 @@ impl DoubleBuffered<Texture> {
 }
 
 impl DoubleBuffered<&Texture> {
-    /// See: [`Texture::bind_sampled()`].
-    pub fn bind_sampled(&self) -> impl DoubleBufferedBindable + '_ {
-        DoubleBufferedBinder {
-            a: self.a.bind_sampled(),
-            b: self.b.bind_sampled(),
-        }
-    }
-
     /// See: [`Texture::bind_readable()`].
     pub fn bind_readable(&self) -> impl DoubleBufferedBindable + '_ {
         DoubleBufferedBinder {
@@ -50,7 +41,7 @@ impl DoubleBuffered<&Texture> {
     }
 }
 
-impl DoubleBuffered<UnmappedStorageBuffer> {
+impl DoubleBuffered<StorageBuffer> {
     /// Creates a double-buffered storage buffer.
     ///
     /// See: [`UnmappedStorageBuffer::new()`].
@@ -62,13 +53,13 @@ impl DoubleBuffered<UnmappedStorageBuffer> {
         let label = label.as_ref();
 
         Self {
-            a: UnmappedStorageBuffer::new(device, format!("{}_a", label), size),
-            b: UnmappedStorageBuffer::new(device, format!("{}_b", label), size),
+            a: StorageBuffer::new(device, format!("{}_a", label), size),
+            b: StorageBuffer::new(device, format!("{}_b", label), size),
         }
     }
 }
 
-impl DoubleBuffered<&UnmappedStorageBuffer> {
+impl DoubleBuffered<&StorageBuffer> {
     /// See: [`UnmappedStorageBuffer::bind_readable()`].
     pub fn bind_readable(&self) -> impl DoubleBufferedBindable + '_ {
         DoubleBufferedBinder {

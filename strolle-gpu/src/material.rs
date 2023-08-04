@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec2, Vec4, Vec4Swizzles};
+use glam::{Vec2, Vec3, Vec4, Vec4Swizzles};
 use spirv_std::Sampler;
 
 use crate::Tex;
@@ -21,12 +21,17 @@ pub struct Material {
 
 impl Material {
     /// Adjusts material so that it's ready for computing indirect lightning.
-    pub fn adjust_for_indirect(&mut self) {
+    pub fn adjust_for_indirect(&mut self, apply_restir_improvements: bool) {
         // When an indirect ray hits a specular highlight, it causes lots of
         // random pixels to turn white - that's almost impossible to denoise.
         //
         // So, following the typical advice, let's clamp the roughness.
         self.roughness = self.roughness.max(0.75 * 0.75);
+
+        if apply_restir_improvements {
+            // TODO describe
+            self.metallic = 0.0;
+        }
     }
 
     pub fn base_color(
@@ -49,7 +54,7 @@ impl Material {
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
         hit_uv: Vec2,
-    ) -> Vec4 {
+    ) -> Vec3 {
         Self::sample_atlas(
             atlas_tex,
             atlas_sampler,
@@ -57,6 +62,7 @@ impl Material {
             self.emissive,
             self.emissive_texture,
         )
+        .xyz()
     }
 
     fn sample_atlas(

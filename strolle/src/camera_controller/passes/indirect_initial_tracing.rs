@@ -1,10 +1,13 @@
+use rand::Rng;
+
 use crate::{
-    gpu, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
+    Params,
 };
 
 #[derive(Debug)]
 pub struct IndirectInitialTracingPass {
-    pass: CameraComputePass<gpu::IndirectInitialTracingPassParams>,
+    pass: CameraComputePass<gpu::PassParams>,
 }
 
 impl IndirectInitialTracingPass {
@@ -12,6 +15,7 @@ impl IndirectInitialTracingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
@@ -19,17 +23,19 @@ impl IndirectInitialTracingPass {
     {
         let pass = CameraComputePass::builder("indirect_initial_tracing")
             .bind([
-                &engine.noise.bind_blue_noise_texture(),
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.materials.bind_readable(),
-                &engine.images.bind_sampled(),
+                &engine.images.bind_atlas_sampled(),
             ])
             .bind([
-                &buffers.direct_primary_hits_d0.bind_readable(),
-                &buffers.direct_primary_hits_d1.bind_readable(),
-                &buffers.indirect_hits_d0.bind_writable(),
-                &buffers.indirect_hits_d1.bind_writable(),
+                &buffers.camera.bind_readable(),
+                &buffers.direct_hits.bind_readable(),
+                &buffers.direct_gbuffer_d0.bind_readable(),
+                &buffers.direct_gbuffer_d1.bind_readable(),
+                &buffers.indirect_rays.bind_writable(),
+                &buffers.indirect_gbuffer_d0.bind_writable(),
+                &buffers.indirect_gbuffer_d1.bind_writable(),
             ])
             .build(device, &engine.shaders.indirect_initial_tracing);
 
@@ -40,13 +46,12 @@ impl IndirectInitialTracingPass {
         &self,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
-        seed: u32,
     ) {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        let params = gpu::IndirectInitialTracingPassParams {
-            seed,
+        let params = gpu::PassParams {
+            seed: rand::thread_rng().gen(),
             frame: camera.frame,
         };
 

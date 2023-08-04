@@ -1,3 +1,4 @@
+use glam::vec4;
 use log::info;
 use spirv_std::glam::{uvec2, Mat4, UVec2, Vec3};
 
@@ -7,7 +8,8 @@ use crate::gpu;
 pub struct Camera {
     pub mode: CameraMode,
     pub viewport: CameraViewport,
-    pub projection: CameraProjection,
+    pub transform: Mat4,
+    pub projection: Mat4,
 }
 
 impl Camera {
@@ -51,24 +53,26 @@ impl Camera {
     }
 
     pub(crate) fn serialize(&self) -> gpu::Camera {
-        let (onb_u, onb_v, onb_w) = gpu::OrthonormalBasis::build(
-            self.projection.origin,
-            self.projection.look_at,
-            self.projection.up,
-        );
-
         gpu::Camera {
-            projection_view: self.projection.projection_view,
-            origin: self.projection.origin.extend(self.projection.fov),
-            viewport: self
+            projection_view: self.projection * self.transform.inverse(),
+            ndc_to_world: self.transform * self.projection.inverse(),
+            origin: self
+                .transform
+                .to_scale_rotation_translation()
+                .2
+                .extend(Default::default()),
+            screen: self
                 .viewport
-                .position
+                .size
                 .as_vec2()
-                .extend(self.viewport.size.x as f32)
-                .extend(self.viewport.size.y as f32),
-            onb_u,
-            onb_v,
-            onb_w,
+                .extend(Default::default())
+                .extend(Default::default()),
+            data: vec4(
+                f32::from_bits(self.mode.serialize()),
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            ),
         }
     }
 }
@@ -81,45 +85,41 @@ pub enum CameraMode {
     /// Shows direct lightning
     DirectLightning,
 
-    /// Shows demodulated direct lightning (i.e. without albedo)
-    DemodulatedDirectLightning,
+    /// Shows indirect diffuse lightning
+    IndirectDiffuseLightning,
 
-    /// Shows indirect lightning
-    IndirectLightning,
-
-    /// Shows demodulated indirect lightning (i.e. without albedo)
-    DemodulatedIndirectLightning,
-
-    /// Shows normals
-    NormalMap,
+    /// Shows indirect diffuse lightning
+    IndirectSpecularLightning,
 
     /// Shows BVH tree's heatmap
     BvhHeatmap,
 
-    /// Shows velocities used for reprojection
-    VelocityMap,
+    /// Shows a path-traced reference image; slow
+    Reference { depth: u8 },
 }
 
 impl CameraMode {
     pub(crate) fn serialize(&self) -> u32 {
-        *self as u32
+        match self {
+            CameraMode::Image => 0,
+            CameraMode::DirectLightning => 1,
+            CameraMode::IndirectDiffuseLightning => 2,
+            CameraMode::IndirectSpecularLightning => 3,
+            CameraMode::BvhHeatmap => 4,
+            CameraMode::Reference { .. } => 5,
+        }
     }
 
     pub(crate) fn needs_direct_lightning(&self) -> bool {
-        matches!(
-            self,
-            Self::Image
-                | Self::DirectLightning
-                | Self::DemodulatedDirectLightning
-        )
+        matches!(self, Self::Image | Self::DirectLightning)
     }
 
     pub(crate) fn needs_indirect_lightning(&self) -> bool {
         matches!(
             self,
             Self::Image
-                | Self::IndirectLightning
-                | Self::DemodulatedIndirectLightning
+                | Self::IndirectDiffuseLightning
+                | Self::IndirectSpecularLightning
         )
     }
 }
@@ -145,15 +145,6 @@ impl Default for CameraViewport {
             position: uvec2(0, 0),
         }
     }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct CameraProjection {
-    pub projection_view: Mat4,
-    pub origin: Vec3,
-    pub look_at: Vec3,
-    pub up: Vec3,
-    pub fov: f32,
 }
 
 #[derive(Clone, Debug, Default)]

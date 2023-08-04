@@ -27,15 +27,14 @@ impl FrameCompositionPass {
 
         let bg0 = BindGroup::builder("frame_composition_bg0")
             .add(&buffers.camera.bind_readable())
-            .add(&buffers.direct_colors.curr().bind_sampled())
-            .add(&buffers.direct_primary_hits_d0.bind_sampled())
-            .add(&buffers.direct_primary_hits_d2.bind_sampled())
-            .add(&buffers.direct_primary_hits_d3.bind_sampled())
-            .add(&buffers.direct_secondary_hits_d0.bind_sampled())
-            .add(&buffers.direct_secondary_hits_d2.bind_sampled())
-            .add(&buffers.indirect_colors.curr().bind_sampled())
-            .add(&buffers.surface_map.curr().bind_sampled())
-            .add(&buffers.velocity_map.bind_sampled())
+            .add(&buffers.direct_colors.curr().bind_readable())
+            .add(&buffers.direct_gbuffer_d0.bind_readable())
+            .add(&buffers.direct_gbuffer_d1.bind_readable())
+            .add(&buffers.indirect_diffuse_colors.curr().bind_readable())
+            .add(&buffers.indirect_specular_colors.curr().bind_readable())
+            .add(&buffers.surface_map.curr().bind_readable())
+            .add(&buffers.velocity_map.bind_readable())
+            .add(&buffers.reference_colors.bind_readable())
             .build(device);
 
         let pipeline_layout =

@@ -3,7 +3,7 @@ use glam::{vec2, Vec2, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{Hit, MaterialId, Ray};
+use crate::{MaterialId, Ray, TriangleHit};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
@@ -65,7 +65,7 @@ impl Triangle {
         self.positions().into_iter().sum::<Vec3>() / 3.0
     }
 
-    pub fn hit(&self, ray: Ray, max_distance: f32) -> Hit {
+    pub fn hit(&self, ray: Ray, max_distance: f32) -> TriangleHit {
         let v0v1 = self.position1() - self.position0();
         let v0v2 = self.position2() - self.position0();
 
@@ -75,7 +75,7 @@ impl Triangle {
         let det = v0v1.dot(pvec);
 
         if det.abs() < f32::EPSILON {
-            return Hit::none();
+            return TriangleHit::none();
         }
 
         // ---
@@ -94,7 +94,7 @@ impl Triangle {
             | (distance <= 0.0)
             | (distance >= max_distance)
         {
-            return Hit::none();
+            return TriangleHit::none();
         }
 
         let normal = {
@@ -102,18 +102,18 @@ impl Triangle {
                 + v * self.normal2()
                 + (1.0 - u - v) * self.normal0();
 
-            normal.normalize()
+            normal.normalize() * det.signum()
         };
 
         let point = ray.origin()
             + distance * ray.direction()
-            + normal * Hit::NUDGE_OFFSET;
+            + normal * TriangleHit::NUDGE_OFFSET;
 
         let uv = self.uv0()
             + (self.uv1() - self.uv0()) * u
             + (self.uv2() - self.uv0()) * v;
 
-        Hit {
+        TriangleHit {
             distance,
             point,
             normal,

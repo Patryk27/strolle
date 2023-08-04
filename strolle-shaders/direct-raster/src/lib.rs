@@ -3,126 +3,126 @@
 use spirv_std::arch;
 use strolle_gpu::prelude::*;
 
-#[rustfmt::skip]
 #[allow(clippy::too_many_arguments)]
 #[spirv(vertex)]
 pub fn main_vs(
     // Params
-    #[spirv(push_constant)]
-    params: &DirectRasterPassParams,
-    #[spirv(descriptor_set = 1, binding = 0, uniform)]
-    camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1, uniform)]
-    prev_camera: &Camera,
+    #[spirv(push_constant)] params: &DirectRasterPassParams,
+    #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 1, binding = 1, uniform)] prev_camera: &Camera,
 
     // Inputs
     vertex_d0: Vec4,
     vertex_d1: Vec4,
 
     // Outputs
-    #[spirv(position)]
-    out_vertex: &mut Vec4,
+    #[spirv(position)] out_vertex: &mut Vec4,
     out_curr_vertex: &mut Vec4,
     out_prev_vertex: &mut Vec4,
-    out_hit_point: &mut Vec3,
-    out_hit_normal: &mut Vec3,
-    out_hit_uv: &mut Vec2,
+    out_point: &mut Vec3,
+    out_normal: &mut Vec3,
+    out_uv: &mut Vec2,
 ) {
-    let position = vertex_d0.xyz();
+    let point = vertex_d0.xyz();
 
-    let prev_position = params.prev_xform().transform_point3(
-        params.curr_xform_inv().transform_point3(position)
-    );
+    let prev_point = params
+        .prev_xform()
+        .transform_point3(params.curr_xform_inv().transform_point3(point));
 
     let normal = vertex_d1.xyz();
     let uv = vec2(vertex_d0.w, vertex_d1.w);
 
-    *out_vertex = camera.world_to_clip(position);
-    *out_curr_vertex = camera.world_to_clip(position);
-    *out_prev_vertex = prev_camera.world_to_clip(prev_position);
-    *out_hit_point = position;
-    *out_hit_normal = normal;
-    *out_hit_uv = uv;
+    *out_vertex = camera.world_to_clip(point);
+    *out_curr_vertex = camera.world_to_clip(point);
+    *out_prev_vertex = prev_camera.world_to_clip(prev_point);
+    *out_point = point;
+    *out_normal = normal;
+    *out_uv = uv;
 }
 
-#[rustfmt::skip]
 #[allow(clippy::too_many_arguments)]
 #[spirv(fragment)]
 pub fn main_fs(
     // Params
-    #[spirv(push_constant)]
-    params: &DirectRasterPassParams,
+    #[spirv(push_constant)] params: &DirectRasterPassParams,
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 1)]
-    atlas_tex: Tex,
-    #[spirv(descriptor_set = 0, binding = 2)]
-    atlas_sampler: &Sampler,
-    #[spirv(descriptor_set = 1, binding = 0, uniform)]
-    camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1, uniform)]
-    prev_camera: &Camera,
+    #[spirv(descriptor_set = 0, binding = 1)] atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 2)] atlas_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 1, binding = 1, uniform)] prev_camera: &Camera,
 
     // Inputs
     curr_vertex: Vec4,
     prev_vertex: Vec4,
-    hit_point: Vec3,
-    hit_normal: Vec3,
-    hit_uv: Vec2,
+    point: Vec3,
+    normal: Vec3,
+    uv: Vec2,
 
     // Outputs
-    out_direct_primary_hits_d0: &mut Vec4,
-    out_direct_primary_hits_d1: &mut Vec4,
-    out_direct_primary_hits_d2: &mut Vec4,
-    out_direct_primary_hits_d3: &mut Vec4,
-    out_surface_map: &mut Vec4,
-    out_velocity_map: &mut Vec4,
+    out_direct_hit: &mut Vec4,
+    out_direct_gbuffer_d0: &mut Vec4,
+    out_direct_gbuffer_d1: &mut Vec4,
+    out_surface: &mut Vec4,
+    out_velocity: &mut Vec4,
 ) {
     let material = MaterialsView::new(materials)
         .get(MaterialId::new(params.material_id()));
 
-    let hit_base_color = material.base_color(atlas_tex, atlas_sampler, hit_uv);
+    let base_color = material.base_color(atlas_tex, atlas_sampler, uv);
 
-    // If our material is fully transparent, and it doesn't rely on refraction,
-    // we can kill the current fragment to ask GPU to find the next triangle
-    if hit_base_color.w < 0.01 && material.ior == 1.0 {
+    // If our material is transparent and doesn't rely on refraction, kill the
+    // current fragment to re-use GPU in finding the next triangle
+    if base_color.w < 0.01 && material.ior == 1.0 {
         arch::kill();
     }
 
-    let hit_emissive = material.emissive(atlas_tex, atlas_sampler, hit_uv);
-
     // TODO bring back normal mapping
-    let hit_normal = {
-        // If the mesh we're rendering uses per-vertex normals, the normal here
-        // will be unnormalized due to the GPU interpolating it in-between
-        // vertices; no biggie, let's just fix it
-        hit_normal.normalize()
+    let normal = normal.normalize();
+    let point = point + normal * TriangleHit::NUDGE_OFFSET;
+
+    // -------------------------------------------------------------------------
+
+    // Since we know the ray and depth, in principle we could restore the point
+    // by doing `ray.origin() + ray.direction() * gbuffer.depth` - but for some
+    // reason there's a tiiiny difference in floating-point computations between
+    // raster and raytracer, and eventually it adds up to cause invalid shadows
+    // in some places; not really sure why, though.
+    *out_direct_hit = point.extend(Default::default());
+
+    // -------------------------------------------------------------------------
+
+    let depth = camera.origin.xyz().distance(point);
+
+    let gbuffer = GBufferEntry {
+        base_color,
+        normal,
+        metallic: material.metallic,
+        emissive: material.emissive(atlas_tex, atlas_sampler, uv),
+        roughness: material.roughness,
+        reflectance: material.reflectance,
+        depth,
     };
 
-    let hit_normal_encoded = Normal::encode(hit_normal);
-    let hit_distance = camera.origin().distance(hit_point);
+    let [gbuffer_d0, gbuffer_d1] = gbuffer.pack();
 
-    *out_direct_primary_hits_d0 =
-        hit_point.extend(f32::from_bits(params.material_id()));
+    *out_direct_gbuffer_d0 = gbuffer_d0;
+    *out_direct_gbuffer_d1 = gbuffer_d1;
 
-    *out_direct_primary_hits_d1 =
-        hit_normal_encoded.extend(hit_uv.x).extend(hit_uv.y);
+    // -------------------------------------------------------------------------
 
-    *out_direct_primary_hits_d2 =
-        hit_base_color;
-
-    *out_direct_primary_hits_d3 =
-        hit_emissive.xyz().extend(material.metallic);
-
-    *out_surface_map = hit_normal_encoded
-        .extend(hit_distance)
+    *out_surface = Normal::encode(normal)
+        .extend(depth)
         .extend(Default::default());
 
-    *out_velocity_map = {
+    // -------------------------------------------------------------------------
+
+    *out_velocity = {
         let curr_scren_pos = camera.clip_to_screen(curr_vertex);
         let prev_screen_pos = prev_camera.clip_to_screen(prev_vertex);
 
-        let velocity = (curr_scren_pos - prev_screen_pos).extend(0.0).extend(0.0);
+        let velocity =
+            (curr_scren_pos - prev_screen_pos).extend(0.0).extend(0.0);
 
         if velocity.length_squared() >= 0.001 {
             velocity

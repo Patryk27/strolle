@@ -5,8 +5,10 @@
 #![allow(clippy::manual_range_contains)]
 
 mod atmosphere;
+mod brdf;
 mod bvh_view;
 mod camera;
+mod gbuffer;
 mod hit;
 mod light;
 mod lights;
@@ -25,8 +27,10 @@ mod utils;
 mod world;
 
 pub use self::atmosphere::*;
+pub use self::brdf::*;
 pub use self::bvh_view::*;
 pub use self::camera::*;
+pub use self::gbuffer::*;
 pub use self::hit::*;
 pub use self::light::*;
 pub use self::lights::*;
@@ -66,3 +70,5 @@ pub type BvhStack<'a> = &'a mut [u32; BVH_STACK_SIZE * 8 * 8];
 /// The larger this value is, the bigger world can be rendered - at the expense
 /// of performance.
 pub const BVH_STACK_SIZE: usize = 24;
+
+pub const GOLDEN_ANGLE: f32 = 2.39996;

@@ -217,7 +217,7 @@ where
         }
     }
 
-    pub fn bind_sampled(&self) -> impl Bindable + '_ {
+    pub fn bind_atlas_sampled(&self) -> impl Bindable + '_ {
         self.atlas_texture.bind_sampled()
     }
 }

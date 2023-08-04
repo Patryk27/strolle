@@ -16,6 +16,12 @@ impl Surface {
     ///
     /// See also: [`SurfaceMap::evaulate_similarity_between()`].
     pub fn evaluate_similarity_to(&self, other: &Self) -> f32 {
+        // Zero-depth means we've hit the sky - it's not a surface per se, so
+        // its similarity score is always zero
+        if self.depth == 0.0 || other.depth == 0.0 {
+            return 0.0;
+        }
+
         let normal_score = self.normal.dot(other.normal).max(0.0);
 
         // TODO a continuous function here would be much, much better

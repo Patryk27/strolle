@@ -1,12 +1,16 @@
 use core::ops::{Deref, DerefMut};
 
 use glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::Float;
 
 use crate::{LightId, Reservoir};
 
 #[derive(Clone, Copy, Default)]
 pub struct DirectReservoir {
     reservoir: Reservoir<DirectReservoirSample>,
+
+    // TODO move to DirectReservoirSample
     pub frame: u32,
 }
 
@@ -19,20 +23,22 @@ impl DirectReservoir {
     }
 
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
-        let d0 = unsafe { *buffer.get_unchecked(2 * id + 0) };
-        let d1 = unsafe { *buffer.get_unchecked(2 * id + 1) };
+        let d0 = unsafe { *buffer.get_unchecked(3 * id + 0) };
+        let d1 = unsafe { *buffer.get_unchecked(3 * id + 1) };
+        let d2 = unsafe { *buffer.get_unchecked(3 * id + 2) };
 
         Self {
             reservoir: Reservoir {
                 sample: DirectReservoirSample {
                     light_id: LightId::new(d0.w.to_bits()),
                     light_contribution: d0.xyz(),
+                    hit_point: d1.xyz(),
                 },
                 w_sum: Default::default(),
-                m_sum: d1.x,
-                w: d1.y,
+                m_sum: d2.x,
+                w: d2.y,
             },
-            frame: d1.z.to_bits(),
+            frame: d2.z.to_bits(),
         }
     }
 
@@ -42,7 +48,9 @@ impl DirectReservoir {
             .light_contribution
             .extend(f32::from_bits(self.sample.light_id.get()));
 
-        let d1 = vec4(
+        let d1 = self.sample.hit_point.extend(Default::default());
+
+        let d2 = vec4(
             self.reservoir.m_sum,
             self.reservoir.w,
             f32::from_bits(self.frame),
@@ -50,8 +58,9 @@ impl DirectReservoir {
         );
 
         unsafe {
-            *buffer.get_unchecked_mut(2 * id + 0) = d0;
-            *buffer.get_unchecked_mut(2 * id + 1) = d1;
+            *buffer.get_unchecked_mut(3 * id + 0) = d0;
+            *buffer.get_unchecked_mut(3 * id + 1) = d1;
+            *buffer.get_unchecked_mut(3 * id + 2) = d2;
         }
     }
 
@@ -78,13 +87,14 @@ impl DerefMut for DirectReservoir {
 pub struct DirectReservoirSample {
     pub light_id: LightId,
     pub light_contribution: Vec3,
+    pub hit_point: Vec3,
 }
 
 impl DirectReservoirSample {
     pub fn sky(light_contribution: Vec3) -> Self {
         Self {
-            light_id: LightId::new(u32::MAX),
             light_contribution,
+            ..Default::default()
         }
     }
 
@@ -102,6 +112,7 @@ impl Default for DirectReservoirSample {
         Self {
             light_id: LightId::new(u32::MAX),
             light_contribution: Default::default(),
+            hit_point: vec3(0.0, 1000.0, 0.0),
         }
     }
 }

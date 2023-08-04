@@ -5,7 +5,6 @@ mod passes;
 use std::ops::DerefMut;
 
 use log::{debug, info};
-use rand::Rng;
 
 pub use self::buffers::*;
 pub use self::pass::*;
@@ -92,46 +91,78 @@ impl CameraController {
     ) where
         P: Params,
     {
-        let has_any_objects = !engine.instances.is_empty();
-
-        if let CameraMode::BvhHeatmap = self.camera.mode {
-            self.passes.bvh_heatmap.run(self, encoder);
-            self.passes.frame_composition.run(self, encoder, view);
-        } else {
-            self.passes.atmosphere.run(engine, self, encoder);
-            self.passes.direct_raster.run(engine, self, encoder);
-
-            if has_any_objects {
-                self.passes.frame_reprojection.run(self, encoder);
-
-                if self.camera.mode.needs_direct_lightning() {
-                    self.passes.direct_secondary_tracing.run(self, encoder);
-                    self.passes.direct_initial_shading.run(self, encoder);
-                    self.passes.direct_temporal_resampling.run(self, encoder);
-                    self.passes.direct_spatial_resampling.run(self, encoder);
-                    self.passes.direct_resolving.run(self, encoder);
-                    self.passes.direct_denoising.run(self, encoder);
-                }
-
-                if self.camera.mode.needs_indirect_lightning() {
-                    let seed = rand::thread_rng().gen();
-
-                    self.passes
-                        .indirect_initial_tracing
-                        .run(self, encoder, seed);
-
-                    self.passes
-                        .indirect_initial_shading
-                        .run(self, encoder, seed);
-
-                    self.passes.indirect_temporal_resampling.run(self, encoder);
-                    self.passes.indirect_spatial_resampling.run(self, encoder);
-                    self.passes.indirect_resolving.run(self, encoder);
-                    self.passes.indirect_denoising.run(self, encoder);
-                }
+        match self.camera.mode {
+            CameraMode::BvhHeatmap => {
+                self.passes.bvh_heatmap.run(self, encoder);
+                self.passes.frame_composition.run(self, encoder, view);
             }
 
-            self.passes.frame_composition.run(self, encoder, view);
+            CameraMode::Reference { depth } => {
+                self.passes.atmosphere.run(engine, self, encoder);
+
+                for depth in 0..=depth {
+                    self.passes.reference_tracing.run(self, encoder, depth);
+                    self.passes.reference_shading.run(self, encoder, depth);
+                }
+
+                self.passes.reference_shading.run(self, encoder, u8::MAX);
+                self.passes.frame_composition.run(self, encoder, view);
+            }
+
+            _ => {
+                let has_any_objects = !engine.instances.is_empty();
+
+                self.passes.atmosphere.run(engine, self, encoder);
+                self.passes.direct_raster.run(engine, self, encoder);
+
+                if has_any_objects {
+                    self.passes.frame_reprojection.run(self, encoder);
+
+                    if self.camera.mode.needs_direct_lightning() {
+                        self.passes.direct_initial_shading.run(self, encoder);
+
+                        self.passes
+                            .direct_temporal_resampling
+                            .run(self, encoder);
+
+                        self.passes
+                            .direct_spatial_resampling
+                            .run(self, encoder);
+
+                        self.passes.direct_resolving.run(self, encoder);
+                        self.passes.direct_denoising.run(self, encoder);
+                    }
+
+                    if self.camera.mode.needs_indirect_lightning() {
+                        self.passes.indirect_initial_tracing.run(self, encoder);
+                        self.passes.indirect_initial_shading.run(self, encoder);
+
+                        self.passes
+                            .indirect_diffuse_temporal_resampling
+                            .run(self, encoder);
+
+                        self.passes
+                            .indirect_diffuse_spatial_resampling
+                            .run(self, encoder);
+
+                        self.passes
+                            .indirect_specular_resampling
+                            .run(self, encoder);
+
+                        self.passes.indirect_resolving.run(self, encoder);
+
+                        self.passes
+                            .indirect_diffuse_denoising
+                            .run(self, encoder);
+
+                        self.passes
+                            .indirect_specular_denoising
+                            .run(self, encoder);
+                    }
+                }
+
+                self.passes.frame_composition.run(self, encoder, view);
+            }
         }
     }
 

@@ -1,5 +1,5 @@
 [package]
-name = "strolle-direct-secondary-tracing-shader"
+name = "strolle-indirect-specular-denoising-shader"
 version = "0.1.0"
 edition = "2021"
 

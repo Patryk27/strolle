@@ -5,11 +5,16 @@ pub trait F32Ext
 where
     Self: Sized,
 {
+    fn sqr(self) -> Self;
     fn saturate(self) -> Self;
     fn inverse_sqrt(self) -> Self;
 }
 
 impl F32Ext for f32 {
+    fn sqr(self) -> Self {
+        self * self
+    }
+
     fn saturate(self) -> Self {
         self.clamp(0.0, 1.0)
     }

@@ -1,9 +1,45 @@
-use glam::{UVec2, Vec2, Vec3, Vec4, Vec4Swizzles};
+use glam::{Vec2, Vec3, Vec4, Vec4Swizzles};
 
-use crate::{Camera, MaterialId, Normal, Ray, TexRgba32f};
+use crate::{GBufferEntry, MaterialId, Normal, Ray};
 
 #[derive(Clone, Copy)]
 pub struct Hit {
+    pub origin: Vec3,
+    pub direction: Vec3,
+    pub point: Vec3,
+    pub gbuffer: GBufferEntry,
+}
+
+impl Hit {
+    pub fn from_direct(ray: Ray, point: Vec3, gbuffer: GBufferEntry) -> Self {
+        Self {
+            origin: ray.origin(),
+            direction: ray.direction(),
+            point,
+            gbuffer,
+        }
+    }
+
+    pub fn from_indirect(ray: Ray, gbuffer: GBufferEntry) -> Self {
+        Self {
+            origin: ray.origin(),
+            direction: ray.direction(),
+            point: ray.origin() + ray.direction() * gbuffer.depth,
+            gbuffer,
+        }
+    }
+
+    pub fn is_some(&self) -> bool {
+        self.gbuffer.is_some()
+    }
+
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct TriangleHit {
     pub distance: f32,
     pub point: Vec3,
     pub normal: Vec3,
@@ -11,7 +47,7 @@ pub struct Hit {
     pub material_id: MaterialId,
 }
 
-impl Hit {
+impl TriangleHit {
     /// How far to move a hit point away from its surface to avoid
     /// self-intersection when casting shadow rays.
     ///
@@ -31,30 +67,12 @@ impl Hit {
         }
     }
 
-    pub fn is_some(&self) -> bool {
-        self.distance < f32::MAX
-    }
-
-    pub fn is_none(&self) -> bool {
-        !self.is_some()
-    }
-
-    pub fn serialize(&self) -> [Vec4; 2] {
-        let d0 = self.point.extend(f32::from_bits(self.material_id.get()));
-
-        let d1 = Normal::encode(self.normal)
-            .extend(self.uv.x)
-            .extend(self.uv.y);
-
-        [d0, d1]
-    }
-
-    pub fn deserialize(d0: Vec4, d1: Vec4) -> Self {
+    pub fn unpack([d0, d1]: [Vec4; 2]) -> Self {
         if d0.xyz() == Default::default() {
             Self::none()
         } else {
             let normal = Normal::decode(d1.xy());
-            let point = d0.xyz() + normal * Self::NUDGE_OFFSET;
+            let point = d0.xyz();
 
             Self {
                 distance: 0.0,
@@ -66,47 +84,21 @@ impl Hit {
         }
     }
 
-    pub fn deserialize_point(d0: Vec4) -> Vec3 {
-        d0.xyz()
+    pub fn pack(&self) -> [Vec4; 2] {
+        let d0 = self.point.extend(f32::from_bits(self.material_id.get()));
+
+        let d1 = Normal::encode(self.normal)
+            .extend(self.uv.x)
+            .extend(self.uv.y);
+
+        [d0, d1]
     }
 
-    /// Gets the direct hit from opaque surface at given screen-coordinates.
-    ///
-    /// That is, this function returns the primary hit if the primary surface is
-    /// opaque, otherwise it returns the secondary hit (which is presumed
-    /// opaque).
-    pub fn find_direct(
-        camera: &Camera,
-        direct_primary_hits_d0: TexRgba32f,
-        direct_primary_hits_d1: TexRgba32f,
-        direct_secondary_rays: TexRgba32f,
-        direct_secondary_hits_d0: TexRgba32f,
-        direct_secondary_hits_d1: TexRgba32f,
-        screen_pos: UVec2,
-    ) -> (Ray, Self) {
-        let secondary_ray = direct_secondary_rays.read(screen_pos);
+    pub fn is_some(&self) -> bool {
+        self.distance < f32::MAX
+    }
 
-        if secondary_ray == Default::default() {
-            let ray = camera.ray(screen_pos);
-
-            let hit = Hit::deserialize(
-                direct_primary_hits_d0.read(screen_pos),
-                direct_primary_hits_d1.read(screen_pos),
-            );
-
-            (ray, hit)
-        } else {
-            let ray = Ray::new(
-                Hit::deserialize_point(direct_primary_hits_d0.read(screen_pos)),
-                secondary_ray.xyz(),
-            );
-
-            let hit = Hit::deserialize(
-                direct_secondary_hits_d0.read(screen_pos),
-                direct_secondary_hits_d1.read(screen_pos),
-            );
-
-            (ray, hit)
-        }
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
     }
 }

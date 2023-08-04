@@ -25,7 +25,7 @@ impl<P> Material<P>
 where
     P: Params,
 {
-    pub(crate) fn build(&self, images: &Images<P>) -> gpu::Material {
+    pub(crate) fn serialize(&self, images: &Images<P>) -> gpu::Material {
         gpu::Material {
             base_color: self.base_color,
             base_color_texture: images
@@ -35,7 +35,7 @@ where
             emissive_texture: images
                 .lookup_opt(self.emissive_texture.as_ref())
                 .unwrap_or_default(),
-            roughness: self.perceptual_roughness.clamp(0.089, 1.0).powf(2.0),
+            roughness: self.perceptual_roughness.powf(2.0),
             metallic: self.metallic,
             reflectance: self.reflectance,
             ior: self.ior,
