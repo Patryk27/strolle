@@ -1,5 +1,5 @@
 [package]
-name = "strolle-indirect-temporal-resampling-shader"
+name = "strolle-reference-shading-shader"
 version = "0.1.0"
 edition = "2021"
 

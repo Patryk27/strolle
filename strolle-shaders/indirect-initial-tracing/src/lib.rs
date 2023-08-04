@@ -2,86 +2,63 @@
 
 use strolle_gpu::prelude::*;
 
-#[rustfmt::skip]
 #[spirv(compute(threads(8, 8)))]
 #[allow(clippy::too_many_arguments)]
 pub fn main(
-    #[spirv(global_invocation_id)]
-    global_id: UVec3,
-    #[spirv(local_invocation_index)]
-    local_idx: u32,
-    #[spirv(push_constant)]
-    params: &IndirectInitialTracingPassParams,
-    #[spirv(workgroup)]
-    stack: BvhStack,
-    #[spirv(descriptor_set = 0, binding = 0)]
-    blue_noise_tex: TexRgba8f,
-    #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
+    #[spirv(global_invocation_id)] global_id: UVec3,
+    #[spirv(local_invocation_index)] local_idx: u32,
+    #[spirv(push_constant)] params: &PassParams,
+    #[spirv(workgroup)] stack: BvhStack,
+    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
+    #[spirv(descriptor_set = 0, binding = 1, storage_buffer)] bvh: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
-    bvh: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 4)]
-    atlas_tex: Tex,
-    #[spirv(descriptor_set = 0, binding = 5)]
-    atlas_sampler: &Sampler,
-    #[spirv(descriptor_set = 1, binding = 0)]
-    direct_primary_hits_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 1)]
-    direct_primary_hits_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)]
-    indirect_hits_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)]
-    indirect_hits_d1: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 3)] atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 4)] atlas_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 1, binding = 1)] direct_hits: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 4)] indirect_rays: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 5)] indirect_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6)] indirect_gbuffer_d1: TexRgba32f,
 ) {
-    main_inner(
-        global_id.xy(),
-        local_idx,
-        BlueNoise::new(blue_noise_tex, global_id.xy(), params.frame),
-        stack,
-        TrianglesView::new(triangles),
-        BvhView::new(bvh),
-        MaterialsView::new(materials),
-        atlas_tex,
-        atlas_sampler,
-        direct_primary_hits_d0,
-        direct_primary_hits_d1,
-        indirect_hits_d0,
-        indirect_hits_d1,
-    )
-}
+    let screen_pos = global_id.xy();
+    let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
+    let triangles = TrianglesView::new(triangles);
+    let bvh = BvhView::new(bvh);
+    let materials = MaterialsView::new(materials);
 
-#[allow(clippy::too_many_arguments)]
-fn main_inner(
-    screen_pos: UVec2,
-    local_idx: u32,
-    bnoise: BlueNoise,
-    stack: BvhStack,
-    triangles: TrianglesView,
-    bvh: BvhView,
-    materials: MaterialsView,
-    atlas_tex: Tex,
-    atlas_sampler: &Sampler,
-    direct_primary_hits_d0: TexRgba32f,
-    direct_primary_hits_d1: TexRgba32f,
-    indirect_hits_d0: TexRgba32f,
-    indirect_hits_d1: TexRgba32f,
-) {
-    let direct_hit = Hit::deserialize(
-        direct_primary_hits_d0.read(screen_pos),
-        direct_primary_hits_d1.read(screen_pos),
+    let direct_hit = Hit::from_direct(
+        camera.ray(screen_pos),
+        direct_hits.read(screen_pos).xyz(),
+        GBufferEntry::unpack([
+            direct_gbuffer_d0.read(screen_pos),
+            direct_gbuffer_d1.read(screen_pos),
+        ]),
     );
 
-    let indirect_hit = if direct_hit.is_none() {
-        Hit::none()
-    } else {
-        let ray = Ray::new(
-            direct_hit.point,
-            bnoise.sample_hemisphere(direct_hit.normal),
-        );
+    let indirect_ray_direction;
+    let indirect_hit;
 
-        ray.trace(
+    if direct_hit.is_none() {
+        indirect_ray_direction = Vec3::ZERO;
+        indirect_hit = TriangleHit::none();
+    } else {
+        indirect_ray_direction = if IndirectReservoir::expects_diffuse_sample(
+            screen_pos,
+            params.frame,
+        ) {
+            wnoise.sample_hemisphere(direct_hit.gbuffer.normal)
+        } else {
+            SpecularBrdf::new(&direct_hit.gbuffer)
+                .sample(&mut wnoise, direct_hit)
+        };
+
+        let ray = Ray::new(direct_hit.point, indirect_ray_direction);
+
+        (indirect_hit, _) = ray.trace(
             local_idx,
             stack,
             triangles,
@@ -89,14 +66,46 @@ fn main_inner(
             materials,
             atlas_tex,
             atlas_sampler,
-        )
-        .0
+        );
     };
 
-    let [d0, d1] = indirect_hit.serialize();
+    let indirect_gbuffer = if indirect_hit.is_some() {
+        // TODO reloading material here shouldn't be necessary because we
+        //      already load materials during ray-traversal
+        let mut indirect_material = materials.get(indirect_hit.material_id);
+
+        indirect_material.adjust_for_indirect(true);
+
+        GBufferEntry {
+            base_color: indirect_material.base_color(
+                atlas_tex,
+                atlas_sampler,
+                indirect_hit.uv,
+            ),
+            normal: indirect_hit.normal,
+            metallic: indirect_material.metallic,
+            emissive: indirect_material.emissive(
+                atlas_tex,
+                atlas_sampler,
+                indirect_hit.uv,
+            ),
+            roughness: indirect_material.roughness,
+            reflectance: indirect_material.reflectance,
+            depth: direct_hit.point.distance(indirect_hit.point),
+        }
+    } else {
+        Default::default()
+    };
+
+    let [d0, d1] = indirect_gbuffer.pack();
 
     unsafe {
-        indirect_hits_d0.write(screen_pos, d0);
-        indirect_hits_d1.write(screen_pos, d1);
+        indirect_rays.write(
+            screen_pos,
+            indirect_ray_direction.extend(Default::default()),
+        );
+
+        indirect_gbuffer_d0.write(screen_pos, d0);
+        indirect_gbuffer_d1.write(screen_pos, d1);
     }
 }

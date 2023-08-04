@@ -22,186 +22,69 @@ pub fn main_vs(
 pub fn main_fs(
     #[spirv(frag_coord)] pos: Vec4,
     #[spirv(push_constant)] params: &FrameCompositionPassParams,
-    #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: Tex,
-    #[spirv(descriptor_set = 0, binding = 2)] sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 3)] direct_primary_hits_d0: Tex,
-    #[spirv(descriptor_set = 0, binding = 5)] direct_primary_hits_d2: Tex,
-    #[spirv(descriptor_set = 0, binding = 7)] direct_primary_hits_d3: Tex,
-    #[spirv(descriptor_set = 0, binding = 9)] direct_secondary_hits_d0: Tex,
-    #[spirv(descriptor_set = 0, binding = 11)] direct_secondary_hits_d2: Tex,
-    #[spirv(descriptor_set = 0, binding = 13)] indirect_colors: Tex,
-    #[spirv(descriptor_set = 0, binding = 15)] surface_map: Tex,
-    #[spirv(descriptor_set = 0, binding = 17)] velocity_map: Tex,
+    #[spirv(descriptor_set = 0, binding = 0, uniform)] _camera: &Camera,
+    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 3)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 4)]
+    indirect_diffuse_colors: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 5)]
+    indirect_specular_colors: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 6)] _surface_map: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 7)] _velocity_map: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 8)] reference_colors: TexRgba32f,
     frag_color: &mut Vec4,
 ) {
-    let texel_xy = {
-        let viewport_pos = camera.viewport_position();
-        let viewport_size = camera.viewport_size().as_vec2();
-
-        let x = (pos.x - viewport_pos.x) / (viewport_size.x);
-        let y = (pos.y - viewport_pos.y) / (viewport_size.y);
-
-        vec2(x, y)
-    };
+    let screen_pos = pos.xy().as_uvec2();
 
     let (color, apply_color_adjustments) = match params.camera_mode {
         // CameraMode::Image
         0 => {
-            let primary_point = Hit::deserialize_point(
-                direct_primary_hits_d0.sample(*sampler, texel_xy),
-            );
+            let gbuffer = GBufferEntry::unpack([
+                direct_gbuffer_d0.read(screen_pos),
+                direct_gbuffer_d1.read(screen_pos),
+            ]);
 
-            let primary_base_color =
-                direct_primary_hits_d2.sample(*sampler, texel_xy);
+            let color = if gbuffer.is_some() {
+                let direct = direct_colors.read(screen_pos).xyz();
 
-            let d3 = direct_primary_hits_d3.sample(*sampler, texel_xy);
-            let primary_emissive = d3.xyz();
-            let primary_metallic = d3.w;
+                let indirect_diffuse =
+                    indirect_diffuse_colors.read(screen_pos).xyz();
 
-            let secondary_base_color =
-                direct_secondary_hits_d2.sample(*sampler, texel_xy);
-
-            let secondary_point = Hit::deserialize_point(
-                direct_secondary_hits_d0.sample(*sampler, texel_xy),
-            );
-
-            let direct = direct_colors.sample(*sampler, texel_xy).xyz();
-            let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
-
-            let color = if primary_point == Default::default() {
-                // Case 1: We've hit the sky.
-                //
-                // Arguably, this is the easiest case to compose - the direct
-                // resolving pass already handles generating the sky color and
-                // puts it into `direct_colors`, which we have right here.
-                direct
-            } else if primary_metallic > 0.0 {
-                // Case 2: We've hit a conductive surface.
-                //
-                // This requires us to blend primary and secondary surfaces
-                // depending on the primary surface's metallicness.
-                //
-                // Intuitively, if the metallic factor is 1.0, then the primary
-                // surface behaves like a mirror.
-                //
-                // Note that ReSTIR reservoirs here are allocated on the
-                // *secondary* surface, so we can't know whether the primary one
-                // is shaded or not, so its base color functions kinda as an
-                // emissive as well.
-                let primary_color = primary_emissive
-                    + ((primary_metallic - 1.0) * primary_base_color.xyz());
-
-                // Case 2a/2b: If the secondary hit is sky, don't multiply by
-                //             base color (which is black then).
-                let secondary_color = if secondary_point == Default::default() {
-                    primary_metallic * direct
+                let indirect_specular = if gbuffer.roughness < 0.95 {
+                    indirect_specular_colors.read(screen_pos).xyz()
                 } else {
-                    primary_metallic
-                        * secondary_base_color.xyz()
-                        * (direct + indirect)
+                    // TODO doesn't feel right (missing Fresnel?)
+                    indirect_diffuse
                 };
 
-                primary_color + secondary_color
-            } else if primary_base_color.w < 1.0 {
-                // Case 3: We've hit a transparent surface.
-                //
-                // Similarly as with metalics, this requires us to blend primary
-                // and secondary surfaces, although this time according to the
-                // primary surface's base color.
-                //
-                // ReSTIR reservoirs here are also allocated on the secondary
-                // surface.
-
-                let alpha = primary_base_color.w;
-
-                let primary_color =
-                    primary_emissive + (alpha * primary_base_color.xyz());
-
-                // Case 3a/3b: If the secondary hit is sky, don't multiply by
-                //             base color (which is black then).
-                let secondary_color = if secondary_point == Default::default() {
-                    (1.0 - alpha) * direct
-                } else {
-                    (1.0 - alpha)
-                        * secondary_base_color.xyz()
-                        * (direct + indirect)
-                };
-
-                primary_color + secondary_color
+                gbuffer.base_color.xyz()
+                    * (direct + indirect_diffuse + indirect_specular)
             } else {
-                // Case 4: We've hit an opaque surface.
-
-                primary_emissive
-                    + primary_base_color.xyz() * (direct + indirect)
+                direct_colors.read(screen_pos).xyz()
             };
 
             (color, true)
         }
 
         // CameraMode::DirectLightning
-        1 => {
-            let base_color =
-                direct_primary_hits_d2.sample(*sampler, texel_xy).xyz();
+        1 => (direct_colors.read(screen_pos).xyz(), false),
 
-            let direct = direct_colors.sample(*sampler, texel_xy).xyz();
+        // CameraMode::IndirectDiffuseLightning
+        2 => (indirect_diffuse_colors.read(screen_pos).xyz(), false),
 
-            (base_color * direct, true)
-        }
-
-        // CameraMode::DemodulatedDirectLightning
-        2 => {
-            let direct = direct_colors.sample(*sampler, texel_xy).xyz();
-
-            (direct, true)
-        }
-
-        // CameraMode::IndirectLightning
-        3 => {
-            let base_color =
-                direct_primary_hits_d2.sample(*sampler, texel_xy).xyz();
-
-            let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
-
-            (base_color * indirect, true)
-        }
-
-        // CameraMode::DemodulatedIndirectLightning
-        4 => {
-            let indirect = indirect_colors.sample(*sampler, texel_xy).xyz();
-
-            (indirect, true)
-        }
-
-        // CameraMode::NormalMap
-        5 => {
-            let surface = surface_map.sample(*sampler, texel_xy).xyz();
-
-            let normal = if surface.z == 0.0 {
-                Default::default()
-            } else {
-                Vec3::splat(0.5) + Normal::decode(surface.xy()) * 0.5
-            };
-
-            (normal, false)
-        }
+        // CameraMode::IndirectSpecularLightning
+        3 => (indirect_specular_colors.read(screen_pos).xyz(), false),
 
         // CameraMode::BvhHeatmap
-        6 => {
-            let heatmap = direct_colors.sample(*sampler, texel_xy).xyz();
+        4 => (direct_colors.read(screen_pos).xyz(), false),
 
-            (heatmap, false)
-        }
+        // CameraMode::Reference
+        5 => {
+            let color = reference_colors.read(screen_pos);
+            let color = color.xyz() / color.w;
 
-        // CameraMode::VelocityMap
-        7 => {
-            let velocity = velocity_map
-                .sample(*sampler, texel_xy)
-                .xy()
-                .abs()
-                .extend(0.0);
-
-            (velocity, false)
+            (color, true)
         }
 
         _ => Default::default(),

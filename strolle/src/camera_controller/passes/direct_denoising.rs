@@ -1,5 +1,5 @@
 use crate::{
-    CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
@@ -11,6 +11,7 @@ impl DirectDenoisingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
@@ -22,7 +23,7 @@ impl DirectDenoisingPass {
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
                 &buffers.surface_map.prev().bind_readable(),
-                &buffers.raw_direct_colors.bind_readable(),
+                &buffers.direct_samples.bind_readable(),
                 &buffers.direct_colors.curr().bind_writable(),
                 &buffers.direct_colors.prev().bind_readable(),
             ])

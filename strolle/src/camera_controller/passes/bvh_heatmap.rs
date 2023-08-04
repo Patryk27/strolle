@@ -1,5 +1,5 @@
 use crate::{
-    CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
@@ -12,6 +12,7 @@ impl BvhHeatmapPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
@@ -22,7 +23,7 @@ impl BvhHeatmapPass {
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.materials.bind_readable(),
-                &engine.images.bind_sampled(),
+                &engine.images.bind_atlas_sampled(),
             ])
             .bind([
                 &buffers.camera.bind_readable(),

@@ -1,12 +1,13 @@
 use rand::Rng;
 
 use crate::{
-    gpu, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
+    Params,
 };
 
 #[derive(Debug)]
 pub struct DirectSpatialResamplingPass {
-    pass: CameraComputePass<gpu::DirectSpatialResamplingPassParams>,
+    pass: CameraComputePass<gpu::PassParams>,
 }
 
 impl DirectSpatialResamplingPass {
@@ -14,6 +15,7 @@ impl DirectSpatialResamplingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
@@ -23,6 +25,9 @@ impl DirectSpatialResamplingPass {
             .bind([&engine.noise.bind_blue_noise_texture()])
             .bind([
                 &buffers.camera.bind_readable(),
+                &buffers.direct_hits.bind_readable(),
+                &buffers.direct_gbuffer_d0.bind_readable(),
+                &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
                 &buffers.surface_map.prev().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
@@ -43,7 +48,7 @@ impl DirectSpatialResamplingPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        let params = gpu::DirectSpatialResamplingPassParams {
+        let params = gpu::PassParams {
             seed: rand::thread_rng().gen(),
             frame: camera.frame,
         };

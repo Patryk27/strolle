@@ -22,7 +22,7 @@ pub enum Light {
 }
 
 impl Light {
-    pub(crate) fn build(&self) -> gpu::Light {
+    pub(crate) fn serialize(&self) -> gpu::Light {
         match self {
             Light::Point {
                 position,

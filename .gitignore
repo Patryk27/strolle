@@ -2,3 +2,4 @@ target
 /bevy-strolle/assets/cornell
 /bevy-strolle/assets/demo
 /bevy-strolle/examples/bench_*
+/bevy-strolle/examples/scene*

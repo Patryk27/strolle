@@ -1,108 +1,63 @@
-//! This pass performs indirect lightning resolving, i.e. it takes the spatial
-//! reservoirs and resolves them into a concrete color.
-//!
-//! Later this picture is also fed to a dedicated indirect lightning denoiser.
-
 #![no_std]
 
 use strolle_gpu::prelude::*;
 
-#[rustfmt::skip]
 #[spirv(compute(threads(8, 8)))]
 #[allow(clippy::too_many_arguments)]
 pub fn main(
-    #[spirv(global_invocation_id)]
-    global_id: UVec3,
-    #[spirv(push_constant)]
-    params: &IndirectResolvingPassParams,
-    #[spirv(descriptor_set = 0, binding = 0, uniform)]
-    camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)]
-    surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 2)]
-    raw_indirect_colors: TexRgba16f,
-    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
-    indirect_spatial_reservoirs: &[Vec4],
+    #[spirv(global_invocation_id)] global_id: UVec3,
+    #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 0, binding = 1)] direct_hits: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 3)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 4)]
+    indirect_diffuse_samples: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
+    indirect_diffuse_spatial_reservoirs: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 6)]
+    indirect_specular_samples: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 7, storage_buffer)]
+    indirect_specular_reservoirs: &[Vec4],
 ) {
-    main_inner(
-        global_id.xy(),
-        WhiteNoise::new(params.seed, global_id.xy()),
-        camera,
-        SurfaceMap::new(surface_map),
-        raw_indirect_colors,
-        indirect_spatial_reservoirs,
-    )
-}
+    let screen_pos = global_id.xy();
 
-#[allow(clippy::too_many_arguments)]
-fn main_inner(
-    screen_pos: UVec2,
-    mut wnoise: WhiteNoise,
-    camera: &Camera,
-    surface_map: SurfaceMap,
-    raw_indirect_colors: TexRgba16f,
-    indirect_spatial_reservoirs: &[Vec4],
-) {
-    let screen_surface = surface_map.get(screen_pos);
+    let direct_hit = Hit::from_direct(
+        camera.ray(screen_pos),
+        direct_hits.read(screen_pos).xyz(),
+        GBufferEntry::unpack([
+            direct_gbuffer_d0.read(screen_pos),
+            direct_gbuffer_d1.read(screen_pos),
+        ]),
+    );
 
-    let mut out = Vec4::ZERO;
-    let mut sample_idx = 0;
-
-    while sample_idx < 8 {
-        let reservoir_distance = sample_idx as f32;
-
-        let reservoir_pos =
-            screen_pos.as_vec2() + wnoise.sample_circle() * reservoir_distance;
-
-        let reservoir_pos = reservoir_pos.as_ivec2();
-
-        if !camera.contains(reservoir_pos) {
-            sample_idx += 1;
-            continue;
-        }
-
-        let reservoir_pos = reservoir_pos.as_uvec2();
-
+    let diffuse = {
         let reservoir = IndirectReservoir::read(
-            indirect_spatial_reservoirs,
-            camera.screen_to_idx(reservoir_pos),
+            indirect_diffuse_spatial_reservoirs,
+            camera.screen_to_idx(screen_pos),
         );
 
-        if reservoir.m_sum <= 0.0 {
-            sample_idx += 1;
-            continue;
-        }
+        let radiance = reservoir.sample.radiance * reservoir.w;
+        let cosine = reservoir.sample.cosine(&direct_hit);
+        let brdf = reservoir.sample.diffuse_brdf();
 
-        let reservoir_radiance = reservoir.sample.radiance * reservoir.w;
+        (radiance * cosine * brdf).extend(reservoir.m_sum / 500.0)
+    };
 
-        // How useful our candidate-reservoir is; <0.0, 1.0>
-        let mut reservoir_weight = 1.0;
+    let specular = {
+        let reservoir = IndirectReservoir::read(
+            indirect_specular_reservoirs,
+            camera.screen_to_idx(screen_pos),
+        );
 
-        // Since we're looking at our neighbourhood, we might stumble upon a
-        // reservoir that's useless for our current pixel - e.g. if that
-        // reservoir shades a different object.
-        //
-        // If that happens, we can't reuse this reservoir's radiance.
-        reservoir_weight *= screen_surface
-            .evaluate_similarity_to(&surface_map.get(reservoir_pos));
+        let radiance = reservoir.sample.radiance * reservoir.w;
+        let cosine = reservoir.sample.cosine(&direct_hit);
+        let brdf = reservoir.sample.specular_brdf(&direct_hit);
 
-        // What's more, we can incorporate here a very useful metric: m_sum.
-        //
-        // It defines a number of samples this reservoir has seen and so the
-        // greater m_sum, the more confident we can be that this reservoir
-        // estimates its surrounding correctly.
-        //
-        // In practice, this reduces variance by assigning weight to less
-        // confident reservoirs.
-        reservoir_weight *= reservoir.m_sum.powf(0.25).max(1.0).min(5.0);
-
-        out += (reservoir_radiance * reservoir_weight).extend(reservoir_weight);
-        sample_idx += 1;
-    }
-
-    let out = out.xyz() / out.w.max(1.0);
+        (radiance * cosine * brdf).extend(reservoir.m_sum / 20.0)
+    };
 
     unsafe {
-        raw_indirect_colors.write(screen_pos, out.extend(1.0));
+        indirect_diffuse_samples.write(screen_pos, diffuse);
+        indirect_specular_samples.write(screen_pos, specular);
     }
 }

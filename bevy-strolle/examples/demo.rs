@@ -124,11 +124,12 @@ fn setup(
         .spawn(MaterialMeshBundle {
             material: st_materials.add(StrolleMaterial {
                 parent: StandardMaterial {
-                    base_color: Color::rgba(1.0, 1.0, 1.0, 0.0),
+                    base_color: Color::rgba(1.0, 0.766, 0.663, 1.0),
                     alpha_mode: AlphaMode::Blend,
+                    metallic: 1.0,
+                    perceptual_roughness: 0.5,
                     ..default()
                 },
-                ior: 1.15,
                 ..default()
             }),
             mesh: meshes.add(
@@ -287,32 +288,22 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::Key3) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::DemodulatedDirectLightning;
+        camera.mode = st::CameraMode::IndirectDiffuseLightning;
     }
 
     if keys.just_pressed(KeyCode::Key4) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectLightning;
+        camera.mode = st::CameraMode::IndirectSpecularLightning;
     }
 
     if keys.just_pressed(KeyCode::Key5) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::DemodulatedIndirectLightning;
-    }
-
-    if keys.just_pressed(KeyCode::Key6) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::NormalMap;
-    }
-
-    if keys.just_pressed(KeyCode::Key7) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
         camera.mode = st::CameraMode::BvhHeatmap;
     }
 
-    if keys.just_pressed(KeyCode::Key8) {
+    if keys.just_pressed(KeyCode::Key9) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::VelocityMap;
+        camera.mode = st::CameraMode::Reference { depth: 2 };
     }
 
     if keys.just_pressed(KeyCode::Key0) {

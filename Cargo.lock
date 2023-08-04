@@ -3171,14 +3171,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-direct-secondary-tracing-shader"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-gpu",
-]
-
-[[package]]
 name = "strolle-direct-spatial-resampling-shader"
 version = "0.1.0"
 dependencies = [
@@ -3214,13 +3206,30 @@ dependencies = [
 name = "strolle-gpu"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "bytemuck",
  "glam 0.24.1",
  "spirv-std",
 ]
 
 [[package]]
-name = "strolle-indirect-denoising-shader"
+name = "strolle-indirect-diffuse-denoising-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-indirect-diffuse-spatial-resampling-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-indirect-diffuse-temporal-resampling-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -3252,7 +3261,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-indirect-spatial-resampling-shader"
+name = "strolle-indirect-specular-denoising-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -3260,7 +3269,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-indirect-temporal-resampling-shader"
+name = "strolle-indirect-specular-resampling-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-reference-shading-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-reference-tracing-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",

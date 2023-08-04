@@ -1,12 +1,13 @@
 use rand::Rng;
 
 use crate::{
-    gpu, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
+    Params,
 };
 
 #[derive(Debug)]
 pub struct DirectTemporalResamplingPass {
-    pass: CameraComputePass<gpu::DirectTemporalResamplingPassParams>,
+    pass: CameraComputePass<gpu::PassParams>,
 }
 
 impl DirectTemporalResamplingPass {
@@ -14,6 +15,7 @@ impl DirectTemporalResamplingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
@@ -40,7 +42,7 @@ impl DirectTemporalResamplingPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        let params = gpu::DirectTemporalResamplingPassParams {
+        let params = gpu::PassParams {
             seed: rand::thread_rng().gen(),
             frame: camera.frame,
         };

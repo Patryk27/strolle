@@ -2,120 +2,66 @@
 
 use strolle_gpu::prelude::*;
 
-#[rustfmt::skip]
 #[spirv(compute(threads(8, 8)))]
 #[allow(clippy::too_many_arguments)]
 pub fn main(
-    #[spirv(global_invocation_id)]
-    global_id: UVec3,
-    #[spirv(local_invocation_index)]
-    local_idx: u32,
-    #[spirv(push_constant)]
-    params: &DirectInitialShadingPassParams,
-    #[spirv(workgroup)]
-    stack: BvhStack,
-    #[spirv(descriptor_set = 0, binding = 0)]
-    blue_noise_tex: TexRgba8f,
+    #[spirv(global_invocation_id)] global_id: UVec3,
+    #[spirv(local_invocation_index)] local_idx: u32,
+    #[spirv(push_constant)] params: &PassParams,
+    #[spirv(workgroup)] stack: BvhStack,
+    #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8f,
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
     triangles: &[Triangle],
-    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
-    bvh: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] bvh: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     lights: &[Light],
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 5)]
-    atlas_tex: Tex,
-    #[spirv(descriptor_set = 0, binding = 6)]
-    atlas_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 7, uniform)]
-    world: &World,
-    #[spirv(descriptor_set = 1, binding = 0, uniform)]
-    camera: &Camera,
+    #[spirv(descriptor_set = 0, binding = 5)] atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 6)] atlas_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 7, uniform)] world: &World,
+    #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
     atmosphere_transmittance_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 2)]
     atmosphere_transmittance_lut_sampler: &Sampler,
-    #[spirv(descriptor_set = 1, binding = 3)]
-    atmosphere_sky_lut_tex: Tex,
+    #[spirv(descriptor_set = 1, binding = 3)] atmosphere_sky_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 4)]
     atmosphere_sky_lut_sampler: &Sampler,
-    #[spirv(descriptor_set = 1, binding = 5)]
-    direct_primary_hits_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 6)]
-    direct_primary_hits_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 7)]
-    direct_secondary_rays: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 8)]
-    direct_secondary_hits_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 9)]
-    direct_secondary_hits_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 10, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 5)] direct_hits: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 7)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
     direct_initial_samples: &mut [Vec4],
 ) {
-    main_inner(
-        global_id.xy(),
-        local_idx,
-        BlueNoise::new(blue_noise_tex,  global_id.xy(), params.frame),
-        WhiteNoise::new(params.seed, global_id.xy()),
-        stack,
-        TrianglesView::new(triangles),
-        BvhView::new(bvh),
-        LightsView::new(lights),
-        MaterialsView::new(materials),
-        atlas_tex,
-        atlas_sampler,
-        Atmosphere::new(
-            atmosphere_transmittance_lut_tex,
-            atmosphere_transmittance_lut_sampler,
-            atmosphere_sky_lut_tex,
-            atmosphere_sky_lut_sampler,
-        ),
-        world,
-        camera,
-        direct_primary_hits_d0,
-        direct_primary_hits_d1,
-        direct_secondary_rays,
-        direct_secondary_hits_d0,
-        direct_secondary_hits_d1,
-        direct_initial_samples,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn main_inner(
-    screen_pos: UVec2,
-    local_idx: u32,
-    bnoise: BlueNoise,
-    mut wnoise: WhiteNoise,
-    stack: BvhStack,
-    triangles: TrianglesView,
-    bvh: BvhView,
-    lights: LightsView,
-    materials: MaterialsView,
-    atlas_tex: Tex,
-    atlas_sampler: &Sampler,
-    atmosphere: Atmosphere,
-    world: &World,
-    camera: &Camera,
-    direct_primary_hits_d0: TexRgba32f,
-    direct_primary_hits_d1: TexRgba32f,
-    direct_secondary_rays: TexRgba32f,
-    direct_secondary_hits_d0: TexRgba32f,
-    direct_secondary_hits_d1: TexRgba32f,
-    direct_initial_samples: &mut [Vec4],
-) {
+    let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
-
-    let (ray, hit) = Hit::find_direct(
-        camera,
-        direct_primary_hits_d0,
-        direct_primary_hits_d1,
-        direct_secondary_rays,
-        direct_secondary_hits_d0,
-        direct_secondary_hits_d1,
-        screen_pos,
+    let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
+    let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
+    let triangles = TrianglesView::new(triangles);
+    let bvh = BvhView::new(bvh);
+    let lights = LightsView::new(lights);
+    let materials = MaterialsView::new(materials);
+    let atmosphere = Atmosphere::new(
+        atmosphere_transmittance_lut_tex,
+        atmosphere_transmittance_lut_sampler,
+        atmosphere_sky_lut_tex,
+        atmosphere_sky_lut_sampler,
     );
+
+    // -------------------------------------------------------------------------
+
+    let mut hit = Hit::from_direct(
+        camera.ray(screen_pos),
+        direct_hits.read(screen_pos).xyz(),
+        GBufferEntry::unpack([
+            direct_gbuffer_d0.read(screen_pos),
+            direct_gbuffer_d1.read(screen_pos),
+        ]),
+    );
+
+    // TODO describe
+    hit.gbuffer.base_color = Vec4::splat(1.0);
 
     // -------------------------------------------------------------------------
     // Step 1:
@@ -126,20 +72,18 @@ fn main_inner(
     let mut reservoir = DirectReservoir::default();
 
     if hit.is_some() {
-        let material = materials.get(hit.material_id);
         let mut light_idx = 0;
 
         while light_idx < world.light_count {
             let light_id = LightId::new(light_idx);
 
-            let light_contribution = lights
-                .get(light_id)
-                .contribution(material, hit, ray)
-                .diffuse;
+            let light_contribution =
+                lights.get(light_id).contribution(hit).diffuse;
 
             let sample = DirectReservoirSample {
                 light_id,
                 light_contribution,
+                hit_point: hit.point,
             };
 
             reservoir.add(&mut wnoise, sample, sample.p_hat());
@@ -172,7 +116,7 @@ fn main_inner(
         // - if the user is looking at the world, we get hit and sample the sun
         //   so that the sun is able to cast shadows.
         let sky = if hit.is_none() {
-            atmosphere.eval(world.sun_direction(), ray.direction())
+            atmosphere.eval(world.sun_direction(), hit.direction)
         } else {
             atmosphere.sun(world.sun_direction())
         };
@@ -191,11 +135,10 @@ fn main_inner(
     let DirectReservoirSample {
         light_id,
         light_contribution,
+        hit_point,
     } = reservoir.sample;
 
-    let light_visibility = if hit.is_none() {
-        1.0
-    } else {
+    let light_visibility = if hit.is_some() {
         let light = if reservoir.sample.is_sky() {
             Light::sun(world.sun_position())
         } else {
@@ -213,12 +156,17 @@ fn main_inner(
             bnoise,
             hit,
         )
+    } else {
+        1.0
     };
 
     let light = light_contribution * light_visibility;
 
     unsafe {
-        *direct_initial_samples.get_unchecked_mut(screen_idx) =
+        *direct_initial_samples.get_unchecked_mut(2 * screen_idx + 0) =
             light.extend(f32::from_bits(light_id.get()));
+
+        *direct_initial_samples.get_unchecked_mut(2 * screen_idx + 1) =
+            hit_point.extend(Default::default());
     }
 }

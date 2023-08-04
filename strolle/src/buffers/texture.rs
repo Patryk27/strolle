@@ -28,7 +28,7 @@ impl Texture {
         &self.view
     }
 
-    /// Creates an immutable texture+sampler binding:
+    /// Creates an image + sampler bindings:
     ///
     /// ```
     /// #[spirv(descriptor_set = ..., binding = ...)]
@@ -41,10 +41,10 @@ impl Texture {
     /// Sampler's binding follows the texture so e.g. if the texture has
     /// `binding = 3`, sampler will be `binding = 4`.
     pub fn bind_sampled(&self) -> impl Bindable + '_ {
-        TextureSampledBinder { parent: self }
+        SampledTextureBinder { parent: self }
     }
 
-    /// Creates an immutable storage-texture binding:
+    /// Creates an immutable storage texture binding:
     ///
     /// ```
     /// #[spirv(descriptor_set = ..., binding = ...)]
@@ -54,17 +54,17 @@ impl Texture {
     /// TODO naga and/or rust-gpu don't support read-only storage textures yet,
     ///      so currently this is equivalent to a writable binding
     pub fn bind_readable(&self) -> impl Bindable + '_ {
-        TextureStorageBinder { parent: self }
+        StorageTextureBinder { parent: self }
     }
 
-    /// Creates a mutable storage-texture binding:
+    /// Creates a mutable storage texture binding:
     ///
     /// ```
     /// #[spirv(descriptor_set = ..., binding = ...)]
     /// tex: &Image!(2D, format = ..., sampled = false),
     /// ```
     pub fn bind_writable(&self) -> impl Bindable + '_ {
-        TextureStorageBinder { parent: self }
+        StorageTextureBinder { parent: self }
     }
 }
 
@@ -165,16 +165,16 @@ impl TextureBuilder {
     }
 }
 
-pub struct TextureSampledBinder<'a> {
+pub struct SampledTextureBinder<'a> {
     parent: &'a Texture,
 }
 
-impl Bindable for TextureSampledBinder<'_> {
+impl Bindable for SampledTextureBinder<'_> {
     fn bind(
         &self,
         binding: u32,
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
-        let tex_layout = wgpu::BindGroupLayoutEntry {
+        let image_layout = wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::all(),
             ty: wgpu::BindingType::Texture {
@@ -198,29 +198,29 @@ impl Bindable for TextureSampledBinder<'_> {
             count: None,
         };
 
-        let tex_resource =
+        let image_resource =
             wgpu::BindingResource::TextureView(&self.parent.view);
 
         let sampler_resource =
             wgpu::BindingResource::Sampler(&self.parent.sampler);
 
         vec![
-            (tex_layout, tex_resource),
+            (image_layout, image_resource),
             (sampler_layout, sampler_resource),
         ]
     }
 }
 
-pub struct TextureStorageBinder<'a> {
+pub struct StorageTextureBinder<'a> {
     parent: &'a Texture,
 }
 
-impl Bindable for TextureStorageBinder<'_> {
+impl Bindable for StorageTextureBinder<'_> {
     fn bind(
         &self,
         binding: u32,
     ) -> Vec<(wgpu::BindGroupLayoutEntry, wgpu::BindingResource)> {
-        let tex_layout = wgpu::BindGroupLayoutEntry {
+        let image_layout = wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::all(),
             ty: wgpu::BindingType::StorageTexture {
@@ -231,9 +231,9 @@ impl Bindable for TextureStorageBinder<'_> {
             count: None,
         };
 
-        let tex_resource =
+        let image_resource =
             wgpu::BindingResource::TextureView(&self.parent.view);
 
-        vec![(tex_layout, tex_resource)]
+        vec![(image_layout, image_resource)]
     }
 }

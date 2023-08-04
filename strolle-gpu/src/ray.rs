@@ -4,8 +4,8 @@ use glam::{Vec3, Vec4, Vec4Swizzles};
 use spirv_std::Sampler;
 
 use crate::{
-    BvhStack, BvhView, Hit, Material, MaterialId, MaterialsView, Tex, Triangle,
-    TriangleId, TrianglesView, BVH_STACK_SIZE,
+    BvhStack, BvhView, Material, MaterialId, MaterialsView, Tex, Triangle,
+    TriangleHit, TriangleId, TrianglesView, BVH_STACK_SIZE,
 };
 
 #[derive(Clone, Copy)]
@@ -32,6 +32,10 @@ impl Ray {
         self.direction
     }
 
+    pub fn target(&self, depth: f32) -> Vec3 {
+        self.origin + self.direction * depth
+    }
+
     /// Returns the closest opaque intersection of this ray with the world, if
     /// any.
     #[allow(clippy::too_many_arguments)]
@@ -44,8 +48,8 @@ impl Ray {
         materials: MaterialsView,
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
-    ) -> (Hit, usize) {
-        let mut hit = Hit::none();
+    ) -> (TriangleHit, usize) {
+        let mut hit = TriangleHit::none();
 
         let traversed_nodes = self.traverse(
             local_idx,
@@ -76,9 +80,9 @@ impl Ray {
         atlas_sampler: &Sampler,
         distance: f32,
     ) -> bool {
-        let mut hit = Hit {
+        let mut hit = TriangleHit {
             distance,
-            ..Hit::none()
+            ..TriangleHit::none()
         };
 
         self.traverse(
@@ -107,7 +111,7 @@ impl Ray {
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
         tracing: Tracing,
-        hit: &mut Hit,
+        hit: &mut TriangleHit,
     ) -> usize {
         // An estimation of the memory used when travelling the BVH; useful for
         // debugging

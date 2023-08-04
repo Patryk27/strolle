@@ -4,6 +4,14 @@ use glam::{vec3a, vec4, Affine3A, Mat3A, Vec4};
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct PassParams {
+    pub seed: u32,
+    pub frame: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectRasterPassParams {
     pub payload: Vec4,
     pub curr_xform_inv_d0: Vec4,
@@ -82,70 +90,15 @@ impl DirectRasterPassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct DirectInitialShadingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct DirectTemporalResamplingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct DirectSpatialResamplingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct IndirectInitialShadingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct IndirectInitialTracingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct IndirectTemporalResamplingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct IndirectSpatialResamplingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct IndirectResolvingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct FrameCompositionPassParams {
     pub camera_mode: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct ReferencePassParams {
+    pub seed: u32,
+    pub frame: u32,
+    pub depth: u32,
 }

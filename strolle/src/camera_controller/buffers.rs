@@ -4,8 +4,7 @@ use log::debug;
 use spirv_std::glam::UVec2;
 
 use crate::{
-    gpu, Camera, DoubleBuffered, MappedUniformBuffer, Texture,
-    UnmappedStorageBuffer,
+    gpu, Camera, DoubleBuffered, MappedUniformBuffer, StorageBuffer, Texture,
 };
 
 #[derive(Debug)]
@@ -17,33 +16,38 @@ pub struct CameraBuffers {
     pub atmosphere_scattering_lut: Texture,
     pub atmosphere_sky_lut: Texture,
 
-    pub direct_primary_hits_d0: Texture,
-    pub direct_primary_hits_d1: Texture,
-    pub direct_primary_hits_d2: Texture,
-    pub direct_primary_hits_d3: Texture,
+    pub direct_hits: Texture,
+    pub direct_depth: Texture,
+    pub direct_gbuffer_d0: Texture,
+    pub direct_gbuffer_d1: Texture,
 
-    pub direct_secondary_rays: Texture,
-    pub direct_secondary_hits_d0: Texture,
-    pub direct_secondary_hits_d1: Texture,
-    pub direct_secondary_hits_d2: Texture,
-
-    pub raw_direct_colors: Texture,
+    pub direct_samples: Texture,
     pub direct_colors: DoubleBuffered<Texture>,
-    pub direct_initial_samples: UnmappedStorageBuffer,
-    pub direct_temporal_reservoirs: DoubleBuffered<UnmappedStorageBuffer>,
-    pub direct_spatial_reservoirs: DoubleBuffered<UnmappedStorageBuffer>,
+    pub direct_initial_samples: StorageBuffer,
+    pub direct_temporal_reservoirs: DoubleBuffered<StorageBuffer>,
+    pub direct_spatial_reservoirs: DoubleBuffered<StorageBuffer>,
 
-    pub indirect_hits_d0: Texture,
-    pub indirect_hits_d1: Texture,
-    pub raw_indirect_colors: Texture,
-    pub indirect_colors: DoubleBuffered<Texture>,
-    pub indirect_initial_samples: UnmappedStorageBuffer,
-    pub indirect_temporal_reservoirs: DoubleBuffered<UnmappedStorageBuffer>,
-    pub indirect_spatial_reservoirs: DoubleBuffered<UnmappedStorageBuffer>,
+    pub indirect_rays: Texture,
+    pub indirect_gbuffer_d0: Texture,
+    pub indirect_gbuffer_d1: Texture,
+    pub indirect_samples: StorageBuffer,
+
+    pub indirect_diffuse_colors: DoubleBuffered<Texture>,
+    pub indirect_diffuse_samples: Texture,
+    pub indirect_diffuse_temporal_reservoirs: DoubleBuffered<StorageBuffer>,
+    pub indirect_diffuse_spatial_reservoirs: DoubleBuffered<StorageBuffer>,
+
+    pub indirect_specular_colors: DoubleBuffered<Texture>,
+    pub indirect_specular_samples: Texture,
+    pub indirect_specular_reservoirs: DoubleBuffered<StorageBuffer>,
 
     pub surface_map: DoubleBuffered<Texture>,
     pub reprojection_map: Texture,
     pub velocity_map: Texture,
+
+    pub reference_hits: StorageBuffer,
+    pub reference_rays: StorageBuffer,
+    pub reference_colors: Texture,
 }
 
 impl CameraBuffers {
@@ -86,68 +90,34 @@ impl CameraBuffers {
 
         // ---------------------------------------------------------------------
 
-        let direct_primary_hits_d0 = Texture::builder("direct_primary_hits_d0")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .build(device);
-
-        let direct_primary_hits_d1 = Texture::builder("direct_primary_hits_d1")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .build(device);
-
-        let direct_primary_hits_d2 = Texture::builder("direct_primary_hits_d2")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .build(device);
-
-        let direct_primary_hits_d3 = Texture::builder("direct_primary_hits_d3")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .build(device);
-
-        let direct_secondary_rays = Texture::builder("direct_secondary_rays")
+        let direct_hits = Texture::builder("direct_hits")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
 
-        let direct_secondary_hits_d0 =
-            Texture::builder("direct_secondary_hits_d0")
-                .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .build(device);
+        let direct_depth = Texture::builder("direct_depth")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Depth32Float)
+            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
 
-        let direct_secondary_hits_d1 =
-            Texture::builder("direct_secondary_hits_d1")
-                .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .build(device);
+        let direct_gbuffer_d0 = Texture::builder("direct_gbuffer_d0")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
 
-        let direct_secondary_hits_d2 =
-            Texture::builder("direct_secondary_hits_d2")
-                .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba16Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .build(device);
+        let direct_gbuffer_d1 = Texture::builder("direct_gbuffer_d1")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .build(device);
 
-        let raw_direct_colors = Texture::builder("raw_direct_colors")
+        let direct_samples = Texture::builder("direct_samples")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
@@ -158,79 +128,106 @@ impl CameraBuffers {
             Texture::builder("direct_colors")
                 .with_size(camera.viewport.size)
                 .with_format(wgpu::TextureFormat::Rgba16Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
 
-        let direct_initial_samples = UnmappedStorageBuffer::new(
+        let direct_initial_samples = StorageBuffer::new(
             device,
             "direct_initial_samples",
-            viewport_buffer_size(camera.viewport.size, 4 * 4),
+            viewport_buffer_size(camera.viewport.size, 2 * 4 * 4),
         );
 
-        let direct_temporal_reservoirs =
-            DoubleBuffered::<UnmappedStorageBuffer>::new(
-                device,
-                "direct_temporal_reservoirs",
-                viewport_buffer_size(camera.viewport.size, 2 * 4 * 4),
-            );
-
-        let direct_spatial_reservoirs =
-            DoubleBuffered::<UnmappedStorageBuffer>::new(
-                device,
-                "direct_spatial_reservoirs",
-                viewport_buffer_size(camera.viewport.size, 2 * 4 * 4),
-            );
-
-        // ---------------------------------------------------------------------
-
-        let indirect_hits_d0 = Texture::builder("indirect_hits_d0")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
-        let indirect_hits_d1 = Texture::builder("indirect_hits_d1")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
-        let raw_indirect_colors = Texture::builder("raw_indirect_colors")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
-        let indirect_colors = DoubleBuffered::<Texture>::new(
+        let direct_temporal_reservoirs = DoubleBuffered::<StorageBuffer>::new(
             device,
-            Texture::builder("indirect_colors")
-                .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba16Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
-        );
-
-        let indirect_initial_samples = UnmappedStorageBuffer::new(
-            device,
-            "indirect_initial_samples",
+            "direct_temporal_reservoirs",
             viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
         );
 
-        let indirect_temporal_reservoirs =
-            DoubleBuffered::<UnmappedStorageBuffer>::new(
+        let direct_spatial_reservoirs = DoubleBuffered::<StorageBuffer>::new(
+            device,
+            "direct_spatial_reservoirs",
+            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+        );
+
+        // ---------------------------------------------------------------------
+
+        let indirect_rays = Texture::builder("indirect_rays")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
+
+        let indirect_gbuffer_d0 = Texture::builder("indirect_gbuffer_d0")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
+
+        let indirect_gbuffer_d1 = Texture::builder("indirect_gbuffer_d1")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
+
+        let indirect_samples = StorageBuffer::new(
+            device,
+            "indirect_samples",
+            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+        );
+
+        // ---
+
+        let indirect_diffuse_colors = DoubleBuffered::<Texture>::new(
+            device,
+            Texture::builder("indirect_diffuse_colors")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
+        );
+
+        let indirect_diffuse_samples =
+            Texture::builder("indirect_diffuse_samples")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .build(device);
+
+        let indirect_diffuse_temporal_reservoirs =
+            DoubleBuffered::<StorageBuffer>::new(
                 device,
-                "indirect_temporal_reservoirs",
+                "indirect_diffuse_temporal_reservoirs",
                 viewport_buffer_size(camera.viewport.size, 4 * 4 * 4),
             );
 
-        let indirect_spatial_reservoirs =
-            DoubleBuffered::<UnmappedStorageBuffer>::new(
+        let indirect_diffuse_spatial_reservoirs =
+            DoubleBuffered::<StorageBuffer>::new(
                 device,
-                "indirect_spatial_reservoirs",
+                "indirect_diffuse_spatial_reservoirs",
                 viewport_buffer_size(camera.viewport.size, 4 * 4 * 4),
             );
+
+        // ---
+
+        let indirect_specular_colors = DoubleBuffered::<Texture>::new(
+            device,
+            Texture::builder("indirect_specular_colors")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
+        );
+
+        let indirect_specular_samples =
+            Texture::builder("indirect_specular_samples")
+                .with_size(camera.viewport.size)
+                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+                .build(device);
+
+        let indirect_specular_reservoirs = DoubleBuffered::<StorageBuffer>::new(
+            device,
+            "indirect_specular_reservoirs",
+            viewport_buffer_size(camera.viewport.size, 4 * 4 * 4),
+        );
 
         // ---------------------------------------------------------------------
 
@@ -239,7 +236,6 @@ impl CameraBuffers {
             Texture::builder("surface_map")
                 .with_size(camera.viewport.size)
                 .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT),
         );
@@ -250,13 +246,37 @@ impl CameraBuffers {
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
-        let velocity_map = Texture::builder("reprojection_map")
+        let velocity_map = Texture::builder("velocity_map")
             .with_size(camera.viewport.size)
             .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
+
+        // ---------------------------------------------------------------------
+
+        // TODO initialize lazily
+        let reference_rays = StorageBuffer::new(
+            device,
+            "reference_rays",
+            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+        );
+
+        // TODO initialize lazily
+        let reference_hits = StorageBuffer::new(
+            device,
+            "reference_hits",
+            viewport_buffer_size(camera.viewport.size, 2 * 4 * 4),
+        );
+
+        // TODO initialize lazily
+        let reference_colors = Texture::builder("reference_colors")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
+
+        // ---------------------------------------------------------------------
 
         Self {
             camera: camera_uniform,
@@ -266,33 +286,38 @@ impl CameraBuffers {
             atmosphere_scattering_lut,
             atmosphere_sky_lut,
 
-            direct_primary_hits_d0,
-            direct_primary_hits_d1,
-            direct_primary_hits_d2,
-            direct_primary_hits_d3,
+            direct_depth,
+            direct_gbuffer_d0,
+            direct_gbuffer_d1,
+            direct_hits,
 
-            direct_secondary_rays,
-            direct_secondary_hits_d0,
-            direct_secondary_hits_d1,
-            direct_secondary_hits_d2,
-
-            raw_direct_colors,
+            direct_samples,
             direct_colors,
             direct_initial_samples,
             direct_temporal_reservoirs,
             direct_spatial_reservoirs,
 
-            indirect_hits_d0,
-            indirect_hits_d1,
-            raw_indirect_colors,
-            indirect_colors,
-            indirect_initial_samples,
-            indirect_temporal_reservoirs,
-            indirect_spatial_reservoirs,
+            indirect_rays,
+            indirect_gbuffer_d0,
+            indirect_gbuffer_d1,
+            indirect_samples,
+
+            indirect_diffuse_colors,
+            indirect_diffuse_samples,
+            indirect_diffuse_temporal_reservoirs,
+            indirect_diffuse_spatial_reservoirs,
+
+            indirect_specular_colors,
+            indirect_specular_samples,
+            indirect_specular_reservoirs,
 
             surface_map,
             reprojection_map,
             velocity_map,
+
+            reference_hits,
+            reference_rays,
+            reference_colors,
         }
     }
 }

@@ -9,9 +9,9 @@ pub struct TemporalDenoiser<'a> {
     pub reprojection_map: ReprojectionMap<'a>,
     pub surface_map: SurfaceMap<'a>,
     pub prev_surface_map: SurfaceMap<'a>,
-    pub input: TexRgba16f<'a>,
-    pub output: TexRgba16f<'a>,
-    pub prev_output: TexRgba16f<'a>,
+    pub samples: TexRgba16f<'a>,
+    pub image: TexRgba16f<'a>,
+    pub prev_image: TexRgba16f<'a>,
 }
 
 impl<'a> TemporalDenoiser<'a> {
@@ -31,7 +31,7 @@ impl<'a> TemporalDenoiser<'a> {
             let screen_surface = self.surface_map.get(screen_pos);
 
             let default_sample =
-                self.prev_output.read(reprojection.prev_screen_pos());
+                self.prev_image.read(reprojection.prev_screen_pos());
 
             let filter =
                 BilinearFilter::from_reprojection(reprojection, move |pos| {
@@ -50,7 +50,7 @@ impl<'a> TemporalDenoiser<'a> {
                         return default_sample;
                     }
 
-                    self.prev_output.read(pos)
+                    self.prev_image.read(pos)
                 });
 
             filter.eval_reprojection(reprojection)
@@ -60,7 +60,7 @@ impl<'a> TemporalDenoiser<'a> {
 
         let mut color = prev_color.xyz();
         let mix_rate = prev_color.w.min(0.5);
-        let in0 = self.input.read(screen_pos).xyz();
+        let in0 = self.samples.read(screen_pos).xyz();
 
         color = (color * color).lerp(in0 * in0, mix_rate);
         color.x = color.x.sqrt();
@@ -98,7 +98,7 @@ impl<'a> TemporalDenoiser<'a> {
                 return in0;
             }
 
-            self.input.read(pos).xyz()
+            self.samples.read(pos).xyz()
         };
 
         // TODO optimization opportunity: preload neighbours into shared memory
@@ -157,14 +157,14 @@ impl<'a> TemporalDenoiser<'a> {
         let out = decode_pal_yuv(color).extend(mix_rate);
 
         unsafe {
-            self.output.write(screen_pos, out);
+            self.image.write(screen_pos, out);
         }
     }
 }
 
-// TODO we should do gamma correction here, but something's off with spotlights
-//      and indirect lightning then
-fn encode_pal_yuv(rgb: Vec3) -> Vec3 {
+fn encode_pal_yuv(mut rgb: Vec3) -> Vec3 {
+    rgb = rgb.powf(2.2);
+
     vec3(
         rgb.dot(vec3(0.299, 0.587, 0.114)),
         rgb.dot(vec3(-0.14713, -0.28886, 0.436)),
@@ -172,12 +172,12 @@ fn encode_pal_yuv(rgb: Vec3) -> Vec3 {
     )
 }
 
-// TODO we should do gamma correction here, but something's off with spotlights
-//      and indirect lightning then
 fn decode_pal_yuv(yuv: Vec3) -> Vec3 {
-    vec3(
+    let rgb = vec3(
         yuv.dot(vec3(1.0, 0., 1.13983)),
         yuv.dot(vec3(1.0, -0.39465, -0.58060)),
         yuv.dot(vec3(1.0, 2.03211, 0.0)),
-    )
+    );
+
+    rgb.powf(1.0 / 2.2)
 }

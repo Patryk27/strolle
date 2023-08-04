@@ -1,5 +1,5 @@
 [package]
-name = "strolle-indirect-denoising-shader"
+name = "strolle-indirect-diffuse-spatial-resampling-shader"
 version = "0.1.0"
 edition = "2021"
 

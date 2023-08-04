@@ -79,7 +79,7 @@ where
         *self.buffer = self
             .materials
             .iter()
-            .map(|material| material.build(images))
+            .map(|material| material.serialize(images))
             .collect();
     }
 

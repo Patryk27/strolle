@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use strolle_gpu as gpu;
 
 use crate::{
-    CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
@@ -20,6 +20,7 @@ impl AtmospherePass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
+        _: &Camera,
         buffers: &CameraBuffers,
     ) -> Self
     where
