@@ -23,7 +23,6 @@ impl IndirectSpecularResamplingPass {
             .bind([
                 &buffers.camera.bind_readable(),
                 &buffers.prev_camera.bind_readable(),
-                &buffers.direct_hits.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.reprojection_map.bind_readable(),

@@ -9,15 +9,14 @@ pub fn main(
     #[spirv(push_constant)] params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] prev_camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 2)] direct_hits: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 3)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 4)] direct_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 5)] reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 3)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 4)] reprojection_map: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
     indirect_samples: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 7, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
     indirect_specular_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 0, binding = 8, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 7, storage_buffer)]
     prev_indirect_specular_reservoirs: &[Vec4],
 ) {
     let screen_pos = global_id.xy();
@@ -27,9 +26,8 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let hit = Hit::from_direct(
+    let hit = Hit::new(
         camera.ray(screen_pos),
-        direct_hits.read(screen_pos).xyz(),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
             direct_gbuffer_d1.read(screen_pos),
@@ -88,8 +86,10 @@ pub fn main(
                 a2 * a2 / (denom_sqrt * denom_sqrt)
             }
 
-            let curr_dir = (hit.point - camera.origin.xyz()).normalize();
-            let prev_dir = (hit.point - prev_camera.origin.xyz()).normalize();
+            let curr_dir = (hit.point - camera.approx_origin()).normalize();
+
+            let prev_dir =
+                (hit.point - prev_camera.approx_origin()).normalize();
 
             ndf_01(
                 hit.gbuffer.roughness.max(0.1),

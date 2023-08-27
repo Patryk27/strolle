@@ -124,11 +124,6 @@ impl DirectRasterPass {
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
-                        Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba32Float,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }),
                     ],
                 }),
                 multiview: None,
@@ -150,14 +145,6 @@ impl DirectRasterPass {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("strolle_direct_raster"),
             color_attachments: &[
-                Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.direct_hits.view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: true,
-                    },
-                }),
                 Some(wgpu::RenderPassColorAttachment {
                     view: camera.buffers.direct_gbuffer_d0.view(),
                     resolve_target: None,

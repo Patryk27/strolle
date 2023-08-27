@@ -27,13 +27,12 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 3)] atmosphere_sky_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 4)]
     atmosphere_sky_lut_sampler: &Sampler,
-    #[spirv(descriptor_set = 1, binding = 5)] direct_hits: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 7)] direct_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 8)] indirect_rays: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 9)] indirect_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 10)] indirect_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 11, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 5)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 7)] indirect_rays: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 8)] indirect_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 9)] indirect_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 10, storage_buffer)]
     indirect_samples: &mut [Vec4],
 ) {
     let screen_pos = global_id.xy();
@@ -52,9 +51,8 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let direct_hit = Hit::from_direct(
+    let direct_hit = Hit::new(
         camera.ray(screen_pos),
-        direct_hits.read(screen_pos).xyz(),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
             direct_gbuffer_d1.read(screen_pos),
@@ -70,7 +68,7 @@ pub fn main(
         return;
     }
 
-    let indirect_hit = Hit::from_indirect(
+    let indirect_hit = Hit::new(
         Ray::new(direct_hit.point, indirect_rays.read(screen_pos).xyz()),
         GBufferEntry::unpack([
             indirect_gbuffer_d0.read(screen_pos),

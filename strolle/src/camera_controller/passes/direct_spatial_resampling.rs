@@ -23,7 +23,6 @@ impl DirectSpatialResamplingPass {
             .bind([&engine.noise.bind_blue_noise_texture()])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_hits.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),

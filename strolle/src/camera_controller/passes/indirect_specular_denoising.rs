@@ -26,7 +26,6 @@ impl IndirectSpecularDenoisingPass {
                 &buffers.prev_camera.bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.surface_map.prev().bind_readable(),
-                &buffers.direct_hits.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.indirect_specular_samples.bind_readable(),

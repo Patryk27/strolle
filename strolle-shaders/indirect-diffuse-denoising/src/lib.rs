@@ -11,15 +11,14 @@ pub fn main(
     #[spirv(push_constant)] params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8f,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1, uniform)] prev_camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 2)] reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)] surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4)] prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 5)]
+    #[spirv(descriptor_set = 1, binding = 1)] reprojection_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 2)] surface_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 3)] prev_surface_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 4)]
     indirect_diffuse_samples: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 6)]
+    #[spirv(descriptor_set = 1, binding = 5)]
     indirect_diffuse_colors: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 7)]
+    #[spirv(descriptor_set = 1, binding = 6)]
     prev_indirect_diffuse_colors: TexRgba16f,
 ) {
     let screen_pos = global_id.xy();

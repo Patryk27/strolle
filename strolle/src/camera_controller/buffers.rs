@@ -16,7 +16,6 @@ pub struct CameraBuffers {
     pub atmosphere_scattering_lut: Texture,
     pub atmosphere_sky_lut: Texture,
 
-    pub direct_hits: Texture,
     pub direct_depth: Texture,
     pub direct_gbuffer_d0: Texture,
     pub direct_gbuffer_d1: Texture,
@@ -89,13 +88,6 @@ impl CameraBuffers {
             .build(device);
 
         // ---------------------------------------------------------------------
-
-        let direct_hits = Texture::builder("direct_hits")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .build(device);
 
         let direct_depth = Texture::builder("direct_depth")
             .with_size(camera.viewport.size)
@@ -289,7 +281,6 @@ impl CameraBuffers {
             direct_depth,
             direct_gbuffer_d0,
             direct_gbuffer_d1,
-            direct_hits,
 
             direct_samples,
             direct_colors,

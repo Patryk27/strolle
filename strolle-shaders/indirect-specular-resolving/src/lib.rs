@@ -7,19 +7,17 @@ use strolle_gpu::prelude::*;
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] direct_hits: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 3)] direct_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 1)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     indirect_specular_reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 5)]
+    #[spirv(descriptor_set = 0, binding = 4)]
     indirect_specular_samples: TexRgba16f,
 ) {
     let screen_pos = global_id.xy();
 
-    let hit = Hit::from_direct(
+    let hit = Hit::new(
         camera.ray(screen_pos),
-        direct_hits.read(screen_pos).xyz(),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
             direct_gbuffer_d1.read(screen_pos),

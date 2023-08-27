@@ -23,7 +23,6 @@ impl IndirectDiffuseSpatialResamplingPass {
             CameraComputePass::builder("indirect_diffuse_spatial_resampling")
                 .bind([
                     &buffers.camera.bind_readable(),
-                    &buffers.direct_hits.bind_readable(),
                     &buffers.direct_gbuffer_d0.bind_readable(),
                     &buffers.direct_gbuffer_d1.bind_readable(),
                     &buffers.surface_map.curr().bind_readable(),

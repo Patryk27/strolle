@@ -23,7 +23,6 @@ impl IndirectDiffuseDenoisingPass {
             .bind([&engine.noise.bind_blue_noise_texture()])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.prev_camera.bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
                 &buffers.surface_map.prev().bind_readable(),

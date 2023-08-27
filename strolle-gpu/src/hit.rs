@@ -13,16 +13,7 @@ pub struct Hit {
 }
 
 impl Hit {
-    pub fn from_direct(ray: Ray, point: Vec3, gbuffer: GBufferEntry) -> Self {
-        Self {
-            origin: ray.origin(),
-            direction: ray.direction(),
-            point,
-            gbuffer,
-        }
-    }
-
-    pub fn from_indirect(ray: Ray, gbuffer: GBufferEntry) -> Self {
+    pub fn new(ray: Ray, gbuffer: GBufferEntry) -> Self {
         Self {
             origin: ray.origin(),
             direction: ray.direction(),

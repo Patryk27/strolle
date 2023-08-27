@@ -20,7 +20,6 @@ impl IndirectSpecularResolvingPass {
         let pass = CameraComputePass::builder("indirect_specular_resolving")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_hits.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.indirect_specular_reservoirs.curr().bind_readable(),

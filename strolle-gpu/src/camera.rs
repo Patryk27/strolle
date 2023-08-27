@@ -41,10 +41,20 @@ impl Camera {
         (pos.y * (self.screen.x as u32) + pos.x) as usize
     }
 
+    /// Returns size of the camera's viewport in pixels.
+    ///
+    /// Note that camera's viewport's size might be different from the total
+    /// window's size (e.g. user is free to create two separate cameras, each
+    /// occupying half a screen - in that case this function will return that
+    /// half-size).
     pub fn screen_size(&self) -> UVec2 {
         self.screen.xy().as_uvec2()
     }
 
+    /// Checks if given coordinates match camera's screen size and, if not,
+    /// wraps them.
+    ///
+    /// See also: [`Self::contains()`].
     pub fn contain(&self, mut pos: IVec2) -> UVec2 {
         let screen_size = self.screen.xy().as_ivec2();
 
@@ -68,6 +78,8 @@ impl Camera {
     }
 
     /// Returns whether given point lays inside the screen.
+    ///
+    /// See also: [`Self::contain()`].
     pub fn contains(&self, pos: IVec2) -> bool {
         let screen_size = self.screen.xy().as_ivec2();
 
@@ -91,6 +103,14 @@ impl Camera {
         let near_plane = self.ndc_to_world.project_point3(ndc.extend(1.0));
 
         Ray::new(near_plane, (far_plane - near_plane).normalize())
+    }
+
+    /// Returns camera's approximate origin, without taking into account the
+    /// near-plane.
+    ///
+    /// Faster than `self.ray(...).origin()`, but somewhat less accurate.
+    pub fn approx_origin(&self) -> Vec3 {
+        self.origin.xyz()
     }
 
     pub fn mode(&self) -> u32 {

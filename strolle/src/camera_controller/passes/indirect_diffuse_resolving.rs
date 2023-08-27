@@ -20,7 +20,6 @@ impl IndirectDiffuseResolvingPass {
         let pass = CameraComputePass::builder("indirect_diffuse_resolving")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_hits.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.indirect_diffuse_samples.bind_writable(),

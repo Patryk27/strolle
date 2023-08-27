@@ -28,7 +28,6 @@ impl IndirectInitialTracingPass {
             ])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_hits.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.indirect_rays.bind_writable(),

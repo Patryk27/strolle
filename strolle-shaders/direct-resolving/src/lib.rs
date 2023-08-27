@@ -9,22 +9,20 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     lights: &[Light],
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] direct_hits: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 1)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 3, storage_buffer)]
     direct_initial_samples: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 5)] direct_samples: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 4)] direct_samples: TexRgba16f,
+    #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
     direct_spatial_reservoirs: &[Vec4],
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
     let lights = LightsView::new(lights);
 
-    let mut hit = Hit::from_direct(
+    let mut hit = Hit::new(
         camera.ray(screen_pos),
-        direct_hits.read(screen_pos).xyz(),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
             direct_gbuffer_d1.read(screen_pos),

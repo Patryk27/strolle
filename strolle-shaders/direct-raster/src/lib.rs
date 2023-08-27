@@ -60,12 +60,13 @@ pub fn main_fs(
     uv: Vec2,
 
     // Outputs
-    out_direct_hit: &mut Vec4,
     out_direct_gbuffer_d0: &mut Vec4,
     out_direct_gbuffer_d1: &mut Vec4,
     out_surface: &mut Vec4,
     out_velocity: &mut Vec4,
 ) {
+    let ray = camera.ray(camera.clip_to_screen(curr_vertex).as_uvec2());
+
     let material = MaterialsView::new(materials)
         .get(MaterialId::new(params.material_id()));
 
@@ -80,7 +81,6 @@ pub fn main_fs(
     let normal = {
         // TODO bring back normal mapping
         let normal = normal.normalize();
-        let ray = camera.ray(camera.clip_to_screen(curr_vertex).as_uvec2());
 
         if ray.direction().dot(normal) <= 0.0 {
             normal
@@ -97,19 +97,7 @@ pub fn main_fs(
     };
 
     let point = point + normal * TriangleHit::NUDGE_OFFSET;
-
-    // -------------------------------------------------------------------------
-
-    // Since we know the ray and depth, in principle we could restore the point
-    // by doing `ray.origin() + ray.direction() * gbuffer.depth` - but for some
-    // reason there's a tiiiny difference in floating-point computations between
-    // raster and raytracer, and eventually it adds up to cause invalid shadows
-    // in some places; not really sure why, though.
-    *out_direct_hit = point.extend(Default::default());
-
-    // -------------------------------------------------------------------------
-
-    let depth = camera.origin.xyz().distance(point);
+    let depth = ray.origin().distance(point);
 
     let gbuffer = GBufferEntry {
         base_color,

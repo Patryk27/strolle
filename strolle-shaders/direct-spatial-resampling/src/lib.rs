@@ -9,16 +9,15 @@ pub fn main(
     #[spirv(push_constant)] params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8f,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] direct_hits: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4)] surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 5)] reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 1)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 3)] surface_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 4)] reprojection_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
     direct_temporal_reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 6, storage_buffer)]
     direct_spatial_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
     prev_direct_spatial_reservoirs: &[Vec4],
 ) {
     let screen_pos = global_id.xy();
@@ -33,9 +32,8 @@ pub fn main(
     let surface = surface_map.get(screen_pos);
     let mut reservoir = DirectReservoir::default();
 
-    let hit = Hit::from_direct(
+    let hit = Hit::new(
         camera.ray(screen_pos),
-        direct_hits.read(screen_pos).xyz(),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
             direct_gbuffer_d1.read(screen_pos),

@@ -33,7 +33,6 @@ impl DirectInitialShadingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.atmosphere_transmittance_lut.bind_sampled(),
                 &buffers.atmosphere_sky_lut.bind_sampled(),
-                &buffers.direct_hits.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.direct_initial_samples.bind_writable(),

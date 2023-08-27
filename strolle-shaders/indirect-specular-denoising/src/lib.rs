@@ -14,14 +14,13 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 1, uniform)] prev_camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 2)] reprojection_map: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 3)] prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4)] direct_hits: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 5)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 7)]
+    #[spirv(descriptor_set = 1, binding = 4)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 5)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6)]
     indirect_specular_samples: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 8)]
+    #[spirv(descriptor_set = 1, binding = 7)]
     indirect_specular_colors: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 9)]
+    #[spirv(descriptor_set = 1, binding = 8)]
     prev_indirect_specular_colors: TexRgba16f,
 ) {
     let screen_pos = global_id.xy();
@@ -31,9 +30,8 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let hit = Hit::from_direct(
+    let hit = Hit::new(
         camera.ray(screen_pos),
-        direct_hits.read(screen_pos).xyz(),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
             direct_gbuffer_d1.read(screen_pos),
@@ -72,8 +70,10 @@ pub fn main(
                 a2 * a2 / (denom_sqrt * denom_sqrt)
             }
 
-            let curr_dir = (hit.point - camera.origin.xyz()).normalize();
-            let prev_dir = (hit.point - prev_camera.origin.xyz()).normalize();
+            let curr_dir = (hit.point - camera.approx_origin()).normalize();
+
+            let prev_dir =
+                (hit.point - prev_camera.approx_origin()).normalize();
 
             ndf_01(
                 hit.gbuffer.roughness.max(0.1),

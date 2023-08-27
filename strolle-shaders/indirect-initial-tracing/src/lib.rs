@@ -17,12 +17,11 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 3)] atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 4)] atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] direct_hits: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4)] indirect_rays: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 5)] indirect_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 6)] indirect_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 1)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 3)] indirect_rays: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 4)] indirect_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 5)] indirect_gbuffer_d1: TexRgba32f,
 ) {
     let screen_pos = global_id.xy();
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
@@ -30,9 +29,8 @@ pub fn main(
     let bvh = BvhView::new(bvh);
     let materials = MaterialsView::new(materials);
 
-    let direct_hit = Hit::from_direct(
+    let direct_hit = Hit::new(
         camera.ray(screen_pos),
-        direct_hits.read(screen_pos).xyz(),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
             direct_gbuffer_d1.read(screen_pos),
