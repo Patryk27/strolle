@@ -1,4 +1,4 @@
-use glam::{ivec2, vec2, IVec2, Vec2, Vec4};
+use glam::{ivec2, vec2, vec4, IVec2, UVec2, Vec2, Vec4};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
@@ -17,46 +17,90 @@ pub struct BilinearFilter {
 
     /// Sample at `f(x=1, y=1)`
     pub s11: Vec4,
+
+    /// Weights for each sample
+    pub weights: Vec4,
 }
 
 impl BilinearFilter {
-    pub fn from_reprojection(
+    pub fn reproject(
         reprojection: Reprojection,
-        sample: impl Fn(IVec2) -> Vec4,
-    ) -> Self {
-        Self {
-            s00: sample(ivec2(
-                reprojection.prev_x.floor() as i32,
-                reprojection.prev_y.floor() as i32,
-            )),
-            s10: sample(ivec2(
-                reprojection.prev_x.ceil() as i32,
-                reprojection.prev_y.floor() as i32,
-            )),
-            s01: sample(ivec2(
-                reprojection.prev_x.floor() as i32,
-                reprojection.prev_y.ceil() as i32,
-            )),
-            s11: sample(ivec2(
-                reprojection.prev_x.ceil() as i32,
-                reprojection.prev_y.ceil() as i32,
-            )),
-        }
-    }
-
-    pub fn eval(&self, uv: Vec2) -> Vec4 {
-        let s00 = self.s00 * (1.0 - uv.x) * (1.0 - uv.y);
-        let s10 = self.s10 * uv.x * (1.0 - uv.y);
-        let s01 = self.s01 * (1.0 - uv.x) * uv.y;
-        let s11 = self.s11 * uv.x * uv.y;
-
-        s00 + s10 + s01 + s11
-    }
-
-    pub fn eval_reprojection(&self, reprojection: Reprojection) -> Vec4 {
-        self.eval(vec2(
+        sample: impl Fn(UVec2) -> (Vec4, f32),
+    ) -> Vec4 {
+        Self::from_reprojection(reprojection, sample).eval(vec2(
             reprojection.prev_x.fract(),
             reprojection.prev_y.fract(),
         ))
+    }
+
+    pub fn from_reprojection(
+        reprojection: Reprojection,
+        sample: impl Fn(UVec2) -> (Vec4, f32),
+    ) -> Self {
+        let mut s00 = Vec4::ZERO;
+        let mut s10 = Vec4::ZERO;
+        let mut s01 = Vec4::ZERO;
+        let mut s11 = Vec4::ZERO;
+        let mut weights = Vec4::ZERO;
+
+        let [p00, p10, p01, p11] = Self::find_reprojection_coords(
+            reprojection.prev_x,
+            reprojection.prev_y,
+        );
+
+        if reprojection.validity & 0b0001 > 0 {
+            (s00, weights.x) = sample(p00.as_uvec2());
+        }
+
+        if reprojection.validity & 0b0010 > 0 {
+            (s10, weights.y) = sample(p10.as_uvec2());
+        }
+
+        if reprojection.validity & 0b0100 > 0 {
+            (s01, weights.z) = sample(p01.as_uvec2());
+        }
+
+        if reprojection.validity & 0b1000 > 0 {
+            (s11, weights.w) = sample(p11.as_uvec2());
+        }
+
+        Self {
+            s00,
+            s10,
+            s01,
+            s11,
+            weights,
+        }
+    }
+
+    pub fn find_reprojection_coords(prev_x: f32, prev_y: f32) -> [IVec2; 4] {
+        let p00 = ivec2(prev_x.floor() as i32, prev_y.floor() as i32);
+        let p10 = ivec2(prev_x.ceil() as i32, prev_y.floor() as i32);
+        let p01 = ivec2(prev_x.floor() as i32, prev_y.ceil() as i32);
+        let p11 = ivec2(prev_x.ceil() as i32, prev_y.ceil() as i32);
+
+        [p00, p10, p01, p11]
+    }
+
+    pub fn eval(&self, uv: Vec2) -> Vec4 {
+        let weights = self.weights
+            * vec4(
+                (1.0 - uv.x) * (1.0 - uv.y),
+                uv.x * (1.0 - uv.y),
+                (1.0 - uv.x) * uv.y,
+                uv.x * uv.y,
+            );
+
+        let w_sum = weights.dot(Vec4::ONE);
+
+        if w_sum == 0.0 {
+            Default::default()
+        } else {
+            (self.s00 * weights.x
+                + self.s10 * weights.y
+                + self.s01 * weights.z
+                + self.s11 * weights.w)
+                / w_sum
+        }
     }
 }

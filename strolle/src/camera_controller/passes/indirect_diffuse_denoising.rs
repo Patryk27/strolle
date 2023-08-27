@@ -1,4 +1,3 @@
-use rand::Rng;
 use strolle_gpu as gpu;
 
 use crate::{
@@ -30,7 +29,7 @@ impl IndirectDiffuseDenoisingPass {
                 &buffers.surface_map.prev().bind_readable(),
                 &buffers.indirect_diffuse_samples.bind_readable(),
                 &buffers.indirect_diffuse_colors.curr().bind_writable(),
-                &buffers.indirect_diffuse_colors.prev().bind_writable(),
+                &buffers.indirect_diffuse_colors.prev().bind_readable(),
             ])
             .build(device, &engine.shaders.indirect_diffuse_denoising);
 
@@ -45,11 +44,6 @@ impl IndirectDiffuseDenoisingPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        let params = gpu::PassParams {
-            seed: rand::thread_rng().gen(),
-            frame: camera.frame,
-        };
-
-        self.pass.run(camera, encoder, size, &params);
+        self.pass.run(camera, encoder, size, &camera.pass_params());
     }
 }

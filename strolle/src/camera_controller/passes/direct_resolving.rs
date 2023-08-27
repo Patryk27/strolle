@@ -4,7 +4,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct DirectResolvingPass {
-    pass: CameraComputePass<()>,
+    pass: CameraComputePass,
 }
 
 impl DirectResolvingPass {

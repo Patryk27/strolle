@@ -112,7 +112,7 @@ pub fn main(
         let mut material = materials.get(t_hit.material_id);
 
         if params.depth > 0 {
-            material.adjust_for_indirect(false);
+            material.adjust_for_indirect();
         }
 
         Hit {
@@ -139,11 +139,20 @@ pub fn main(
 
     color += throughput * hit.gbuffer.emissive;
 
-    let mut light_id = 0;
+    if world.light_count > 0 {
+        let light =
+            lights.get(LightId::new(wnoise.sample_int() % world.light_count));
 
-    while light_id < world.light_count {
-        let light = lights.get(LightId::new(light_id));
-        let light_contribution = light.contribution(hit).sum();
+        let light_contribution = light.contribution(hit);
+
+        // Since our actual implementation doesn't handle specular lightning for
+        // direct hits, let's disable it for the reference as well to make it
+        // easier to compare them.
+        let light_contribution = if params.depth == 0 {
+            light_contribution.diffuse
+        } else {
+            light_contribution.sum()
+        };
 
         let light_visibility = light.visibility(
             local_idx,
@@ -157,17 +166,25 @@ pub fn main(
             hit.point,
         );
 
-        color += throughput * light_visibility * light_contribution;
-        light_id += 1;
+        let light_pdf = 1.0 / (world.light_count as f32);
+
+        color += throughput * light_visibility * light_contribution / light_pdf;
     }
 
     // -------------------------------------------------------------------------
 
-    let reflected_ray =
-        Ray::new(hit.point, LayeredBrdf::sample(&mut wnoise, hit));
+    let reflected_sample = LayeredBrdf::sample(&mut wnoise, hit);
 
-    throughput *= hit.gbuffer.base_color.xyz();
-    throughput *= hit.gbuffer.normal.dot(reflected_ray.direction());
+    if reflected_sample.is_invalid() {
+        reference_rays[3 * screen_idx + 0] = Default::default();
+        reference_rays[3 * screen_idx + 1] = Default::default();
+        return;
+    }
+
+    let reflected_ray = Ray::new(hit.point, reflected_sample.direction);
+
+    throughput *= reflected_sample.direction.dot(hit.gbuffer.normal);
+    throughput *= reflected_sample.throughput;
 
     // -------------------------------------------------------------------------
 

@@ -32,8 +32,6 @@ impl FrameCompositionPass {
             .add(&buffers.direct_gbuffer_d1.bind_readable())
             .add(&buffers.indirect_diffuse_colors.curr().bind_readable())
             .add(&buffers.indirect_specular_colors.curr().bind_readable())
-            .add(&buffers.surface_map.curr().bind_readable())
-            .add(&buffers.velocity_map.bind_readable())
             .add(&buffers.reference_colors.bind_readable())
             .build(device);
 

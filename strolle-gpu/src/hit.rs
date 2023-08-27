@@ -1,6 +1,8 @@
 use glam::{Vec2, Vec3, Vec4, Vec4Swizzles};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::Float;
 
-use crate::{GBufferEntry, MaterialId, Normal, Ray};
+use crate::{GBufferEntry, MaterialId, Normal, Ray, Surface, Vec3Ext};
 
 #[derive(Clone, Copy)]
 pub struct Hit {
@@ -35,6 +37,44 @@ impl Hit {
 
     pub fn is_none(&self) -> bool {
         !self.is_some()
+    }
+
+    pub fn as_surface(&self) -> Surface {
+        Surface {
+            normal: self.gbuffer.normal,
+            depth: self.gbuffer.depth,
+            roughness: self.gbuffer.roughness,
+        }
+    }
+
+    pub fn specular_kernel_basis(&self, length: f32) -> (Vec3, Vec3) {
+        fn dominant_direction(n: Vec3, v: Vec3, roughness: f32) -> Vec3 {
+            let f = (1.0 - roughness) * ((1.0 - roughness).sqrt() + roughness);
+            let r = (-v).reflect(n);
+
+            n.lerp(r, f).normalize()
+        }
+
+        let roughness = self.gbuffer.roughness;
+        let n = self.gbuffer.normal;
+        let v = -self.direction;
+
+        // ---
+
+        let t;
+        let b;
+
+        if roughness == 1.0 {
+            (t, b) = n.any_orthonormal_pair();
+        } else {
+            let d = dominant_direction(n, v, roughness);
+            let r = (-d).reflect(n);
+
+            t = n.cross(r).normalize();
+            b = r.cross(t);
+        }
+
+        (t * length, b * length)
     }
 }
 

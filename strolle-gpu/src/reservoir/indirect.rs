@@ -2,8 +2,10 @@ use core::f32::consts::PI;
 use core::ops::{Deref, DerefMut};
 
 use glam::{vec3, UVec2, Vec3, Vec4, Vec4Swizzles};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::Float;
 
-use crate::{F32Ext, Hit, Reservoir, SpecularBrdf};
+use crate::{BrdfValue, F32Ext, Hit, Reservoir, SpecularBrdf};
 
 #[derive(Clone, Copy, Default)]
 pub struct IndirectReservoir {
@@ -18,7 +20,11 @@ impl IndirectReservoir {
     }
 
     pub fn expects_diffuse_sample(screen_pos: UVec2, frame: u32) -> bool {
-        (screen_pos.x % 2) == (frame % 2)
+        if screen_pos.y % 2 == 0 {
+            screen_pos.x % 2 == frame % 2
+        } else {
+            screen_pos.x % 2 != frame % 2
+        }
     }
 
     pub fn expects_specular_sample(screen_pos: UVec2, frame: u32) -> bool {
@@ -96,7 +102,7 @@ pub struct IndirectReservoirSample {
 
 impl IndirectReservoirSample {
     pub fn temporal_p_hat(&self) -> f32 {
-        self.radiance.dot(vec3(0.2126, 0.7152, 0.0722))
+        self.radiance.dot(vec3(0.2126, 0.7152, 0.0722)).max(0.0001)
     }
 
     pub fn spatial_p_hat(&self, point: Vec3, normal: Vec3) -> f32 {
@@ -107,26 +113,29 @@ impl IndirectReservoirSample {
         (self.sample_point - point).normalize()
     }
 
-    pub fn cosine(&self, direct_hit: &Hit) -> f32 {
-        direct_hit
-            .gbuffer
-            .normal
-            .dot(self.direction(direct_hit.point))
-            .max(0.0)
+    pub fn cosine(&self, hit: &Hit) -> f32 {
+        self.direction(hit.point).dot(hit.gbuffer.normal).max(0.0)
     }
 
-    pub fn diffuse_brdf(&self) -> f32 {
-        1.0 / PI
+    pub fn diffuse_brdf(&self, hit: &Hit) -> BrdfValue {
+        BrdfValue {
+            radiance: Vec3::ONE * (1.0 - hit.gbuffer.metallic),
+            probability: PI,
+        }
     }
 
-    pub fn specular_brdf(&self, direct_hit: &Hit) -> f32 {
-        let l = (self.sample_point - direct_hit.point).normalize();
-        let v = (direct_hit.origin - direct_hit.point).normalize();
-        let n = direct_hit.gbuffer.normal;
+    pub fn specular_brdf(&self, hit: &Hit) -> BrdfValue {
+        let v = -hit.direction;
+        let l = self.direction(hit.point);
 
-        SpecularBrdf::new(&direct_hit.gbuffer)
-            .eval_f(l, v, n)
-            .clamp(0.0, 1.0)
+        SpecularBrdf::new(&hit.gbuffer).evaluate(v, l)
+    }
+
+    pub fn is_within_specular_lobe_of(&self, hit: &Hit) -> bool {
+        let v = -hit.direction;
+        let l = self.direction(hit.point);
+
+        SpecularBrdf::new(&hit.gbuffer).is_sample_within_lobe(v, l)
     }
 
     pub fn jacobian(&self, new_hit_point: Vec3) -> f32 {
@@ -152,4 +161,77 @@ impl IndirectReservoirSample {
 
         (distance, cosine)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use glam::uvec2;
+
+    use super::*;
+
+    #[test]
+    fn expects_samples() {
+        let cases = [
+            (uvec2(0, 0), 0, true),
+            (uvec2(1, 0), 0, false),
+            (uvec2(2, 0), 0, true),
+            (uvec2(3, 0), 0, false),
+            // ---
+            (uvec2(0, 1), 0, false),
+            (uvec2(1, 1), 0, true),
+            (uvec2(2, 1), 0, false),
+            (uvec2(3, 1), 0, true),
+            // ---
+            (uvec2(0, 0), 1, false),
+            (uvec2(1, 0), 1, true),
+            (uvec2(2, 0), 1, false),
+            (uvec2(3, 0), 1, true),
+            // ---
+            (uvec2(0, 1), 1, true),
+            (uvec2(1, 1), 1, false),
+            (uvec2(2, 1), 1, true),
+            (uvec2(3, 1), 1, false),
+        ];
+
+        for (screen_pos, frame, expected_diffuse) in cases {
+            let expected_specular = !expected_diffuse;
+
+            let actual_diffuse =
+                IndirectReservoir::expects_diffuse_sample(screen_pos, frame);
+
+            let actual_specular =
+                IndirectReservoir::expects_specular_sample(screen_pos, frame);
+
+            assert_eq!(
+                expected_diffuse, actual_diffuse,
+                "{:?}, {:?}",
+                screen_pos, frame
+            );
+
+            assert_eq!(
+                expected_specular, actual_specular,
+                "{:?}, {:?}",
+                screen_pos, frame
+            );
+        }
+    }
+
+    // TODO
+    //
+    // #[test]
+    // fn lobe() {
+    //     let n = vec3(0.0, 1.0, 0.0).normalize();
+    //     let v = vec3(1.0, 1.0, 1.0).normalize();
+    //     let l = vec3(-1.0, 1.0, -1.0).normalize();
+    //     let r = (-v).reflect(n);
+
+    //     let roughness = 0.1f32;
+
+    //     let f = (1.0 - roughness) * ((1.0 - roughness).sqrt() + roughness);
+
+    //     let l_min = (-v).lerp(r, f);
+    //     let l_max = v.lerp(r, f);
+
+    //     panic!("{}", l.dot(v) >= l_min.dot(v) && l.dot(v) <= l_max.dot(v));
+    // }
 }

@@ -1,5 +1,3 @@
-use rand::Rng;
-
 use crate::{
     gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
     Params,
@@ -50,11 +48,6 @@ impl IndirectInitialTracingPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        let params = gpu::PassParams {
-            seed: rand::thread_rng().gen(),
-            frame: camera.frame,
-        };
-
-        self.pass.run(camera, encoder, size, &params);
+        self.pass.run(camera, encoder, size, &camera.pass_params());
     }
 }

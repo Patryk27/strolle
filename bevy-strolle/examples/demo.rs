@@ -51,7 +51,6 @@ fn main() {
         .add_system(animate_sun)
         .add_system(handle_flashlight)
         .add_system(animate_flashlight)
-        .add_system(animate_spheres)
         .run();
 }
 
@@ -120,18 +119,10 @@ fn setup(
 
     // -------------------------------------------------------------------------
 
-    commands
-        .spawn(MaterialMeshBundle {
-            material: st_materials.add(StrolleMaterial {
-                parent: StandardMaterial {
-                    base_color: Color::rgba(1.0, 0.766, 0.663, 1.0),
-                    alpha_mode: AlphaMode::Blend,
-                    metallic: 1.0,
-                    perceptual_roughness: 0.5,
-                    ..default()
-                },
-                ..default()
-            }),
+    let spheres = vec![vec3(-8.0, 0.2, -23.5)];
+
+    for sphere in spheres {
+        commands.spawn(MaterialMeshBundle {
             mesh: meshes.add(
                 Mesh::try_from(shape::Icosphere {
                     radius: 1.0,
@@ -139,11 +130,19 @@ fn setup(
                 })
                 .unwrap(),
             ),
+            material: st_materials.add(StrolleMaterial {
+                parent: StandardMaterial {
+                    base_color: Color::rgba(1.0, 1.0, 1.0, 1.0),
+                    metallic: 1.0,
+                    perceptual_roughness: 0.33,
+                    ..default()
+                },
+                ..default()
+            }),
+            transform: Transform::from_translation(sphere),
             ..default()
-        })
-        .insert(Sphere {
-            anchor: vec3(-8.0, 0.1, -23.5),
         });
+    }
 
     // -------------------------------------------------------------------------
 
@@ -241,6 +240,8 @@ fn adjust_materials(
 
     for (_, material) in materials.iter_mut() {
         material.unlit = false;
+        material.reflectance = 0.0;
+        material.perceptual_roughness = 1.0;
     }
 
     *materials_adjusted = true;
@@ -303,7 +304,7 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::Key9) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 2 };
+        camera.mode = st::CameraMode::Reference { depth: 1 };
     }
 
     if keys.just_pressed(KeyCode::Key0) {
@@ -405,22 +406,4 @@ fn animate_flashlight(
     *flashlight =
         Transform::from_translation(camera.translation - vec3(0.0, 0.25, 0.0))
             .with_rotation(camera.rotation);
-}
-
-// -----------------------------------------------------------------------------
-
-#[derive(Component)]
-struct Sphere {
-    anchor: Vec3,
-}
-
-fn animate_spheres(
-    time: Res<Time>,
-    mut cubes: Query<(&mut Transform, &Sphere)>,
-) {
-    let tt = time.elapsed_seconds();
-
-    for (mut cube_xform, cube) in cubes.iter_mut() {
-        cube_xform.translation = cube.anchor + vec3(0.0, tt.sin().abs(), 0.0);
-    }
 }

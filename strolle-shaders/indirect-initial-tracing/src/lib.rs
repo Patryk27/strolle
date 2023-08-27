@@ -46,14 +46,20 @@ pub fn main(
         indirect_ray_direction = Vec3::ZERO;
         indirect_hit = TriangleHit::none();
     } else {
-        indirect_ray_direction = if IndirectReservoir::expects_diffuse_sample(
-            screen_pos,
-            params.frame,
-        ) {
+        let expects_diffuse_sample =
+            IndirectReservoir::expects_diffuse_sample(screen_pos, params.frame);
+
+        indirect_ray_direction = if expects_diffuse_sample {
             wnoise.sample_hemisphere(direct_hit.gbuffer.normal)
         } else {
-            SpecularBrdf::new(&direct_hit.gbuffer)
-                .sample(&mut wnoise, direct_hit)
+            let sample = SpecularBrdf::new(&direct_hit.gbuffer)
+                .sample(&mut wnoise, direct_hit);
+
+            if sample.is_invalid() {
+                wnoise.sample_hemisphere(direct_hit.gbuffer.normal)
+            } else {
+                sample.direction
+            }
         };
 
         let ray = Ray::new(direct_hit.point, indirect_ray_direction);
@@ -74,7 +80,7 @@ pub fn main(
         //      already load materials during ray-traversal
         let mut indirect_material = materials.get(indirect_hit.material_id);
 
-        indirect_material.adjust_for_indirect(true);
+        indirect_material.adjust_for_indirect();
 
         GBufferEntry {
             base_color: indirect_material.base_color(

@@ -17,16 +17,16 @@ members = [
     "strolle-shaders/frame-composition",
     "strolle-shaders/frame-reprojection",
     "strolle-shaders/indirect-diffuse-denoising",
+    "strolle-shaders/indirect-diffuse-resolving",
     "strolle-shaders/indirect-diffuse-spatial-resampling",
     "strolle-shaders/indirect-diffuse-temporal-resampling",
     "strolle-shaders/indirect-initial-shading",
     "strolle-shaders/indirect-initial-tracing",
-    "strolle-shaders/indirect-resolving",
     "strolle-shaders/indirect-specular-denoising",
     "strolle-shaders/indirect-specular-resampling",
+    "strolle-shaders/indirect-specular-resolving",
     "strolle-shaders/reference-shading",
     "strolle-shaders/reference-tracing",
-    "strolle-utils/sandbox",
 ]
 
 [patch."crates-io"]

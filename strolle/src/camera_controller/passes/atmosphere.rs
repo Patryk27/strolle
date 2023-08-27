@@ -8,9 +8,9 @@ use crate::{
 
 #[derive(Debug)]
 pub struct AtmospherePass {
-    generate_transmittance_lut_pass: CameraComputePass<()>,
-    generate_scattering_lut_pass: CameraComputePass<()>,
-    generate_sky_lut_pass: CameraComputePass<()>,
+    generate_transmittance_lut_pass: CameraComputePass,
+    generate_scattering_lut_pass: CameraComputePass,
+    generate_sky_lut_pass: CameraComputePass,
 
     is_initialized: Mutex<bool>,
     known_sun_altitude: Mutex<Option<f32>>,

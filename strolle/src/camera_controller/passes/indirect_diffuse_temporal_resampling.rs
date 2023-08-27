@@ -1,5 +1,3 @@
-use rand::Rng;
-
 use crate::{
     gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
     Params,
@@ -28,7 +26,6 @@ impl IndirectDiffuseTemporalResamplingPass {
                     &buffers.surface_map.curr().bind_readable(),
                     &buffers.surface_map.prev().bind_readable(),
                     &buffers.reprojection_map.bind_readable(),
-                    &buffers.direct_hits.bind_readable(),
                     &buffers.indirect_samples.bind_readable(),
                     &buffers
                         .indirect_diffuse_temporal_reservoirs
@@ -55,11 +52,6 @@ impl IndirectDiffuseTemporalResamplingPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        let params = gpu::PassParams {
-            seed: rand::thread_rng().gen(),
-            frame: camera.frame,
-        };
-
-        self.pass.run(camera, encoder, size, &params);
+        self.pass.run(camera, encoder, size, &camera.pass_params());
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "strolle-indirect-resolving-shader"
+name = "strolle-indirect-specular-resolving-shader"
 version = "0.1.0"
 edition = "2021"
 

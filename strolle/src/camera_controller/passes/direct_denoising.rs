@@ -4,7 +4,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct DirectDenoisingPass {
-    pass: CameraComputePass<()>,
+    pass: CameraComputePass,
 }
 
 impl DirectDenoisingPass {
@@ -22,7 +22,6 @@ impl DirectDenoisingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
-                &buffers.surface_map.prev().bind_readable(),
                 &buffers.direct_samples.bind_readable(),
                 &buffers.direct_colors.curr().bind_writable(),
                 &buffers.direct_colors.prev().bind_readable(),
