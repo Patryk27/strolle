@@ -124,15 +124,13 @@ impl Light {
 
         // ---
 
-        let v = (hit.origin - hit.point).normalize();
         let l = hit_to_light.normalize();
+        let v = (hit.origin - hit.point).normalize();
         let n = hit.gbuffer.normal;
-        let n_o_l = n.dot(l).saturate();
 
-        let diffuse = DiffuseBrdf::new(&hit.gbuffer).eval(l, v, n, n_o_l);
+        let diffuse = DiffuseBrdf::new(&hit.gbuffer).evaluate(v, l).radiance;
 
         let specular = {
-            let n_o_v = n.dot(v).max(0.0001);
             let r = (-v).reflect(n);
 
             let center_to_ray = hit_to_light.dot(r) * r - hit_to_light;
@@ -148,30 +146,21 @@ impl Light {
                 closest_point.dot(closest_point).inverse_sqrt();
 
             let i_roughness = {
-                let t = hit.gbuffer.clamped_roughness()
+                let t = hit.gbuffer.roughness
                     + self.radius() * 0.5 * l_spec_length_inverse;
 
-                hit.gbuffer.clamped_roughness() / t.saturate()
+                hit.gbuffer.roughness / t.saturate()
             };
 
             let intensity = i_roughness * i_roughness;
-
             let l = closest_point * l_spec_length_inverse;
-            let h = (l + v).normalize();
-            let n_o_l = n.dot(l).saturate();
-            let n_o_h = n.dot(h).saturate();
-            let l_o_h = l.dot(h).saturate();
 
-            intensity
-                * SpecularBrdf::new(&hit.gbuffer)
-                    .eval(n_o_v, n_o_l, n_o_h, l_o_h)
+            intensity * SpecularBrdf::new(&hit.gbuffer).evaluate(v, l).radiance
         };
 
-        let diffuse =
-            diffuse * self.color() * distance_factor * cone_factor * n_o_l;
-
-        let specular =
-            specular * self.color() * distance_factor * cone_factor * n_o_l;
+        let t = distance_factor * cone_factor * n.dot(l).saturate();
+        let diffuse = self.color() * diffuse * t;
+        let specular = self.color() * specular * t;
 
         LightContribution { diffuse, specular }
     }

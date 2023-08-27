@@ -1,10 +1,10 @@
-# strolle
+# Strolle
 
-Strolle (coming from _strålspårning_) is an experimental pixel-art~ish real-time
-renderer that supports global illumination:
+Strolle (from _strålspårning_) is an experimental real-time renderer with
+support for global illumination:
 
 <p align="center">
-  <img width="512" height="512" src="_readme/demo-v4.jpg" />
+  <img height="512" src="_readme/demo-v6.jpg" />
 </p>
 
 Our goal is to create an engine that is able to produce a good-looking image on

@@ -135,14 +135,14 @@ fn setup(
                 controller.translate_sensitivity = 8.0;
                 controller
             },
-            vec3(8.0, 2.75, -14.0),
-            vec3(0.0, 1.0, -14.0),
+            vec3(7.5485477, 7.116934, -5.4978814),
+            vec3(6.8574367, 6.5966244, -4.9962406),
             vec3(0.0, 1.0, 0.0),
         ));
 
     // -------------------------------------------------------------------------
 
-    sun.altitude = 0.05;
+    sun.altitude = -1.0;
 }
 
 fn handle_camera(
@@ -197,6 +197,7 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::X) {
         println!("{:?}", camera_xform.translation);
+        println!("{:?}", camera_xform.translation + camera_xform.forward());
     }
 }
 

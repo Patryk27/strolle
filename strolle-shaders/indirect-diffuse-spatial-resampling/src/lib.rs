@@ -28,7 +28,7 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let screen_surface = surface_map.get(screen_pos);
+    let surface = surface_map.get(screen_pos);
     let mut reservoir = IndirectReservoir::default();
 
     let hit = Hit::from_direct(
@@ -50,10 +50,6 @@ pub fn main(
     // Step 1:
     //
     // Try reprojecting reservoir from the previous frame.
-    //
-    // TODO we could use some interpolation here, but it's kinda difficult to
-    //      apply due to extra metadata stored in the reservoirs (sample normals
-    //      etc.)
 
     let reprojection = reprojection_map.get(screen_pos);
 
@@ -87,19 +83,15 @@ pub fn main(
 
     let mut sample_idx = 0.0f32;
     let mut sample_radius = 32.0f32;
-    let max_samples = 6.0;
 
-    while sample_idx <= max_samples {
+    while sample_idx <= 6.0 {
         let rhs_pos = screen_pos.as_vec2()
             + wnoise.sample_disk() * sample_radius.max(3.0);
 
         let rhs_pos = camera.contain(rhs_pos.as_ivec2());
 
-        let rhs_similarity = surface_map.evaluate_similarity_between(
-            screen_pos,
-            screen_surface,
-            rhs_pos,
-        );
+        let rhs_similarity = surface_map
+            .evaluate_similarity_between(screen_pos, surface, rhs_pos);
 
         if rhs_similarity < 0.5 {
             sample_idx += 0.5;

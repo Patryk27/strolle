@@ -13,13 +13,12 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 4)] surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 5)] prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 6)] reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 5)] reprojection_map: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6, storage_buffer)]
     direct_temporal_reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
     direct_spatial_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 1, binding = 9, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
     prev_direct_spatial_reservoirs: &[Vec4],
 ) {
     let screen_pos = global_id.xy();
@@ -27,12 +26,11 @@ pub fn main(
     let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
     let surface_map = SurfaceMap::new(surface_map);
-    let prev_surface_map = SurfaceMap::new(prev_surface_map);
     let reprojection_map = ReprojectionMap::new(reprojection_map);
 
     // -------------------------------------------------------------------------
 
-    let screen_surface = surface_map.get(screen_pos);
+    let surface = surface_map.get(screen_pos);
     let mut reservoir = DirectReservoir::default();
 
     let hit = Hit::from_direct(
@@ -59,37 +57,18 @@ pub fn main(
             camera.screen_to_idx(reprojection.prev_screen_pos()),
         );
 
-        let default_sample = rhs.sample.light_contribution.extend(rhs.w);
+        let sample = BilinearFilter::reproject(reprojection, move |pos| {
+            let reservoir = DirectReservoir::read(
+                prev_direct_spatial_reservoirs,
+                camera.screen_to_idx(pos),
+            );
 
-        let filter =
-            BilinearFilter::from_reprojection(reprojection, move |pos| {
-                if !camera.contains(pos) {
-                    return default_sample;
-                }
-
-                let pos = pos.as_uvec2();
-
-                let reservoir = DirectReservoir::read(
-                    prev_direct_spatial_reservoirs,
-                    camera.screen_to_idx(pos),
-                );
-
-                if prev_surface_map
-                    .get(pos)
-                    .evaluate_similarity_to(&screen_surface)
-                    < 0.33
-                {
-                    return default_sample;
-                }
-
-                if reservoir.sample.light_id == rhs.sample.light_id {
-                    reservoir.sample.light_contribution.extend(reservoir.w)
-                } else {
-                    default_sample
-                }
-            });
-
-        let sample = filter.eval_reprojection(reprojection);
+            if reservoir.sample.light_id == rhs.sample.light_id {
+                (reservoir.sample.light_contribution.extend(reservoir.w), 1.0)
+            } else {
+                (Vec4::ZERO, 0.0)
+            }
+        });
 
         rhs.sample.light_contribution = sample.xyz();
         rhs.w = sample.w.clamp(0.0, 1000.0);
@@ -139,11 +118,8 @@ pub fn main(
         let rhs_pos = rhs_pos.as_uvec2();
 
         // TODO implement a screen-space occlusion check
-        let mut rhs_similarity = surface_map.evaluate_similarity_between(
-            screen_pos,
-            screen_surface,
-            rhs_pos,
-        );
+        let mut rhs_similarity = surface_map
+            .evaluate_similarity_between(screen_pos, surface, rhs_pos);
 
         if rhs_similarity < 0.5 {
             continue;

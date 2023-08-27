@@ -21,60 +21,139 @@ pub fn main(
     let prev_surface_map = SurfaceMap::new(prev_surface_map);
     let reprojection_map = ReprojectionMap::new(reprojection_map);
 
+    // -------------------------------------------------------------------------
+
+    let mut reprojection = Reprojection::default();
+
     // If camera's mode has changed, force the reprojection to be none in order
     // to reset temporal algorithms (e.g. ReSTIR reservoirs) - this comes handy
     // for debugging
     if camera.mode() != prev_camera.mode() {
-        reprojection_map.set(screen_pos, &Default::default());
+        reprojection_map.set(screen_pos, &reprojection);
         return;
     }
 
-    let screen_surface = surface_map.get(screen_pos);
+    let surface = surface_map.get(screen_pos);
 
-    // We don't need reprojection for sky
-    if screen_surface.depth == 0.0 {
-        reprojection_map.set(screen_pos, &Default::default());
+    // We don't need reprojection for the sky
+    if surface.depth == 0.0 {
+        reprojection_map.set(screen_pos, &reprojection);
         return;
     }
 
-    let mut reprojection = Reprojection::default();
+    // -------------------------------------------------------------------------
 
-    let prev_screen_pos =
-        screen_pos.as_vec2() - velocity_map.read(screen_pos).xy();
+    let velocity = {
+        let mut velocity =
+            velocity_map.read(screen_pos).xy().extend(surface.depth);
 
-    let check_neighbour =
-        move |reprojection: &mut Reprojection, dx: f32, dy: f32| {
-            let prev_screen_pos = prev_screen_pos + vec2(dx, dy);
+        // TODO
+        if false {
+            let mut delta = ivec2(-1, -1);
 
-            if !prev_camera.contains(prev_screen_pos.round().as_ivec2()) {
-                return;
+            loop {
+                if delta != ivec2(0, 0) {
+                    let sample_pos = screen_pos.as_ivec2() + delta;
+
+                    if camera.contains(sample_pos) {
+                        let sample_pos = sample_pos.as_uvec2();
+                        let sample_depth = surface_map.get(sample_pos).depth;
+
+                        if sample_depth < velocity.z {
+                            velocity = velocity_map
+                                .read(sample_pos)
+                                .xy()
+                                .extend(sample_depth);
+                        }
+                    }
+                }
+
+                // ---
+
+                delta.x += 1;
+
+                if delta.x > 1 {
+                    delta.x = -1;
+                    delta.y += 1;
+
+                    if delta.y > 1 {
+                        break;
+                    }
+                }
             }
+        }
 
-            let sample_surface =
-                prev_surface_map.get(prev_screen_pos.round().as_uvec2());
+        velocity
+    };
 
-            let sample_confidence =
-                sample_surface.evaluate_similarity_to(&screen_surface);
+    // ---
 
-            if sample_confidence > reprojection.confidence {
-                *reprojection = Reprojection {
-                    prev_x: prev_screen_pos.x,
-                    prev_y: prev_screen_pos.y,
-                    confidence: sample_confidence,
-                };
-            }
-        };
+    let prev_screen_pos = screen_pos.as_vec2() - velocity.xy();
 
+    let check_neighbour = move |reprojection: &mut Reprojection,
+                                dx: f32,
+                                dy: f32| {
+        let sample_pos = prev_screen_pos + vec2(dx, dy);
+
+        if !prev_camera.contains(sample_pos.round().as_ivec2()) {
+            return;
+        }
+
+        let sample_surface =
+            prev_surface_map.get(sample_pos.round().as_uvec2());
+
+        let sample_confidence = sample_surface.evaluate_similarity_to(&surface);
+
+        if sample_confidence > reprojection.confidence {
+            *reprojection = Reprojection {
+                prev_x: sample_pos.x,
+                prev_y: sample_pos.y,
+                confidence: sample_confidence,
+                validity: 0,
+            };
+        }
+    };
+
+    // TODO consider checking other neighbours as well (?)
     check_neighbour(&mut reprojection, 0.0, 0.0);
 
-    // TODO
-    //
-    // if reprojection.confidence < 0.5 {
-    //     check_neighbour(&mut reprojection, -1.0, 0.0);
-    //     check_neighbour(&mut reprojection, 1.0, 0.0);
-    //     check_neighbour(&mut reprojection, 0.0, -1.0);
-    //     check_neighbour(&mut reprojection, 0.0, 1.0);
-    // }
+    // -------------------------------------------------------------------------
+
+    if reprojection.is_some() {
+        let check_validity = move |sample_pos| {
+            if !camera.contains(sample_pos) {
+                return false;
+            }
+
+            prev_surface_map
+                .get(sample_pos.as_uvec2())
+                .evaluate_similarity_to(&surface)
+                >= 0.5
+        };
+
+        let [p00, p10, p01, p11] = BilinearFilter::find_reprojection_coords(
+            reprojection.prev_x,
+            reprojection.prev_y,
+        );
+
+        if check_validity(p00) {
+            reprojection.validity |= 0b0001;
+        }
+
+        if check_validity(p10) {
+            reprojection.validity |= 0b0010;
+        }
+
+        if check_validity(p01) {
+            reprojection.validity |= 0b0100;
+        }
+
+        if check_validity(p11) {
+            reprojection.validity |= 0b1000;
+        }
+    }
+
+    // -------------------------------------------------------------------------
 
     reprojection_map.set(screen_pos, &reprojection);
 }

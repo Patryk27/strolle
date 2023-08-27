@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct IndirectResolvingPass {
-    pass: CameraComputePass<()>,
+pub struct IndirectDiffuseResolvingPass {
+    pass: CameraComputePass,
 }
 
-impl IndirectResolvingPass {
+impl IndirectDiffuseResolvingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -17,7 +17,7 @@ impl IndirectResolvingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("indirect_resolving")
+        let pass = CameraComputePass::builder("indirect_diffuse_resolving")
             .bind([
                 &buffers.camera.bind_readable(),
                 &buffers.direct_hits.bind_readable(),
@@ -28,10 +28,8 @@ impl IndirectResolvingPass {
                     .indirect_diffuse_spatial_reservoirs
                     .curr()
                     .bind_readable(),
-                &buffers.indirect_specular_samples.bind_writable(),
-                &buffers.indirect_specular_reservoirs.curr().bind_readable(),
             ])
-            .build(device, &engine.shaders.indirect_resolving);
+            .build(device, &engine.shaders.indirect_diffuse_resolving);
 
         Self { pass }
     }

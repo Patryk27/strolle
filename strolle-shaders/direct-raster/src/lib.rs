@@ -113,19 +113,16 @@ pub fn main_fs(
 
     *out_surface = Normal::encode(normal)
         .extend(depth)
-        .extend(Default::default());
+        .extend(material.roughness);
 
     // -------------------------------------------------------------------------
 
     *out_velocity = {
-        let curr_scren_pos = camera.clip_to_screen(curr_vertex);
-        let prev_screen_pos = prev_camera.clip_to_screen(prev_vertex);
-
-        let velocity =
-            (curr_scren_pos - prev_screen_pos).extend(0.0).extend(0.0);
+        let velocity = camera.clip_to_screen(curr_vertex)
+            - prev_camera.clip_to_screen(prev_vertex);
 
         if velocity.length_squared() >= 0.001 {
-            velocity
+            velocity.extend(0.0).extend(0.0)
         } else {
             // Due to floting-point inaccuracies, stationary objects can end up
             // having a very small velocity instead of zero - this causes our

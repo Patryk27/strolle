@@ -5,6 +5,8 @@ mod passes;
 use std::ops::DerefMut;
 
 use log::{debug, info};
+use rand::Rng;
+use strolle_gpu as gpu;
 
 pub use self::buffers::*;
 pub use self::pass::*;
@@ -146,13 +148,19 @@ impl CameraController {
                             .run(self, encoder);
 
                         self.passes
-                            .indirect_specular_resampling
+                            .indirect_diffuse_resolving
                             .run(self, encoder);
-
-                        self.passes.indirect_resolving.run(self, encoder);
 
                         self.passes
                             .indirect_diffuse_denoising
+                            .run(self, encoder);
+
+                        self.passes
+                            .indirect_specular_resampling
+                            .run(self, encoder);
+
+                        self.passes
+                            .indirect_specular_resolving
                             .run(self, encoder);
 
                         self.passes
@@ -177,6 +185,13 @@ impl CameraController {
     /// resource, when given resource is double-buffered.
     fn is_alternate(&self) -> bool {
         self.frame % 2 == 1
+    }
+
+    fn pass_params(&self) -> gpu::PassParams {
+        gpu::PassParams {
+            seed: rand::thread_rng().gen(),
+            frame: self.frame,
+        }
     }
 }
 

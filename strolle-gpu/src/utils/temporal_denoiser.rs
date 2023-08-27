@@ -8,7 +8,6 @@ pub struct TemporalDenoiser<'a> {
     pub camera: &'a Camera,
     pub reprojection_map: ReprojectionMap<'a>,
     pub surface_map: SurfaceMap<'a>,
-    pub prev_surface_map: SurfaceMap<'a>,
     pub samples: TexRgba16f<'a>,
     pub image: TexRgba16f<'a>,
     pub prev_image: TexRgba16f<'a>,
@@ -28,32 +27,9 @@ impl<'a> TemporalDenoiser<'a> {
         let reprojection = self.reprojection_map.get(screen_pos);
 
         let prev_color = if reprojection.is_some() {
-            let screen_surface = self.surface_map.get(screen_pos);
-
-            let default_sample =
-                self.prev_image.read(reprojection.prev_screen_pos());
-
-            let filter =
-                BilinearFilter::from_reprojection(reprojection, move |pos| {
-                    if !self.camera.contains(pos) {
-                        return default_sample;
-                    }
-
-                    let pos = pos.as_uvec2();
-
-                    if self
-                        .prev_surface_map
-                        .get(pos)
-                        .evaluate_similarity_to(&screen_surface)
-                        < 0.33
-                    {
-                        return default_sample;
-                    }
-
-                    self.prev_image.read(pos)
-                });
-
-            filter.eval_reprojection(reprojection)
+            BilinearFilter::reproject(reprojection, move |pos| {
+                (self.prev_image.read(pos), 1.0)
+            })
         } else {
             Default::default()
         };
@@ -69,7 +45,7 @@ impl<'a> TemporalDenoiser<'a> {
 
         // -------------------------------------------------------------------------
 
-        let screen_surface = self.surface_map.get(screen_pos);
+        let surface = self.surface_map.get(screen_pos);
 
         let neighbour = move |dx: i32, dy: i32| {
             let pos = screen_pos.as_ivec2() + ivec2(dx, dy);
@@ -86,11 +62,7 @@ impl<'a> TemporalDenoiser<'a> {
 
             let pos = pos.as_uvec2();
 
-            if self
-                .surface_map
-                .get(pos)
-                .evaluate_similarity_to(&screen_surface)
-                < 0.33
+            if self.surface_map.get(pos).evaluate_similarity_to(&surface) < 0.33
             {
                 // If our neighbour is too different from us geometrically (e.g.
                 // has normal pointing towards a very different direction),

@@ -4,10 +4,12 @@ use spirv_std::num_traits::Float;
 
 use crate::{Normal, TexRgba32f};
 
+// TODO somewhat duplicate with GBufferEntry
 #[derive(Clone, Copy)]
 pub struct Surface {
     pub normal: Vec3,
     pub depth: f32,
+    pub roughness: f32,
 }
 
 impl Surface {
@@ -51,6 +53,7 @@ impl<'a> SurfaceMap<'a> {
         Surface {
             normal: Normal::decode(d0.xy()),
             depth: d0.z,
+            roughness: d0.w,
         }
     }
 

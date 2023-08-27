@@ -9,13 +9,14 @@ mod direct_temporal_resampling;
 mod frame_composition;
 mod frame_reprojection;
 mod indirect_diffuse_denoising;
+mod indirect_diffuse_resolving;
 mod indirect_diffuse_spatial_resampling;
 mod indirect_diffuse_temporal_resampling;
 mod indirect_initial_shading;
 mod indirect_initial_tracing;
-mod indirect_resolving;
 mod indirect_specular_denoising;
 mod indirect_specular_resampling;
+mod indirect_specular_resolving;
 mod reference_shading;
 mod reference_tracing;
 
@@ -64,13 +65,14 @@ passes!([
     frame_composition => FrameCompositionPass,
     frame_reprojection => FrameReprojectionPass,
     indirect_diffuse_denoising => IndirectDiffuseDenoisingPass,
+    indirect_diffuse_resolving => IndirectDiffuseResolvingPass,
     indirect_diffuse_spatial_resampling => IndirectDiffuseSpatialResamplingPass,
     indirect_diffuse_temporal_resampling => IndirectDiffuseTemporalResamplingPass,
     indirect_initial_shading => IndirectInitialShadingPass,
     indirect_initial_tracing => IndirectInitialTracingPass,
-    indirect_resolving => IndirectResolvingPass,
     indirect_specular_denoising => IndirectSpecularDenoisingPass,
     indirect_specular_resampling => IndirectSpecularResamplingPass,
+    indirect_specular_resolving => IndirectSpecularResolvingPass,
     reference_shading => ReferenceShadingPass,
     reference_tracing => ReferenceTracingPass,
 ]);

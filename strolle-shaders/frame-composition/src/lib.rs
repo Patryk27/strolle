@@ -30,9 +30,7 @@ pub fn main_fs(
     indirect_diffuse_colors: TexRgba16f,
     #[spirv(descriptor_set = 0, binding = 5)]
     indirect_specular_colors: TexRgba16f,
-    #[spirv(descriptor_set = 0, binding = 6)] _surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 7)] _velocity_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 8)] reference_colors: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 6)] reference_colors: TexRgba32f,
     frag_color: &mut Vec4,
 ) {
     let screen_pos = pos.xy().as_uvec2();
@@ -51,15 +49,12 @@ pub fn main_fs(
                 let indirect_diffuse =
                     indirect_diffuse_colors.read(screen_pos).xyz();
 
-                let indirect_specular = if gbuffer.roughness < 0.95 {
-                    indirect_specular_colors.read(screen_pos).xyz()
-                } else {
-                    // TODO doesn't feel right (missing Fresnel?)
-                    indirect_diffuse
-                };
+                let indirect_specular =
+                    indirect_specular_colors.read(screen_pos).xyz();
 
-                gbuffer.base_color.xyz()
-                    * (direct + indirect_diffuse + indirect_specular)
+                gbuffer.emissive
+                    + gbuffer.base_color.xyz() * (direct + indirect_diffuse)
+                    + indirect_specular
             } else {
                 direct_colors.read(screen_pos).xyz()
             };
@@ -68,13 +63,13 @@ pub fn main_fs(
         }
 
         // CameraMode::DirectLightning
-        1 => (direct_colors.read(screen_pos).xyz(), false),
+        1 => (direct_colors.read(screen_pos).xyz(), true),
 
         // CameraMode::IndirectDiffuseLightning
-        2 => (indirect_diffuse_colors.read(screen_pos).xyz(), false),
+        2 => (indirect_diffuse_colors.read(screen_pos).xyz(), true),
 
         // CameraMode::IndirectSpecularLightning
-        3 => (indirect_specular_colors.read(screen_pos).xyz(), false),
+        3 => (indirect_specular_colors.read(screen_pos).xyz(), true),
 
         // CameraMode::BvhHeatmap
         4 => (direct_colors.read(screen_pos).xyz(), false),
@@ -120,18 +115,5 @@ fn apply_debanding(pos: Vec2, color: Vec3) -> Vec3 {
 
 /// Applies Reinhard tone mapping.
 fn apply_tone_mapping(color: Vec3) -> Vec3 {
-    fn luminance(color: Vec3) -> f32 {
-        color.dot(vec3(0.2126, 0.7152, 0.0722))
-    }
-
-    fn change_luminance(color: Vec3, l_out: f32) -> Vec3 {
-        let l_in = luminance(color);
-
-        color * (l_out / l_in)
-    }
-
-    let l_old = luminance(color);
-    let l_new = l_old / (1.0 + l_old);
-
-    change_luminance(color, l_new)
+    color.with_luminance(color.luminance() / (1.0 + color.luminance()))
 }

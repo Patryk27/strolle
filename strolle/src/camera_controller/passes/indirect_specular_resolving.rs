@@ -3,12 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct FrameReprojectionPass {
-    pass: CameraComputePass,
+pub struct IndirectSpecularResolvingPass {
+    pass: CameraComputePass<()>,
 }
 
-impl FrameReprojectionPass {
-    #[allow(clippy::too_many_arguments)]
+impl IndirectSpecularResolvingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -18,16 +17,16 @@ impl FrameReprojectionPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("frame_reprojection")
+        let pass = CameraComputePass::builder("indirect_specular_resolving")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.prev_camera.bind_readable(),
-                &buffers.surface_map.curr().bind_readable(),
-                &buffers.surface_map.prev().bind_readable(),
-                &buffers.velocity_map.bind_readable(),
-                &buffers.reprojection_map.bind_writable(),
+                &buffers.direct_hits.bind_readable(),
+                &buffers.direct_gbuffer_d0.bind_readable(),
+                &buffers.direct_gbuffer_d1.bind_readable(),
+                &buffers.indirect_specular_reservoirs.curr().bind_readable(),
+                &buffers.indirect_specular_samples.bind_writable(),
             ])
-            .build(device, &engine.shaders.frame_reprojection);
+            .build(device, &engine.shaders.indirect_specular_resolving);
 
         Self { pass }
     }

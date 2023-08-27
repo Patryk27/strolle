@@ -3221,6 +3221,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "strolle-indirect-diffuse-resolving-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
 name = "strolle-indirect-diffuse-spatial-resampling-shader"
 version = "0.1.0"
 dependencies = [
@@ -3253,14 +3261,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-indirect-resolving-shader"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-gpu",
-]
-
-[[package]]
 name = "strolle-indirect-specular-denoising-shader"
 version = "0.1.0"
 dependencies = [
@@ -3270,6 +3270,14 @@ dependencies = [
 
 [[package]]
 name = "strolle-indirect-specular-resampling-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-indirect-specular-resolving-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -3297,13 +3305,6 @@ name = "strolle-shader-builder"
 version = "0.1.0"
 dependencies = [
  "spirv-builder",
-]
-
-[[package]]
-name = "strolle-utils-sandbox"
-version = "0.1.0"
-dependencies = [
- "strolle-gpu",
 ]
 
 [[package]]

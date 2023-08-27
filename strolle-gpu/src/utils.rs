@@ -19,6 +19,7 @@ pub type TexRgba8f<'a> = &'a Image!(2D, format = rgba8, sampled = false);
 pub type TexRgba16f<'a> = &'a Image!(2D, format = rgba16f, sampled = false);
 pub type TexRgba32f<'a> = &'a Image!(2D, format = rgba32f, sampled = false);
 
+// TODO make a trait
 pub fn lerp<T>(a: T, b: T, t: f32) -> T
 where
     T: ops::Add<Output = T>,

@@ -1,5 +1,3 @@
-use rand::Rng;
-
 use crate::{
     gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
     Params,
@@ -24,6 +22,7 @@ impl IndirectSpecularResamplingPass {
         let pass = CameraComputePass::builder("indirect_specular_resampling")
             .bind([
                 &buffers.camera.bind_readable(),
+                &buffers.prev_camera.bind_readable(),
                 &buffers.direct_hits.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
@@ -45,11 +44,6 @@ impl IndirectSpecularResamplingPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        let params = gpu::PassParams {
-            seed: rand::thread_rng().gen(),
-            frame: camera.frame,
-        };
-
-        self.pass.run(camera, encoder, size, &params);
+        self.pass.run(camera, encoder, size, &camera.pass_params());
     }
 }

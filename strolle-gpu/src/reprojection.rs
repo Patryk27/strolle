@@ -7,6 +7,7 @@ pub struct Reprojection {
     pub prev_x: f32,
     pub prev_y: f32,
     pub confidence: f32,
+    pub validity: u32,
 }
 
 impl Reprojection {
@@ -14,8 +15,8 @@ impl Reprojection {
         vec4(
             self.prev_x,
             self.prev_y,
-            Default::default(),
             self.confidence,
+            f32::from_bits(self.validity),
         )
     }
 
@@ -23,7 +24,8 @@ impl Reprojection {
         Self {
             prev_x: d0.x,
             prev_y: d0.y,
-            confidence: d0.w,
+            confidence: d0.z,
+            validity: d0.w.to_bits(),
         }
     }
 
@@ -57,5 +59,27 @@ impl<'a> ReprojectionMap<'a> {
         unsafe {
             self.tex.write(screen_pos, reprojection.serialize());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialization() {
+        let target = Reprojection {
+            prev_x: 123.45,
+            prev_y: 234.56,
+            confidence: 1.23,
+            validity: 0xcafebabe,
+        };
+
+        let target = Reprojection::deserialize(target.serialize());
+
+        assert_eq!(123.45, target.prev_x);
+        assert_eq!(234.56, target.prev_y);
+        assert_eq!(1.23, target.confidence);
+        assert_eq!(0xcafebabe, target.validity);
     }
 }

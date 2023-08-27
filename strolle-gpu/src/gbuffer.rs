@@ -1,6 +1,8 @@
 use glam::{vec4, Vec2, Vec3, Vec4, Vec4Swizzles};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::Float;
 
-use crate::{Normal, U32Ext};
+use crate::{F32Ext, Normal, U32Ext};
 
 #[derive(Clone, Copy, Default)]
 pub struct GBufferEntry {
@@ -15,8 +17,24 @@ pub struct GBufferEntry {
 
 impl GBufferEntry {
     pub fn unpack([d0, d1]: [Vec4; 2]) -> Self {
+        let depth = d0.x;
+        let normal = Normal::decode(d0.yz());
+
+        let (metallic, roughness, reflectance) = {
+            let [metallic, roughness, reflectance, ..] =
+                d0.w.to_bits().to_bytes();
+
+            let metallic = metallic as f32 / 255.0;
+            let roughness = (roughness as f32 / 255.0).sqr();
+            let reflectance = reflectance as f32 / 255.0;
+
+            (metallic, roughness, reflectance)
+        };
+
+        let emissive = d1.xyz();
+
         let base_color = {
-            let [x, y, z, w] = d0.x.to_bits().to_bytes();
+            let [x, y, z, w] = d1.w.to_bits().to_bytes();
 
             vec4(
                 x as f32 / 255.0,
@@ -26,34 +44,45 @@ impl GBufferEntry {
             )
         };
 
-        let normal = Normal::decode(d0.yz());
-
-        let (metallic, roughness) = {
-            let [metallic, roughness, ..] = d0.w.to_bits().to_bytes();
-
-            let metallic = metallic as f32 / 255.0;
-            let roughness = roughness as f32 / 255.0;
-
-            (metallic, roughness)
-        };
-
-        let emissive = d1.xyz();
-        let depth = d1.w;
-
         Self {
             base_color,
             normal,
             metallic,
             emissive,
             roughness,
-            reflectance: 0.5, // TODO
+            reflectance,
             depth,
         }
     }
 
     pub fn pack(self) -> [Vec4; 2] {
         let d0 = {
-            let x = {
+            let x = self.depth;
+            let Vec2 { x: y, y: z } = Normal::encode(self.normal);
+
+            let w = {
+                let metallic = self.metallic.clamp(0.0, 1.0) * 255.0;
+                let roughness = self.roughness.sqrt().clamp(0.0, 1.0) * 255.0;
+                let reflectance = self.reflectance.clamp(0.0, 1.0) * 255.0;
+
+                f32::from_bits(u32::from_bytes([
+                    metallic as u32,
+                    roughness as u32,
+                    reflectance as u32,
+                    Default::default(),
+                ]))
+            };
+
+            vec4(x, y, z, w)
+        };
+
+        let d1 = {
+            // TODO doesn't need to use as much space
+            let x = self.emissive.x;
+            let y = self.emissive.y;
+            let z = self.emissive.z;
+
+            let w = {
                 let base_color =
                     self.base_color.clamp(Vec4::ZERO, Vec4::ONE) * 255.0;
 
@@ -67,24 +96,8 @@ impl GBufferEntry {
                 ]))
             };
 
-            let Vec2 { x: y, y: z } = Normal::encode(self.normal);
-
-            let w = {
-                let metallic = self.metallic.clamp(0.0, 1.0) * 255.0;
-                let roughness = self.roughness.clamp(0.0, 1.0) * 255.0;
-
-                f32::from_bits(u32::from_bytes([
-                    metallic as u32,
-                    roughness as u32,
-                    Default::default(),
-                    Default::default(),
-                ]))
-            };
-
             vec4(x, y, z, w)
         };
-
-        let d1 = self.emissive.extend(self.depth);
 
         [d0, d1]
     }
@@ -96,6 +109,14 @@ impl GBufferEntry {
     pub fn clamped_roughness(&self) -> f32 {
         self.roughness.clamp(0.089 * 0.089, 1.0)
     }
+
+    pub fn is_mirror(&self) -> bool {
+        self.roughness == 0.0
+    }
+
+    pub fn is_pure_diffuse(&self) -> bool {
+        self.roughness == 1.0 && self.reflectance == 0.0
+    }
 }
 
 #[cfg(test)]
@@ -105,7 +126,7 @@ mod tests {
 
     use super::*;
 
-    const EPSILON: f32 = 0.01;
+    const EPSILON: f32 = 0.005;
 
     #[test]
     fn serialization() {
@@ -114,8 +135,8 @@ mod tests {
             normal: vec3(0.26, 0.53, 0.80),
             metallic: 0.33,
             emissive: vec3(2.0, 3.0, 4.0),
-            roughness: 0.66,
-            reflectance: 0.5,
+            roughness: 0.05,
+            reflectance: 0.25,
             depth: 123.456,
         };
 
@@ -136,8 +157,8 @@ mod tests {
         assert_relative_eq!(target.emissive.y, 3.0, epsilon = EPSILON);
         assert_relative_eq!(target.emissive.z, 4.0, epsilon = EPSILON);
 
-        assert_relative_eq!(target.roughness, 0.66, epsilon = EPSILON);
-        assert_relative_eq!(target.reflectance, 0.5, epsilon = EPSILON);
+        assert_relative_eq!(target.roughness, 0.05, epsilon = EPSILON);
+        assert_relative_eq!(target.reflectance, 0.25, epsilon = EPSILON);
         assert_relative_eq!(target.depth, 123.456, epsilon = EPSILON);
     }
 }
