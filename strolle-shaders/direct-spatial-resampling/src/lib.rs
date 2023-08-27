@@ -71,7 +71,7 @@ pub fn main(
         });
 
         rhs.sample.light_contribution = sample.xyz();
-        rhs.w = sample.w.clamp(0.0, 1000.0);
+        rhs.w = sample.w;
         rhs.m_sum *= reprojection.confidence;
 
         reservoir.merge(&mut wnoise, &rhs, rhs.sample.p_hat());
