@@ -68,12 +68,14 @@ pub fn main_generate_transmittance_lut(
 }
 
 fn eval_transmittance(pos: Vec3, sun_dir: Vec3) -> Vec3 {
-    if ray_intersect_sphere(pos, sun_dir, Atmosphere::GROUND_RADIUS_MM) > 0.0 {
+    if Ray::new(pos, sun_dir).intersect_sphere(Atmosphere::GROUND_RADIUS_MM)
+        > 0.0
+    {
         return Default::default();
     }
 
-    let atmosphere_dist =
-        ray_intersect_sphere(pos, sun_dir, Atmosphere::ATMOSPHERE_RADIUS_MM);
+    let atmosphere_dist = Ray::new(pos, sun_dir)
+        .intersect_sphere(Atmosphere::ATMOSPHERE_RADIUS_MM);
 
     let mut t = 0.0;
     let mut transmittance = Vec3::splat(1.0);
@@ -172,17 +174,11 @@ fn eval_scattering(
 
             let ray_dir = get_spherical_dir(theta, phi);
 
-            let atmosphere_distance = ray_intersect_sphere(
-                pos,
-                ray_dir,
-                Atmosphere::ATMOSPHERE_RADIUS_MM,
-            );
+            let atmosphere_distance = Ray::new(pos, ray_dir)
+                .intersect_sphere(Atmosphere::ATMOSPHERE_RADIUS_MM);
 
-            let ground_distance = ray_intersect_sphere(
-                pos,
-                ray_dir,
-                Atmosphere::GROUND_RADIUS_MM,
-            );
+            let ground_distance = Ray::new(pos, ray_dir)
+                .intersect_sphere(Atmosphere::GROUND_RADIUS_MM);
 
             let t_max = if ground_distance > 0.0 {
                 ground_distance
@@ -328,17 +324,11 @@ pub fn main_generate_sky_lut(
 
     let sun_dir = world.sun_direction();
 
-    let atmosphere_distance = ray_intersect_sphere(
-        Atmosphere::VIEW_POS,
-        ray_dir,
-        Atmosphere::ATMOSPHERE_RADIUS_MM,
-    );
+    let atmosphere_distance = Ray::new(Atmosphere::VIEW_POS, ray_dir)
+        .intersect_sphere(Atmosphere::ATMOSPHERE_RADIUS_MM);
 
-    let ground_distance = ray_intersect_sphere(
-        Atmosphere::VIEW_POS,
-        ray_dir,
-        Atmosphere::GROUND_RADIUS_MM,
-    );
+    let ground_distance = Ray::new(Atmosphere::VIEW_POS, ray_dir)
+        .intersect_sphere(Atmosphere::GROUND_RADIUS_MM);
 
     let t_max = if ground_distance < 0.0 {
         atmosphere_distance
@@ -428,25 +418,6 @@ fn eval_sky(
     }
 
     lum
-}
-
-fn ray_intersect_sphere(ro: Vec3, rd: Vec3, rad: f32) -> f32 {
-    let b = ro.dot(rd);
-    let c = ro.dot(ro) - rad * rad;
-
-    if c > 0.0 && b > 0.0 {
-        return -1.0;
-    }
-
-    let discr = b * b - c;
-
-    if discr < 0.0 {
-        -1.0
-    } else if discr > b * b {
-        -b + discr.sqrt()
-    } else {
-        -b - discr.sqrt()
-    }
 }
 
 fn get_scattering_values(pos: Vec3) -> (Vec3, f32, Vec3) {

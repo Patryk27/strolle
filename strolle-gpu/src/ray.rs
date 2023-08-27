@@ -1,6 +1,8 @@
 use core::mem;
 
 use glam::{Vec3, Vec4, Vec4Swizzles};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::Float;
 use spirv_std::Sampler;
 
 use crate::{
@@ -30,10 +32,6 @@ impl Ray {
 
     pub fn direction(&self) -> Vec3 {
         self.direction
-    }
-
-    pub fn target(&self, depth: f32) -> Vec3 {
-        self.origin + self.direction * depth
     }
 
     /// Returns the closest opaque intersection of this ray with the world, if
@@ -143,8 +141,8 @@ impl Ray {
                 let mut near_ptr = bvh_ptr + 4;
                 let mut far_ptr = d1.w.to_bits();
 
-                let mut near_distance = self.hit_box(d0.xyz(), d1.xyz());
-                let mut far_distance = self.hit_box(d2.xyz(), d3.xyz());
+                let mut near_distance = self.intersect_box(d0.xyz(), d1.xyz());
+                let mut far_distance = self.intersect_box(d2.xyz(), d3.xyz());
 
                 if far_distance < near_distance {
                     mem::swap(&mut near_ptr, &mut far_ptr);
@@ -254,7 +252,7 @@ impl Ray {
     ///
     /// Thanks to:
     /// https://tavianator.com/2022/ray_box_boundary.html
-    fn hit_box(self, aabb_min: Vec3, aabb_max: Vec3) -> f32 {
+    pub fn intersect_box(self, aabb_min: Vec3, aabb_max: Vec3) -> f32 {
         fn min(x: f32, y: f32) -> f32 {
             if x < y {
                 x
@@ -303,6 +301,25 @@ impl Ray {
             tmin
         } else {
             f32::MAX
+        }
+    }
+
+    pub fn intersect_sphere(self, radius: f32) -> f32 {
+        let b = self.origin.dot(self.direction);
+        let c = self.origin.dot(self.origin) - radius * radius;
+
+        if c > 0.0 && b > 0.0 {
+            return -1.0;
+        }
+
+        let discr = b * b - c;
+
+        if discr < 0.0 {
+            -1.0
+        } else if discr > b * b {
+            -b + discr.sqrt()
+        } else {
+            -b - discr.sqrt()
         }
     }
 }

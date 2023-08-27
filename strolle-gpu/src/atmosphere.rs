@@ -5,7 +5,7 @@ use glam::{uvec2, vec2, vec3, UVec2, Vec3, Vec4Swizzles};
 use spirv_std::num_traits::Float;
 use spirv_std::Sampler;
 
-use crate::{F32Ext, Tex};
+use crate::{F32Ext, Ray, Tex};
 
 pub struct Atmosphere<'a> {
     transmittance_lut_tex: Tex<'a>,
@@ -94,12 +94,9 @@ impl<'a> Atmosphere<'a> {
         sun_lum = self.interpolate_bloom(sun_lum);
 
         if sun_lum.length() > 0.0 {
-            if ray_intersect_sphere(
-                Self::VIEW_POS,
-                ray_dir,
-                Self::GROUND_RADIUS_MM,
-            ) >= 0.0
-            {
+            let ray = Ray::new(Self::VIEW_POS, ray_dir);
+
+            if ray.intersect_sphere(Self::GROUND_RADIUS_MM) >= 0.0 {
                 sun_lum = Vec3::ZERO;
             } else {
                 sun_lum *=
@@ -112,7 +109,6 @@ impl<'a> Atmosphere<'a> {
         lum
     }
 
-    // TODO this is incorrect when looking straight up
     fn remap_normal(&self, normal: Vec3) -> Vec3 {
         let nx = normal.x;
         let ny = normal.y;
@@ -225,24 +221,5 @@ impl<'a> Atmosphere<'a> {
         );
 
         lut_tex.sample_by_lod(*lut_sampler, uv, 0.0).xyz()
-    }
-}
-
-fn ray_intersect_sphere(ro: Vec3, rd: Vec3, rad: f32) -> f32 {
-    let b = ro.dot(rd);
-    let c = ro.dot(ro) - rad * rad;
-
-    if c > 0.0 && b > 0.0 {
-        return -1.0;
-    }
-
-    let discr = b * b - c;
-
-    if discr < 0.0 {
-        -1.0
-    } else if discr > b * b {
-        -b + discr.sqrt()
-    } else {
-        -b - discr.sqrt()
     }
 }
