@@ -65,7 +65,7 @@ pub fn main_fs(
     out_surface: &mut Vec4,
     out_velocity: &mut Vec4,
 ) {
-    let ray = camera.ray(camera.clip_to_screen(curr_vertex).as_uvec2());
+    let ray = camera.ray(camera.clip_to_screen(curr_vertex).round().as_uvec2());
 
     let material = MaterialsView::new(materials)
         .get(MaterialId::new(params.material_id()));
@@ -96,8 +96,7 @@ pub fn main_fs(
         }
     };
 
-    let point = point + normal * TriangleHit::NUDGE_OFFSET;
-    let depth = ray.origin().distance(point);
+    let depth = ray.origin().distance(point) - TriangleHit::NUDGE_OFFSET;
 
     let gbuffer = GBufferEntry {
         base_color,

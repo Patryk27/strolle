@@ -106,8 +106,7 @@ impl Triangle {
         };
 
         let point = ray.origin()
-            + distance * ray.direction()
-            + normal * TriangleHit::NUDGE_OFFSET;
+            + ray.direction() * (distance - TriangleHit::NUDGE_OFFSET);
 
         let uv = self.uv0()
             + (self.uv1() - self.uv0()) * u
