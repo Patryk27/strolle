@@ -49,7 +49,7 @@ pub fn main(
                 .diffuse
         };
 
-        contribution * reservoir.w
+        contribution * reservoir.w / reservoir.sample.light_pdf
     } else {
         unsafe { direct_initial_samples.get_unchecked(2 * screen_idx).xyz() }
     };

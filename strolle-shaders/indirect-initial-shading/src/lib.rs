@@ -101,6 +101,7 @@ pub fn main(
             let sample = DirectReservoirSample {
                 light_id,
                 light_contribution,
+                light_pdf: 1.0,
                 hit_point: Default::default(),
             };
 
@@ -146,6 +147,8 @@ pub fn main(
     // Select the best light-candidate and cast a shadow ray to check if that
     // light (which might be sun) is actually visible to us.
 
+    let light_pdf = reservoir.sample.p_hat() / reservoir.w_sum;
+
     let DirectReservoirSample {
         light_id,
         light_contribution,
@@ -176,8 +179,8 @@ pub fn main(
         1.0
     };
 
-    let radiance =
-        indirect_hit.gbuffer.emissive + light_contribution * light_visibility;
+    let radiance = indirect_hit.gbuffer.emissive
+        + light_contribution * light_visibility / light_pdf;
 
     let indirect_normal;
     let indirect_point;

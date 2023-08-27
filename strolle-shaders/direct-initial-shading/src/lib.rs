@@ -83,6 +83,7 @@ pub fn main(
             let sample = DirectReservoirSample {
                 light_id,
                 light_contribution,
+                light_pdf: 1.0,
                 hit_point: hit.point,
             };
 
@@ -132,10 +133,13 @@ pub fn main(
     // Select the best light-candidate and cast a shadow ray to check if that
     // light (which might be sun) is actually visible to us.
 
+    let light_pdf = reservoir.sample.p_hat() / reservoir.w_sum;
+
     let DirectReservoirSample {
         light_id,
         light_contribution,
         hit_point,
+        ..
     } = reservoir.sample;
 
     let light_visibility = if hit.is_some() {
@@ -167,6 +171,6 @@ pub fn main(
             light.extend(f32::from_bits(light_id.get()));
 
         *direct_initial_samples.get_unchecked_mut(2 * screen_idx + 1) =
-            hit_point.extend(Default::default());
+            hit_point.extend(light_pdf);
     }
 }

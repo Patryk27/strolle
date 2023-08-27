@@ -38,6 +38,7 @@ pub fn main(
         DirectReservoirSample {
             light_id: LightId::new(d0.w.to_bits()),
             light_contribution: d0.xyz(),
+            light_pdf: d1.w,
             hit_point: d1.xyz(),
         }
     };
