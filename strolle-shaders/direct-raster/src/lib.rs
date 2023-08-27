@@ -77,8 +77,25 @@ pub fn main_fs(
         arch::kill();
     }
 
-    // TODO bring back normal mapping
-    let normal = normal.normalize();
+    let normal = {
+        // TODO bring back normal mapping
+        let normal = normal.normalize();
+        let ray = camera.ray(camera.clip_to_screen(curr_vertex).as_uvec2());
+
+        if ray.direction().dot(normal) <= 0.0 {
+            normal
+        } else {
+            // If we're facing away from the surface's "intended" direction,
+            // swap the normal to prevent lights from leaking inside / outside
+            // of objects.
+            //
+            // Intuitively, if we're looking at a wall from the outside, its
+            // normal should point back at the camera instead of inside the
+            // building.
+            -normal
+        }
+    };
+
     let point = point + normal * TriangleHit::NUDGE_OFFSET;
 
     // -------------------------------------------------------------------------

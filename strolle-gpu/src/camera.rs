@@ -80,7 +80,9 @@ impl Camera {
     /// Casts a ray from camera's center to given screen-coordinates.
     pub fn ray(&self, screen_pos: UVec2) -> Ray {
         let screen_size = self.screen.xy();
-        let ndc = screen_pos.as_vec2() * 2.0 / screen_size - Vec2::ONE;
+        let screen_pos = screen_pos.as_vec2() + vec2(0.5, 0.5);
+
+        let ndc = screen_pos * 2.0 / screen_size - Vec2::ONE;
         let ndc = vec2(ndc.x, -ndc.y);
 
         let far_plane =
