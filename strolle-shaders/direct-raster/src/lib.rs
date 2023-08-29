@@ -51,6 +51,7 @@ pub fn main_fs(
     #[spirv(descriptor_set = 0, binding = 2)] atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1, uniform)] prev_camera: &Camera,
+    #[spirv(front_facing)] front_facing: bool,
 
     // Inputs
     curr_vertex: Vec4,
@@ -65,8 +66,6 @@ pub fn main_fs(
     out_surface: &mut Vec4,
     out_velocity: &mut Vec4,
 ) {
-    let ray = camera.ray(camera.clip_to_screen(curr_vertex).round().as_uvec2());
-
     let material = MaterialsView::new(materials)
         .get(MaterialId::new(params.material_id()));
 
@@ -82,20 +81,14 @@ pub fn main_fs(
         // TODO bring back normal mapping
         let normal = normal.normalize();
 
-        if ray.direction().dot(normal) <= 0.0 {
+        if front_facing {
             normal
         } else {
-            // If we're facing away from the surface's "intended" direction,
-            // swap the normal to prevent lights from leaking inside / outside
-            // of objects.
-            //
-            // Intuitively, if we're looking at a wall from the outside, its
-            // normal should point back at the camera instead of inside the
-            // building.
             -normal
         }
     };
 
+    let ray = camera.ray(camera.clip_to_screen(curr_vertex).round().as_uvec2());
     let depth = ray.origin().distance(point) - TriangleHit::NUDGE_OFFSET;
 
     let gbuffer = GBufferEntry {
