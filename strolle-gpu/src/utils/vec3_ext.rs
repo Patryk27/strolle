@@ -4,9 +4,19 @@ pub trait Vec3Ext
 where
     Self: Sized,
 {
+    /// Reflects this direction-vector around `other`.
     fn reflect(self, other: Self) -> Self;
+
+    /// Clips this color-vector into given bounding box.
+    ///
+    /// See:
+    /// - https://s3.amazonaws.com/arena-attachments/655504/c5c71c5507f0f8bf344252958254fb7d.pdf?1468341463
     fn clip(self, aabb_min: Self, aabb_max: Self) -> Self;
+
+    /// Returns luminance of this color-vector.
     fn luminance(self) -> f32;
+
+    /// Adjusts luminance of this color-vector.
     fn with_luminance(self, l_out: f32) -> Self;
 }
 

@@ -16,7 +16,7 @@ impl<'a> DiffuseBrdf<'a> {
         Self { gbuffer }
     }
 
-    pub fn evaluate(self, v: Vec3, l: Vec3) -> BrdfValue {
+    pub fn evaluate(self, l: Vec3, v: Vec3) -> BrdfValue {
         let Self { gbuffer } = self;
 
         let n = gbuffer.normal;
@@ -54,7 +54,7 @@ impl<'a> SpecularBrdf<'a> {
         Self { gbuffer }
     }
 
-    pub fn evaluate(self, v: Vec3, l: Vec3) -> BrdfValue {
+    pub fn evaluate(self, l: Vec3, v: Vec3) -> BrdfValue {
         let Self { gbuffer } = self;
 
         let roughness = gbuffer.clamped_roughness();
@@ -173,7 +173,7 @@ impl<'a> SpecularBrdf<'a> {
             let n_dot_v = n.dot(v);
 
             if n_dot_l > 0.0 && n_dot_v > 0.0 {
-                let value = self.evaluate(v, l);
+                let value = self.evaluate(l, v);
 
                 if value.probability > 0.01 {
                     break BrdfSample {
@@ -189,7 +189,7 @@ impl<'a> SpecularBrdf<'a> {
         }
     }
 
-    pub fn is_sample_within_lobe(&self, v: Vec3, l: Vec3) -> bool {
+    pub fn is_sample_within_lobe(&self, l: Vec3, v: Vec3) -> bool {
         let Self { gbuffer } = self;
 
         let roughness = gbuffer.clamped_roughness();

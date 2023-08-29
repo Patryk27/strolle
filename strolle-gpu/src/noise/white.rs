@@ -4,6 +4,8 @@ use glam::{vec2, vec3, UVec2, Vec2, Vec3};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
+use crate::F32Ext;
+
 #[derive(Clone, Copy)]
 pub struct WhiteNoise {
     state: u32,
@@ -63,15 +65,24 @@ impl WhiteNoise {
 
     /// Generates a uniform sample on a hemisphere around given normal.
     pub fn sample_hemisphere(&mut self, normal: Vec3) -> Vec3 {
-        let u = glam::vec2(self.sample(), self.sample());
+        loop {
+            let sample = {
+                let cos_theta = self.sample();
+                let sin_theta = (1.0f32 - cos_theta.sqr()).sqrt();
+                let phi = 2.0 * PI * self.sample();
 
-        let radius = (1.0f32 - u.x * u.x).sqrt();
-        let angle = 2.0 * PI * u.y;
+                let (t, b) = normal.any_orthonormal_pair();
 
-        let b = normal.cross(vec3(0.0, 1.0, 1.0)).normalize();
-        let t = b.cross(normal);
+                (t * phi.cos() + b * phi.sin()) * sin_theta + normal * cos_theta
+            };
 
-        (radius * angle.sin() * b + u.x * normal + radius * angle.cos() * t)
-            .normalize()
+            if sample.dot(normal) > 0.0 {
+                break sample;
+            } else {
+                // Very rarely, like one in a million samples, this function
+                // actually returns an invalid sample - if this happens, no
+                // worries, let's just try again
+            }
+        }
     }
 }

@@ -8,7 +8,7 @@ use spirv_std::Sampler;
 
 use crate::{
     BlueNoise, BvhStack, BvhView, DiffuseBrdf, F32Ext, Hit, MaterialsView,
-    Normal, Ray, SpecularBrdf, Tex, TrianglesView, Vec3Ext, WhiteNoise,
+    Normal, Ray, Tex, TrianglesView, WhiteNoise,
 };
 
 #[repr(C)]
@@ -38,9 +38,9 @@ impl Light {
     pub const TYPE_POINT: u32 = 0;
     pub const TYPE_SPOT: u32 = 1;
 
-    pub fn sun(pos: Vec3) -> Self {
+    pub fn sky(pos: Vec3) -> Self {
         Self {
-            d0: pos.extend(10.0),
+            d0: pos.extend(100.0),
             d1: Default::default(),
             d2: vec4(
                 f32::from_bits(Self::TYPE_POINT),
@@ -79,23 +79,13 @@ impl Light {
         self.d2.w
     }
 
-    /// Returns demodulated contribution of this light on given hit point.
+    /// Returns demodulated¹ radiance of this light on given hit.
     ///
-    /// Note that this function doesn't perform visibility check (see:
-    /// [`Self::visibility()`]).
-    pub fn contribution(&self, hit: Hit) -> LightContribution {
-        fn distance_attenuation(
-            distance_square: f32,
-            inverse_range_squared: f32,
-        ) -> f32 {
-            let factor = distance_square * inverse_range_squared;
-            let smooth_factor = (1.0 - factor * factor).saturate();
-            let attenuation = smooth_factor * smooth_factor;
+    /// ¹ without taking into account the hit-material
+    pub fn radiance(&self, hit: Hit) -> Vec3 {
+        let l = self.center() - hit.point;
 
-            attenuation / distance_square.max(0.0001)
-        }
-
-        let cone_factor = if self.is_point() {
+        let conical_factor = if self.is_point() {
             1.0
         } else {
             let angle = self
@@ -105,64 +95,34 @@ impl Light {
             (1.0 - (angle / self.spot_angle()).powf(3.0)).saturate()
         };
 
-        if cone_factor < 0.001 {
-            return Default::default();
-        }
+        let distance_factor = {
+            fn distance_attenuation(
+                distance_square: f32,
+                inverse_range_squared: f32,
+            ) -> f32 {
+                let factor = distance_square * inverse_range_squared;
+                let smooth_factor = (1.0 - factor * factor).saturate();
+                let attenuation = smooth_factor * smooth_factor;
 
-        // ---
+                attenuation / distance_square.max(0.0001)
+            }
 
-        let hit_to_light = self.center() - hit.point;
-
-        let distance_factor = distance_attenuation(
-            hit_to_light.length_squared(),
-            1.0 / self.range().sqr(),
-        );
-
-        if distance_factor < 0.0001 {
-            return Default::default();
-        }
-
-        // ---
-
-        let l = hit_to_light.normalize();
-        let v = (hit.origin - hit.point).normalize();
-        let n = hit.gbuffer.normal;
-
-        let diffuse = DiffuseBrdf::new(&hit.gbuffer).evaluate(v, l).radiance;
-
-        let specular = {
-            let r = (-v).reflect(n);
-
-            let center_to_ray = hit_to_light.dot(r) * r - hit_to_light;
-
-            let closest_point = {
-                let t = self.radius()
-                    * center_to_ray.dot(center_to_ray).inverse_sqrt();
-
-                hit_to_light + center_to_ray * t.saturate()
-            };
-
-            let l_spec_length_inverse =
-                closest_point.dot(closest_point).inverse_sqrt();
-
-            let i_roughness = {
-                let t = hit.gbuffer.roughness
-                    + self.radius() * 0.5 * l_spec_length_inverse;
-
-                hit.gbuffer.roughness / t.saturate()
-            };
-
-            let intensity = i_roughness * i_roughness;
-            let l = closest_point * l_spec_length_inverse;
-
-            intensity * SpecularBrdf::new(&hit.gbuffer).evaluate(v, l).radiance
+            distance_attenuation(l.length_squared(), 1.0 / self.range().sqr())
         };
 
-        let t = distance_factor * cone_factor * n.dot(l).saturate();
-        let diffuse = self.color() * diffuse * t;
-        let specular = self.color() * specular * t;
+        let cosine_factor = hit.gbuffer.normal.dot(l.normalize()).saturate();
 
-        LightContribution { diffuse, specular }
+        self.color() * distance_factor * conical_factor * cosine_factor
+    }
+
+    /// Returns contribution (i.e. "the surface color") of this light on given
+    /// hit.
+    pub fn contribution(&self, hit: Hit) -> Vec3 {
+        let l = (self.center() - hit.point).normalize();
+        let v = (hit.origin - hit.point).normalize();
+        let diffuse = DiffuseBrdf::new(&hit.gbuffer).evaluate(l, v).radiance;
+
+        self.radiance(hit) * diffuse
     }
 
     /// Casts a shadow ray and returns 0.0 if this light is occluded or 1.0 if
@@ -269,19 +229,15 @@ impl LightId {
         Self(id)
     }
 
+    pub fn sky() -> Self {
+        Self::new(u32::MAX)
+    }
+
     pub fn get(self) -> u32 {
         self.0
     }
-}
 
-#[derive(Clone, Copy, Default)]
-pub struct LightContribution {
-    pub diffuse: Vec3,
-    pub specular: Vec3,
-}
-
-impl LightContribution {
-    pub fn sum(&self) -> Vec3 {
-        self.diffuse + self.specular
+    pub fn is_sky(self) -> bool {
+        self == Self::sky()
     }
 }

@@ -1,17 +1,19 @@
 mod direct;
+mod ephemeral;
 mod indirect;
 
 pub use self::direct::*;
+pub use self::ephemeral::*;
 pub use self::indirect::*;
 use crate::WhiteNoise;
 
 /// Reservoir for sampling using ReSTIR.
 ///
-/// https://benedikt-bitterli.me/restir/bitterli20restir.pdf
-/// https://d1qx31qr3h6wln.cloudfront.net/publications/ReSTIR%20GI.pdf
+/// - https://benedikt-bitterli.me/restir/bitterli20restir.pdf
+/// - https://d1qx31qr3h6wln.cloudfront.net/publications/ReSTIR%20GI.pdf
 #[derive(Clone, Copy, Default)]
 pub struct Reservoir<T> {
-    /// Selected sample; might contain light id, its contribution etc.
+    /// Selected sample; might contain light id, its radiance etc.
     pub sample: T,
 
     /// Sum of the weights of seen samples.

@@ -1,16 +1,17 @@
 use core::ops::{Deref, DerefMut};
 
-use glam::{vec3, vec4, Vec3, Vec4, Vec4Swizzles};
+use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{LightId, Reservoir};
+use crate::{LightId, Reservoir, Vec3Ext};
 
+/// Reservoir for sampling direct lightning.
+///
+/// See: [`Reservoir`].
 #[derive(Clone, Copy, Default)]
 pub struct DirectReservoir {
     reservoir: Reservoir<DirectReservoirSample>,
-
-    // TODO move to DirectReservoirSample
     pub frame: u32,
 }
 
@@ -31,7 +32,7 @@ impl DirectReservoir {
             reservoir: Reservoir {
                 sample: DirectReservoirSample {
                     light_id: LightId::new(d0.w.to_bits()),
-                    light_contribution: d0.xyz(),
+                    light_radiance: d0.xyz(),
                     light_pdf: d1.w,
                     hit_point: d1.xyz(),
                 },
@@ -46,7 +47,7 @@ impl DirectReservoir {
     pub fn write(&self, buffer: &mut [Vec4], id: usize) {
         let d0 = self
             .sample
-            .light_contribution
+            .light_radiance
             .extend(f32::from_bits(self.sample.light_id.get()));
 
         let d1 = self.sample.hit_point.extend(self.sample.light_pdf);
@@ -84,38 +85,16 @@ impl DerefMut for DirectReservoir {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct DirectReservoirSample {
     pub light_id: LightId,
-    pub light_contribution: Vec3,
+    pub light_radiance: Vec3,
     pub light_pdf: f32,
     pub hit_point: Vec3,
 }
 
 impl DirectReservoirSample {
-    pub fn sky(light_contribution: Vec3) -> Self {
-        Self {
-            light_contribution,
-            ..Default::default()
-        }
-    }
-
-    pub fn is_sky(&self) -> bool {
-        self.light_id.get() == u32::MAX
-    }
-
     pub fn p_hat(&self) -> f32 {
-        self.light_contribution.dot(vec3(0.2126, 0.7152, 0.0722))
-    }
-}
-
-impl Default for DirectReservoirSample {
-    fn default() -> Self {
-        Self {
-            light_id: LightId::new(u32::MAX),
-            light_contribution: Default::default(),
-            light_pdf: 1.0,
-            hit_point: vec3(0.0, 1000.0, 0.0),
-        }
+        self.light_radiance.luminance()
     }
 }

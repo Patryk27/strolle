@@ -50,7 +50,7 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let mut hit = Hit::new(
+    let hit = Hit::new(
         camera.ray(screen_pos),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
@@ -58,117 +58,52 @@ pub fn main(
         ]),
     );
 
-    // TODO describe
-    hit.gbuffer.base_color = Vec4::splat(1.0);
+    let (light_id, light_pdf, light_radiance) =
+        EphemeralReservoir::sample::<false>(
+            &mut wnoise,
+            &atmosphere,
+            world,
+            &lights,
+            hit,
+        );
 
-    // -------------------------------------------------------------------------
-    // Step 1:
-    //
-    // Select the best light-candidate, judging lights by their *unshadowed*
-    // contribution (i.e. during this phase we don't cast shadow rays).
-
-    let mut reservoir = DirectReservoir::default();
-
-    if hit.is_some() {
-        let mut light_idx = 0;
-
-        while light_idx < world.light_count {
-            let light_id = LightId::new(light_idx);
-
-            let light_contribution =
-                lights.get(light_id).contribution(hit).diffuse;
-
-            let sample = DirectReservoirSample {
-                light_id,
-                light_contribution,
-                light_pdf: 1.0,
-                hit_point: hit.point,
+    let radiance = if light_pdf > 0.0 {
+        let light_visibility = if hit.is_some() {
+            let light = if light_id.is_sky() {
+                Light::sky(world.sun_position())
+            } else {
+                lights.get(light_id)
             };
 
-            reservoir.add(&mut wnoise, sample, sample.p_hat());
-            light_idx += 1;
-        }
-    } else {
-        // If we hit nothing, the reservoir will remain empty and we'll just
-        // sample the sky in a moment.
-    }
-
-    // If the reservoir is empty (i.e. it has seen zero samples or all of the
-    // samples are unusable¹), sample the sky.
-    //
-    // If the reservoir has seen some samples, sample the sky with 25%
-    // probability (following the ReSTIR paper).
-    //
-    // ¹ e.g. are lights very very far away from here
-    let sky_weight = if reservoir.w_sum == 0.0 {
-        1.0
-    } else {
-        0.25 * reservoir.w_sum
-    };
-
-    if sky_weight > 0.0 {
-        // If we hit nothing, sample the sky - otherwise, sample the sun, so:
-        //
-        // - if the user is looking at the sky, we get no-hit and sample the
-        //   sky,
-        //
-        // - if the user is looking at the world, we get hit and sample the sun
-        //   so that the sun is able to cast shadows.
-        let sky = if hit.is_none() {
-            atmosphere.eval(world.sun_direction(), hit.direction)
+            light.visibility_bnoise(
+                local_idx,
+                stack,
+                triangles,
+                bvh,
+                materials,
+                atlas_tex,
+                atlas_sampler,
+                bnoise,
+                hit,
+            )
         } else {
-            atmosphere.sun(world.sun_direction())
+            // If we hit nothing, our ray must be pointing towards the sky - no
+            // point in re-tracing it, then
+            1.0
         };
 
-        let sample = DirectReservoirSample::sky(sky);
-
-        reservoir.add(&mut wnoise, sample, sky_weight * sample.p_hat());
-    }
-
-    // -------------------------------------------------------------------------
-    // Step 2:
-    //
-    // Select the best light-candidate and cast a shadow ray to check if that
-    // light (which might be sun) is actually visible to us.
-
-    let light_pdf = reservoir.sample.p_hat() / reservoir.w_sum;
-
-    let DirectReservoirSample {
-        light_id,
-        light_contribution,
-        hit_point,
-        ..
-    } = reservoir.sample;
-
-    let light_visibility = if hit.is_some() {
-        let light = if reservoir.sample.is_sky() {
-            Light::sun(world.sun_position())
-        } else {
-            lights.get(reservoir.sample.light_id)
-        };
-
-        light.visibility_bnoise(
-            local_idx,
-            stack,
-            triangles,
-            bvh,
-            materials,
-            atlas_tex,
-            atlas_sampler,
-            bnoise,
-            hit,
-        )
+        // Note that we don't divide by PDF here - rather, we store the
+        // probability in the reservoir and divide by it later
+        light_radiance * light_visibility
     } else {
-        1.0
+        Vec3::ZERO
     };
-
-    let light = light_contribution * light_visibility;
 
     unsafe {
         *direct_initial_samples.get_unchecked_mut(2 * screen_idx + 0) =
-            light.extend(f32::from_bits(light_id.get()));
+            radiance.extend(f32::from_bits(light_id.get()));
 
         *direct_initial_samples.get_unchecked_mut(2 * screen_idx + 1) =
-            hit_point.extend(light_pdf);
+            hit.point.extend(light_pdf);
     }
 }

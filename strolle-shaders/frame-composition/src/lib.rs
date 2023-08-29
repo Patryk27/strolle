@@ -45,6 +45,7 @@ pub fn main_fs(
 
             let color = if gbuffer.is_some() {
                 let direct = direct_colors.read(screen_pos).xyz();
+                let direct = direct * (1.0 - gbuffer.metallic);
 
                 let indirect_diffuse =
                     indirect_diffuse_colors.read(screen_pos).xyz();

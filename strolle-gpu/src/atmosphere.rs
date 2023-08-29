@@ -59,6 +59,8 @@ impl<'a> Atmosphere<'a> {
 
     pub const GROUND_ALBEDO: Vec3 = Vec3::splat(0.25);
 
+    pub const EXPOSURE: f32 = 20.0;
+
     /// Position of the observer in world.
     ///
     /// This is a constant because the atmosphere generally doesn't change that
@@ -86,7 +88,7 @@ impl<'a> Atmosphere<'a> {
     }
 
     /// Returns color of the sky when looking at given direction.
-    pub fn eval(&self, sun_dir: Vec3, look_at: Vec3) -> Vec3 {
+    pub fn sky(&self, sun_dir: Vec3, look_at: Vec3) -> Vec3 {
         let ray_dir = self.remap_normal(look_at);
         let mut lum = self.sample_sky_lut(ray_dir, sun_dir);
         let mut sun_lum = self.evaluate_bloom(ray_dir, sun_dir);
@@ -105,7 +107,7 @@ impl<'a> Atmosphere<'a> {
         }
 
         lum += sun_lum;
-        lum *= 20.0;
+        lum *= Self::EXPOSURE;
         lum
     }
 

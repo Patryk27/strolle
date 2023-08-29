@@ -62,13 +62,13 @@ pub fn main(
             );
 
             if reservoir.sample.light_id == rhs.sample.light_id {
-                (reservoir.sample.light_contribution.extend(reservoir.w), 1.0)
+                (reservoir.sample.light_radiance.extend(reservoir.w), 1.0)
             } else {
                 (Vec4::ZERO, 0.0)
             }
         });
 
-        rhs.sample.light_contribution = sample.xyz();
+        rhs.sample.light_radiance = sample.xyz();
         rhs.w = sample.w;
         rhs.m_sum *= reprojection.confidence;
 

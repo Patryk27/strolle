@@ -77,108 +77,52 @@ pub fn main(
     );
 
     // -------------------------------------------------------------------------
-    // Step 1:
-    //
-    // Similarly as for direct lightning, let's start by selecting the best
-    // light-candidate, judging lights by their *unshadowed* contribution.
-    //
-    // This algorithm follows a similar logic as direct initial shading, so
-    // comments were skipped for brevity.
 
-    let mut reservoir = DirectReservoir::default();
-
-    if indirect_hit.is_some() {
-        let mut light_idx = 0;
-
-        while light_idx < world.light_count {
-            let light_id = LightId::new(light_idx);
-
-            let light_contribution =
-                lights.get(light_id).contribution(indirect_hit).sum();
-
-            let sample = DirectReservoirSample {
-                light_id,
-                light_contribution,
-                light_pdf: 1.0,
-                hit_point: Default::default(),
-            };
-
-            reservoir.add(&mut wnoise, sample, sample.p_hat());
-            light_idx += 1;
-        }
-    }
-
-    let sky_weight = if reservoir.w_sum == 0.0 {
-        1.0
-    } else {
-        0.25 * reservoir.w_sum
-    };
-
-    let mut sky_normal = Vec3::ZERO;
-
-    if sky_weight > 0.0 {
-        let mut sky_exposure = 8.0;
-
-        // If we indirectly-hit nothing, we know that our indirect-ray must be
-        // pointing towards the sky - great, let's use it!
-        //
-        // If we indirectly-hit something, we don't know in which way we can
-        // sample the sky, so just take a random guess on the hemisphere on our
-        // surface.
-        if indirect_hit.is_none() {
-            sky_normal = indirect_hit.direction;
-        } else {
-            sky_normal = wnoise.sample_hemisphere(indirect_hit.gbuffer.normal);
-            sky_exposure *= indirect_hit.gbuffer.normal.dot(sky_normal);
-        };
-
-        let sample = DirectReservoirSample::sky(
-            sky_exposure * atmosphere.eval(world.sun_direction(), sky_normal),
+    let (light_id, light_pdf, light_radiance) =
+        EphemeralReservoir::sample::<true>(
+            &mut wnoise,
+            &atmosphere,
+            world,
+            &lights,
+            indirect_hit,
         );
 
-        reservoir.add(&mut wnoise, sample, sky_weight * sample.p_hat());
-    }
+    let mut radiance = if light_pdf > 0.0 {
+        let light_visibility = if indirect_hit.is_some() {
+            let light = if light_id.is_sky() {
+                Light::sky(world.sun_position())
+            } else {
+                lights.get(light_id)
+            };
 
-    // -------------------------------------------------------------------------
-    // Step 2:
-    //
-    // Select the best light-candidate and cast a shadow ray to check if that
-    // light (which might be sun) is actually visible to us.
-
-    let light_pdf = reservoir.sample.p_hat() / reservoir.w_sum;
-
-    let DirectReservoirSample {
-        light_id,
-        light_contribution,
-        ..
-    } = reservoir.sample;
-
-    let light_visibility = if indirect_hit.is_some() {
-        let light = if reservoir.sample.is_sky() {
-            Light::sun(sky_normal * World::SUN_DISTANCE)
+            light.visibility(
+                local_idx,
+                stack,
+                triangles,
+                bvh,
+                materials,
+                atlas_tex,
+                atlas_sampler,
+                &mut wnoise,
+                indirect_hit.point,
+            )
         } else {
-            lights.get(light_id)
+            // If we hit nothing, our indirect-ray must be pointing towards
+            // the sky - no point re-tracing it, then
+            1.0
         };
 
-        light.visibility(
-            local_idx,
-            stack,
-            triangles,
-            bvh,
-            materials,
-            atlas_tex,
-            atlas_sampler,
-            &mut wnoise,
-            indirect_hit.point,
-        )
+        light_radiance * light_visibility / light_pdf
     } else {
-        // If we indirectly-hit nothing, we know that our indirect-ray must be
-        // pointing towards the sky - great, no need to actually trace the ray!
-        1.0
+        // If the probability of hitting our light is non-positive, there are
+        // probably no lights present on the scene - in this case zeroing-out
+        // the radiance is best we can do
+        Vec3::ZERO
     };
 
-    let radiance = indirect_hit.gbuffer.emissive
-        + light_contribution * light_visibility / light_pdf;
+    radiance += indirect_hit.gbuffer.emissive;
+
+    // -------------------------------------------------------------------------
 
     let indirect_normal;
     let indirect_point;
@@ -187,8 +131,8 @@ pub fn main(
         indirect_normal = Normal::encode(indirect_hit.gbuffer.normal);
         indirect_point = indirect_hit.point;
     } else {
-        indirect_normal = Normal::encode(-sky_normal);
-        indirect_point = sky_normal * World::SUN_DISTANCE;
+        indirect_normal = Normal::encode(-indirect_hit.direction);
+        indirect_point = indirect_hit.direction * World::SUN_DISTANCE;
     }
 
     unsafe {

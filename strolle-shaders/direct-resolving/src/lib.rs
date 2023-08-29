@@ -21,7 +21,7 @@ pub fn main(
     let screen_idx = camera.screen_to_idx(screen_pos);
     let lights = LightsView::new(lights);
 
-    let mut hit = Hit::new(
+    let hit = Hit::new(
         camera.ray(screen_pos),
         GBufferEntry::unpack([
             direct_gbuffer_d0.read(screen_pos),
@@ -29,25 +29,23 @@ pub fn main(
         ]),
     );
 
-    // TODO describe
-    hit.gbuffer.base_color = Vec4::splat(1.0);
-
     let out = if hit.is_some() {
         let reservoir = DirectReservoir::read(
             direct_spatial_reservoirs,
             camera.screen_to_idx(screen_pos),
         );
 
-        let contribution = if reservoir.sample.is_sky() {
-            reservoir.sample.light_contribution
-        } else {
-            lights
-                .get(reservoir.sample.light_id)
-                .contribution(hit)
-                .diffuse
-        };
+        if reservoir.sample.light_pdf > 0.0 {
+            let radiance = if reservoir.sample.light_id.is_sky() {
+                reservoir.sample.light_radiance
+            } else {
+                lights.get(reservoir.sample.light_id).radiance(hit)
+            };
 
-        contribution * reservoir.w / reservoir.sample.light_pdf
+            radiance * reservoir.w / reservoir.sample.light_pdf
+        } else {
+            Vec3::ZERO
+        }
     } else {
         unsafe { direct_initial_samples.get_unchecked(2 * screen_idx).xyz() }
     };

@@ -15,15 +15,15 @@ use wgpu::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 
-const VIEWPORT_SIZE: UVec2 = uvec2(800, 600);
+const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: WindowResolution::new(
-                    VIEWPORT_SIZE.x as f32,
-                    VIEWPORT_SIZE.y as f32,
+                    1.5 * VIEWPORT_SIZE.x as f32,
+                    1.5 * VIEWPORT_SIZE.y as f32,
                 ),
                 ..default()
             }),
@@ -56,7 +56,14 @@ fn setup(
     // -------------------------------------------------------------------------
 
     commands.spawn(SceneBundle {
-        scene: assets.load("/Users/PWY/Desktop/cube.gltf#Scene0"),
+        // scene: assets.load("/Users/PWY/Desktop/cube.gltf#Scene0"),
+        scene: assets.load(
+            "/Users/PWY/Downloads/scenes/cartoon_lowpoly_small_city_free_pack.glb#Scene0",
+        ),
+        // scene: assets.load(
+        //     "/Users/PWY/Downloads/free__atlanta_corperate_office_building.glb#Scene0",
+        // ),
+        transform: Transform::from_scale(Vec3::splat(0.1)),
         ..Default::default()
     });
 
@@ -142,10 +149,11 @@ fn setup(
 
     // -------------------------------------------------------------------------
 
-    sun.altitude = -1.0;
+    // sun.altitude = 0.05;
 }
 
 fn handle_camera(
+    mut commands: Commands,
     keys: Res<Input<KeyCode>>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
     mut camera: Query<(
@@ -178,6 +186,11 @@ fn handle_camera(
     }
 
     if keys.just_pressed(KeyCode::Key4) {
+        camera_render_graph.set(bevy_strolle::graph::NAME);
+        camera.mode = st::CameraMode::BvhHeatmap;
+    }
+
+    if keys.just_pressed(KeyCode::Key5) {
         camera_render_graph.set("core_3d");
     }
 
@@ -198,6 +211,21 @@ fn handle_camera(
     if keys.just_pressed(KeyCode::X) {
         println!("{:?}", camera_xform.translation);
         println!("{:?}", camera_xform.translation + camera_xform.forward());
+    }
+
+    if keys.just_pressed(KeyCode::T) {
+        commands.spawn(PointLightBundle {
+            point_light: PointLight {
+                color: Color::WHITE,
+                intensity: 6000.0,
+                radius: 0.25,
+                range: 35.0,
+                shadows_enabled: true,
+                ..default()
+            },
+            transform: Transform::from_translation(camera_xform.translation),
+            ..default()
+        });
     }
 }
 

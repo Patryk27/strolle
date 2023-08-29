@@ -1,12 +1,15 @@
 use core::f32::consts::PI;
 use core::ops::{Deref, DerefMut};
 
-use glam::{vec3, UVec2, Vec3, Vec4, Vec4Swizzles};
+use glam::{UVec2, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{BrdfValue, F32Ext, Hit, Reservoir, SpecularBrdf};
+use crate::{BrdfValue, F32Ext, Hit, Reservoir, SpecularBrdf, Vec3Ext};
 
+/// Reservoir for sampling indirect lightning.
+///
+/// See: [`Reservoir`].
 #[derive(Clone, Copy, Default)]
 pub struct IndirectReservoir {
     reservoir: Reservoir<IndirectReservoirSample>,
@@ -102,7 +105,7 @@ pub struct IndirectReservoirSample {
 
 impl IndirectReservoirSample {
     pub fn temporal_p_hat(&self) -> f32 {
-        self.radiance.dot(vec3(0.2126, 0.7152, 0.0722)).max(0.0001)
+        self.radiance.luminance().max(0.0001)
     }
 
     pub fn spatial_p_hat(&self, point: Vec3, normal: Vec3) -> f32 {
@@ -125,17 +128,17 @@ impl IndirectReservoirSample {
     }
 
     pub fn specular_brdf(&self, hit: &Hit) -> BrdfValue {
-        let v = -hit.direction;
         let l = self.direction(hit.point);
+        let v = -hit.direction;
 
-        SpecularBrdf::new(&hit.gbuffer).evaluate(v, l)
+        SpecularBrdf::new(&hit.gbuffer).evaluate(l, v)
     }
 
     pub fn is_within_specular_lobe_of(&self, hit: &Hit) -> bool {
-        let v = -hit.direction;
         let l = self.direction(hit.point);
+        let v = -hit.direction;
 
-        SpecularBrdf::new(&hit.gbuffer).is_sample_within_lobe(v, l)
+        SpecularBrdf::new(&hit.gbuffer).is_sample_within_lobe(l, v)
     }
 
     pub fn jacobian(&self, new_hit_point: Vec3) -> f32 {
@@ -215,23 +218,4 @@ mod tests {
             );
         }
     }
-
-    // TODO
-    //
-    // #[test]
-    // fn lobe() {
-    //     let n = vec3(0.0, 1.0, 0.0).normalize();
-    //     let v = vec3(1.0, 1.0, 1.0).normalize();
-    //     let l = vec3(-1.0, 1.0, -1.0).normalize();
-    //     let r = (-v).reflect(n);
-
-    //     let roughness = 0.1f32;
-
-    //     let f = (1.0 - roughness) * ((1.0 - roughness).sqrt() + roughness);
-
-    //     let l_min = (-v).lerp(r, f);
-    //     let l_max = v.lerp(r, f);
-
-    //     panic!("{}", l.dot(v) >= l_min.dot(v) && l.dot(v) <= l_max.dot(v));
-    // }
 }
