@@ -11,8 +11,9 @@ support for global illumination:
   <img height="512" src="_readme/demo-v7.jpg" />
 </p>
 
-Our goal is to create an engine that is able to produce a good-looking image on
-a consumer GPU without having to rely on hardware ray-tracing capabilities.
+Our goal is to create an engine able to produce a good-looking image on a
+consumer GPU _without_ hardware ray-tracing capabilities -- and to learn &
+explore, of course!
 
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
@@ -26,14 +27,14 @@ Platforms: Windows, Mac & Linux.
 $ cargo run --release --example demo
 ```
 
-Shows a dungeon tech demo, as in the render above.
+Shows a dungeon tech demo, as in the example above.
 
-Use WASD to move and mouse to navigate the camera; extra controls include:
+Use WASD to move and mouse to navigate the camera - extra controls include:
 
 - F: Toggle flashlight,
 - H/L: Adjust sun's azimuth,
 - J/K: Adjust sun's altitude,
-- T: Disable textures,
+- T: Remove textures,
 - 1: Switch camera back to the default mode,
 - 2: Show direct lightning only,
 - 3: Show indirect diffuse lightning only,
