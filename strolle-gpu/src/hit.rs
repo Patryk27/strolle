@@ -13,11 +13,22 @@ pub struct Hit {
 }
 
 impl Hit {
+    /// How far to move a hit point away from its surface to avoid
+    /// self-intersection when casting shadow rays.
+    ///
+    /// This constant cannot be zero (because then every object would cast
+    /// shadows onto itself), but it cannot be too high either (because then
+    /// shadows would feel off, flying on surfaces instead of being attached to
+    /// them).
+    pub const NUDGE_OFFSET: f32 = 0.001;
+
     pub fn new(ray: Ray, gbuffer: GBufferEntry) -> Self {
         Self {
             origin: ray.origin(),
             direction: ray.direction(),
-            point: ray.origin() + ray.direction() * gbuffer.depth,
+            point: ray.origin()
+                + ray.direction() * gbuffer.depth
+                + gbuffer.normal * Self::NUDGE_OFFSET,
             gbuffer,
         }
     }
@@ -79,15 +90,6 @@ pub struct TriangleHit {
 }
 
 impl TriangleHit {
-    /// How far to move a hit point away from its surface to avoid
-    /// self-intersection when casting shadow rays.
-    ///
-    /// This constant cannot be zero (because then every object would cast
-    /// shadows onto itself), but it cannot be too high either (because then
-    /// shadows would feel off, flying on surfaces instead of being attached to
-    /// them).
-    pub const NUDGE_OFFSET: f32 = 0.001;
-
     pub fn none() -> Self {
         Self {
             distance: f32::MAX,

@@ -89,7 +89,7 @@ pub fn main_fs(
     };
 
     let ray = camera.ray(camera.clip_to_screen(curr_vertex).round().as_uvec2());
-    let depth = ray.origin().distance(point) - TriangleHit::NUDGE_OFFSET;
+    let depth = ray.origin().distance(point);
 
     let gbuffer = GBufferEntry {
         base_color,

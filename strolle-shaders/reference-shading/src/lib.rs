@@ -113,7 +113,7 @@ pub fn main(
         }
 
         Hit {
-            point: t_hit.point,
+            point: t_hit.point + t_hit.normal * Hit::NUDGE_OFFSET,
             origin: ray.origin(),
             direction: ray.direction(),
             gbuffer: GBufferEntry {

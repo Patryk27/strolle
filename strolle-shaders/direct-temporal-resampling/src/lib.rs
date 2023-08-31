@@ -50,8 +50,7 @@ pub fn main(
     //
     // Note that, as compared to the spatial resampling pass, in here we do not
     // interpolate between nearby reservoirs - that's not necessary because
-    // temporal reservoirs are so short-lived and dynamic that any potential
-    // filering is simply not observable anyway, so why waste cycles.
+    // temporal reservoirs short-lived.
 
     let mut p_hat = sample.p_hat();
     let mut reservoir = DirectReservoir::new(sample, p_hat, params.frame);
