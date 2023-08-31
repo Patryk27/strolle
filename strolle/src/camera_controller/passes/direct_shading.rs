@@ -4,11 +4,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct IndirectInitialTracingPass {
+pub struct DirectShadingPass {
     pass: CameraComputePass<gpu::PassParams>,
 }
 
-impl IndirectInitialTracingPass {
+impl DirectShadingPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -19,22 +19,25 @@ impl IndirectInitialTracingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("indirect_initial_tracing")
+        let pass = CameraComputePass::builder("direct_shading")
             .bind([
+                &engine.noise.bind_blue_noise_texture(),
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
+                &engine.lights.bind_readable(),
                 &engine.materials.bind_readable(),
                 &engine.images.bind_atlas_sampled(),
+                &engine.world.bind_readable(),
             ])
             .bind([
                 &buffers.camera.bind_readable(),
+                &buffers.atmosphere_transmittance_lut.bind_sampled(),
+                &buffers.atmosphere_sky_lut.bind_sampled(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
-                &buffers.indirect_rays.bind_writable(),
-                &buffers.indirect_gbuffer_d0.bind_writable(),
-                &buffers.indirect_gbuffer_d1.bind_writable(),
+                &buffers.direct_initial_samples.bind_writable(),
             ])
-            .build(device, &engine.shaders.indirect_initial_tracing);
+            .build(device, &engine.shaders.direct_shading);
 
         Self { pass }
     }

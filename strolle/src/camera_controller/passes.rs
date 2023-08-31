@@ -1,9 +1,9 @@
 mod atmosphere;
 mod bvh_heatmap;
 mod direct_denoising;
-mod direct_initial_shading;
 mod direct_raster;
 mod direct_resolving;
+mod direct_shading;
 mod direct_spatial_resampling;
 mod direct_temporal_resampling;
 mod frame_composition;
@@ -12,11 +12,11 @@ mod indirect_diffuse_denoising;
 mod indirect_diffuse_resolving;
 mod indirect_diffuse_spatial_resampling;
 mod indirect_diffuse_temporal_resampling;
-mod indirect_initial_shading;
-mod indirect_initial_tracing;
+mod indirect_shading;
 mod indirect_specular_denoising;
 mod indirect_specular_resampling;
 mod indirect_specular_resolving;
+mod indirect_tracing;
 mod reference_shading;
 mod reference_tracing;
 
@@ -57,9 +57,9 @@ passes!([
     atmosphere => AtmospherePass,
     bvh_heatmap => BvhHeatmapPass,
     direct_denoising => DirectDenoisingPass,
-    direct_initial_shading => DirectInitialShadingPass,
     direct_raster => DirectRasterPass,
     direct_resolving => DirectResolvingPass,
+    direct_shading => DirectShadingPass,
     direct_spatial_resampling => DirectSpatialResamplingPass,
     direct_temporal_resampling => DirectTemporalResamplingPass,
     frame_composition => FrameCompositionPass,
@@ -68,11 +68,11 @@ passes!([
     indirect_diffuse_resolving => IndirectDiffuseResolvingPass,
     indirect_diffuse_spatial_resampling => IndirectDiffuseSpatialResamplingPass,
     indirect_diffuse_temporal_resampling => IndirectDiffuseTemporalResamplingPass,
-    indirect_initial_shading => IndirectInitialShadingPass,
-    indirect_initial_tracing => IndirectInitialTracingPass,
+    indirect_shading => IndirectShadingPass,
     indirect_specular_denoising => IndirectSpecularDenoisingPass,
     indirect_specular_resampling => IndirectSpecularResamplingPass,
     indirect_specular_resolving => IndirectSpecularResolvingPass,
+    indirect_tracing => IndirectTracingPass,
     reference_shading => ReferenceShadingPass,
     reference_tracing => ReferenceTracingPass,
 ]);

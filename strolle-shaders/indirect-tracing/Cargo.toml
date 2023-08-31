@@ -1,5 +1,5 @@
 [package]
-name = "strolle-indirect-initial-shading-shader"
+name = "strolle-indirect-tracing-shader"
 version = "0.1.0"
 edition = "2021"
 

@@ -3147,14 +3147,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-direct-initial-shading-shader"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-gpu",
-]
-
-[[package]]
 name = "strolle-direct-raster-shader"
 version = "0.1.0"
 dependencies = [
@@ -3164,6 +3156,14 @@ dependencies = [
 
 [[package]]
 name = "strolle-direct-resolving-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-direct-shading-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -3245,15 +3245,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-indirect-initial-shading-shader"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-gpu",
-]
-
-[[package]]
-name = "strolle-indirect-initial-tracing-shader"
+name = "strolle-indirect-shading-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -3278,6 +3270,14 @@ dependencies = [
 
 [[package]]
 name = "strolle-indirect-specular-resolving-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
+name = "strolle-indirect-tracing-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",

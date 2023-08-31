@@ -24,7 +24,7 @@ pub fn main(
     // -------------------------------------------------------------------------
     // Step 1:
     //
-    // Load sample created in the direct-initial-shading pass.
+    // Load sample created in the direct-shading pass.
 
     let sample = {
         let d0 = unsafe {
