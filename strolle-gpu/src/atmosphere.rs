@@ -82,20 +82,19 @@ impl<'a> Atmosphere<'a> {
         }
     }
 
-    /// Returns color of the sun when at given direction.
+    /// Returns color of the sun at given direction.
     pub fn sun(&self, sun_dir: Vec3) -> Vec3 {
-        self.sample_transmittance_lut(Self::VIEW_POS, sun_dir)
+        self.sample_transmittance_lut(Self::VIEW_POS, sun_dir) * Self::EXPOSURE
     }
 
-    /// Returns color of the sky when looking at given direction.
-    pub fn sky(&self, sun_dir: Vec3, look_at: Vec3) -> Vec3 {
-        let ray_dir = self.remap_normal(look_at);
+    /// Returns color of the sky at given direction.
+    pub fn sky(&self, sun_dir: Vec3, ray_dir: Vec3) -> Vec3 {
         let mut lum = self.sample_sky_lut(ray_dir, sun_dir);
         let mut sun_lum = self.evaluate_bloom(ray_dir, sun_dir);
 
         sun_lum = self.interpolate_bloom(sun_lum);
 
-        if sun_lum.length() > 0.0 {
+        if sun_lum.length_squared() > 0.0 {
             let ray = Ray::new(Self::VIEW_POS, ray_dir);
 
             if ray.intersect_sphere(Self::GROUND_RADIUS_MM) >= 0.0 {
@@ -111,40 +110,20 @@ impl<'a> Atmosphere<'a> {
         lum
     }
 
-    fn remap_normal(&self, normal: Vec3) -> Vec3 {
-        let nx = normal.x;
-        let ny = normal.y;
-        let nz = normal.z;
-
-        let theta = ny.acos();
-        let phi = nz.atan2(nx);
-
-        let altitude = PI / 2.0 - theta;
-        let azimuth = (phi + 2.0 * PI) % (2.0 * PI);
-
-        vec3(
-            altitude.cos() * azimuth.sin(),
-            altitude.sin(),
-            -altitude.cos() * azimuth.cos(),
-        )
-    }
-
     fn sample_sky_lut(&self, ray_dir: Vec3, sun_dir: Vec3) -> Vec3 {
         let height = Self::VIEW_POS.length();
         let up = Self::VIEW_POS / height;
 
-        let horizon_angle = {
-            let t = height * height
-                - Self::GROUND_RADIUS_MM * Self::GROUND_RADIUS_MM;
+        let horizon = {
+            let t = height.sqr() - Self::GROUND_RADIUS_MM.sqr();
+            let t = t.sqrt() / height;
 
-            let t = t / height;
-
-            t.sqrt().clamp(-1.0, 1.0).acos()
+            t.clamp(-1.0, 1.0).acos()
         };
 
-        let altitude_angle = horizon_angle - ray_dir.dot(up).acos();
+        let altitude = horizon - ray_dir.dot(up).acos();
 
-        let azimuth_angle = if altitude_angle.abs() > (0.5 * PI - 0.0001) {
+        let azimuth = if altitude.abs() > (0.5 * PI - 0.0001) {
             0.0
         } else {
             let right = sun_dir.cross(up);
@@ -157,13 +136,14 @@ impl<'a> Atmosphere<'a> {
             sin_theta.atan2(cos_theta) + PI
         };
 
-        let v = 0.5
-            + 0.5
-                * (altitude_angle.abs() * 2.0 / PI)
-                    .sqrt()
-                    .copysign(altitude_angle);
+        let uv = {
+            let u = azimuth / (2.0 * PI);
 
-        let uv = vec2(azimuth_angle / (2.0 * PI), v);
+            let v = 0.5
+                + 0.5 * (altitude.abs() * 2.0 / PI).sqrt().copysign(altitude);
+
+            vec2(u, v)
+        };
 
         self.sky_lut_tex
             .sample_by_lod(*self.sky_lut_sampler, uv, 0.0)
@@ -215,12 +195,15 @@ impl<'a> Atmosphere<'a> {
         let up = pos / height;
         let sun_cos_zenith_angle = sun_dir.dot(up);
 
-        let uv = vec2(
-            (0.5 + 0.5 * sun_cos_zenith_angle).saturate(),
-            ((height - Self::GROUND_RADIUS_MM)
+        let uv = {
+            let u = (0.5 + 0.5 * sun_cos_zenith_angle).saturate();
+
+            let v = ((height - Self::GROUND_RADIUS_MM)
                 / (Self::ATMOSPHERE_RADIUS_MM - Self::GROUND_RADIUS_MM))
-                .saturate(),
-        );
+                .saturate();
+
+            vec2(u, v)
+        };
 
         lut_tex.sample_by_lod(*lut_sampler, uv, 0.0).xyz()
     }

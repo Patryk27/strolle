@@ -89,7 +89,7 @@ pub fn main(
 
     let mut radiance = if light_pdf > 0.0 {
         let light_visibility = if indirect_hit.is_some() {
-            let light = if light_id.is_sky() {
+            let light = if light_id.is_sun() {
                 Light::sky(world.sun_position())
             } else {
                 lights.get(light_id)

@@ -7,10 +7,7 @@ pub use self::ephemeral::*;
 pub use self::indirect::*;
 use crate::WhiteNoise;
 
-/// Reservoir for sampling using ReSTIR.
-///
-/// - https://benedikt-bitterli.me/restir/bitterli20restir.pdf
-/// - https://d1qx31qr3h6wln.cloudfront.net/publications/ReSTIR%20GI.pdf
+/// Reservoir for sampling using ReSTIR
 #[derive(Clone, Copy, Default)]
 pub struct Reservoir<T> {
     /// Selected sample; might contain light id, its radiance etc.

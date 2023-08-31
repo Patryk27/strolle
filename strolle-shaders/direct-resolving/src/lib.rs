@@ -36,7 +36,7 @@ pub fn main(
         );
 
         if reservoir.sample.light_pdf > 0.0 {
-            let radiance = if reservoir.sample.light_id.is_sky() {
+            let radiance = if reservoir.sample.light_id.is_sun() {
                 reservoir.sample.light_radiance
             } else {
                 lights.get(reservoir.sample.light_id).radiance(hit)

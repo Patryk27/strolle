@@ -74,7 +74,7 @@ impl AtmospherePass {
         let mut known_sun_altitude = self.known_sun_altitude.lock().unwrap();
 
         // Transmittance and scattering don't depend on anything so it's enough
-        // if we just generate them once, the first time they are needed:
+        // if we just generate them once, the first time they are needed
         if !*is_initialized {
             self.generate_transmittance_lut_pass.run(
                 camera,
@@ -93,7 +93,7 @@ impl AtmospherePass {
             *is_initialized = true;
         }
 
-        // On the other hand, the sky lookup texture depends on sun's position:
+        // On the other hand, the sky lookup texture depends on sun's altitude
         if known_sun_altitude
             .map_or(true, |altitude| altitude != engine.sun.altitude)
         {

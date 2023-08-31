@@ -22,8 +22,8 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: WindowResolution::new(
-                    1.5 * VIEWPORT_SIZE.x as f32,
-                    1.5 * VIEWPORT_SIZE.y as f32,
+                    2.0 * VIEWPORT_SIZE.x as f32,
+                    2.0 * VIEWPORT_SIZE.y as f32,
                 ),
                 ..default()
             }),
@@ -56,14 +56,14 @@ fn setup(
     // -------------------------------------------------------------------------
 
     commands.spawn(SceneBundle {
-        // scene: assets.load("/Users/PWY/Desktop/cube.gltf#Scene0"),
-        scene: assets.load(
-            "/Users/PWY/Downloads/scenes/cartoon_lowpoly_small_city_free_pack.glb#Scene0",
-        ),
+        scene: assets.load("/Users/PWY/Desktop/cube.gltf#Scene0"),
+        // scene: assets.load(
+        //     "/Users/PWY/Downloads/scenes/cartoon_lowpoly_small_city_free_pack.glb#Scene0",
+        // ),
         // scene: assets.load(
         //     "/Users/PWY/Downloads/free__atlanta_corperate_office_building.glb#Scene0",
         // ),
-        transform: Transform::from_scale(Vec3::splat(0.1)),
+        // transform: Transform::from_scale(Vec3::splat(0.1)),
         ..Default::default()
     });
 
@@ -142,8 +142,8 @@ fn setup(
                 controller.translate_sensitivity = 8.0;
                 controller
             },
-            vec3(7.5485477, 7.116934, -5.4978814),
-            vec3(6.8574367, 6.5966244, -4.9962406),
+            vec3(0.0, 2.0, 0.0),
+            vec3(1.0, 2.0, 0.0),
             vec3(0.0, 1.0, 0.0),
         ));
 
@@ -177,20 +177,30 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::Key2) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 1 };
+        camera.mode = st::CameraMode::DirectLightning;
     }
 
     if keys.just_pressed(KeyCode::Key3) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 3 };
+        camera.mode = st::CameraMode::IndirectDiffuseLightning;
     }
 
     if keys.just_pressed(KeyCode::Key4) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::BvhHeatmap;
+        camera.mode = st::CameraMode::IndirectSpecularLightning;
     }
 
     if keys.just_pressed(KeyCode::Key5) {
+        camera_render_graph.set(bevy_strolle::graph::NAME);
+        camera.mode = st::CameraMode::Reference { depth: 3 };
+    }
+
+    if keys.just_pressed(KeyCode::Key6) {
+        camera_render_graph.set(bevy_strolle::graph::NAME);
+        camera.mode = st::CameraMode::BvhHeatmap;
+    }
+
+    if keys.just_pressed(KeyCode::Key0) {
         camera_render_graph.set("core_3d");
     }
 

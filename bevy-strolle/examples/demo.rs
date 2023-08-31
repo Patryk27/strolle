@@ -81,7 +81,6 @@ fn setup(
         vec3(1.25, 0.75, -10.5),
         vec3(-3.15, 0.75, 1.25),
         vec3(-3.25, 0.75, 20.25),
-        vec3(-11.5, 0.75, 28.50),
         vec3(13.25, 0.75, -28.25),
         vec3(1.15, 0.75, -3.75),
     ];
@@ -304,7 +303,7 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::Key9) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 1 };
+        camera.mode = st::CameraMode::Reference { depth: 2 };
     }
 
     if keys.just_pressed(KeyCode::Key0) {
@@ -334,34 +333,43 @@ fn handle_camera(
 
 #[derive(Resource)]
 struct Sun {
+    azimuth: f32,
     altitude: f32,
 }
 
 impl Default for Sun {
     fn default() -> Self {
         Self {
+            azimuth: PI,
             altitude: StrolleSun::default().altitude,
         }
     }
 }
 
 fn handle_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
-    if keys.just_pressed(KeyCode::O) {
+    if keys.just_pressed(KeyCode::H) {
+        sun.azimuth -= 0.05;
+    }
+
+    if keys.just_pressed(KeyCode::J) {
+        sun.altitude -= 0.05;
+    }
+
+    if keys.just_pressed(KeyCode::K) {
         sun.altitude += 0.05;
     }
 
-    if keys.just_pressed(KeyCode::P) {
-        sun.altitude -= 0.05;
+    if keys.just_pressed(KeyCode::L) {
+        sun.azimuth += 0.05;
     }
 }
 
-fn animate_sun(
-    time: Res<Time>,
-    mut strolle_sun: ResMut<StrolleSun>,
-    our_sun: Res<Sun>,
-) {
-    strolle_sun.altitude = strolle_sun.altitude
-        + (our_sun.altitude - strolle_sun.altitude) * time.delta_seconds();
+fn animate_sun(time: Res<Time>, mut st_sun: ResMut<StrolleSun>, sun: Res<Sun>) {
+    st_sun.azimuth =
+        st_sun.azimuth + (sun.azimuth - st_sun.azimuth) * time.delta_seconds();
+
+    st_sun.altitude = st_sun.altitude
+        + (sun.altitude - st_sun.altitude) * time.delta_seconds();
 }
 
 // -----------------------------------------------------------------------------

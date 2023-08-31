@@ -229,7 +229,7 @@ impl LightId {
         Self(id)
     }
 
-    pub fn sky() -> Self {
+    pub fn sun() -> Self {
         Self::new(u32::MAX)
     }
 
@@ -237,7 +237,7 @@ impl LightId {
         self.0
     }
 
-    pub fn is_sky(self) -> bool {
-        self == Self::sky()
+    pub fn is_sun(self) -> bool {
+        self == Self::sun()
     }
 }

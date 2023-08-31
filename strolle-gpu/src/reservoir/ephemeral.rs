@@ -16,12 +16,8 @@ pub struct EphemeralReservoir {
 }
 
 impl EphemeralReservoir {
-    /// Probability of sampling the environmental map; following the ReSTIR
-    /// paper, 25%.
-    pub const SKY_PROBABILITY: f32 = 0.25;
-
-    /// Samples scene's lightning, including the atmosphere, and returns chosen
-    /// light's id, probability and radiance.
+    /// Samples scene's lightning, including the sun, and returns chosen light's
+    /// id, probability and radiance.
     pub fn sample<const INDIRECT: bool>(
         wnoise: &mut WhiteNoise,
         atmosphere: &Atmosphere,
@@ -34,35 +30,11 @@ impl EphemeralReservoir {
         let light_radiance;
 
         if hit.is_none() {
-            light_id = LightId::sky();
+            light_id = LightId::sun();
             light_pdf = 1.0;
 
             light_radiance =
                 atmosphere.sky(world.sun_direction(), hit.direction);
-        } else if wnoise.sample() <= Self::SKY_PROBABILITY {
-            if INDIRECT {
-                let secondary_direction =
-                    wnoise.sample_hemisphere(hit.gbuffer.normal);
-
-                let secondary_surface =
-                    hit.gbuffer.normal.dot(secondary_direction)
-                        * hit.gbuffer.base_color.xyz()
-                        * (1.0 - hit.gbuffer.metallic);
-
-                light_id = LightId::sky();
-                light_pdf = Self::SKY_PROBABILITY;
-
-                light_radiance = secondary_surface
-                    * atmosphere
-                        .sky(world.sun_direction(), secondary_direction);
-            } else {
-                let cosine =
-                    hit.gbuffer.normal.dot(world.sun_direction()).max(0.0);
-
-                light_id = LightId::sky();
-                light_pdf = Self::SKY_PROBABILITY;
-                light_radiance = atmosphere.sun(world.sun_direction()) * cosine;
-            }
         } else {
             let mut reservoir = Self::default();
             let mut light_idx = 0;
@@ -85,12 +57,33 @@ impl EphemeralReservoir {
                 light_idx += 1;
             }
 
+            // ---
+
+            let sample = {
+                let albedo = if INDIRECT {
+                    hit.gbuffer.base_color.xyz() * (1.0 - hit.gbuffer.metallic)
+                } else {
+                    Vec3::ONE
+                };
+
+                let cosine =
+                    hit.gbuffer.normal.dot(world.sun_direction()).max(0.0);
+
+                EphemeralReservoirSample {
+                    light_id: LightId::sun(),
+                    light_radiance: atmosphere.sun(world.sun_direction())
+                        * albedo
+                        * cosine,
+                }
+            };
+
+            reservoir.add(wnoise, sample, sample.p_hat());
+
+            // ---
+
             if reservoir.m_sum > 0.0 {
                 light_id = reservoir.sample.light_id;
-
-                light_pdf = (1.0 - Self::SKY_PROBABILITY)
-                    * (reservoir.sample.p_hat() / reservoir.w_sum);
-
+                light_pdf = reservoir.sample.p_hat() / reservoir.w_sum;
                 light_radiance = reservoir.sample.light_radiance;
             } else {
                 light_id = LightId::new(0);

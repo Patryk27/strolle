@@ -311,8 +311,12 @@ where
             | self.lights.flush(device, queue).reallocated
             | self.materials.flush(device, queue).reallocated;
 
-        self.world.light_count = self.lights.len();
-        self.world.sun_altitude = self.sun.altitude;
+        *self.world = gpu::World {
+            light_count: self.lights.len(),
+            sun_azimuth: self.sun.azimuth,
+            sun_altitude: self.sun.altitude,
+        };
+
         self.world.flush(queue);
 
         // ---

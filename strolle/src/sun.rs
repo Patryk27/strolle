@@ -1,10 +1,14 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Sun {
+    pub azimuth: f32,
     pub altitude: f32,
 }
 
 impl Default for Sun {
     fn default() -> Self {
-        Self { altitude: 0.35 }
+        Self {
+            azimuth: 0.0,
+            altitude: 0.35,
+        }
     }
 }
