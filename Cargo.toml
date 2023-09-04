@@ -14,6 +14,7 @@ members = [
     "strolle-shaders/direct-shading",
     "strolle-shaders/direct-spatial-resampling",
     "strolle-shaders/direct-temporal-resampling",
+    "strolle-shaders/direct-validation",
     "strolle-shaders/frame-composition",
     "strolle-shaders/frame-reprojection",
     "strolle-shaders/indirect-diffuse-denoising",

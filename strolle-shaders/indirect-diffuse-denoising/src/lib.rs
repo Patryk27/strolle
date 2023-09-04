@@ -27,10 +27,19 @@ pub fn main(
     let surface_map = SurfaceMap::new(surface_map);
     let prev_surface_map = SurfaceMap::new(prev_surface_map);
 
+    if !debug::INDIRECT_DIFFUSE_DENOISING_ENABLED {
+        unsafe {
+            indirect_diffuse_colors
+                .write(screen_pos, indirect_diffuse_samples.read(screen_pos));
+        }
+
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
-    let mut prev;
-    let hist;
+    let mut previous;
+    let history;
 
     let surface = surface_map.get(screen_pos);
     let reprojection = reprojection_map.get(screen_pos);
@@ -40,18 +49,18 @@ pub fn main(
             (prev_indirect_diffuse_colors.read(pos), 1.0)
         });
 
-        prev = sample.xyz().extend(1.0);
-        hist = sample.w;
+        previous = sample.xyz().extend(1.0);
+        history = sample.w;
     } else {
-        prev = Vec4::ZERO;
-        hist = 0.0;
+        previous = Vec4::ZERO;
+        history = 0.0;
     }
 
     // -------------------------------------------------------------------------
 
     let mut sample_idx = 0;
     let mut sample_radius = 0.0f32;
-    let mut sample_angle = 2.0 * PI * bnoise.second_sample().x;
+    let mut sample_angle = 2.0 * PI * bnoise.second_sample().y;
 
     while sample_idx < 5 {
         sample_idx += 1;
@@ -62,7 +71,7 @@ pub fn main(
             vec2(sample_angle.sin(), sample_angle.cos()) * sample_radius;
 
         let sample_pos = if reprojection.is_some() {
-            reprojection.prev_screen_pos().as_ivec2() + sample_offset.as_ivec2()
+            reprojection.prev_pos().as_ivec2() + sample_offset.as_ivec2()
         } else {
             screen_pos.as_ivec2() + sample_offset.as_ivec2()
         };
@@ -73,20 +82,22 @@ pub fn main(
 
         let sample_weight = sample_surface.evaluate_similarity_to(&surface);
 
-        prev += (sample_color.xyz() * sample_weight).extend(sample_weight);
+        previous += (sample_color.xyz() * sample_weight).extend(sample_weight);
     }
 
     // -------------------------------------------------------------------------
 
-    let curr = indirect_diffuse_samples.read(screen_pos).xyz();
+    let currrent = indirect_diffuse_samples.read(screen_pos).xyz();
 
-    let out = if prev.w == 0.0 {
-        curr.extend(1.0)
+    let out = if previous.w == 0.0 {
+        currrent.extend(1.0)
     } else {
-        let prev = prev.xyz() / prev.w;
-        let speed = 1.0 / (1.0 + hist);
+        let previous = previous.xyz() / previous.w;
+        let speed = 1.0 / (1.0 + history);
 
-        prev.lerp(curr, speed).extend((hist + 1.0).min(MAX_HISTORY))
+        previous
+            .lerp(currrent, speed)
+            .extend((history + 1.0).min(MAX_HISTORY))
     };
 
     unsafe {

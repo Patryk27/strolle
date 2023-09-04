@@ -88,7 +88,7 @@ fn main_inner(
 
     while reservoir.m_sum < 25.0 && sample_idx < 5 {
         let mut rhs_pos = if reprojection.is_some() {
-            reprojection.prev_screen_pos().as_ivec2()
+            reprojection.prev_pos_round().as_ivec2()
         } else {
             screen_pos.as_ivec2()
         };
@@ -144,7 +144,7 @@ fn main_inner(
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(p_hat, 10.0, 20.0);
+    reservoir.normalize(p_hat, 10.0);
     reservoir.m_sum = (m_sum + 0.5).min(20.0);
     reservoir.write(indirect_diffuse_temporal_reservoirs, screen_idx);
 }

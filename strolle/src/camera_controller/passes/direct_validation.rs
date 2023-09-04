@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct BvhHeatmapPass {
-    pass: CameraComputePass<()>,
+pub struct DirectValidationPass {
+    pass: CameraComputePass,
 }
 
-impl BvhHeatmapPass {
+impl DirectValidationPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -18,7 +18,7 @@ impl BvhHeatmapPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("bvh_heatmap")
+        let pass = CameraComputePass::builder("direct_validation")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -27,9 +27,13 @@ impl BvhHeatmapPass {
             ])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_colors.curr().bind_writable(),
+                &buffers.reprojection_map.bind_readable(),
+                &buffers.direct_gbuffer_d0.bind_readable(),
+                &buffers.direct_gbuffer_d1.bind_readable(),
+                &buffers.direct_prev_reservoirs.bind_readable(),
+                &buffers.direct_curr_reservoirs.bind_writable(),
             ])
-            .build(device, &engine.shaders.bvh_heatmap);
+            .build(device, &engine.shaders.direct_validation);
 
         Self { pass }
     }
@@ -42,6 +46,6 @@ impl BvhHeatmapPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        self.pass.run(camera, encoder, size, &());
+        self.pass.run(camera, encoder, size, &camera.pass_params());
     }
 }

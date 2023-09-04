@@ -1,11 +1,10 @@
 use crate::{
-    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
-    Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
 pub struct DirectTemporalResamplingPass {
-    pass: CameraComputePass<gpu::PassParams>,
+    pass: CameraComputePass,
 }
 
 impl DirectTemporalResamplingPass {
@@ -24,8 +23,8 @@ impl DirectTemporalResamplingPass {
                 &buffers.camera.bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.direct_initial_samples.bind_readable(),
-                &buffers.direct_temporal_reservoirs.curr().bind_writable(),
-                &buffers.direct_temporal_reservoirs.prev().bind_readable(),
+                &buffers.direct_prev_reservoirs.bind_readable(),
+                &buffers.direct_curr_reservoirs.bind_writable(),
             ])
             .build(device, &engine.shaders.direct_temporal_resampling);
 

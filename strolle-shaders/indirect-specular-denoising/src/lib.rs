@@ -28,6 +28,15 @@ pub fn main(
     let reprojection_map = ReprojectionMap::new(reprojection_map);
     let prev_surface_map = SurfaceMap::new(prev_surface_map);
 
+    if !debug::INDIRECT_SPECULAR_DENOISING_ENABLED {
+        unsafe {
+            indirect_specular_colors
+                .write(screen_pos, indirect_specular_samples.read(screen_pos));
+        }
+
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let hit = Hit::new(
@@ -100,7 +109,7 @@ pub fn main(
 
     let mut sample_idx = 0;
     let mut sample_radius = 0.0f32;
-    let mut sample_angle = 2.0 * PI * bnoise.first_sample().x;
+    let mut sample_angle = 2.0 * PI * bnoise.first_sample().y;
 
     let mut previous_aabb_min = Vec3::MAX;
     let mut previous_aabb_max = Vec3::MIN;

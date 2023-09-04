@@ -7,11 +7,11 @@ use log::debug;
 use spirv_std::glam::UVec2;
 
 use crate::{
-    BindGroup, BindGroupBuilder, CameraController, DoubleBufferedBindable,
+    gpu, BindGroup, BindGroupBuilder, CameraController, DoubleBufferedBindable,
 };
 
 #[derive(Debug)]
-pub struct CameraComputePass<P = ()> {
+pub struct CameraComputePass<P = gpu::PassParams> {
     label: String,
     bind_groups: Vec<BindGroup>,
     pipeline: wgpu::ComputePipeline,

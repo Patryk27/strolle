@@ -1,11 +1,10 @@
 use crate::{
-    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
-    Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
 pub struct IndirectDiffuseSpatialResamplingPass {
-    pass: CameraComputePass<gpu::PassParams>,
+    pass: CameraComputePass,
 }
 
 impl IndirectDiffuseSpatialResamplingPass {

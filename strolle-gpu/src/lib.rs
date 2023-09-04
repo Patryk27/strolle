@@ -59,16 +59,24 @@ pub mod prelude {
     pub use crate::*;
 }
 
-/// Stack of nodes yet-to-be-visited when traversing the BVH.
+/// Stack for nodes yet-to-be-visited when traversing the BVH.
 ///
-/// For performance reasons, we use a per-workgroup shared memory array where
+/// For performance reasons, we use a per-workgroup shared-memory array where
 /// each workgroup-thread simply indexes into a different slice of this memory.
 pub type BvhStack<'a> = &'a mut [u32; BVH_STACK_SIZE * 8 * 8];
 
-/// Maximum stack size per each workgroup-thread.
+/// Maximum stack size per each workgroup-thread when traversing the BVH.
 ///
-/// The larger this value is, the bigger world can be rendered - at the expense
-/// of performance.
+/// Affects the maximum size of BVH tree (it must not grow larger than
+/// `2 ^ BVH_STACK_SIZE`).
 pub const BVH_STACK_SIZE: usize = 24;
 
+/// Golden angle, used for spatial filters.
 pub const GOLDEN_ANGLE: f32 = 2.39996;
+
+pub mod debug {
+    pub const DIRECT_DENOISING_ENABLED: bool = true;
+    pub const DIRECT_VALIDATION_ENABLED: bool = true;
+    pub const INDIRECT_DIFFUSE_DENOISING_ENABLED: bool = true;
+    pub const INDIRECT_SPECULAR_DENOISING_ENABLED: bool = true;
+}

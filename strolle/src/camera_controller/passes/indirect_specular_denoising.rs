@@ -1,12 +1,10 @@
-use strolle_gpu as gpu;
-
 use crate::{
     Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
 pub struct IndirectSpecularDenoisingPass {
-    pass: CameraComputePass<gpu::PassParams>,
+    pass: CameraComputePass,
 }
 
 impl IndirectSpecularDenoisingPass {

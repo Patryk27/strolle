@@ -34,6 +34,7 @@ shaders!([
     direct_shading,
     direct_spatial_resampling,
     direct_temporal_resampling,
+    direct_validation,
     frame_composition,
     frame_reprojection,
     indirect_diffuse_denoising,

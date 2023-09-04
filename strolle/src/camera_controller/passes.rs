@@ -6,6 +6,7 @@ mod direct_resolving;
 mod direct_shading;
 mod direct_spatial_resampling;
 mod direct_temporal_resampling;
+mod direct_validation;
 mod frame_composition;
 mod frame_reprojection;
 mod indirect_diffuse_denoising;
@@ -62,6 +63,7 @@ passes!([
     direct_shading => DirectShadingPass,
     direct_spatial_resampling => DirectSpatialResamplingPass,
     direct_temporal_resampling => DirectTemporalResamplingPass,
+    direct_validation => DirectValidationPass,
     frame_composition => FrameCompositionPass,
     frame_reprojection => FrameReprojectionPass,
     indirect_diffuse_denoising => IndirectDiffuseDenoisingPass,

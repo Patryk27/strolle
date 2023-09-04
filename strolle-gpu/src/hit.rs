@@ -26,9 +26,7 @@ impl Hit {
         Self {
             origin: ray.origin(),
             direction: ray.direction(),
-            point: ray.origin()
-                + ray.direction() * gbuffer.depth
-                + gbuffer.normal * Self::NUDGE_OFFSET,
+            point: ray.at(gbuffer.depth) + gbuffer.normal * Self::NUDGE_OFFSET,
             gbuffer,
         }
     }

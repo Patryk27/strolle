@@ -1,11 +1,10 @@
 use crate::{
-    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
-    Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
 pub struct DirectSpatialResamplingPass {
-    pass: CameraComputePass<gpu::PassParams>,
+    pass: CameraComputePass,
 }
 
 impl DirectSpatialResamplingPass {
@@ -23,13 +22,9 @@ impl DirectSpatialResamplingPass {
             .bind([&engine.noise.bind_blue_noise_texture()])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_gbuffer_d0.bind_readable(),
-                &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
-                &buffers.reprojection_map.bind_readable(),
-                &buffers.direct_temporal_reservoirs.curr().bind_readable(),
-                &buffers.direct_spatial_reservoirs.curr().bind_writable(),
-                &buffers.direct_spatial_reservoirs.prev().bind_readable(),
+                &buffers.direct_curr_reservoirs.bind_readable(),
+                &buffers.direct_next_reservoirs.bind_writable(),
             ])
             .build(device, &engine.shaders.direct_spatial_resampling);
 

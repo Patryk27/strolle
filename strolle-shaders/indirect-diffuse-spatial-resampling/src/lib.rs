@@ -39,7 +39,8 @@ pub fn main(
     );
 
     if hit.gbuffer.depth == 0.0 {
-        reservoir.normalize(0.0, 10.0, 500.0);
+        reservoir.normalize(0.0, 10.0);
+        reservoir.clamp(500.0);
         reservoir.write(indirect_diffuse_spatial_reservoirs, screen_idx);
         return;
     }
@@ -54,7 +55,7 @@ pub fn main(
     if reprojection.is_some() {
         let mut rhs = IndirectReservoir::read(
             prev_indirect_diffuse_spatial_reservoirs,
-            camera.screen_to_idx(reprojection.prev_screen_pos()),
+            camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
         rhs.m_sum *= reprojection.confidence;
@@ -141,6 +142,7 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(p_hat, 10.0, 500.0);
+    reservoir.normalize(p_hat, 10.0);
+    reservoir.clamp(500.0);
     reservoir.write(indirect_diffuse_spatial_reservoirs, screen_idx);
 }

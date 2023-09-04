@@ -3187,6 +3187,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "strolle-direct-validation-shader"
+version = "0.1.0"
+dependencies = [
+ "spirv-std",
+ "strolle-gpu",
+]
+
+[[package]]
 name = "strolle-frame-composition-shader"
 version = "0.1.0"
 dependencies = [

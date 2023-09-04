@@ -81,7 +81,7 @@ impl EphemeralReservoir {
 
             // ---
 
-            if reservoir.m_sum > 0.0 {
+            if reservoir.w_sum > 0.0 {
                 light_id = reservoir.sample.light_id;
                 light_pdf = reservoir.sample.p_hat() / reservoir.w_sum;
                 light_radiance = reservoir.sample.light_radiance;

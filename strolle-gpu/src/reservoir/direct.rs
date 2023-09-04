@@ -33,8 +33,7 @@ impl DirectReservoir {
                 sample: DirectReservoirSample {
                     light_id: LightId::new(d0.w.to_bits()),
                     light_radiance: d0.xyz(),
-                    light_pdf: d1.w,
-                    hit_point: d1.xyz(),
+                    light_position: d1.xyz(),
                 },
                 w_sum: Default::default(),
                 m_sum: d2.x,
@@ -50,7 +49,7 @@ impl DirectReservoir {
             .light_radiance
             .extend(f32::from_bits(self.sample.light_id.get()));
 
-        let d1 = self.sample.hit_point.extend(self.sample.light_pdf);
+        let d1 = self.sample.light_position.extend(0.0);
 
         let d2 = vec4(
             self.reservoir.m_sum,
@@ -89,8 +88,7 @@ impl DerefMut for DirectReservoir {
 pub struct DirectReservoirSample {
     pub light_id: LightId,
     pub light_radiance: Vec3,
-    pub light_pdf: f32,
-    pub hit_point: Vec3,
+    pub light_position: Vec3,
 }
 
 impl DirectReservoirSample {

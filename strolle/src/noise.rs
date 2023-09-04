@@ -1,10 +1,9 @@
 use std::io::Cursor;
 use std::num::NonZeroU32;
 
-use ::image::io::Reader as ImageReader;
-use strolle_gpu as gpu;
+use image::io::Reader as ImageReader;
 
-use crate::{Bindable, Texture};
+use crate::{gpu, Bindable, Texture};
 
 #[derive(Debug)]
 pub struct Noise {
