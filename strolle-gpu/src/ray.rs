@@ -34,6 +34,10 @@ impl Ray {
         self.direction
     }
 
+    pub fn at(self, depth: f32) -> Vec3 {
+        self.origin + self.direction * depth
+    }
+
     /// Returns the closest opaque intersection of this ray with the world, if
     /// any.
     #[allow(clippy::too_many_arguments)]

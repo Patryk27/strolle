@@ -95,17 +95,19 @@ pub fn main(
                 lights.get(light_id)
             };
 
-            light.visibility(
-                local_idx,
-                stack,
-                triangles,
-                bvh,
-                materials,
-                atlas_tex,
-                atlas_sampler,
-                &mut wnoise,
-                indirect_hit.point,
-            )
+            light
+                .visibility(
+                    local_idx,
+                    stack,
+                    triangles,
+                    bvh,
+                    materials,
+                    atlas_tex,
+                    atlas_sampler,
+                    &mut wnoise,
+                    indirect_hit.point,
+                )
+                .1
         } else {
             // If we hit nothing, our indirect-ray must be pointing towards
             // the sky - no point re-tracing it, then

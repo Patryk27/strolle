@@ -157,7 +157,7 @@ pub fn main(
         light_radiance = light.contribution(hit);
     };
 
-    let light_visibility = light.visibility(
+    let (_, light_visibility) = light.visibility(
         local_idx,
         stack,
         triangles,

@@ -1,11 +1,10 @@
 use crate::{
-    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
-    Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
 pub struct DirectShadingPass {
-    pass: CameraComputePass<gpu::PassParams>,
+    pass: CameraComputePass,
 }
 
 impl DirectShadingPass {
@@ -21,7 +20,6 @@ impl DirectShadingPass {
     {
         let pass = CameraComputePass::builder("direct_shading")
             .bind([
-                &engine.noise.bind_blue_noise_texture(),
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.lights.bind_readable(),

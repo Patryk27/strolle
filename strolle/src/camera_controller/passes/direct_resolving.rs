@@ -18,14 +18,12 @@ impl DirectResolvingPass {
         P: Params,
     {
         let pass = CameraComputePass::builder("direct_resolving")
-            .bind([&engine.lights.bind_readable()])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_gbuffer_d0.bind_readable(),
-                &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.direct_initial_samples.bind_readable(),
+                &buffers.direct_next_reservoirs.bind_readable(),
+                &buffers.direct_prev_reservoirs.bind_writable(),
                 &buffers.direct_samples.bind_writable(),
-                &buffers.direct_spatial_reservoirs.curr().bind_readable(),
             ])
             .build(device, &engine.shaders.direct_resolving);
 
@@ -40,6 +38,6 @@ impl DirectResolvingPass {
         // This pass uses 8x8 warps:
         let size = camera.camera.viewport.size / 8;
 
-        self.pass.run(camera, encoder, size, &());
+        self.pass.run(camera, encoder, size, &camera.pass_params());
     }
 }

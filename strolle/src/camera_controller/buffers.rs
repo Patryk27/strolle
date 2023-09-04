@@ -23,8 +23,9 @@ pub struct CameraBuffers {
     pub direct_samples: Texture,
     pub direct_colors: DoubleBuffered<Texture>,
     pub direct_initial_samples: StorageBuffer,
-    pub direct_temporal_reservoirs: DoubleBuffered<StorageBuffer>,
-    pub direct_spatial_reservoirs: DoubleBuffered<StorageBuffer>,
+    pub direct_prev_reservoirs: StorageBuffer,
+    pub direct_curr_reservoirs: StorageBuffer,
+    pub direct_next_reservoirs: StorageBuffer,
 
     pub indirect_rays: Texture,
     pub indirect_gbuffer_d0: Texture,
@@ -129,15 +130,21 @@ impl CameraBuffers {
             viewport_buffer_size(camera.viewport.size, 2 * 4 * 4),
         );
 
-        let direct_temporal_reservoirs = DoubleBuffered::<StorageBuffer>::new(
+        let direct_prev_reservoirs = StorageBuffer::new(
             device,
-            "direct_temporal_reservoirs",
+            "direct_prev_reservoirs",
             viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
         );
 
-        let direct_spatial_reservoirs = DoubleBuffered::<StorageBuffer>::new(
+        let direct_curr_reservoirs = StorageBuffer::new(
             device,
-            "direct_spatial_reservoirs",
+            "direct_curr_reservoirs",
+            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+        );
+
+        let direct_next_reservoirs = StorageBuffer::new(
+            device,
+            "direct_next_reservoirs",
             viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
         );
 
@@ -285,8 +292,9 @@ impl CameraBuffers {
             direct_samples,
             direct_colors,
             direct_initial_samples,
-            direct_temporal_reservoirs,
-            direct_spatial_reservoirs,
+            direct_prev_reservoirs,
+            direct_curr_reservoirs,
+            direct_next_reservoirs,
 
             indirect_rays,
             indirect_gbuffer_d0,

@@ -2,9 +2,8 @@ use glam::{UVec2, Vec3, Vec3Swizzles, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{Normal, TexRgba32f};
+use crate::{F32Ext, Normal, TexRgba32f};
 
-// TODO somewhat duplicate with GBufferEntry
 #[derive(Clone, Copy)]
 pub struct Surface {
     pub normal: Vec3,
@@ -24,14 +23,14 @@ impl Surface {
             return 0.0;
         }
 
-        let normal_score = self.normal.dot(other.normal).max(0.0);
+        let normal_score = self.normal.dot(other.normal).sqr().sqr().max(0.0);
 
-        // TODO a continuous function here would be much, much better
-        let depth_score = if self.depth < 35.0 && other.depth < 35.0 {
-            1.0 - (self.depth - other.depth).abs().min(1.0)
-        } else {
-            1.0 - (self.depth.log2() - other.depth.log2()).abs().min(1.0)
-        };
+        let depth_score =
+            if (self.depth - other.depth).abs() <= 0.1 * other.depth {
+                1.0
+            } else {
+                0.0
+            };
 
         normal_score * depth_score
     }

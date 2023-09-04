@@ -1,7 +1,7 @@
 mod bilinear_filter;
 mod f32_ext;
-mod temporal_denoiser;
 mod u32_ext;
+mod vec2_ext;
 mod vec3_ext;
 
 use core::ops;
@@ -10,8 +10,8 @@ use spirv_std::Image;
 
 pub use self::bilinear_filter::*;
 pub use self::f32_ext::*;
-pub use self::temporal_denoiser::*;
 pub use self::u32_ext::*;
+pub use self::vec2_ext::*;
 pub use self::vec3_ext::*;
 
 pub type Tex<'a> = &'a Image!(2D, type = f32, sampled);

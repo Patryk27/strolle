@@ -4,7 +4,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct FrameReprojectionPass {
-    pass: CameraComputePass,
+    pass: CameraComputePass<()>,
 }
 
 impl FrameReprojectionPass {

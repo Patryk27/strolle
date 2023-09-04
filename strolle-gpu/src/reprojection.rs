@@ -1,4 +1,4 @@
-use glam::{vec2, vec4, UVec2, Vec4};
+use glam::{vec2, vec4, UVec2, Vec2, Vec4};
 
 use crate::TexRgba32f;
 
@@ -37,8 +37,16 @@ impl Reprojection {
         !self.is_some()
     }
 
-    pub fn prev_screen_pos(&self) -> UVec2 {
-        vec2(self.prev_x, self.prev_y).round().as_uvec2()
+    pub fn prev_pos(&self) -> Vec2 {
+        vec2(self.prev_x, self.prev_y)
+    }
+
+    pub fn prev_pos_round(&self) -> UVec2 {
+        self.prev_pos().round().as_uvec2()
+    }
+
+    pub fn prev_fract(&self) -> Vec2 {
+        self.prev_pos().fract()
     }
 }
 

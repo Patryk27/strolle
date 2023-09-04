@@ -90,9 +90,12 @@ where
         self.add(wnoise, rhs.sample, rhs.w * rhs.m_sum * p_hat)
     }
 
-    pub fn normalize(&mut self, p_hat: f32, max_w: f32, max_m_sum: f32) {
+    pub fn normalize(&mut self, p_hat: f32, max_w: f32) {
         self.w = self.w_sum / (self.m_sum * p_hat).max(0.001);
         self.w = self.w.min(max_w);
+    }
+
+    pub fn clamp(&mut self, max_m_sum: f32) {
         self.m_sum = self.m_sum.min(max_m_sum);
     }
 }

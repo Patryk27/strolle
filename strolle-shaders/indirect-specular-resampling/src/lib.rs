@@ -101,7 +101,7 @@ pub fn main(
 
         let mut rhs = IndirectReservoir::read(
             prev_indirect_specular_reservoirs,
-            camera.screen_to_idx(reprojection.prev_screen_pos()),
+            camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
         if rhs.sample.is_within_specular_lobe_of(&hit) {
@@ -120,6 +120,7 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(p_hat, 10.0, 8.0);
+    reservoir.normalize(p_hat, 10.0);
+    reservoir.clamp(8.0);
     reservoir.write(indirect_specular_reservoirs, screen_idx);
 }

@@ -43,79 +43,24 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let velocity = {
-        let mut velocity =
-            velocity_map.read(screen_pos).xy().extend(surface.depth);
+    let prev_screen_pos =
+        screen_pos.as_vec2() - velocity_map.read(screen_pos).xy();
 
-        // TODO
-        if false {
-            let mut delta = ivec2(-1, -1);
+    if prev_camera.contains(prev_screen_pos.round().as_ivec2()) {
+        let prev_surface =
+            prev_surface_map.get(prev_screen_pos.round().as_uvec2());
 
-            loop {
-                if delta != ivec2(0, 0) {
-                    let sample_pos = screen_pos.as_ivec2() + delta;
+        let confidence = prev_surface.evaluate_similarity_to(&surface);
 
-                    if camera.contains(sample_pos) {
-                        let sample_pos = sample_pos.as_uvec2();
-                        let sample_depth = surface_map.get(sample_pos).depth;
-
-                        if sample_depth < velocity.z {
-                            velocity = velocity_map
-                                .read(sample_pos)
-                                .xy()
-                                .extend(sample_depth);
-                        }
-                    }
-                }
-
-                // ---
-
-                delta.x += 1;
-
-                if delta.x > 1 {
-                    delta.x = -1;
-                    delta.y += 1;
-
-                    if delta.y > 1 {
-                        break;
-                    }
-                }
-            }
-        }
-
-        velocity
-    };
-
-    // ---
-
-    let prev_screen_pos = screen_pos.as_vec2() - velocity.xy();
-
-    let check_neighbour = move |reprojection: &mut Reprojection,
-                                dx: f32,
-                                dy: f32| {
-        let sample_pos = prev_screen_pos + vec2(dx, dy);
-
-        if !prev_camera.contains(sample_pos.round().as_ivec2()) {
-            return;
-        }
-
-        let sample_surface =
-            prev_surface_map.get(sample_pos.round().as_uvec2());
-
-        let sample_confidence = sample_surface.evaluate_similarity_to(&surface);
-
-        if sample_confidence > reprojection.confidence {
-            *reprojection = Reprojection {
-                prev_x: sample_pos.x,
-                prev_y: sample_pos.y,
-                confidence: sample_confidence,
+        if confidence > 0.0 {
+            reprojection = Reprojection {
+                prev_x: prev_screen_pos.x,
+                prev_y: prev_screen_pos.y,
+                confidence,
                 validity: 0,
             };
         }
-    };
-
-    // TODO consider checking other neighbours as well (?)
-    check_neighbour(&mut reprojection, 0.0, 0.0);
+    }
 
     // -------------------------------------------------------------------------
 
@@ -131,7 +76,7 @@ pub fn main(
                 >= 0.5
         };
 
-        let [p00, p10, p01, p11] = BilinearFilter::find_reprojection_coords(
+        let [p00, p10, p01, p11] = BilinearFilter::reprojection_coords(
             reprojection.prev_x,
             reprojection.prev_y,
         );

@@ -9,17 +9,16 @@ pub fn main(
     #[spirv(local_invocation_index)] local_idx: u32,
     #[spirv(push_constant)] params: &PassParams,
     #[spirv(workgroup)] stack: BvhStack,
-    #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8f,
-    #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
-    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] bvh: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 1, storage_buffer)] bvh: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
     lights: &[Light],
-    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 5)] atlas_tex: Tex,
-    #[spirv(descriptor_set = 0, binding = 6)] atlas_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 7, uniform)] world: &World,
+    #[spirv(descriptor_set = 0, binding = 4)] atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 5)] atlas_sampler: &Sampler,
+    #[spirv(descriptor_set = 0, binding = 6, uniform)] world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)]
     atmosphere_transmittance_lut_tex: Tex,
@@ -35,7 +34,6 @@ pub fn main(
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
-    let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
     let triangles = TrianglesView::new(triangles);
     let bvh = BvhView::new(bvh);
@@ -67,15 +65,15 @@ pub fn main(
             hit,
         );
 
-    let radiance = if light_pdf > 0.0 {
-        let light_visibility = if hit.is_some() {
+    let (light_position, light_radiance) = if light_pdf > 0.0 {
+        let (light_position, light_visibility) = if hit.is_some() {
             let light = if light_id.is_sun() {
                 Light::sky(world.sun_position())
             } else {
                 lights.get(light_id)
             };
 
-            light.visibility_bnoise(
+            light.visibility(
                 local_idx,
                 stack,
                 triangles,
@@ -83,27 +81,28 @@ pub fn main(
                 materials,
                 atlas_tex,
                 atlas_sampler,
-                bnoise,
-                hit,
+                &mut wnoise,
+                hit.point,
             )
         } else {
             // If we hit nothing, our ray must be pointing towards the sky - no
-            // point in re-tracing it, then
-            1.0
+            // point in tracing it, then
+            (world.sun_position(), 1.0)
         };
 
-        // Note that we don't divide by PDF here - rather, we store the
-        // probability in the reservoir and divide by it later
-        light_radiance * light_visibility
+        (
+            light_position,
+            light_radiance * light_visibility / light_pdf,
+        )
     } else {
-        Vec3::ZERO
+        (Vec3::ZERO, Vec3::ZERO)
     };
 
     unsafe {
         *direct_initial_samples.get_unchecked_mut(2 * screen_idx + 0) =
-            radiance.extend(f32::from_bits(light_id.get()));
+            light_radiance.extend(f32::from_bits(hit.is_some() as u32));
 
         *direct_initial_samples.get_unchecked_mut(2 * screen_idx + 1) =
-            hit.point.extend(light_pdf);
+            light_position.extend(f32::from_bits(light_id.get()));
     }
 }

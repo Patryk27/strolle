@@ -6,12 +6,11 @@ use std::ops::DerefMut;
 
 use log::{debug, info};
 use rand::Rng;
-use strolle_gpu as gpu;
 
 pub use self::buffers::*;
 pub use self::pass::*;
 pub use self::passes::*;
-use crate::{Camera, CameraMode, Engine, Params};
+use crate::{gpu, Camera, CameraMode, Engine, Params};
 
 #[derive(Debug)]
 pub struct CameraController {
@@ -121,11 +120,15 @@ impl CameraController {
                     self.passes.frame_reprojection.run(self, encoder);
 
                     if self.camera.mode.needs_direct_lightning() {
-                        self.passes.direct_shading.run(self, encoder);
+                        if self.frame % 3 == 2 {
+                            self.passes.direct_validation.run(self, encoder);
+                        } else {
+                            self.passes.direct_shading.run(self, encoder);
 
-                        self.passes
-                            .direct_temporal_resampling
-                            .run(self, encoder);
+                            self.passes
+                                .direct_temporal_resampling
+                                .run(self, encoder);
+                        }
 
                         self.passes
                             .direct_spatial_resampling

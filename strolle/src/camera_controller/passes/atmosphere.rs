@@ -1,16 +1,15 @@
 use std::sync::Mutex;
 
-use strolle_gpu as gpu;
-
 use crate::{
-    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
+    Params,
 };
 
 #[derive(Debug)]
 pub struct AtmospherePass {
-    generate_transmittance_lut_pass: CameraComputePass,
-    generate_scattering_lut_pass: CameraComputePass,
-    generate_sky_lut_pass: CameraComputePass,
+    generate_transmittance_lut_pass: CameraComputePass<()>,
+    generate_scattering_lut_pass: CameraComputePass<()>,
+    generate_sky_lut_pass: CameraComputePass<()>,
 
     is_initialized: Mutex<bool>,
     known_sun_altitude: Mutex<Option<f32>>,

@@ -91,7 +91,7 @@ fn setup(
                 color: Color::WHITE,
                 range: 35.0,
                 radius: 0.25,
-                intensity: 6000.0,
+                intensity: 4000.0,
                 shadows_enabled: true,
                 ..default()
             },
@@ -340,7 +340,7 @@ struct Sun {
 impl Default for Sun {
     fn default() -> Self {
         Self {
-            azimuth: PI,
+            azimuth: 3.0,
             altitude: StrolleSun::default().altitude,
         }
     }

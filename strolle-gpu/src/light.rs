@@ -1,14 +1,12 @@
-use core::f32::consts::PI;
-
 use bytemuck::{Pod, Zeroable};
-use glam::{vec2, vec4, Vec3, Vec4, Vec4Swizzles};
+use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 use spirv_std::Sampler;
 
 use crate::{
-    BlueNoise, BvhStack, BvhView, DiffuseBrdf, F32Ext, Hit, MaterialsView,
-    Normal, Ray, Tex, TrianglesView, WhiteNoise,
+    BvhStack, BvhView, DiffuseBrdf, F32Ext, Hit, MaterialsView, Normal, Ray,
+    Tex, TrianglesView, WhiteNoise,
 };
 
 #[repr(C)]
@@ -127,8 +125,6 @@ impl Light {
 
     /// Casts a shadow ray and returns 0.0 if this light is occluded or 1.0 if
     /// this light is visible from given hit point.
-    ///
-    /// See also: [`Self::visibility_bnoise()`].
     #[allow(clippy::too_many_arguments)]
     pub fn visibility(
         &self,
@@ -141,7 +137,7 @@ impl Light {
         atlas_sampler: &Sampler,
         wnoise: &mut WhiteNoise,
         hit_point: Vec3,
-    ) -> f32 {
+    ) -> (Vec3, f32) {
         let light_pos = self.center() + self.radius() * wnoise.sample_sphere();
         let light_to_hit = hit_point - light_pos;
         let ray = Ray::new(light_pos, light_to_hit.normalize());
@@ -159,63 +155,9 @@ impl Light {
         );
 
         if is_occluded {
-            0.0
+            (light_pos, 0.0)
         } else {
-            1.0
-        }
-    }
-
-    /// Like [`Self::visiblity()`] but using blue noise; we use this for direct
-    /// lightning because blue noise yields more useful samples.
-    #[allow(clippy::too_many_arguments)]
-    pub fn visibility_bnoise(
-        &self,
-        local_idx: u32,
-        stack: BvhStack,
-        triangles: TrianglesView,
-        bvh: BvhView,
-        materials: MaterialsView,
-        atlas_tex: Tex,
-        atlas_sampler: &Sampler,
-        bnoise: BlueNoise,
-        hit: Hit,
-    ) -> f32 {
-        let to_light = self.center() - hit.point;
-        let light_dir = to_light.normalize();
-        let light_distance = to_light.length();
-        let light_radius = self.radius() / light_distance;
-        let (light_tangent, light_bitangent) = light_dir.any_orthonormal_pair();
-
-        let disk_point = {
-            let sample = bnoise.first_sample();
-            let angle = 2.0 * PI * sample.x;
-            let radius = sample.y.sqrt();
-
-            vec2(angle.sin(), angle.cos()) * radius * light_radius
-        };
-
-        let ray_dir = light_dir
-            + disk_point.x * light_tangent
-            + disk_point.y * light_bitangent;
-
-        let ray_dir = ray_dir.normalize();
-        let ray = Ray::new(hit.point, ray_dir);
-
-        let is_occluded = ray.intersect(
-            local_idx,
-            stack,
-            triangles,
-            bvh,
-            materials,
-            atlas_tex,
-            atlas_sampler,
-            light_distance,
-        );
-
-        if is_occluded {
-            0.0
-        } else {
-            1.0
+            (light_pos, 1.0)
         }
     }
 }

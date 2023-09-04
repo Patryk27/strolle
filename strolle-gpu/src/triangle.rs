@@ -105,7 +105,7 @@ impl Triangle {
             normal.normalize() * det.signum()
         };
 
-        let point = ray.origin() + ray.direction() * distance;
+        let point = ray.at(distance);
 
         let uv = self.uv0()
             + (self.uv1() - self.uv0()) * u

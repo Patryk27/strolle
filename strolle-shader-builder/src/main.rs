@@ -13,6 +13,7 @@ const CRATES: &[&str] = &[
     "direct-shading",
     "direct-spatial-resampling",
     "direct-temporal-resampling",
+    "direct-validation",
     "frame-composition",
     "frame-reprojection",
     "indirect-diffuse-denoising",
