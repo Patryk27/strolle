@@ -20,8 +20,15 @@ where
     P: Params,
 {
     pub fn new(device: &wgpu::Device) -> Self {
+        let mut buffer = MappedStorageBuffer::<Vec<gpu::Light>>::new_default(
+            device,
+            "stolle_lights",
+        );
+
+        buffer.push(gpu::Light::sun(Default::default(), Default::default()));
+
         Self {
-            buffer: MappedStorageBuffer::new_default(device, "stolle_lights"),
+            buffer,
             index: Default::default(),
         }
     }
@@ -55,6 +62,18 @@ where
                 *light_id2 = gpu::LightId::new(light_id2.get() - 1);
             }
         }
+    }
+
+    pub fn update_sun(&mut self, world: gpu::World) {
+        let sun_color =
+            strolle_atmosphere_shader::generate_transmittance_lut::eval(
+                gpu::Atmosphere::VIEW_POS,
+                world.sun_direction(),
+            );
+
+        let sun_color = sun_color * gpu::Atmosphere::EXPOSURE;
+
+        self.buffer[0] = gpu::Light::sun(world.sun_position(), sun_color);
     }
 
     pub fn len(&self) -> u32 {

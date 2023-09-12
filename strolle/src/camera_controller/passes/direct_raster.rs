@@ -29,7 +29,7 @@ impl DirectRasterPass {
 
         let bg0 = BindGroup::builder("direct_raster_bg0")
             .add(&engine.materials.bind_readable())
-            .add(&engine.images.bind_atlas_sampled())
+            .add(&engine.images.bind_atlas())
             .build(device);
 
         let bg1 = BindGroup::builder("direct_raster_bg1")

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use glam::vec4;
 use log::info;
 use spirv_std::glam::{uvec2, Mat4, UVec2, Vec3};
@@ -13,25 +15,12 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub(crate) fn describe(&self) -> String {
-        format!(
-            "pos={}x{}, size={}x{}, format={:?}",
-            self.viewport.position.x,
-            self.viewport.position.y,
-            self.viewport.size.x,
-            self.viewport.size.y,
-            self.viewport.format,
-        )
-    }
-
     pub(crate) fn is_invalidated_by(&self, older: &Self) -> bool {
         if self.viewport.format != older.viewport.format {
             info!(
-                "Camera {} invalidated: viewport's texture format has been \
+                "Camera `{}` invalidated: viewport's texture format has been \
                  changed  ({:?} -> {:?})",
-                older.describe(),
-                older.viewport.format,
-                self.viewport.format,
+                older, older.viewport.format, self.viewport.format,
             );
 
             return true;
@@ -39,11 +28,9 @@ impl Camera {
 
         if self.viewport.size != older.viewport.size {
             info!(
-                "Camera {} invalidated: texture format has been changed \
+                "Camera `{}` invalidated: texture format has been changed \
                  ({} -> {})",
-                older.describe(),
-                older.viewport.size,
-                self.viewport.size,
+                older, older.viewport.size, self.viewport.size,
             );
 
             return true;
@@ -74,6 +61,20 @@ impl Camera {
                 Default::default(),
             ),
         }
+    }
+}
+
+impl fmt::Display for Camera {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "pos={}x{}, size={}x{}, format={:?}",
+            self.viewport.position.x,
+            self.viewport.position.y,
+            self.viewport.size.x,
+            self.viewport.size.y,
+            self.viewport.format,
+        )
     }
 }
 

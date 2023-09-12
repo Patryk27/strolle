@@ -23,7 +23,7 @@ impl BvhHeatmapPass {
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.materials.bind_readable(),
-                &engine.images.bind_atlas_sampled(),
+                &engine.images.bind_atlas(),
             ])
             .bind([
                 &buffers.camera.bind_readable(),

@@ -6,47 +6,59 @@ use strolle_gpu::prelude::*;
 #[allow(clippy::too_many_arguments)]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
-    #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    direct_initial_samples: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
+    lights: &[Light],
+    #[spirv(descriptor_set = 0, binding = 1, uniform)] world: &World,
+    #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 1, binding = 1)]
+    atmosphere_transmittance_lut_tex: Tex,
+    #[spirv(descriptor_set = 1, binding = 2)]
+    atmosphere_transmittance_lut_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 3)] atmosphere_sky_lut_tex: Tex,
+    #[spirv(descriptor_set = 1, binding = 4)]
+    atmosphere_sky_lut_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 5)] direct_gbuffer_d0: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
     direct_next_reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
     direct_prev_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 0, binding = 4)] direct_samples: TexRgba16f,
+    #[spirv(descriptor_set = 1, binding = 9)] direct_samples: TexRgba16f,
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
+    let lights = LightsView::new(lights);
+    let atmosphere = Atmosphere::new(
+        atmosphere_transmittance_lut_tex,
+        atmosphere_transmittance_lut_sampler,
+        atmosphere_sky_lut_tex,
+        atmosphere_sky_lut_sampler,
+    );
 
     // -------------------------------------------------------------------------
 
-    let initial_sample =
-        unsafe { *direct_initial_samples.get_unchecked(2 * screen_idx) };
+    let hit = Hit::new(
+        camera.ray(screen_pos),
+        GBufferEntry::unpack([
+            direct_gbuffer_d0.read(screen_pos),
+            direct_gbuffer_d1.read(screen_pos),
+        ]),
+    );
 
-    if initial_sample.w.to_bits() == 0 {
-        unsafe {
-            direct_samples.write(screen_pos, initial_sample);
-        }
+    let reservoir = DirectReservoir::read(
+        direct_next_reservoirs,
+        camera.screen_to_idx(screen_pos),
+    );
+
+    let out = if hit.is_some() {
+        lights.get(reservoir.sample.light_id).radiance(hit) * reservoir.w
     } else {
-        let reservoir = DirectReservoir::read(
-            direct_next_reservoirs,
-            camera.screen_to_idx(screen_pos),
-        );
+        atmosphere.sky(world.sun_direction(), hit.direction)
+    };
 
-        let out = reservoir.sample.light_radiance * reservoir.w;
+    reservoir.write(direct_prev_reservoirs, screen_idx);
 
-        unsafe {
-            direct_samples.write(screen_pos, out.extend(1.0));
-
-            // TODO swap buffers instead of copying them
-            *direct_prev_reservoirs.get_unchecked_mut(3 * screen_idx + 0) =
-                *direct_next_reservoirs.get_unchecked(3 * screen_idx + 0);
-
-            *direct_prev_reservoirs.get_unchecked_mut(3 * screen_idx + 1) =
-                *direct_next_reservoirs.get_unchecked(3 * screen_idx + 1);
-
-            *direct_prev_reservoirs.get_unchecked_mut(3 * screen_idx + 2) =
-                *direct_next_reservoirs.get_unchecked(3 * screen_idx + 2);
-        }
+    unsafe {
+        direct_samples.write(screen_pos, out.extend(0.0));
     }
 }

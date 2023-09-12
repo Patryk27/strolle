@@ -22,7 +22,7 @@ pub struct CameraBuffers {
 
     pub direct_samples: Texture,
     pub direct_colors: DoubleBuffered<Texture>,
-    pub direct_initial_samples: StorageBuffer,
+    pub direct_candidates: StorageBuffer,
     pub direct_prev_reservoirs: StorageBuffer,
     pub direct_curr_reservoirs: StorageBuffer,
     pub direct_next_reservoirs: StorageBuffer,
@@ -124,10 +124,10 @@ impl CameraBuffers {
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
 
-        let direct_initial_samples = StorageBuffer::new(
+        let direct_candidates = StorageBuffer::new(
             device,
-            "direct_initial_samples",
-            viewport_buffer_size(camera.viewport.size, 2 * 4 * 4),
+            "direct_candidates",
+            viewport_buffer_size(camera.viewport.size, 4 * 4),
         );
 
         let direct_prev_reservoirs = StorageBuffer::new(
@@ -291,7 +291,7 @@ impl CameraBuffers {
 
             direct_samples,
             direct_colors,
-            direct_initial_samples,
+            direct_candidates,
             direct_prev_reservoirs,
             direct_curr_reservoirs,
             direct_next_reservoirs,

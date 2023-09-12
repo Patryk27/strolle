@@ -39,8 +39,7 @@ pub fn main(
     );
 
     if hit.gbuffer.depth == 0.0 {
-        reservoir.normalize(0.0, 10.0);
-        reservoir.clamp(500.0);
+        reservoir.normalize(0.0);
         reservoir.write(indirect_diffuse_spatial_reservoirs, screen_idx);
         return;
     }
@@ -76,7 +75,7 @@ pub fn main(
     // As compared to the direct-spatial-resampling pass, in here we simply
     // gather a few random samples around our current pixel and call it a day.
 
-    let mut p_hat = reservoir
+    let mut reservoir_p_hat = reservoir
         .sample
         .spatial_p_hat(hit.point, hit.gbuffer.normal);
 
@@ -134,7 +133,7 @@ pub fn main(
             &rhs,
             rhs_p_hat * rhs_similarity * rhs_jacobian,
         ) {
-            p_hat = rhs_p_hat;
+            reservoir_p_hat = rhs_p_hat;
         }
 
         sample_idx += 1.0;
@@ -142,7 +141,8 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(p_hat, 10.0);
-    reservoir.clamp(500.0);
+    reservoir.normalize(reservoir_p_hat);
+    reservoir.clamp_m(500.0);
+    reservoir.clamp_w(10.0);
     reservoir.write(indirect_diffuse_spatial_reservoirs, screen_idx);
 }

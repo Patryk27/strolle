@@ -118,6 +118,7 @@ where
     sun: Sun,
     has_dirty_materials: bool,
     has_dirty_images: bool,
+    has_dirty_sun: bool,
 }
 
 impl<P> Engine<P>
@@ -146,6 +147,7 @@ where
             sun: Default::default(),
             has_dirty_materials: false,
             has_dirty_images: false,
+            has_dirty_sun: true,
         }
     }
 
@@ -263,9 +265,10 @@ where
         self.lights.remove(light_handle);
     }
 
-    /// Changes sun's parameters.
-    pub fn set_sun(&mut self, sun: Sun) {
+    /// Updates sun's parameters.
+    pub fn update_sun(&mut self, sun: Sun) {
         self.sun = sun;
+        self.has_dirty_sun = true;
     }
 
     /// Sends all changes to the GPU and prepares it for the upcoming frame.
@@ -305,12 +308,6 @@ where
 
         // ---
 
-        let any_buffer_reallocated = false
-            | self.bvh.flush(device, queue).reallocated
-            | self.triangles.flush(device, queue).reallocated
-            | self.lights.flush(device, queue).reallocated
-            | self.materials.flush(device, queue).reallocated;
-
         *self.world = gpu::World {
             light_count: self.lights.len(),
             sun_azimuth: self.sun.azimuth,
@@ -318,6 +315,16 @@ where
         };
 
         self.world.flush(queue);
+
+        if mem::take(&mut self.has_dirty_sun) {
+            self.lights.update_sun(*self.world);
+        }
+
+        let any_buffer_reallocated = false
+            | self.bvh.flush(device, queue).reallocated
+            | self.triangles.flush(device, queue).reallocated
+            | self.lights.flush(device, queue).reallocated
+            | self.materials.flush(device, queue).reallocated;
 
         // ---
 

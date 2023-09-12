@@ -29,7 +29,7 @@ impl CameraController {
     where
         P: Params,
     {
-        info!("Creating camera: {}", camera.describe());
+        info!("Creating camera `{}`", camera);
 
         let buffers = CameraBuffers::new(device, &camera);
         let passes = CameraPasses::new(engine, device, &camera, &buffers);
@@ -63,7 +63,7 @@ impl CameraController {
     }
 
     fn rebuild_buffers(&mut self, device: &wgpu::Device) {
-        debug!("Rebuilding buffers for camera: {}", self.camera.describe());
+        debug!("Rebuilding buffers for camera `{}`", self.camera);
 
         self.buffers = CameraBuffers::new(device, &self.camera);
     }
@@ -72,7 +72,7 @@ impl CameraController {
     where
         P: Params,
     {
-        debug!("Rebuilding passes for camera: {}", self.camera.describe());
+        debug!("Rebuilding passes for camera `{}`", self.camera);
 
         self.passes =
             CameraPasses::new(engine, device, &self.camera, &self.buffers);
@@ -120,15 +120,11 @@ impl CameraController {
                     self.passes.frame_reprojection.run(self, encoder);
 
                     if self.camera.mode.needs_direct_lightning() {
-                        if self.frame % 3 == 2 {
-                            self.passes.direct_validation.run(self, encoder);
-                        } else {
-                            self.passes.direct_shading.run(self, encoder);
+                        self.passes.direct_seeding.run(self, encoder);
 
-                            self.passes
-                                .direct_temporal_resampling
-                                .run(self, encoder);
-                        }
+                        self.passes
+                            .direct_temporal_resampling
+                            .run(self, encoder);
 
                         self.passes
                             .direct_spatial_resampling
@@ -140,7 +136,7 @@ impl CameraController {
 
                     if self.camera.mode.needs_indirect_lightning() {
                         self.passes.indirect_tracing.run(self, encoder);
-                        self.passes.indirect_shading.run(self, encoder);
+                        self.passes.indirect_seeding.run(self, encoder);
 
                         self.passes
                             .indirect_diffuse_temporal_resampling
@@ -200,6 +196,6 @@ impl CameraController {
 
 impl Drop for CameraController {
     fn drop(&mut self) {
-        info!("Deleting camera: {}", self.camera.describe());
+        info!("Deleting camera `{}`", self.camera);
     }
 }

@@ -230,6 +230,6 @@ pub(crate) fn sun(
     mut sun: ResMut<ExtractedSun>,
 ) {
     if let Some(sun) = sun.sun.take() {
-        engine.set_sun(sun);
+        engine.update_sun(sun);
     }
 }

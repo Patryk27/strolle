@@ -26,7 +26,7 @@ pub fn main(global_id: UVec3, out: TexRgba16f) {
     }
 }
 
-fn eval(pos: Vec3, sun_dir: Vec3) -> Vec3 {
+pub fn eval(pos: Vec3, sun_dir: Vec3) -> Vec3 {
     if Ray::new(pos, sun_dir).intersect_sphere(Atmosphere::GROUND_RADIUS_MM)
         > 0.0
     {

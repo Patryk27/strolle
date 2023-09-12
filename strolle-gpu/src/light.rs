@@ -36,10 +36,11 @@ impl Light {
     pub const TYPE_POINT: u32 = 0;
     pub const TYPE_SPOT: u32 = 1;
 
-    pub fn sky(pos: Vec3) -> Self {
+    pub fn sun(position: Vec3, color: Vec3) -> Self {
         Self {
-            d0: pos.extend(100.0),
-            d1: Default::default(),
+            // TODO incorrect
+            d0: position.extend(100.0),
+            d1: color.extend(f32::INFINITY),
             d2: vec4(
                 f32::from_bits(Self::TYPE_POINT),
                 Default::default(),
@@ -105,7 +106,14 @@ impl Light {
                 attenuation / distance_square.max(0.0001)
             }
 
-            distance_attenuation(l.length_squared(), 1.0 / self.range().sqr())
+            if self.range() == f32::INFINITY {
+                1.0
+            } else {
+                distance_attenuation(
+                    l.length_squared(),
+                    1.0 / self.range().sqr(),
+                )
+            }
         };
 
         let cosine_factor = hit.gbuffer.normal.dot(l.normalize()).saturate();
@@ -137,11 +145,8 @@ impl Light {
         atlas_sampler: &Sampler,
         wnoise: &mut WhiteNoise,
         hit_point: Vec3,
-    ) -> (Vec3, f32) {
-        let light_pos = self.center() + self.radius() * wnoise.sample_sphere();
-        let light_to_hit = hit_point - light_pos;
-        let ray = Ray::new(light_pos, light_to_hit.normalize());
-        let distance = light_to_hit.length();
+    ) -> f32 {
+        let (ray, distance) = self.ray(wnoise, hit_point);
 
         let is_occluded = ray.intersect(
             local_idx,
@@ -155,10 +160,19 @@ impl Light {
         );
 
         if is_occluded {
-            (light_pos, 0.0)
+            0.0
         } else {
-            (light_pos, 1.0)
+            1.0
         }
+    }
+
+    pub fn ray(&self, wnoise: &mut WhiteNoise, hit_point: Vec3) -> (Ray, f32) {
+        let light_pos = self.center() + self.radius() * wnoise.sample_sphere();
+        let light_to_hit = hit_point - light_pos;
+        let ray = Ray::new(light_pos, light_to_hit.normalize());
+        let distance = light_to_hit.length();
+
+        (ray, distance)
     }
 }
 
@@ -171,15 +185,11 @@ impl LightId {
         Self(id)
     }
 
-    pub fn sun() -> Self {
+    pub fn sky() -> Self {
         Self::new(u32::MAX)
     }
 
     pub fn get(self) -> u32 {
         self.0
-    }
-
-    pub fn is_sun(self) -> bool {
-        self == Self::sun()
     }
 }

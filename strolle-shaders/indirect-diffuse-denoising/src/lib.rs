@@ -79,25 +79,34 @@ pub fn main(
         let sample_pos = camera.contain(sample_pos);
         let sample_surface = prev_surface_map.get(sample_pos);
         let sample_color = prev_indirect_diffuse_colors.read(sample_pos);
-
         let sample_weight = sample_surface.evaluate_similarity_to(&surface);
 
-        previous += (sample_color.xyz() * sample_weight).extend(sample_weight);
+        if sample_weight > 0.0 {
+            previous +=
+                (sample_color.xyz() * sample_weight).extend(sample_weight);
+        }
     }
 
     // -------------------------------------------------------------------------
 
-    let currrent = indirect_diffuse_samples.read(screen_pos).xyz();
+    let current = indirect_diffuse_samples.read(screen_pos).xyz();
 
-    let out = if previous.w == 0.0 {
-        currrent.extend(1.0)
+    let out = if history == 0.0 {
+        if previous.w == 0.0 {
+            current.extend(1.0)
+        } else {
+            let previous = previous.xyz() / previous.w;
+
+            (0.5 * current + 0.5 * previous).extend(2.0)
+        }
     } else {
+        let history = history + 1.0;
         let previous = previous.xyz() / previous.w;
-        let speed = 1.0 / (1.0 + history);
+        let speed = 1.0 / history;
 
         previous
-            .lerp(currrent, speed)
-            .extend((history + 1.0).min(MAX_HISTORY))
+            .lerp(current, speed)
+            .extend(history.min(MAX_HISTORY))
     };
 
     unsafe {

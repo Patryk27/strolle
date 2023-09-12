@@ -20,9 +20,18 @@ impl DirectTemporalResamplingPass {
     {
         let pass = CameraComputePass::builder("direct_temporal_resampling")
             .bind([
+                &engine.triangles.bind_readable(),
+                &engine.bvh.bind_readable(),
+                &engine.materials.bind_readable(),
+                &engine.lights.bind_readable(),
+                &engine.images.bind_atlas(),
+            ])
+            .bind([
                 &buffers.camera.bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
-                &buffers.direct_initial_samples.bind_readable(),
+                &buffers.direct_gbuffer_d0.bind_readable(),
+                &buffers.direct_gbuffer_d1.bind_readable(),
+                &buffers.direct_candidates.bind_readable(),
                 &buffers.direct_prev_reservoirs.bind_readable(),
                 &buffers.direct_curr_reservoirs.bind_writable(),
             ])

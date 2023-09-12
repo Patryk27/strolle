@@ -45,7 +45,7 @@ impl Reprojection {
         self.prev_pos().round().as_uvec2()
     }
 
-    pub fn prev_fract(&self) -> Vec2 {
+    pub fn prev_pos_fract(&self) -> Vec2 {
         self.prev_pos().fract()
     }
 }

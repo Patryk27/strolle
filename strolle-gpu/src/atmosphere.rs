@@ -7,6 +7,7 @@ use spirv_std::Sampler;
 
 use crate::{F32Ext, Ray, Tex};
 
+#[derive(Clone, Copy)]
 pub struct Atmosphere<'a> {
     transmittance_lut_tex: Tex<'a>,
     transmittance_lut_sampler: &'a Sampler,

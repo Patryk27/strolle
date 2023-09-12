@@ -12,7 +12,7 @@ use crate::{BrdfValue, F32Ext, Hit, Reservoir, SpecularBrdf, Vec3Ext};
 /// See: [`Reservoir`].
 #[derive(Clone, Copy, Default)]
 pub struct IndirectReservoir {
-    reservoir: Reservoir<IndirectReservoirSample>,
+    pub reservoir: Reservoir<IndirectReservoirSample>,
 }
 
 impl IndirectReservoir {

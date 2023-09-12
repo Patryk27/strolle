@@ -41,7 +41,7 @@ pub fn main(
     }
 }
 
-fn eval(
+pub fn eval(
     transmittance_lut_tex: Tex,
     transmittance_lut_sampler: &Sampler,
     pos: Vec3,

@@ -2,7 +2,7 @@ use glam::{UVec2, Vec3, Vec3Swizzles, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{F32Ext, Normal, TexRgba32f};
+use crate::{Normal, TexRgba32f};
 
 #[derive(Clone, Copy)]
 pub struct Surface {
@@ -12,25 +12,38 @@ pub struct Surface {
 }
 
 impl Surface {
+    pub fn is_sky(&self) -> bool {
+        self.depth == 0.0
+    }
+
     /// Returns a score `<0.0, 1.0>` that determines the similarity of two given
     /// surfaces.
     ///
     /// See also: [`SurfaceMap::evaulate_similarity_between()`].
     pub fn evaluate_similarity_to(&self, other: &Self) -> f32 {
-        // Zero-depth means we've hit the sky - it's not a surface per se, so
-        // its similarity score is always zero
-        if self.depth == 0.0 || other.depth == 0.0 {
+        if self.is_sky() || other.is_sky() {
             return 0.0;
         }
 
-        let normal_score = self.normal.dot(other.normal).sqr().sqr().max(0.0);
+        let normal_score = {
+            let dot = self.normal.dot(other.normal).max(0.0);
 
-        let depth_score =
-            if (self.depth - other.depth).abs() <= 0.1 * other.depth {
-                1.0
-            } else {
+            if dot <= 0.5 {
                 0.0
-            };
+            } else {
+                2.0 * dot
+            }
+        };
+
+        let depth_score = {
+            let t = (self.depth - other.depth).abs();
+
+            if t >= 0.1 * other.depth {
+                0.0
+            } else {
+                1.0 - t / (0.1 * other.depth)
+            }
+        };
 
         normal_score * depth_score
     }

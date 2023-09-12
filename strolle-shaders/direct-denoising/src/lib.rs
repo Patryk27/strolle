@@ -45,7 +45,7 @@ pub fn main(
             (prev_direct_colors.read(pos), 1.0)
         });
 
-        previous = sample.xyz().extend(1.0);
+        previous = (2.0 * sample.xyz()).extend(2.0);
         history = sample.w;
     } else {
         previous = Vec4::ZERO;
@@ -60,88 +60,58 @@ pub fn main(
 
     while sample_idx < 5 {
         sample_idx += 1;
-        sample_radius += 1.0;
+        sample_radius += 0.5;
         sample_angle += GOLDEN_ANGLE;
 
         let sample_offset =
             vec2(sample_angle.sin(), sample_angle.cos()) * sample_radius;
 
-        let sample_pos_flt = if reprojection.is_some() {
+        let sample_pos = if reprojection.is_some() {
             reprojection.prev_pos() + sample_offset
         } else {
             screen_pos.as_vec2() + sample_offset
         };
 
-        let sample_pos = sample_pos_flt.as_ivec2();
-        let sample_pos = camera.contain(sample_pos);
-        let sample_surface = prev_surface_map.get(sample_pos);
-
-        let sample_reprojection = {
-            let check_validity = move |sample_pos| {
-                if !camera.contains(sample_pos) {
-                    return false;
-                }
-
-                prev_surface_map
-                    .get(sample_pos.as_uvec2())
-                    .evaluate_similarity_to(&surface)
-                    >= 0.9
-            };
-
-            let mut validity = 0;
-
-            let [p00, p10, p01, p11] = BilinearFilter::reprojection_coords(
-                sample_pos_flt.x,
-                sample_pos_flt.y,
-            );
-
-            if check_validity(p00) {
-                validity |= 0b0001;
-            }
-
-            if check_validity(p10) {
-                validity |= 0b0010;
-            }
-
-            if check_validity(p01) {
-                validity |= 0b0100;
-            }
-
-            if check_validity(p11) {
-                validity |= 0b1000;
-            }
-
-            Reprojection {
-                prev_x: sample_pos_flt.x,
-                prev_y: sample_pos_flt.y,
-                confidence: 1.0,
-                validity,
-            }
+        let sample_reprojection = Reprojection {
+            prev_x: sample_pos.x,
+            prev_y: sample_pos.y,
+            confidence: 1.0,
+            validity: u32::MAX,
         };
 
-        let sample_color =
+        let sample =
             BilinearFilter::reproject(sample_reprojection, move |pos| {
-                (prev_direct_colors.read(pos), 1.0)
+                let weight =
+                    prev_surface_map.get(pos).evaluate_similarity_to(&surface);
+
+                (prev_direct_colors.read(pos), weight)
             });
 
-        let sample_weight = sample_surface.evaluate_similarity_to(&surface);
-
-        previous += (sample_color.xyz() * sample_weight).extend(sample_weight);
+        if sample.w > 0.0 {
+            previous += (sample.xyz() * sample.w).extend(sample.w);
+        }
     }
 
     // -------------------------------------------------------------------------
 
-    let currrent = direct_samples.read(screen_pos).xyz();
+    let current = direct_samples.read(screen_pos).xyz();
 
-    let out = if previous.w == 0.0 {
-        currrent.extend(1.0)
+    let out = if history == 0.0 {
+        if previous.w == 0.0 {
+            current.extend(1.0)
+        } else {
+            let previous = previous.xyz() / previous.w;
+
+            (0.5 * current + 0.5 * previous).extend(2.0)
+        }
     } else {
+        let history = history + 1.0;
         let previous = previous.xyz() / previous.w;
-        let speed = 1.0 / (1.0 + history);
+        let speed = 1.0 / history;
 
         previous
-            .lerp(currrent, speed)
-            .extend((history + 1.0).min(MAX_HISTORY))
+            .lerp(current, speed)
+            .extend(history.min(MAX_HISTORY))
     };
 
     unsafe {

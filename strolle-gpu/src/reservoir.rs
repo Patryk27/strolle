@@ -8,7 +8,8 @@ pub use self::indirect::*;
 use crate::WhiteNoise;
 
 /// Reservoir for sampling using ReSTIR
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Reservoir<T> {
     /// Selected sample; might contain light id, its radiance etc.
     pub sample: T,
@@ -48,18 +49,24 @@ where
     pub fn add(
         &mut self,
         wnoise: &mut WhiteNoise,
-        s_new: T,
-        w_new: f32,
+        sample: T,
+        weight: f32,
     ) -> bool {
-        self.w_sum += w_new;
+        self.w_sum += weight;
         self.m_sum += 1.0;
 
-        if wnoise.sample() <= w_new / self.w_sum {
-            self.sample = s_new;
+        if wnoise.sample() <= weight / self.w_sum {
+            self.sample = sample;
             true
         } else {
             false
         }
+    }
+
+    pub fn set(&mut self, sample: T, weight: f32) {
+        self.w_sum += weight;
+        self.m_sum += 1.0;
+        self.sample = sample;
     }
 
     pub fn merge(
@@ -90,12 +97,17 @@ where
         self.add(wnoise, rhs.sample, rhs.w * rhs.m_sum * p_hat)
     }
 
-    pub fn normalize(&mut self, p_hat: f32, max_w: f32) {
-        self.w = self.w_sum / (self.m_sum * p_hat).max(0.001);
-        self.w = self.w.min(max_w);
+    pub fn normalize(&mut self, p_hat: f32) {
+        let t = self.m_sum * p_hat;
+
+        self.w = if t == 0.0 { 0.0 } else { self.w_sum / t };
     }
 
-    pub fn clamp(&mut self, max_m_sum: f32) {
-        self.m_sum = self.m_sum.min(max_m_sum);
+    pub fn clamp_m(&mut self, max: f32) {
+        self.m_sum = self.m_sum.min(max);
+    }
+
+    pub fn clamp_w(&mut self, max: f32) {
+        self.w = self.w.min(max);
     }
 }

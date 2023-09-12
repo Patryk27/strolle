@@ -78,39 +78,64 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let (light_id, light_pdf, light_radiance) =
-        EphemeralReservoir::sample::<true>(
-            &mut wnoise,
-            &atmosphere,
-            world,
-            &lights,
-            indirect_hit,
-        );
+    let light_id;
+    let light_pdf;
+    let light_radiance;
+
+    if indirect_hit.is_none() {
+        light_id = LightId::sky();
+        light_pdf = 1.0;
+
+        light_radiance =
+            atmosphere.sky(world.sun_direction(), indirect_hit.direction);
+    } else {
+        let mut reservoir = EphemeralReservoir::default();
+        let mut light_idx = 0;
+
+        while light_idx < world.light_count {
+            let light_id = LightId::new(light_idx);
+
+            let light_radiance =
+                lights.get(light_id).contribution(indirect_hit);
+
+            let sample = EphemeralReservoirSample {
+                light_id,
+                light_radiance,
+            };
+
+            reservoir.add(&mut wnoise, sample, sample.p_hat());
+            light_idx += 1;
+        }
+
+        if reservoir.w_sum > 0.0 {
+            light_id = reservoir.sample.light_id;
+            light_pdf = reservoir.sample.p_hat() / reservoir.w_sum;
+            light_radiance = reservoir.sample.light_radiance;
+        } else {
+            light_id = LightId::new(0);
+            light_pdf = 0.0;
+            light_radiance = Vec3::ZERO;
+        }
+    }
+
+    // ---
 
     let mut radiance = if light_pdf > 0.0 {
         let light_visibility = if indirect_hit.is_some() {
-            let light = if light_id.is_sun() {
-                Light::sky(world.sun_position())
-            } else {
-                lights.get(light_id)
-            };
-
-            light
-                .visibility(
-                    local_idx,
-                    stack,
-                    triangles,
-                    bvh,
-                    materials,
-                    atlas_tex,
-                    atlas_sampler,
-                    &mut wnoise,
-                    indirect_hit.point,
-                )
-                .1
+            lights.get(light_id).visibility(
+                local_idx,
+                stack,
+                triangles,
+                bvh,
+                materials,
+                atlas_tex,
+                atlas_sampler,
+                &mut wnoise,
+                indirect_hit.point,
+            )
         } else {
             // If we hit nothing, our indirect-ray must be pointing towards
-            // the sky - no point re-tracing it, then
+            // the sky - no point retracing it, then
             1.0
         };
 

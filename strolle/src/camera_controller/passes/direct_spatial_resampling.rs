@@ -19,10 +19,15 @@ impl DirectSpatialResamplingPass {
         P: Params,
     {
         let pass = CameraComputePass::builder("direct_spatial_resampling")
-            .bind([&engine.noise.bind_blue_noise_texture()])
+            .bind([
+                &engine.noise.bind_blue_noise_texture(),
+                &engine.lights.bind_readable(),
+            ])
             .bind([
                 &buffers.camera.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
+                &buffers.direct_gbuffer_d0.bind_readable(),
+                &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.direct_curr_reservoirs.bind_readable(),
                 &buffers.direct_next_reservoirs.bind_writable(),
             ])

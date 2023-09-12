@@ -19,8 +19,15 @@ impl DirectResolvingPass {
     {
         let pass = CameraComputePass::builder("direct_resolving")
             .bind([
+                &engine.lights.bind_readable(),
+                &engine.world.bind_readable(),
+            ])
+            .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.direct_initial_samples.bind_readable(),
+                &buffers.atmosphere_transmittance_lut.bind_sampled(),
+                &buffers.atmosphere_sky_lut.bind_sampled(),
+                &buffers.direct_gbuffer_d0.bind_readable(),
+                &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.direct_next_reservoirs.bind_readable(),
                 &buffers.direct_prev_reservoirs.bind_writable(),
                 &buffers.direct_samples.bind_writable(),

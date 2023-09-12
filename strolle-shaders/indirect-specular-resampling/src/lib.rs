@@ -36,7 +36,7 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let mut p_hat = Default::default();
+    let mut reservoir_p_hat = Default::default();
     let mut reservoir = IndirectReservoir::default();
 
     if IndirectReservoir::expects_specular_sample(screen_pos, params.frame) {
@@ -53,9 +53,9 @@ pub fn main(
                 frame: params.frame,
             };
 
-            p_hat = sample.temporal_p_hat();
+            reservoir_p_hat = sample.temporal_p_hat();
 
-            reservoir.add(&mut wnoise, sample, p_hat);
+            reservoir.add(&mut wnoise, sample, reservoir_p_hat);
         }
     }
 
@@ -113,14 +113,14 @@ pub fn main(
             let rhs_p_hat = rhs.sample.temporal_p_hat();
 
             if reservoir.merge(&mut wnoise, &rhs, rhs_p_hat) {
-                p_hat = rhs_p_hat;
+                reservoir_p_hat = rhs_p_hat;
             }
         }
     }
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(p_hat, 10.0);
-    reservoir.clamp(8.0);
+    reservoir.normalize(reservoir_p_hat);
+    reservoir.clamp_m(8.0);
     reservoir.write(indirect_specular_reservoirs, screen_idx);
 }

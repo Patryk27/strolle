@@ -3118,6 +3118,7 @@ dependencies = [
  "log",
  "rand",
  "spirv-std",
+ "strolle-atmosphere-shader",
  "strolle-gpu",
  "wgpu",
 ]
@@ -3163,7 +3164,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-direct-shading-shader"
+name = "strolle-direct-seeding-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -3180,14 +3181,6 @@ dependencies = [
 
 [[package]]
 name = "strolle-direct-temporal-resampling-shader"
-version = "0.1.0"
-dependencies = [
- "spirv-std",
- "strolle-gpu",
-]
-
-[[package]]
-name = "strolle-direct-validation-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",
@@ -3253,7 +3246,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "strolle-indirect-shading-shader"
+name = "strolle-indirect-seeding-shader"
 version = "0.1.0"
 dependencies = [
  "spirv-std",

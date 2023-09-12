@@ -27,7 +27,7 @@ impl ReferenceShadingPass {
                 &engine.bvh.bind_readable(),
                 &engine.lights.bind_readable(),
                 &engine.materials.bind_readable(),
-                &engine.images.bind_atlas_sampled(),
+                &engine.images.bind_atlas(),
                 &engine.world.bind_readable(),
             ])
             .bind([

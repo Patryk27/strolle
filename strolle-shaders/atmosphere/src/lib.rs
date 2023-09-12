@@ -35,9 +35,9 @@
 
 #![no_std]
 
-mod generate_scattering_lut;
-mod generate_sky_lut;
-mod generate_transmittance_lut;
+pub mod generate_scattering_lut;
+pub mod generate_sky_lut;
+pub mod generate_transmittance_lut;
 mod utils;
 
 use strolle_gpu::prelude::*;

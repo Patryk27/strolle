@@ -21,6 +21,7 @@ use wgpu::{
 };
 
 const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
+const WINDOW_SCALE: f32 = 1.5;
 
 fn main() {
     common::unzip_assets();
@@ -29,8 +30,8 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: WindowResolution::new(
-                    1.5 * VIEWPORT_SIZE.x as f32,
-                    1.5 * VIEWPORT_SIZE.y as f32,
+                    WINDOW_SCALE * VIEWPORT_SIZE.x as f32,
+                    WINDOW_SCALE * VIEWPORT_SIZE.y as f32,
                 ),
                 ..default()
             }),

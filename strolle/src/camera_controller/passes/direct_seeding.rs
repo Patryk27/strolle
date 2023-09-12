@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DirectValidationPass {
+pub struct DirectSeedingPass {
     pass: CameraComputePass,
 }
 
-impl DirectValidationPass {
+impl DirectSeedingPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -18,22 +18,18 @@ impl DirectValidationPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("direct_validation")
+        let pass = CameraComputePass::builder("direct_seeding")
             .bind([
-                &engine.triangles.bind_readable(),
-                &engine.bvh.bind_readable(),
-                &engine.materials.bind_readable(),
-                &engine.images.bind_atlas_sampled(),
+                &engine.lights.bind_readable(),
+                &engine.world.bind_readable(),
             ])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.reprojection_map.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
-                &buffers.direct_prev_reservoirs.bind_readable(),
-                &buffers.direct_curr_reservoirs.bind_writable(),
+                &buffers.direct_candidates.bind_writable(),
             ])
-            .build(device, &engine.shaders.direct_validation);
+            .build(device, &engine.shaders.direct_seeding);
 
         Self { pass }
     }

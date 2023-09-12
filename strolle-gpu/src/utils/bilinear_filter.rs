@@ -27,7 +27,7 @@ impl BilinearFilter {
         reprojection: Reprojection,
         sample: impl Fn(UVec2) -> (Vec4, f32),
     ) -> Vec4 {
-        if reprojection.prev_fract().length_squared() == 0.0 {
+        if reprojection.prev_pos_fract().length_squared() == 0.0 {
             sample(reprojection.prev_pos_round()).0
         } else {
             Self::from_reprojection(reprojection, sample).eval(vec2(
@@ -51,19 +51,27 @@ impl BilinearFilter {
             Self::reprojection_coords(reprojection.prev_x, reprojection.prev_y);
 
         if reprojection.validity & 0b0001 > 0 {
-            (s00, weights.x) = sample(p00.as_uvec2());
+            if p00.x > 0 && p00.y > 0 {
+                (s00, weights.x) = sample(p00.as_uvec2());
+            }
         }
 
         if reprojection.validity & 0b0010 > 0 {
-            (s10, weights.y) = sample(p10.as_uvec2());
+            if p10.x > 0 && p10.y > 0 {
+                (s10, weights.y) = sample(p10.as_uvec2());
+            }
         }
 
         if reprojection.validity & 0b0100 > 0 {
-            (s01, weights.z) = sample(p01.as_uvec2());
+            if p01.x > 0 && p01.y > 0 {
+                (s01, weights.z) = sample(p01.as_uvec2());
+            }
         }
 
         if reprojection.validity & 0b1000 > 0 {
-            (s11, weights.w) = sample(p11.as_uvec2());
+            if p11.x > 0 && p11.y > 0 {
+                (s11, weights.w) = sample(p11.as_uvec2());
+            }
         }
 
         Self {

@@ -10,7 +10,7 @@ use crate::{
     TriangleHit, TriangleId, TrianglesView, BVH_STACK_SIZE,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Ray {
     origin: Vec3,
     direction: Vec3,
@@ -258,48 +258,27 @@ impl Ray {
     /// https://tavianator.com/2022/ray_box_boundary.html
     pub fn intersect_box(self, aabb_min: Vec3, aabb_max: Vec3) -> f32 {
         fn min(x: f32, y: f32) -> f32 {
-            if x < y {
-                x
-            } else {
-                y
-            }
+            x.min(y)
         }
 
         fn max(x: f32, y: f32) -> f32 {
-            if x > y {
-                x
-            } else {
-                y
-            }
+            x.max(y)
         }
 
-        let mut t1;
-        let mut t2;
         let mut tmin = 0.0;
-        let mut tmax = f32::MAX;
+        let mut tmax = f32::INFINITY;
 
-        // ---
+        let t1 = (aabb_min - self.origin) * self.inv_direction;
+        let t2 = (aabb_max - self.origin) * self.inv_direction;
 
-        t1 = (aabb_min.x - self.origin.x) * self.inv_direction.x;
-        t2 = (aabb_max.x - self.origin.x) * self.inv_direction.x;
-        tmin = min(max(t1, tmin), max(t2, tmin));
-        tmax = max(min(t1, tmax), min(t2, tmax));
+        tmin = max(tmin, min(t1.x, t2.x));
+        tmax = min(tmax, max(t1.x, t2.x));
 
-        // ---
+        tmin = max(tmin, min(t1.y, t2.y));
+        tmax = min(tmax, max(t1.y, t2.y));
 
-        t1 = (aabb_min.y - self.origin.y) * self.inv_direction.y;
-        t2 = (aabb_max.y - self.origin.y) * self.inv_direction.y;
-        tmin = min(max(t1, tmin), max(t2, tmin));
-        tmax = max(min(t1, tmax), min(t2, tmax));
-
-        // ---
-
-        t1 = (aabb_min.z - self.origin.z) * self.inv_direction.z;
-        t2 = (aabb_max.z - self.origin.z) * self.inv_direction.z;
-        tmin = min(max(t1, tmin), max(t2, tmin));
-        tmax = max(min(t1, tmax), min(t2, tmax));
-
-        // ---
+        tmin = max(tmin, min(t1.z, t2.z));
+        tmax = min(tmax, max(t1.z, t2.z));
 
         if tmin <= tmax {
             tmin

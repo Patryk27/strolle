@@ -51,7 +51,7 @@ fn main_inner(
 
     // -------------------------------------------------------------------------
 
-    let mut p_hat = Default::default();
+    let mut reservoir_p_hat = Default::default();
     let mut reservoir = IndirectReservoir::default();
 
     if IndirectReservoir::expects_diffuse_sample(screen_pos, params.frame) {
@@ -68,9 +68,9 @@ fn main_inner(
                 frame: params.frame,
             };
 
-            p_hat = sample.temporal_p_hat();
+            reservoir_p_hat = sample.temporal_p_hat();
 
-            reservoir.add(&mut wnoise, sample, p_hat);
+            reservoir.add(&mut wnoise, sample, reservoir_p_hat);
         }
     }
 
@@ -134,7 +134,7 @@ fn main_inner(
         let rhs_p_hat = rhs.sample.temporal_p_hat();
 
         if reservoir.merge(&mut wnoise, &rhs, rhs_p_hat) {
-            p_hat = rhs_p_hat;
+            reservoir_p_hat = rhs_p_hat;
         }
 
         if sample_idx == 1 {
@@ -144,7 +144,7 @@ fn main_inner(
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(p_hat, 10.0);
+    reservoir.normalize(reservoir_p_hat);
     reservoir.m_sum = (m_sum + 0.5).min(20.0);
     reservoir.write(indirect_diffuse_temporal_reservoirs, screen_idx);
 }

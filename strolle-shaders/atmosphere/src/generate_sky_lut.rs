@@ -92,7 +92,7 @@ pub fn main(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn eval(
+pub fn eval(
     transmittance_lut_tex: Tex,
     transmittance_lut_sampler: &Sampler,
     scattering_lut_tex: Tex,

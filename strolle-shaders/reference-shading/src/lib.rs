@@ -134,43 +134,29 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    // We treat sun as an extra light source, separate to all user's light
-    // sources, hence this `+ 1` here
-    let light_id = wnoise.sample_int() % (world.light_count + 1);
-    let light_pdf = 1.0 / (world.light_count as f32 + 1.0);
-
-    let light;
-    let light_radiance;
-
-    if light_id == world.light_count {
-        light = Light::sky(world.sun_position());
-
-        let albedo =
-            hit.gbuffer.base_color.xyz() * (1.0 - hit.gbuffer.metallic);
-
-        let cosine = hit.gbuffer.normal.dot(world.sun_direction()).max(0.0);
-
-        light_radiance =
-            atmosphere.sun(world.sun_direction()) * albedo * cosine;
-    } else {
-        light = lights.get(LightId::new(light_id));
-        light_radiance = light.contribution(hit);
-    };
-
-    let (_, light_visibility) = light.visibility(
-        local_idx,
-        stack,
-        triangles,
-        bvh,
-        materials,
-        atlas_tex,
-        atlas_sampler,
-        &mut wnoise,
-        hit.point,
-    );
-
-    color += throughput * light_visibility * light_radiance / light_pdf;
     color += throughput * hit.gbuffer.emissive;
+
+    if world.light_count > 0 {
+        let light_id = wnoise.sample_int() % world.light_count;
+        let light_pdf = 1.0 / (world.light_count as f32);
+
+        let light = lights.get(LightId::new(light_id));
+        let light_radiance = light.contribution(hit);
+
+        let light_visibility = light.visibility(
+            local_idx,
+            stack,
+            triangles,
+            bvh,
+            materials,
+            atlas_tex,
+            atlas_sampler,
+            &mut wnoise,
+            hit.point,
+        );
+
+        color += throughput * light_visibility * light_radiance / light_pdf;
+    }
 
     // -------------------------------------------------------------------------
 

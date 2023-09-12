@@ -99,6 +99,7 @@ pub fn main(
         history = 0.0;
     };
 
+    // TODO invalid (should be in view-space or screen-space, probably)
     let (kernel_t, kernel_b) =
         hit.specular_kernel_basis(2.0 * hit.gbuffer.roughness.sqrt());
 
@@ -161,11 +162,18 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let out = if previous.w == 0.0 {
-        current.extend(1.0)
+    let out = if history == 0.0 {
+        if previous.w == 0.0 {
+            current.extend(1.0)
+        } else {
+            let previous = previous.xyz() / previous.w;
+
+            (0.5 * current + 0.5 * previous).extend(2.0)
+        }
     } else {
+        let history = history + 1.0;
         let previous = previous.xyz() / previous.w;
-        let speed = 1.0 / (1.0 + history);
+        let speed = 1.0 / history;
 
         // If our pixel has accumulated some history, we can utilize its
         // neighbourhood to perform a basic firefly rejection
@@ -182,7 +190,7 @@ pub fn main(
 
         previous
             .lerp(current, speed)
-            .extend((history + 1.0).min(max_history))
+            .extend(history.min(max_history))
     };
 
     unsafe {

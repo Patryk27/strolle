@@ -3,17 +3,16 @@ mod bvh_heatmap;
 mod direct_denoising;
 mod direct_raster;
 mod direct_resolving;
-mod direct_shading;
+mod direct_seeding;
 mod direct_spatial_resampling;
 mod direct_temporal_resampling;
-mod direct_validation;
 mod frame_composition;
 mod frame_reprojection;
 mod indirect_diffuse_denoising;
 mod indirect_diffuse_resolving;
 mod indirect_diffuse_spatial_resampling;
 mod indirect_diffuse_temporal_resampling;
-mod indirect_shading;
+mod indirect_seeding;
 mod indirect_specular_denoising;
 mod indirect_specular_resampling;
 mod indirect_specular_resolving;
@@ -60,17 +59,16 @@ passes!([
     direct_denoising => DirectDenoisingPass,
     direct_raster => DirectRasterPass,
     direct_resolving => DirectResolvingPass,
-    direct_shading => DirectShadingPass,
+    direct_seeding => DirectSeedingPass,
     direct_spatial_resampling => DirectSpatialResamplingPass,
     direct_temporal_resampling => DirectTemporalResamplingPass,
-    direct_validation => DirectValidationPass,
     frame_composition => FrameCompositionPass,
     frame_reprojection => FrameReprojectionPass,
     indirect_diffuse_denoising => IndirectDiffuseDenoisingPass,
     indirect_diffuse_resolving => IndirectDiffuseResolvingPass,
     indirect_diffuse_spatial_resampling => IndirectDiffuseSpatialResamplingPass,
     indirect_diffuse_temporal_resampling => IndirectDiffuseTemporalResamplingPass,
-    indirect_shading => IndirectShadingPass,
+    indirect_seeding => IndirectSeedingPass,
     indirect_specular_denoising => IndirectSpecularDenoisingPass,
     indirect_specular_resampling => IndirectSpecularResamplingPass,
     indirect_specular_resolving => IndirectSpecularResolvingPass,

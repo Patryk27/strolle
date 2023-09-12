@@ -35,8 +35,7 @@ pub fn main(
 
     let surface = surface_map.get(screen_pos);
 
-    // We don't need reprojection for the sky
-    if surface.depth == 0.0 {
+    if surface.is_sky() {
         reprojection_map.set(screen_pos, &reprojection);
         return;
     }
