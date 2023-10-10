@@ -243,10 +243,7 @@ pub(crate) fn instances<Material>(
 
     // ---
 
-    let mut removed: Vec<_> = removed
-        .iter()
-        .map(|removed| removed.clone().into())
-        .collect();
+    let mut removed: Vec<_> = removed.iter().collect();
 
     let changed = changed
         .iter()
@@ -288,6 +285,7 @@ pub(crate) fn instances<Material>(
     commands.insert_resource(ExtractedInstances { changed, removed });
 }
 
+#[allow(clippy::type_complexity)]
 pub(crate) fn lights(
     mut commands: Commands,
     changed_point_lights: Extract<
@@ -308,7 +306,6 @@ pub(crate) fn lights(
     let mut removed: Vec<_> = removed_point_lights
         .iter()
         .chain(removed_spot_lights.iter())
-        .map(|removed| removed.clone().into())
         .collect();
 
     let changed_point_lights: Vec<_> = changed_point_lights
@@ -402,7 +399,5 @@ pub(crate) fn cameras(
 }
 
 pub(crate) fn sun(mut commands: Commands, sun: Extract<Res<StrolleSun>>) {
-    commands.insert_resource(ExtractedSun {
-        sun: Some((***sun).clone()),
-    });
+    commands.insert_resource(ExtractedSun { sun: Some(***sun) });
 }

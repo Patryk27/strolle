@@ -44,6 +44,7 @@
 //! point-lightning, a cone-lightning etc.
 
 #![feature(hash_raw_entry)]
+#![feature(lint_reasons)]
 
 mod buffers;
 mod bvh;
@@ -75,29 +76,29 @@ use std::time::Instant;
 
 pub use glam;
 use log::info;
-pub(self) use strolle_gpu as gpu;
+use strolle_gpu as gpu;
 
-pub(self) use self::buffers::*;
-pub(self) use self::bvh::*;
+use self::buffers::*;
+use self::bvh::*;
 pub use self::camera::*;
-pub(self) use self::camera_controller::*;
-pub(self) use self::camera_controllers::*;
+use self::camera_controller::*;
+use self::camera_controllers::*;
 pub use self::image::*;
-pub(self) use self::images::*;
+use self::images::*;
 pub use self::instance::*;
-pub(self) use self::instances::*;
+use self::instances::*;
 pub use self::light::*;
-pub(self) use self::lights::*;
+use self::lights::*;
 pub use self::material::*;
-pub(self) use self::materials::*;
+use self::materials::*;
 pub use self::mesh::*;
-pub(self) use self::meshes::*;
-pub(self) use self::noise::*;
-pub(self) use self::shaders::*;
+use self::meshes::*;
+use self::noise::*;
+use self::shaders::*;
 pub use self::sun::*;
 pub use self::triangle::*;
-pub(self) use self::triangles::*;
-pub(self) use self::utils::*;
+use self::triangles::*;
+use self::utils::*;
 
 #[derive(Debug)]
 pub struct Engine<P>

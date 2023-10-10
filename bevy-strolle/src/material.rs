@@ -1,6 +1,6 @@
 use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
-use bevy::reflect::TypeUuid;
+use bevy::reflect::{TypePath, TypeUuid};
 use bevy::render::render_resource::AsBindGroup;
 use strolle as st;
 
@@ -8,7 +8,7 @@ use crate::utils::{color_to_vec4, GlamCompat};
 use crate::EngineParams;
 
 /// Extends Bevy's `StandardMaterial` with extra features supported by Strolle.
-#[derive(Clone, Debug, TypeUuid, AsBindGroup)]
+#[derive(Clone, Debug, TypePath, TypeUuid, AsBindGroup)]
 #[uuid = "b270a5e8-9330-11ed-a1eb-0242ac120002"]
 pub struct StrolleMaterial {
     pub parent: StandardMaterial,
@@ -32,7 +32,7 @@ impl Material for StrolleMaterial {
 
 pub(crate) trait MaterialLike
 where
-    Self: TypeUuid + Clone + Send + Sync + 'static,
+    Self: TypePath + TypeUuid + Clone + Send + Sync + 'static,
 {
     fn into_material(self) -> st::Material<EngineParams>;
     fn map_handle(handle: Handle<Self>) -> MaterialHandle;

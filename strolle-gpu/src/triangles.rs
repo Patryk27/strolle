@@ -1,3 +1,5 @@
+use spirv_std::arch::IndexUnchecked;
+
 use crate::{Triangle, TriangleId};
 
 #[derive(Clone, Copy)]
@@ -11,6 +13,6 @@ impl<'a> TrianglesView<'a> {
     }
 
     pub fn get(&self, id: TriangleId) -> Triangle {
-        unsafe { *self.buffer.get_unchecked(id.get() as usize) }
+        unsafe { *self.buffer.index_unchecked(id.get() as usize) }
     }
 }

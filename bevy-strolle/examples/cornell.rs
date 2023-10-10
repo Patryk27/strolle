@@ -6,7 +6,6 @@ use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::window::WindowResolution;
-use bevy_obj::ObjPlugin;
 use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
@@ -17,21 +16,22 @@ fn main() {
     common::unzip_assets();
 
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                resolution: WindowResolution::new(512.0, 512.0),
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    resolution: WindowResolution::new(512.0, 512.0),
+                    ..default()
+                }),
                 ..default()
             }),
-            ..default()
-        }))
-        .add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(LookTransformPlugin)
-        .add_plugin(OrbitCameraPlugin::default())
-        .add_plugin(ObjPlugin)
-        .add_plugin(StrollePlugin)
-        .add_startup_system(setup)
-        .add_system(animate)
+            LogDiagnosticsPlugin::default(),
+            FrameTimeDiagnosticsPlugin::default(),
+            LookTransformPlugin,
+            OrbitCameraPlugin::default(),
+            StrollePlugin,
+        ))
+        .add_systems(Startup, setup)
+        .add_systems(Update, animate)
         .run();
 }
 

@@ -125,6 +125,10 @@ where
             .map(|((layout_a, resource_a), (layout_b, resource_b))| {
                 assert_eq!(layout_a, layout_b);
 
+                #[allow(
+                    clippy::tuple_array_conversions,
+                    reason="https://github.com/rust-lang/rust-clippy/issues/11144"
+                )]
                 (layout_a, [resource_a, resource_b])
             })
             .collect()

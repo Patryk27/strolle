@@ -53,7 +53,9 @@ where
     }
 
     pub fn remove(&mut self, light_handle: &P::LightHandle) {
-        let Some(light_id) = self.index.remove(light_handle) else { return };
+        let Some(light_id) = self.index.remove(light_handle) else {
+            return;
+        };
 
         self.buffer.remove(light_id.get() as usize);
 

@@ -30,11 +30,5 @@ members = [
 ]
 
 [patch."crates-io"]
-# TODO https://github.com/bitshifter/glam-rs/pull/411
-glam = { git = "https://github.com/bitshifter/glam-rs" }
-
 # TODO https://github.com/gfx-rs/naga/issues/2373
-naga = { git = "https://github.com/Patryk27/naga", branch = "strolle" }
-
-# Disables array bound checking, yielding ~10 FPS extra on Metal
-wgpu-hal = { git = "https://github.com/Patryk27/wgpu", branch = "strolle" }
+naga = { git = "https://github.com/Patryk27/naga", branch = "v0.12.3-strolle" }

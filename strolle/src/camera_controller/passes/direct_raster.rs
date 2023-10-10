@@ -197,7 +197,9 @@ impl DirectRasterPass {
         for (instance_handle, instance_entry) in engine.instances.iter() {
             let instance = &instance_entry.instance;
 
-            let Some(material_id) = engine.materials.lookup(&instance.material_handle) else {
+            let Some(material_id) =
+                engine.materials.lookup(&instance.material_handle)
+            else {
                 continue;
             };
 

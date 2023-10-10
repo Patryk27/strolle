@@ -84,7 +84,10 @@ where
     }
 
     pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
-        let Some(instance) = self.index.remove(instance_handle) else { return };
+        let Some(instance) = self.index.remove(instance_handle) else {
+            return;
+        };
+
         let removed_triangles = instance.triangle_count();
 
         let _ = self

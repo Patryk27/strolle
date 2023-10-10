@@ -102,11 +102,11 @@ impl Material {
     //         hit_normal
     //     } else {
     //         let normal_map_tex = unsafe {
-    //             images.get_unchecked(self.normal_map_texture as usize)
+    //             images.index_unchecked(self.normal_map_texture as usize)
     //         };
 
     //         let normal_map_sampler = unsafe {
-    //             samplers.get_unchecked(self.normal_map_texture as usize)
+    //             samplers.index_unchecked(self.normal_map_texture as usize)
     //         };
 
     //         let tangent = hit_tangent.xyz();

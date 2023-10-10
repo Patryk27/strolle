@@ -2,6 +2,7 @@ use core::f32::consts::PI;
 use core::ops::{Deref, DerefMut};
 
 use glam::{Vec3, Vec4, Vec4Swizzles};
+use spirv_std::arch::IndexUnchecked;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
@@ -23,10 +24,10 @@ impl IndirectReservoir {
     }
 
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
-        let d0 = unsafe { *buffer.get_unchecked(4 * id) };
-        let d1 = unsafe { *buffer.get_unchecked(4 * id + 1) };
-        let d2 = unsafe { *buffer.get_unchecked(4 * id + 2) };
-        let d3 = unsafe { *buffer.get_unchecked(4 * id + 3) };
+        let d0 = unsafe { *buffer.index_unchecked(4 * id) };
+        let d1 = unsafe { *buffer.index_unchecked(4 * id + 1) };
+        let d2 = unsafe { *buffer.index_unchecked(4 * id + 2) };
+        let d3 = unsafe { *buffer.index_unchecked(4 * id + 3) };
 
         Self {
             reservoir: Reservoir {
@@ -56,10 +57,10 @@ impl IndirectReservoir {
         let d3 = self.sample.sample_normal.extend(Default::default());
 
         unsafe {
-            *buffer.get_unchecked_mut(4 * id) = d0;
-            *buffer.get_unchecked_mut(4 * id + 1) = d1;
-            *buffer.get_unchecked_mut(4 * id + 2) = d2;
-            *buffer.get_unchecked_mut(4 * id + 3) = d3;
+            *buffer.index_unchecked_mut(4 * id) = d0;
+            *buffer.index_unchecked_mut(4 * id + 1) = d1;
+            *buffer.index_unchecked_mut(4 * id + 2) = d2;
+            *buffer.index_unchecked_mut(4 * id + 3) = d3;
         }
     }
 

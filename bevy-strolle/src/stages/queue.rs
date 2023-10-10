@@ -33,7 +33,9 @@ pub(crate) fn cameras(
 
             viewport: {
                 let format = view_target.main_texture_format();
-                let Some(size) = bevy_ext_camera.physical_viewport_size else { continue };
+                let Some(size) = bevy_ext_camera.physical_viewport_size else {
+                    continue;
+                };
 
                 let position = bevy_ext_camera
                     .viewport
@@ -70,14 +72,14 @@ pub(crate) fn cameras(
     // -----
 
     if alive_cameras.len() != state.cameras.len() {
-        state.cameras.drain_filter(|entity2, camera2| {
-            let is_dead = !alive_cameras.contains(entity2);
+        state.cameras.retain(|entity2, camera2| {
+            let is_alive = alive_cameras.contains(entity2);
 
-            if is_dead {
+            if !is_alive {
                 engine.delete_camera(camera2.handle);
             }
 
-            is_dead
+            is_alive
         });
     }
 }

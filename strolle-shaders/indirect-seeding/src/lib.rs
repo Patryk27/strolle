@@ -1,5 +1,6 @@
 #![no_std]
 
+use spirv_std::arch::IndexUnchecked;
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
@@ -72,7 +73,7 @@ pub fn main(
     // Either way, in this case we've got nothing to do.
     if indirect_ray_direction == Vec4::ZERO {
         unsafe {
-            *indirect_samples.get_unchecked_mut(3 * screen_idx) =
+            *indirect_samples.index_unchecked_mut(3 * screen_idx) =
                 Default::default();
         }
 
@@ -174,13 +175,13 @@ pub fn main(
     }
 
     unsafe {
-        *indirect_samples.get_unchecked_mut(3 * screen_idx) =
+        *indirect_samples.index_unchecked_mut(3 * screen_idx) =
             direct_hit.point.extend(f32::from_bits(1));
 
-        *indirect_samples.get_unchecked_mut(3 * screen_idx + 1) =
+        *indirect_samples.index_unchecked_mut(3 * screen_idx + 1) =
             radiance.extend(indirect_normal.x);
 
-        *indirect_samples.get_unchecked_mut(3 * screen_idx + 2) =
+        *indirect_samples.index_unchecked_mut(3 * screen_idx + 2) =
             indirect_point.extend(indirect_normal.y);
     }
 }

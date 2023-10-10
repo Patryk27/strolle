@@ -1,6 +1,7 @@
 use core::mem;
 
 use glam::{Vec3, Vec4, Vec4Swizzles};
+use spirv_std::arch::IndexUnchecked;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 use spirv_std::Sampler;
@@ -163,7 +164,7 @@ impl Ray {
                 // have to check the other node.
                 if far_distance < hit.distance {
                     unsafe {
-                        *stack.get_unchecked_mut(stack_ptr) = far_ptr;
+                        *stack.index_unchecked_mut(stack_ptr) = far_ptr;
                         stack_ptr += 1;
                     }
                 }
@@ -241,7 +242,7 @@ impl Ray {
             if stack_ptr > stack_begins_at {
                 unsafe {
                     stack_ptr -= 1;
-                    bvh_ptr = *stack.get_unchecked(stack_ptr);
+                    bvh_ptr = *stack.index_unchecked(stack_ptr);
                 }
             } else {
                 break;

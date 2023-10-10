@@ -1,5 +1,6 @@
 #![no_std]
 
+use spirv_std::arch::IndexUnchecked;
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
@@ -78,6 +79,6 @@ pub fn main(
     );
 
     unsafe {
-        *direct_candidates.get_unchecked_mut(screen_idx) = candidate;
+        *direct_candidates.index_unchecked_mut(screen_idx) = candidate;
     }
 }

@@ -1,4 +1,5 @@
 use glam::Vec4;
+use spirv_std::arch::IndexUnchecked;
 
 #[derive(Clone, Copy)]
 pub struct BvhView<'a> {
@@ -11,6 +12,6 @@ impl<'a> BvhView<'a> {
     }
 
     pub fn get(&self, ptr: u32) -> Vec4 {
-        unsafe { *self.buffer.get_unchecked(ptr as usize) }
+        unsafe { *self.buffer.index_unchecked(ptr as usize) }
     }
 }

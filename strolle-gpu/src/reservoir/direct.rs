@@ -1,6 +1,7 @@
 use core::ops::{Deref, DerefMut};
 
 use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
+use spirv_std::arch::IndexUnchecked;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
@@ -25,9 +26,9 @@ impl DirectReservoir {
     }
 
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
-        let d0 = unsafe { *buffer.get_unchecked(3 * id) };
-        let d1 = unsafe { *buffer.get_unchecked(3 * id + 1) };
-        let d2 = unsafe { *buffer.get_unchecked(3 * id + 2) };
+        let d0 = unsafe { *buffer.index_unchecked(3 * id) };
+        let d1 = unsafe { *buffer.index_unchecked(3 * id + 1) };
+        let d2 = unsafe { *buffer.index_unchecked(3 * id + 2) };
 
         Self {
             reservoir: Reservoir {
@@ -60,9 +61,9 @@ impl DirectReservoir {
         let d2 = self.sample.surface_point.extend(0.0);
 
         unsafe {
-            *buffer.get_unchecked_mut(3 * id) = d0;
-            *buffer.get_unchecked_mut(3 * id + 1) = d1;
-            *buffer.get_unchecked_mut(3 * id + 2) = d2;
+            *buffer.index_unchecked_mut(3 * id) = d0;
+            *buffer.index_unchecked_mut(3 * id + 1) = d1;
+            *buffer.index_unchecked_mut(3 * id + 2) = d2;
         }
     }
 

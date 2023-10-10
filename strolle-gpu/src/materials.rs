@@ -1,3 +1,5 @@
+use spirv_std::arch::IndexUnchecked;
+
 use crate::{Material, MaterialId};
 
 #[derive(Clone, Copy)]
@@ -11,6 +13,6 @@ impl<'a> MaterialsView<'a> {
     }
 
     pub fn get(&self, id: MaterialId) -> Material {
-        unsafe { *self.items.get_unchecked(id.get() as usize) }
+        unsafe { *self.items.index_unchecked(id.get() as usize) }
     }
 }

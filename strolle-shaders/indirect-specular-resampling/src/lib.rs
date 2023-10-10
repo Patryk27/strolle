@@ -1,5 +1,6 @@
 #![no_std]
 
+use spirv_std::arch::IndexUnchecked;
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
@@ -43,9 +44,9 @@ pub fn main(
     let mut reservoir = IndirectReservoir::default();
     let mut reservoir_p_hat = 0.0;
 
-    let d0 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx) };
-    let d1 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx + 1) };
-    let d2 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx + 2) };
+    let d0 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx) };
+    let d1 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx + 1) };
+    let d2 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx + 2) };
 
     if d0.w.to_bits() == 1 {
         let sample = IndirectReservoirSample {

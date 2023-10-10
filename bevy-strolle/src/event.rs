@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, Event)]
 pub enum StrolleEvent {
     MarkImageAsDynamic { handle: Handle<Image> },
 }

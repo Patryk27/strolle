@@ -10,7 +10,6 @@ use bevy::prelude::*;
 use bevy::render::camera::{CameraRenderGraph, RenderTarget};
 use bevy::render::texture::ImageSampler;
 use bevy::window::{CursorGrabMode, PrimaryWindow, WindowResolution};
-use bevy_obj::ObjPlugin;
 use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::fps::{
     FpsCameraBundle, FpsCameraController, FpsCameraPlugin,
@@ -20,38 +19,39 @@ use wgpu::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 
-const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
+const VIEWPORT_SIZE: UVec2 = uvec2(640, 420);
 const WINDOW_SCALE: f32 = 1.5;
 
 fn main() {
     common::unzip_assets();
 
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                resolution: WindowResolution::new(
-                    WINDOW_SCALE * VIEWPORT_SIZE.x as f32,
-                    WINDOW_SCALE * VIEWPORT_SIZE.y as f32,
-                ),
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    resolution: WindowResolution::new(
+                        WINDOW_SCALE * VIEWPORT_SIZE.x as f32,
+                        WINDOW_SCALE * VIEWPORT_SIZE.y as f32,
+                    ),
+                    ..default()
+                }),
                 ..default()
             }),
-            ..default()
-        }))
-        .add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(LookTransformPlugin)
-        .add_plugin(FpsCameraPlugin::default())
-        .add_plugin(ObjPlugin)
-        .add_plugin(StrollePlugin)
+            LogDiagnosticsPlugin::default(),
+            FrameTimeDiagnosticsPlugin::default(),
+            LookTransformPlugin,
+            FpsCameraPlugin::default(),
+            StrollePlugin,
+        ))
+        .add_systems(Startup, setup)
+        .add_systems(Update, adjust_materials)
+        .add_systems(Update, handle_materials)
+        .add_systems(Update, handle_camera)
+        .add_systems(Update, handle_sun)
+        .add_systems(Update, animate_sun)
+        .add_systems(Update, handle_flashlight)
+        .add_systems(Update, animate_flashlight)
         .insert_resource(Sun::default())
-        .add_startup_system(setup)
-        .add_system(adjust_materials)
-        .add_system(handle_materials)
-        .add_system(handle_camera)
-        .add_system(handle_sun)
-        .add_system(animate_sun)
-        .add_system(handle_flashlight)
-        .add_system(animate_flashlight)
         .run();
 }
 

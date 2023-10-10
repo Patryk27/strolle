@@ -86,7 +86,7 @@ fn worker_main<'a>(
     pending_messages: &AtomicU32,
 ) {
     while let Ok(WorkerMsg::BalanceNode { node_id, node }) = queue_rx.recv() {
-        let (parent, children) = balance(&allocated_nodes, node);
+        let (parent, children) = balance(allocated_nodes, node);
 
         if let Some((left_id, left, right_id, right)) = children {
             pending_messages.fetch_add(2, Ordering::Relaxed);
@@ -236,7 +236,7 @@ fn split<'a>(
 
     // ---
 
-    let mut i = 0 as i32;
+    let mut i = 0;
     let mut j = (primitives.len() - 1) as i32;
 
     let mut left_bounds = BoundingBox::default();

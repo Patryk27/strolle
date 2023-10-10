@@ -37,8 +37,8 @@ impl Clone for BvhNode<'_> {
                 bounds,
                 left_node_id,
             } => Self::Internal {
-                bounds: bounds.clone(),
-                left_node_id: left_node_id.clone(),
+                bounds: *bounds,
+                left_node_id: *left_node_id,
             },
 
             Self::Leaf { .. } => {

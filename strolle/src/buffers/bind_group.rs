@@ -65,6 +65,10 @@ impl<'a> BindGroupBuilder<'a> {
                         resource,
                     });
 
+                #[allow(
+                    clippy::tuple_array_conversions,
+                    reason="https://github.com/rust-lang/rust-clippy/issues/11144"
+                )]
                 (resource_a, resource_b)
             })
             .unzip();

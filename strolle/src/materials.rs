@@ -57,7 +57,9 @@ where
     }
 
     pub fn remove(&mut self, material_handle: &P::MaterialHandle) {
-        let Some(id) = self.index.remove(material_handle) else { return };
+        let Some(id) = self.index.remove(material_handle) else {
+            return;
+        };
 
         self.materials.remove(id.get() as usize);
 

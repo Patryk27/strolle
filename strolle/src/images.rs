@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::mem;
-use std::num::NonZeroU32;
 
 use derivative::Derivative;
 use glam::{uvec2, vec4, Vec4};
@@ -72,7 +71,10 @@ where
 
         let Some(image_alloc) = image_alloc else {
             // TODO allocate new atlas, up to 16 (Metal's limit)
-            warn!("Cannot add image `{:?}` - no more space in the atlas", image_handle);
+            warn!(
+                "Cannot add image `{:?}` - no more space in the atlas",
+                image_handle
+            );
             return;
         };
 
@@ -102,7 +104,9 @@ where
     }
 
     pub fn remove(&mut self, image_handle: &P::ImageHandle) {
-        let Some(image_alloc) = self.images.remove(image_handle) else { return };
+        let Some(image_alloc) = self.images.remove(image_handle) else {
+            return;
+        };
 
         self.atlas.deallocate(image_alloc.id);
     }
@@ -149,7 +153,7 @@ where
                                 &data,
                                 wgpu::ImageDataLayout {
                                     offset: 0,
-                                    bytes_per_row: NonZeroU32::new(w * 4),
+                                    bytes_per_row: Some(w * 4),
                                     rows_per_image: None,
                                 },
                                 wgpu::Extent3d {

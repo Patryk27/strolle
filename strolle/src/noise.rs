@@ -1,5 +1,4 @@
 use std::io::Cursor;
-use std::num::NonZeroU32;
 
 use image::io::Reader as ImageReader;
 
@@ -53,7 +52,7 @@ impl Noise {
             img,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: NonZeroU32::new(256 * 4),
+                bytes_per_row: Some(256 * 4),
                 rows_per_image: None,
             },
             wgpu::Extent3d {

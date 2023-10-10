@@ -1,47 +1,24 @@
 use bevy::prelude::*;
-use bevy::render::render_graph::{
-    Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType,
-};
+use bevy::render::render_graph::{NodeRunError, RenderGraphContext, ViewNode};
 use bevy::render::renderer::RenderContext;
-use bevy::render::view::{ExtractedView, ViewTarget};
+use bevy::render::view::ViewTarget;
 
 use crate::{EngineResource, SyncedState};
 
-pub struct RenderNode {
-    query: QueryState<&'static ViewTarget, With<ExtractedView>>,
-}
+#[derive(Default)]
+pub struct RenderNode;
 
-impl RenderNode {
-    pub const IN_VIEW: &'static str = "view";
-
-    pub fn new(world: &mut World) -> Self {
-        Self {
-            query: world.query_filtered(),
-        }
-    }
-}
-
-impl Node for RenderNode {
-    fn input(&self) -> Vec<SlotInfo> {
-        vec![SlotInfo::new(Self::IN_VIEW, SlotType::Entity)]
-    }
-
-    fn update(&mut self, world: &mut World) {
-        self.query.update_archetypes(world);
-    }
+impl ViewNode for RenderNode {
+    type ViewQuery = &'static ViewTarget;
 
     fn run(
         &self,
         graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
+        target: &ViewTarget,
         world: &World,
     ) -> Result<(), NodeRunError> {
-        let entity = graph.get_input_entity(Self::IN_VIEW)?;
-
-        let Ok(target) = self.query.get_manual(world, entity) else {
-            return Ok(());
-        };
-
+        let entity = graph.view_entity();
         let engine = world.resource::<EngineResource>();
         let state = world.resource::<SyncedState>();
 
@@ -52,7 +29,7 @@ impl Node for RenderNode {
         engine.render_camera(
             camera.handle,
             render_context.command_encoder(),
-            target.main_texture(),
+            target.main_texture_view(),
         );
 
         Ok(())

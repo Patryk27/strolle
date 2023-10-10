@@ -67,11 +67,12 @@ where
 }
 
 /// Specifies if a material is allowed to be transparent
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum AlphaMode {
     /// Material is always opaque (this is the default).
     ///
     /// When this is active, the base color's alpha is always set to 1.0.
+    #[default]
     Opaque,
 
     /// Material is allowed to be transparent (i.e. base color's and base color
@@ -82,10 +83,4 @@ pub enum AlphaMode {
     /// traversal process), so this option should be enabled conservatively,
     /// only for materials that actually use transparency.
     Blend,
-}
-
-impl Default for AlphaMode {
-    fn default() -> Self {
-        AlphaMode::Opaque
-    }
 }

@@ -12,9 +12,18 @@ macro_rules! shaders {
                 $(
                     info!("Initializing shader: {}", stringify!($name));
 
-                    let $name = device.create_shader_module(wgpu::include_spirv!(
+                    let module = wgpu::include_spirv!(
                         env!(concat!("strolle_", stringify!($name), "_shader.spv"))
-                    ));
+                    );
+
+                    // Safety: fingers crossed™
+                    //
+                    // We do our best, but our shaders are so array-intensive
+                    // that adding the checks decreases performance by 33%, so
+                    // it's pretty much a no-go.
+                    let $name = unsafe {
+                        device.create_shader_module_unchecked(module)
+                    };
                 )*
 
                 Self {
