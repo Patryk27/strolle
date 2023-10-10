@@ -16,6 +16,12 @@ pub fn main(
 ) {
     let screen_pos = global_id.xy();
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+
     let hit = Hit::new(
         camera.ray(screen_pos),
         GBufferEntry::unpack([

@@ -48,6 +48,10 @@ pub fn main(
         atmosphere_sky_lut_sampler,
     );
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     if params.depth == u8::MAX as u32 {
@@ -78,7 +82,7 @@ pub fn main(
         color = Vec3::ZERO;
         throughput = Vec3::ONE;
     } else {
-        let d0 = reference_rays[3 * screen_idx + 0];
+        let d0 = reference_rays[3 * screen_idx];
         let d1 = reference_rays[3 * screen_idx + 1];
         let d2 = reference_rays[3 * screen_idx + 2];
 
@@ -89,12 +93,12 @@ pub fn main(
 
     let hit = {
         let t_hit = TriangleHit::unpack([
-            reference_hits[2 * screen_idx + 0],
+            reference_hits[2 * screen_idx],
             reference_hits[2 * screen_idx + 1],
         ]);
 
         if t_hit.is_none() {
-            reference_rays[3 * screen_idx + 0] = Default::default();
+            reference_rays[3 * screen_idx] = Default::default();
             reference_rays[3 * screen_idx + 1] = Default::default();
 
             color += throughput
@@ -163,7 +167,7 @@ pub fn main(
     let reflected_sample = LayeredBrdf::sample(&mut wnoise, hit);
 
     if reflected_sample.is_invalid() {
-        reference_rays[3 * screen_idx + 0] = Default::default();
+        reference_rays[3 * screen_idx] = Default::default();
         reference_rays[3 * screen_idx + 1] = Default::default();
         return;
     }
@@ -175,7 +179,7 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    reference_rays[3 * screen_idx + 0] =
+    reference_rays[3 * screen_idx] =
         reflected_ray.origin().extend(throughput.x);
 
     reference_rays[3 * screen_idx + 1] =

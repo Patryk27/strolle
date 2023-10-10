@@ -67,26 +67,14 @@ impl Camera {
         }
 
         if pos.x >= screen_size.x {
-            pos.x = screen_size.x - pos.x + screen_size.x;
+            pos.x = screen_size.x - pos.x + screen_size.x - 1;
         }
 
         if pos.y >= screen_size.y {
-            pos.y = screen_size.y - pos.y + screen_size.y;
+            pos.y = screen_size.y - pos.y + screen_size.y - 1;
         }
 
         pos.as_uvec2()
-    }
-
-    /// Returns whether given point lays inside the screen.
-    ///
-    /// See also: [`Self::contain()`].
-    pub fn contains(&self, pos: IVec2) -> bool {
-        let screen_size = self.screen.xy().as_ivec2();
-
-        pos.x >= 0
-            && pos.y >= 0
-            && pos.x < screen_size.x
-            && pos.y < screen_size.y
     }
 
     /// Casts a ray from camera's center to given screen-coordinates.
@@ -130,5 +118,75 @@ impl Camera {
         }
 
         true
+    }
+}
+
+pub trait CameraContains<Rhs> {
+    /// Returns whether given point lays inside the screen.
+    ///
+    /// See also: [`Camera::contain()`].
+    fn contains(&self, rhs: Rhs) -> bool;
+}
+
+impl CameraContains<UVec2> for Camera {
+    fn contains(&self, rhs: UVec2) -> bool {
+        let screen_size = self.screen.xy().as_uvec2();
+
+        rhs.x < screen_size.x && rhs.y < screen_size.y
+    }
+}
+
+impl CameraContains<IVec2> for Camera {
+    fn contains(&self, rhs: IVec2) -> bool {
+        let screen_size = self.screen.xy().as_ivec2();
+
+        rhs.x >= 0
+            && rhs.y >= 0
+            && rhs.x < screen_size.x
+            && rhs.y < screen_size.y
+    }
+}
+
+impl CameraContains<Vec2> for Camera {
+    fn contains(&self, rhs: Vec2) -> bool {
+        let screen_size = self.screen.xy();
+
+        rhs.x >= 0.0
+            && rhs.y >= 0.0
+            && rhs.x < screen_size.x
+            && rhs.y < screen_size.y
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use glam::{ivec2, uvec2, vec4};
+
+    use super::*;
+
+    #[test]
+    fn contain() {
+        let target = Camera {
+            projection_view: Default::default(),
+            ndc_to_world: Default::default(),
+            origin: Default::default(),
+            screen: vec4(1024.0, 768.0, 0.0, 0.0),
+            data: Default::default(),
+        };
+
+        // Case: minimum point inside the screen
+        assert_eq!(target.contain(ivec2(0, 0)), uvec2(0, 0));
+
+        // Case: point inside the screen
+        assert_eq!(target.contain(ivec2(123, 456)), uvec2(123, 456));
+
+        // Case: maximum point inside the screen
+        assert_eq!(target.contain(ivec2(1023, 767)), uvec2(1023, 767));
+
+        // Case: point outside the screen
+        assert_eq!(target.contain(ivec2(1024, 768)), uvec2(1023, 767));
+        assert_eq!(target.contain(ivec2(1025, 768)), uvec2(1022, 767));
+        assert_eq!(target.contain(ivec2(1030, 768)), uvec2(1017, 767));
+        assert_eq!(target.contain(ivec2(1030, 783)), uvec2(1017, 752));
     }
 }

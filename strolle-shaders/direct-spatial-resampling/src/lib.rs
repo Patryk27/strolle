@@ -26,6 +26,10 @@ pub fn main(
     let surface_map = SurfaceMap::new(surface_map);
     let lights = LightsView::new(lights);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let hit = Hit::new(

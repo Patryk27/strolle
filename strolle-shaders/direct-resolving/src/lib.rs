@@ -35,6 +35,10 @@ pub fn main(
         atmosphere_sky_lut_sampler,
     );
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let hit = Hit::new(

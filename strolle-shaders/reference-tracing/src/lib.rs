@@ -28,10 +28,16 @@ pub fn main(
     let bvh = BvhView::new(bvh);
     let materials = MaterialsView::new(materials);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+
     let ray = if params.depth == 0 {
         camera.ray(screen_pos)
     } else {
-        let d0 = reference_rays[3 * screen_idx + 0];
+        let d0 = reference_rays[3 * screen_idx];
         let d1 = reference_rays[3 * screen_idx + 1];
 
         if d1 == Default::default() {
@@ -53,6 +59,6 @@ pub fn main(
 
     let [hit_d0, hit_d1] = hit.pack();
 
-    reference_hits[2 * screen_idx + 0] = hit_d0;
+    reference_hits[2 * screen_idx] = hit_d0;
     reference_hits[2 * screen_idx + 1] = hit_d1;
 }

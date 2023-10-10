@@ -89,10 +89,10 @@ impl GBufferEntry {
                 let base_color = base_color.as_uvec4();
 
                 f32::from_bits(u32::from_bytes([
-                    base_color.x as u32,
-                    base_color.y as u32,
-                    base_color.z as u32,
-                    base_color.w as u32,
+                    base_color.x,
+                    base_color.y,
+                    base_color.z,
+                    base_color.w,
                 ]))
             };
 
@@ -114,8 +114,14 @@ impl GBufferEntry {
         self.roughness == 0.0
     }
 
-    pub fn is_pure_diffuse(&self) -> bool {
-        self.roughness == 1.0 && self.reflectance == 0.0
+    /// Returns whether this pixel needs diffuse lightning.
+    pub fn needs_diffuse(&self) -> bool {
+        self.metallic < 1.0
+    }
+
+    /// Returns whether this pixel needs specular lightning.
+    pub fn needs_specular(&self) -> bool {
+        self.metallic > 0.0
     }
 }
 

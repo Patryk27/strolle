@@ -36,7 +36,7 @@ where
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
         size: UVec2,
-        params: &P,
+        params: P,
     ) {
         let label = format!("strolle_{}_pass", self.label);
 
@@ -48,7 +48,7 @@ where
         pass.set_pipeline(&self.pipeline);
 
         if mem::size_of::<P>() > 0 {
-            pass.set_push_constants(0, bytemuck::bytes_of(params));
+            pass.set_push_constants(0, bytemuck::bytes_of(&params));
         }
 
         for (bind_group_idx, bind_group) in self.bind_groups.iter().enumerate()

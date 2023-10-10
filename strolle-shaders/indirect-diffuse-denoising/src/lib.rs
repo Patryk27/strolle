@@ -27,6 +27,10 @@ pub fn main(
     let surface_map = SurfaceMap::new(surface_map);
     let prev_surface_map = SurfaceMap::new(prev_surface_map);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     if !debug::INDIRECT_DIFFUSE_DENOISING_ENABLED {
         unsafe {
             indirect_diffuse_colors
@@ -49,7 +53,7 @@ pub fn main(
             (prev_indirect_diffuse_colors.read(pos), 1.0)
         });
 
-        previous = sample.xyz().extend(1.0);
+        previous = (2.0 * sample.xyz()).extend(2.0);
         history = sample.w;
     } else {
         previous = Vec4::ZERO;
@@ -64,26 +68,44 @@ pub fn main(
 
     while sample_idx < 5 {
         sample_idx += 1;
-        sample_radius += 1.66;
+        sample_radius += 1.0;
         sample_angle += GOLDEN_ANGLE;
 
         let sample_offset =
             vec2(sample_angle.sin(), sample_angle.cos()) * sample_radius;
 
         let sample_pos = if reprojection.is_some() {
-            reprojection.prev_pos().as_ivec2() + sample_offset.as_ivec2()
+            reprojection.prev_pos() + sample_offset
         } else {
-            screen_pos.as_ivec2() + sample_offset.as_ivec2()
+            screen_pos.as_vec2() + sample_offset
         };
 
-        let sample_pos = camera.contain(sample_pos);
-        let sample_surface = prev_surface_map.get(sample_pos);
-        let sample_color = prev_indirect_diffuse_colors.read(sample_pos);
-        let sample_weight = sample_surface.evaluate_similarity_to(&surface);
+        let sample_reprojection = Reprojection {
+            prev_x: sample_pos.x,
+            prev_y: sample_pos.y,
+            confidence: 1.0,
+            validity: u32::MAX,
+        };
 
-        if sample_weight > 0.0 {
-            previous +=
-                (sample_color.xyz() * sample_weight).extend(sample_weight);
+        let sample =
+            BilinearFilter::reproject(sample_reprojection, move |pos| {
+                if camera.contains(pos) {
+                    let sample = prev_indirect_diffuse_colors.read(pos);
+                    let color = sample.xyz();
+                    let history = sample.w / MAX_HISTORY;
+
+                    let weight = prev_surface_map
+                        .get(pos)
+                        .evaluate_similarity_to(&surface);
+
+                    (color.extend(history), weight)
+                } else {
+                    (Default::default(), 0.0)
+                }
+            });
+
+        if sample.w > 0.0 {
+            previous += (sample.xyz() * sample.w).extend(sample.w);
         }
     }
 

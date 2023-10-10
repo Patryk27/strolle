@@ -28,6 +28,10 @@ pub fn main(
     let reprojection_map = ReprojectionMap::new(reprojection_map);
     let prev_surface_map = SurfaceMap::new(prev_surface_map);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     if !debug::INDIRECT_SPECULAR_DENOISING_ENABLED {
         unsafe {
             indirect_specular_colors
@@ -47,9 +51,7 @@ pub fn main(
         ]),
     );
 
-    // Optimization: if the hit-surface is purely diffuse, don't bother reading
-    // the specular samples (which will be all black anyway).
-    if hit.gbuffer.is_pure_diffuse() {
+    if !hit.gbuffer.needs_specular() {
         unsafe {
             indirect_specular_colors.write(screen_pos, Vec4::ZERO);
         }
@@ -131,7 +133,7 @@ pub fn main(
         let sample_pos = hit.point + sample_offset * sample_radius;
         let sample_pos = prev_camera.world_to_screen(sample_pos);
 
-        if !prev_camera.contains(sample_pos.as_ivec2()) {
+        if !prev_camera.contains(sample_pos) {
             continue;
         }
 

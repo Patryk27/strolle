@@ -7,7 +7,7 @@ use strolle_gpu::prelude::*;
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(local_invocation_index)] local_idx: u32,
-    #[spirv(push_constant)] params: &PassParams,
+    #[spirv(push_constant)] params: &IndirectPassParams,
     #[spirv(workgroup)] stack: BvhStack,
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
     triangles: &[Triangle],
@@ -49,6 +49,10 @@ pub fn main(
         atmosphere_sky_lut_sampler,
     );
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let direct_hit = Hit::new(
@@ -59,9 +63,16 @@ pub fn main(
         ]),
     );
 
-    if direct_hit.is_none() {
+    let indirect_ray_direction = indirect_rays.read(screen_pos);
+
+    // Empty ray direction means that we've either didn't hit anything or that
+    // the surface we've hit is not compatible with our current pass kind (e.g.
+    // we're tracing specular, but the surface is purely diffuse).
+    //
+    // Either way, in this case we've got nothing to do.
+    if indirect_ray_direction == Vec4::ZERO {
         unsafe {
-            *indirect_samples.get_unchecked_mut(3 * screen_idx + 0) =
+            *indirect_samples.get_unchecked_mut(3 * screen_idx) =
                 Default::default();
         }
 
@@ -69,7 +80,7 @@ pub fn main(
     }
 
     let indirect_hit = Hit::new(
-        Ray::new(direct_hit.point, indirect_rays.read(screen_pos).xyz()),
+        Ray::new(direct_hit.point, indirect_ray_direction.xyz()),
         GBufferEntry::unpack([
             indirect_gbuffer_d0.read(screen_pos),
             indirect_gbuffer_d1.read(screen_pos),
@@ -163,7 +174,7 @@ pub fn main(
     }
 
     unsafe {
-        *indirect_samples.get_unchecked_mut(3 * screen_idx + 0) =
+        *indirect_samples.get_unchecked_mut(3 * screen_idx) =
             direct_hit.point.extend(f32::from_bits(1));
 
         *indirect_samples.get_unchecked_mut(3 * screen_idx + 1) =

@@ -24,6 +24,10 @@ pub fn main(
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
     let reprojection_map = ReprojectionMap::new(reprojection_map);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let hit = Hit::new(
@@ -34,32 +38,29 @@ pub fn main(
         ]),
     );
 
-    // -------------------------------------------------------------------------
+    // ---
 
-    let mut reservoir_p_hat = Default::default();
     let mut reservoir = IndirectReservoir::default();
+    let mut reservoir_p_hat = 0.0;
 
-    if IndirectReservoir::expects_specular_sample(screen_pos, params.frame) {
-        let d0 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx + 0) };
-        let d1 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx + 1) };
-        let d2 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx + 2) };
+    let d0 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx) };
+    let d1 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx + 1) };
+    let d2 = unsafe { *indirect_samples.get_unchecked(3 * screen_idx + 2) };
 
-        if d0.w.to_bits() == 1 {
-            let sample = IndirectReservoirSample {
-                radiance: d1.xyz(),
-                hit_point: d0.xyz(),
-                sample_point: d2.xyz(),
-                sample_normal: Normal::decode(vec2(d1.w, d2.w)),
-                frame: params.frame,
-            };
+    if d0.w.to_bits() == 1 {
+        let sample = IndirectReservoirSample {
+            radiance: d1.xyz(),
+            hit_point: d0.xyz(),
+            sample_point: d2.xyz(),
+            sample_normal: Normal::decode(vec2(d1.w, d2.w)),
+            frame: params.frame,
+        };
 
-            reservoir_p_hat = sample.temporal_p_hat();
-
-            reservoir.add(&mut wnoise, sample, reservoir_p_hat);
-        }
+        reservoir_p_hat = sample.temporal_p_hat();
+        reservoir.add(&mut wnoise, sample, reservoir_p_hat);
     }
 
-    // -------------------------------------------------------------------------
+    // ---
 
     let reprojection = reprojection_map.get(screen_pos);
 
@@ -118,7 +119,7 @@ pub fn main(
         }
     }
 
-    // -------------------------------------------------------------------------
+    // ---
 
     reservoir.normalize(reservoir_p_hat);
     reservoir.clamp_m(8.0);

@@ -1,7 +1,7 @@
 use core::f32::consts::PI;
 use core::ops::{Deref, DerefMut};
 
-use glam::{UVec2, Vec3, Vec4, Vec4Swizzles};
+use glam::{Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
@@ -22,20 +22,8 @@ impl IndirectReservoir {
         }
     }
 
-    pub fn expects_diffuse_sample(screen_pos: UVec2, frame: u32) -> bool {
-        if screen_pos.y % 2 == 0 {
-            screen_pos.x % 2 == frame % 2
-        } else {
-            screen_pos.x % 2 != frame % 2
-        }
-    }
-
-    pub fn expects_specular_sample(screen_pos: UVec2, frame: u32) -> bool {
-        !Self::expects_diffuse_sample(screen_pos, frame)
-    }
-
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
-        let d0 = unsafe { *buffer.get_unchecked(4 * id + 0) };
+        let d0 = unsafe { *buffer.get_unchecked(4 * id) };
         let d1 = unsafe { *buffer.get_unchecked(4 * id + 1) };
         let d2 = unsafe { *buffer.get_unchecked(4 * id + 2) };
         let d3 = unsafe { *buffer.get_unchecked(4 * id + 3) };
@@ -68,7 +56,7 @@ impl IndirectReservoir {
         let d3 = self.sample.sample_normal.extend(Default::default());
 
         unsafe {
-            *buffer.get_unchecked_mut(4 * id + 0) = d0;
+            *buffer.get_unchecked_mut(4 * id) = d0;
             *buffer.get_unchecked_mut(4 * id + 1) = d1;
             *buffer.get_unchecked_mut(4 * id + 2) = d2;
             *buffer.get_unchecked_mut(4 * id + 3) = d3;
@@ -105,7 +93,7 @@ pub struct IndirectReservoirSample {
 
 impl IndirectReservoirSample {
     pub fn temporal_p_hat(&self) -> f32 {
-        self.radiance.luminance().max(0.0001)
+        self.radiance.luminance()
     }
 
     pub fn spatial_p_hat(&self, point: Vec3, normal: Vec3) -> f32 {
@@ -163,59 +151,5 @@ impl IndirectReservoirSample {
         let cosine = self.sample_normal.dot(vec / distance).saturate();
 
         (distance, cosine)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use glam::uvec2;
-
-    use super::*;
-
-    #[test]
-    fn expects_samples() {
-        let cases = [
-            (uvec2(0, 0), 0, true),
-            (uvec2(1, 0), 0, false),
-            (uvec2(2, 0), 0, true),
-            (uvec2(3, 0), 0, false),
-            // ---
-            (uvec2(0, 1), 0, false),
-            (uvec2(1, 1), 0, true),
-            (uvec2(2, 1), 0, false),
-            (uvec2(3, 1), 0, true),
-            // ---
-            (uvec2(0, 0), 1, false),
-            (uvec2(1, 0), 1, true),
-            (uvec2(2, 0), 1, false),
-            (uvec2(3, 0), 1, true),
-            // ---
-            (uvec2(0, 1), 1, true),
-            (uvec2(1, 1), 1, false),
-            (uvec2(2, 1), 1, true),
-            (uvec2(3, 1), 1, false),
-        ];
-
-        for (screen_pos, frame, expected_diffuse) in cases {
-            let expected_specular = !expected_diffuse;
-
-            let actual_diffuse =
-                IndirectReservoir::expects_diffuse_sample(screen_pos, frame);
-
-            let actual_specular =
-                IndirectReservoir::expects_specular_sample(screen_pos, frame);
-
-            assert_eq!(
-                expected_diffuse, actual_diffuse,
-                "{:?}, {:?}",
-                screen_pos, frame
-            );
-
-            assert_eq!(
-                expected_specular, actual_specular,
-                "{:?}, {:?}",
-                screen_pos, frame
-            );
-        }
     }
 }

@@ -1,10 +1,13 @@
+use rand::Rng;
+
 use crate::{
-    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
+    Params,
 };
 
 #[derive(Debug)]
 pub struct IndirectTracingPass {
-    pass: CameraComputePass,
+    pass: CameraComputePass<gpu::IndirectPassParams>,
 }
 
 impl IndirectTracingPass {
@@ -42,10 +45,17 @@ impl IndirectTracingPass {
         &self,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
+        mode: u32,
     ) {
         // This pass uses 8x8 warps:
-        let size = camera.camera.viewport.size / 8;
+        let size = (camera.camera.viewport.size + 7) / 8;
 
-        self.pass.run(camera, encoder, size, &camera.pass_params());
+        let params = gpu::IndirectPassParams {
+            seed: rand::thread_rng().gen(),
+            frame: camera.frame,
+            mode,
+        };
+
+        self.pass.run(camera, encoder, size, params);
     }
 }

@@ -1,7 +1,4 @@
-//! TODO lots of the textures here could use simpler formats
-
 use log::debug;
-use spirv_std::glam::UVec2;
 
 use crate::{
     gpu, Camera, DoubleBuffered, MappedUniformBuffer, StorageBuffer, Texture,
@@ -52,6 +49,15 @@ pub struct CameraBuffers {
 
 impl CameraBuffers {
     pub fn new(device: &wgpu::Device, camera: &Camera) -> Self {
+        // Returns the size of a screen-space buffer with given parameters
+        let viewport_buffer_size = |element_size| {
+            (camera.viewport.size.x as usize)
+                * (camera.viewport.size.y as usize)
+                * element_size
+        };
+
+        // ---
+
         debug!("Initializing camera buffers");
 
         let camera_uniform =
@@ -127,25 +133,25 @@ impl CameraBuffers {
         let direct_candidates = StorageBuffer::new(
             device,
             "direct_candidates",
-            viewport_buffer_size(camera.viewport.size, 4 * 4),
+            viewport_buffer_size(4 * 4),
         );
 
         let direct_prev_reservoirs = StorageBuffer::new(
             device,
             "direct_prev_reservoirs",
-            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+            viewport_buffer_size(3 * 4 * 4),
         );
 
         let direct_curr_reservoirs = StorageBuffer::new(
             device,
             "direct_curr_reservoirs",
-            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+            viewport_buffer_size(3 * 4 * 4),
         );
 
         let direct_next_reservoirs = StorageBuffer::new(
             device,
             "direct_next_reservoirs",
-            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+            viewport_buffer_size(3 * 4 * 4),
         );
 
         // ---------------------------------------------------------------------
@@ -171,7 +177,7 @@ impl CameraBuffers {
         let indirect_samples = StorageBuffer::new(
             device,
             "indirect_samples",
-            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+            viewport_buffer_size(3 * 4 * 4),
         );
 
         // ---
@@ -195,14 +201,14 @@ impl CameraBuffers {
             DoubleBuffered::<StorageBuffer>::new(
                 device,
                 "indirect_diffuse_temporal_reservoirs",
-                viewport_buffer_size(camera.viewport.size, 4 * 4 * 4),
+                viewport_buffer_size(4 * 4 * 4),
             );
 
         let indirect_diffuse_spatial_reservoirs =
             DoubleBuffered::<StorageBuffer>::new(
                 device,
                 "indirect_diffuse_spatial_reservoirs",
-                viewport_buffer_size(camera.viewport.size, 4 * 4 * 4),
+                viewport_buffer_size(4 * 4 * 4),
             );
 
         // ---
@@ -225,7 +231,7 @@ impl CameraBuffers {
         let indirect_specular_reservoirs = DoubleBuffered::<StorageBuffer>::new(
             device,
             "indirect_specular_reservoirs",
-            viewport_buffer_size(camera.viewport.size, 4 * 4 * 4),
+            viewport_buffer_size(4 * 4 * 4),
         );
 
         // ---------------------------------------------------------------------
@@ -258,14 +264,14 @@ impl CameraBuffers {
         let reference_rays = StorageBuffer::new(
             device,
             "reference_rays",
-            viewport_buffer_size(camera.viewport.size, 3 * 4 * 4),
+            viewport_buffer_size(3 * 4 * 4),
         );
 
         // TODO initialize lazily
         let reference_hits = StorageBuffer::new(
             device,
             "reference_hits",
-            viewport_buffer_size(camera.viewport.size, 2 * 4 * 4),
+            viewport_buffer_size(2 * 4 * 4),
         );
 
         // TODO initialize lazily
@@ -319,9 +325,4 @@ impl CameraBuffers {
             reference_colors,
         }
     }
-}
-
-/// Returns the size of a screen-space buffer with given parameters.
-fn viewport_buffer_size(viewport_size: UVec2, element_size: usize) -> usize {
-    (viewport_size.x as usize) * (viewport_size.y as usize) * element_size
 }

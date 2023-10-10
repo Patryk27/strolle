@@ -134,9 +134,18 @@ impl CameraController {
                         self.passes.direct_denoising.run(self, encoder);
                     }
 
-                    if self.camera.mode.needs_indirect_lightning() {
-                        self.passes.indirect_tracing.run(self, encoder);
-                        self.passes.indirect_seeding.run(self, encoder);
+                    if self.camera.mode.needs_indirect_diffuse_lightning() {
+                        self.passes.indirect_tracing.run(
+                            self,
+                            encoder,
+                            gpu::IndirectPassParams::MODE_DIFFUSE,
+                        );
+
+                        self.passes.indirect_seeding.run(
+                            self,
+                            encoder,
+                            gpu::IndirectPassParams::MODE_DIFFUSE,
+                        );
 
                         self.passes
                             .indirect_diffuse_temporal_resampling
@@ -153,6 +162,20 @@ impl CameraController {
                         self.passes
                             .indirect_diffuse_denoising
                             .run(self, encoder);
+                    }
+
+                    if self.camera.mode.needs_indirect_specular_lightning() {
+                        self.passes.indirect_tracing.run(
+                            self,
+                            encoder,
+                            gpu::IndirectPassParams::MODE_SPECULAR,
+                        );
+
+                        self.passes.indirect_seeding.run(
+                            self,
+                            encoder,
+                            gpu::IndirectPassParams::MODE_SPECULAR,
+                        );
 
                         self.passes
                             .indirect_specular_resampling
@@ -181,7 +204,7 @@ impl CameraController {
     }
 
     /// Returns whether the current frame should use the first or the second
-    /// resource, when given resource is double-buffered.
+    /// resource when given resource is double-buffered.
     fn is_alternate(&self) -> bool {
         self.frame % 2 == 1
     }

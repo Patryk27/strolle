@@ -24,6 +24,10 @@ pub fn main(
     let surface_map = SurfaceMap::new(surface_map);
     let prev_surface_map = SurfaceMap::new(prev_surface_map);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     if !debug::DIRECT_DENOISING_ENABLED {
         unsafe {
             direct_colors.write(screen_pos, direct_samples.read(screen_pos));

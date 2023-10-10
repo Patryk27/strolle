@@ -21,6 +21,10 @@ pub fn main(
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
     let lights = LightsView::new(lights);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let hit = Hit::new(

@@ -51,7 +51,7 @@ impl ReferenceShadingPass {
         depth: u8,
     ) {
         // This pass uses 8x8 warps:
-        let size = camera.camera.viewport.size / 8;
+        let size = (camera.camera.viewport.size + 7) / 8;
 
         let params = gpu::ReferencePassParams {
             seed: rand::thread_rng().gen(),
@@ -59,6 +59,6 @@ impl ReferenceShadingPass {
             depth: depth as u32,
         };
 
-        self.pass.run(camera, encoder, size, &params);
+        self.pass.run(camera, encoder, size, params);
     }
 }

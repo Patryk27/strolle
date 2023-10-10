@@ -50,28 +50,20 @@ impl BilinearFilter {
         let [p00, p10, p01, p11] =
             Self::reprojection_coords(reprojection.prev_x, reprojection.prev_y);
 
-        if reprojection.validity & 0b0001 > 0 {
-            if p00.x > 0 && p00.y > 0 {
-                (s00, weights.x) = sample(p00.as_uvec2());
-            }
+        if reprojection.validity & 0b0001 > 0 && p00.x > 0 && p00.y > 0 {
+            (s00, weights.x) = sample(p00.as_uvec2());
         }
 
-        if reprojection.validity & 0b0010 > 0 {
-            if p10.x > 0 && p10.y > 0 {
-                (s10, weights.y) = sample(p10.as_uvec2());
-            }
+        if reprojection.validity & 0b0010 > 0 && p10.x > 0 && p10.y > 0 {
+            (s10, weights.y) = sample(p10.as_uvec2());
         }
 
-        if reprojection.validity & 0b0100 > 0 {
-            if p01.x > 0 && p01.y > 0 {
-                (s01, weights.z) = sample(p01.as_uvec2());
-            }
+        if reprojection.validity & 0b0100 > 0 && p01.x > 0 && p01.y > 0 {
+            (s01, weights.z) = sample(p01.as_uvec2());
         }
 
-        if reprojection.validity & 0b1000 > 0 {
-            if p11.x > 0 && p11.y > 0 {
-                (s11, weights.w) = sample(p11.as_uvec2());
-            }
+        if reprojection.validity & 0b1000 > 0 && p11.x > 0 && p11.y > 0 {
+            (s11, weights.w) = sample(p11.as_uvec2());
         }
 
         Self {

@@ -38,6 +38,10 @@ pub fn main(
     let lights = LightsView::new(lights);
     let reprojection_map = ReprojectionMap::new(reprojection_map);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let hit = Hit::new(

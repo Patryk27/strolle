@@ -25,10 +25,15 @@ pub fn main(
     let surface_map = SurfaceMap::new(surface_map);
     let reprojection_map = ReprojectionMap::new(reprojection_map);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let surface = surface_map.get(screen_pos);
     let mut reservoir = IndirectReservoir::default();
+    let mut reservoir_p_hat = 0.0;
 
     let hit = Hit::new(
         camera.ray(screen_pos),
@@ -45,9 +50,6 @@ pub fn main(
     }
 
     // -------------------------------------------------------------------------
-    // Step 1:
-    //
-    // Try reprojecting reservoir from the previous frame.
 
     let reprojection = reprojection_map.get(screen_pos);
 
@@ -57,53 +59,48 @@ pub fn main(
             camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
+        rhs.clamp_m(256.0);
         rhs.m_sum *= reprojection.confidence;
 
-        reservoir.merge(
-            &mut wnoise,
-            &rhs,
-            rhs.sample.spatial_p_hat(hit.point, hit.gbuffer.normal),
-        );
+        let rhs_p_hat = rhs.sample.spatial_p_hat(hit.point, hit.gbuffer.normal);
+
+        if reservoir.merge(&mut wnoise, &rhs, rhs_p_hat) {
+            reservoir_p_hat = rhs_p_hat;
+        }
     }
 
-    // -------------------------------------------------------------------------
-    // Step 2:
-    //
-    // Analyze our screen-space neighbourhood and try to incorporate samples
-    // from temporal reservoirs around us into our current reservoir.
-    //
-    // As compared to the direct-spatial-resampling pass, in here we simply
-    // gather a few random samples around our current pixel and call it a day.
+    // ---
 
-    let mut reservoir_p_hat = reservoir
-        .sample
-        .spatial_p_hat(hit.point, hit.gbuffer.normal);
+    let mut sample_fuel = if reservoir.m_sum < 250.0 {
+        6.0f32
+    } else {
+        3.0f32
+    };
 
-    let mut sample_idx = 0.0f32;
     let mut sample_radius = 32.0f32;
 
-    while sample_idx <= 6.0 {
+    while sample_fuel > 0.0 {
         let rhs_pos = screen_pos.as_vec2()
             + wnoise.sample_disk() * sample_radius.max(3.0);
 
         let rhs_pos = camera.contain(rhs_pos.as_ivec2());
 
-        let rhs_similarity = surface_map
-            .evaluate_similarity_between(screen_pos, surface, rhs_pos);
+        let rhs_similarity =
+            surface_map.get(rhs_pos).evaluate_similarity_to(&surface);
 
         if rhs_similarity < 0.5 {
-            sample_idx += 0.5;
+            sample_fuel -= 0.5;
             sample_radius *= 0.75;
             continue;
         }
 
-        let rhs = IndirectReservoir::read(
+        let mut rhs = IndirectReservoir::read(
             indirect_diffuse_temporal_reservoirs,
             camera.screen_to_idx(rhs_pos),
         );
 
         if rhs.is_empty() {
-            sample_idx += 0.5;
+            sample_fuel -= 0.5;
             sample_radius *= 0.75;
             continue;
         }
@@ -111,7 +108,7 @@ pub fn main(
         let rhs_p_hat = rhs.sample.spatial_p_hat(hit.point, hit.gbuffer.normal);
 
         if rhs_p_hat < 0.0 {
-            sample_idx += 0.5;
+            sample_fuel -= 0.5;
             sample_radius *= 0.75;
             continue;
         }
@@ -121,28 +118,22 @@ pub fn main(
         // TODO rust-gpu seems to miscompile `.contains()`
         #[allow(clippy::manual_range_contains)]
         if rhs_jacobian < 1.0 / 10.0 || rhs_jacobian > 10.0 {
-            sample_idx += 0.5;
+            sample_fuel -= 0.5;
             sample_radius *= 0.75;
             continue;
         }
 
-        let rhs_jacobian = rhs_jacobian.clamp(1.0 / 3.0, 3.0);
+        rhs.m_sum *= rhs_similarity;
 
-        if reservoir.merge(
-            &mut wnoise,
-            &rhs,
-            rhs_p_hat * rhs_similarity * rhs_jacobian,
-        ) {
+        if reservoir.merge(&mut wnoise, &rhs, rhs_p_hat * rhs_jacobian) {
             reservoir_p_hat = rhs_p_hat;
         }
 
-        sample_idx += 1.0;
+        sample_fuel -= 1.0;
     }
 
     // -------------------------------------------------------------------------
 
     reservoir.normalize(reservoir_p_hat);
-    reservoir.clamp_m(500.0);
-    reservoir.clamp_w(10.0);
     reservoir.write(indirect_diffuse_spatial_reservoirs, screen_idx);
 }

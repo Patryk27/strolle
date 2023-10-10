@@ -23,6 +23,12 @@ pub fn main(
     let bvh = BvhView::new(bvh);
     let materials = MaterialsView::new(materials);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+
     let (_, used_memory) = camera.ray(screen_pos).trace(
         local_idx,
         stack,

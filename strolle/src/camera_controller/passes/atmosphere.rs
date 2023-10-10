@@ -78,15 +78,15 @@ impl AtmospherePass {
             self.generate_transmittance_lut_pass.run(
                 camera,
                 encoder,
-                gpu::Atmosphere::TRANSMITTANCE_LUT_RESOLUTION / 8,
-                &(),
+                (gpu::Atmosphere::TRANSMITTANCE_LUT_RESOLUTION + 7) / 8,
+                (),
             );
 
             self.generate_scattering_lut_pass.run(
                 camera,
                 encoder,
-                gpu::Atmosphere::SCATTERING_LUT_RESOLUTION / 8,
-                &(),
+                (gpu::Atmosphere::SCATTERING_LUT_RESOLUTION + 7) / 8,
+                (),
             );
 
             *is_initialized = true;
@@ -99,8 +99,8 @@ impl AtmospherePass {
             self.generate_sky_lut_pass.run(
                 camera,
                 encoder,
-                gpu::Atmosphere::SKY_LUT_RESOLUTION / 8,
-                &(),
+                (gpu::Atmosphere::SKY_LUT_RESOLUTION + 7) / 8,
+                (),
             );
 
             *known_sun_altitude = Some(engine.sun.altitude);

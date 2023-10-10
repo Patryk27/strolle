@@ -21,6 +21,10 @@ pub fn main(
     let prev_surface_map = SurfaceMap::new(prev_surface_map);
     let reprojection_map = ReprojectionMap::new(reprojection_map);
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
     // -------------------------------------------------------------------------
 
     let mut reprojection = Reprojection::default();
@@ -45,7 +49,7 @@ pub fn main(
     let prev_screen_pos =
         screen_pos.as_vec2() - velocity_map.read(screen_pos).xy();
 
-    if prev_camera.contains(prev_screen_pos.round().as_ivec2()) {
+    if prev_camera.contains(prev_screen_pos.round()) {
         let prev_surface =
             prev_surface_map.get(prev_screen_pos.round().as_uvec2());
 
@@ -64,7 +68,7 @@ pub fn main(
     // -------------------------------------------------------------------------
 
     if reprojection.is_some() {
-        let check_validity = move |sample_pos| {
+        let check_validity = move |sample_pos: IVec2| {
             if !camera.contains(sample_pos) {
                 return false;
             }

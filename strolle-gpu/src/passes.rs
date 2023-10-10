@@ -102,3 +102,25 @@ pub struct ReferencePassParams {
     pub frame: u32,
     pub depth: u32,
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct IndirectPassParams {
+    pub seed: u32,
+    pub frame: u32,
+    pub mode: u32,
+}
+
+impl IndirectPassParams {
+    pub const MODE_DIFFUSE: u32 = 0;
+    pub const MODE_SPECULAR: u32 = 1;
+
+    pub fn is_diffuse(&self) -> bool {
+        self.mode == Self::MODE_DIFFUSE
+    }
+
+    pub fn is_specular(&self) -> bool {
+        self.mode == Self::MODE_SPECULAR
+    }
+}

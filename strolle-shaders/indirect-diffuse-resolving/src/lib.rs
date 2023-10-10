@@ -16,6 +16,12 @@ pub fn main(
 ) {
     let screen_pos = global_id.xy();
 
+    if !camera.contains(screen_pos) {
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+
     let hit = Hit::new(
         camera.ray(screen_pos),
         GBufferEntry::unpack([
@@ -32,9 +38,7 @@ pub fn main(
     let radiance = reservoir.sample.radiance * reservoir.w;
     let cosine = reservoir.sample.cosine(&hit);
     let brdf = reservoir.sample.diffuse_brdf(&hit);
-
-    let out =
-        (radiance * cosine * brdf.radiance).extend(reservoir.m_sum / 500.0);
+    let out = (radiance * cosine * brdf.radiance).extend(Default::default());
 
     unsafe {
         indirect_diffuse_samples.write(screen_pos, out);
