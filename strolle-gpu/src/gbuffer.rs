@@ -42,6 +42,7 @@ impl GBufferEntry {
                 z as f32 / 255.0,
                 w as f32 / 255.0,
             )
+            .powf(2.2)
         };
 
         Self {
@@ -83,10 +84,12 @@ impl GBufferEntry {
             let z = self.emissive.z;
 
             let w = {
-                let base_color =
-                    self.base_color.clamp(Vec4::ZERO, Vec4::ONE) * 255.0;
+                let base_color = self
+                    .base_color
+                    .powf(1.0 / 2.2)
+                    .clamp(Vec4::ZERO, Vec4::ONE);
 
-                let base_color = base_color.as_uvec4();
+                let base_color = (base_color * 255.0).as_uvec4();
 
                 f32::from_bits(u32::from_bytes([
                     base_color.x,

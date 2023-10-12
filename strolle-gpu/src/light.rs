@@ -124,11 +124,7 @@ impl Light {
     /// Returns contribution (i.e. "the surface color") of this light on given
     /// hit.
     pub fn contribution(&self, hit: Hit) -> Vec3 {
-        let l = (self.center() - hit.point).normalize();
-        let v = (hit.origin - hit.point).normalize();
-        let diffuse = DiffuseBrdf::new(&hit.gbuffer).evaluate(l, v).radiance;
-
-        self.radiance(hit) * diffuse
+        self.radiance(hit) * DiffuseBrdf::new(&hit.gbuffer).evaluate().radiance
     }
 
     /// Casts a shadow ray and returns 0.0 if this light is occluded or 1.0 if

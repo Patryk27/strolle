@@ -16,18 +16,9 @@ impl<'a> DiffuseBrdf<'a> {
         Self { gbuffer }
     }
 
-    pub fn evaluate(self, l: Vec3, v: Vec3) -> BrdfValue {
+    pub fn evaluate(self) -> BrdfValue {
         let Self { gbuffer } = self;
-
-        let n = gbuffer.normal;
-        let h = (l + v).normalize();
-        let n_dot_v = n.dot(v).max(0.0001);
-        let n_dot_l = n.dot(l).saturate();
-        let l_dot_h = l.dot(h).saturate();
-
-        let radiance = gbuffer.base_color.xyz()
-            * fd_burley(gbuffer.clamped_roughness(), n_dot_v, n_dot_l, l_dot_h)
-            * (1.0 - gbuffer.metallic);
+        let radiance = gbuffer.base_color.xyz() * (1.0 - gbuffer.metallic);
 
         BrdfValue {
             radiance,
@@ -240,14 +231,6 @@ impl BrdfSample {
     }
 }
 
-fn fd_burley(roughness: f32, n_dot_v: f32, n_dot_l: f32, l_dot_h: f32) -> f32 {
-    let f90 = 0.5 + 2.0 * roughness * l_dot_h * l_dot_h;
-    let light_scatter = f_schlick(1.0, f90, n_dot_l);
-    let view_scatter = f_schlick(1.0, f90, n_dot_v);
-
-    light_scatter * view_scatter * (1.0 / PI)
-}
-
 fn ggx_schlick_fresnel(f0: Vec3, l_dot_h: f32) -> Vec3 {
     let f90 = f0.dot(Vec3::splat(50.0 * 0.33)).saturate();
 
@@ -268,10 +251,6 @@ fn ggx_schlick_masking_term(n_dot_l: f32, n_dot_v: f32, roughness: f32) -> f32 {
     let g_l = n_dot_l / (n_dot_l * (1.0 - k) + k);
 
     g_v * g_l
-}
-
-fn f_schlick(f0: f32, f90: f32, v_dot_h: f32) -> f32 {
-    f0 + (f90 - f0) * (1.0 - v_dot_h).max(0.001).powf(5.0)
 }
 
 fn f_schlick_vec(f0: Vec3, f90: f32, v_dot_h: f32) -> Vec3 {
