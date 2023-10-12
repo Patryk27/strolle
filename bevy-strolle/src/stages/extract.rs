@@ -390,6 +390,8 @@ pub(crate) fn cameras(
             continue;
         }
 
+        assert!(camera.hdr, "Strolle requires an HDR camera");
+
         commands.get_or_spawn(entity).insert(ExtractedCamera {
             transform: transform.compute_matrix(),
             projection: projection.get_projection_matrix(),

@@ -35,7 +35,7 @@ pub fn main_fs(
 ) {
     let screen_pos = pos.xy().as_uvec2();
 
-    let (color, apply_color_adjustments) = match params.camera_mode {
+    let color = match params.camera_mode {
         // CameraMode::Image
         0 => {
             let gbuffer = GBufferEntry::unpack([
@@ -60,61 +60,30 @@ pub fn main_fs(
                 direct_colors.read(screen_pos).xyz()
             };
 
-            (color, true)
+            color
         }
 
         // CameraMode::DirectLightning
-        1 => (direct_colors.read(screen_pos).xyz(), true),
+        1 => direct_colors.read(screen_pos).xyz(),
 
         // CameraMode::IndirectDiffuseLightning
-        2 => (indirect_diffuse_colors.read(screen_pos).xyz(), true),
+        2 => indirect_diffuse_colors.read(screen_pos).xyz(),
 
         // CameraMode::IndirectSpecularLightning
-        3 => (indirect_specular_colors.read(screen_pos).xyz(), true),
+        3 => indirect_specular_colors.read(screen_pos).xyz(),
 
         // CameraMode::BvhHeatmap
-        4 => (direct_colors.read(screen_pos).xyz(), false),
+        4 => direct_colors.read(screen_pos).xyz(),
 
         // CameraMode::Reference
         5 => {
             let color = reference_colors.read(screen_pos);
-            let color = color.xyz() / color.w;
 
-            (color, true)
+            color.xyz() / color.w
         }
 
         _ => Default::default(),
     };
 
-    *frag_color = if apply_color_adjustments {
-        let color = apply_debanding(pos.xy(), color);
-        let color = apply_tone_mapping(color);
-
-        color.extend(1.0)
-    } else {
-        color.extend(1.0)
-    };
-}
-
-/// Applies screen-space debanding using a simple dither.
-///
-/// Thanks to:
-/// https://media.steampowered.com/apps/valve/2015/Alex_Vlachos_Advanced_VR_Rendering_GDC2015.pdf (slide 49)
-fn apply_debanding(pos: Vec2, color: Vec3) -> Vec3 {
-    fn screen_space_dither(pos: Vec2) -> Vec3 {
-        let dither = Vec3::splat(vec2(171.0, 231.0).dot(pos));
-        let dither = (dither / vec3(103.0, 71.0, 97.0)).fract();
-
-        (dither - 0.5) / 255.0
-    }
-
-    let color = color.powf(1.0 / 2.2);
-    let color = color + screen_space_dither(pos);
-
-    color.powf(2.2)
-}
-
-/// Applies Reinhard tone mapping.
-fn apply_tone_mapping(color: Vec3) -> Vec3 {
-    color.with_luminance(color.luminance() / (1.0 + color.luminance()))
+    *frag_color = color.extend(1.0);
 }

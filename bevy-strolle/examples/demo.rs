@@ -92,7 +92,7 @@ fn setup(
                 color: Color::WHITE,
                 range: 35.0,
                 radius: 0.25,
-                intensity: 4000.0,
+                intensity: 3000.0,
                 shadows_enabled: true,
                 ..default()
             },
@@ -204,6 +204,7 @@ fn setup(
             camera: Camera {
                 order: 0,
                 target: RenderTarget::Image(viewport),
+                hdr: true,
                 ..default()
             },
             ..default()

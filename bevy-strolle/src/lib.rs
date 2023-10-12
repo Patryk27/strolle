@@ -16,12 +16,14 @@ pub mod graph {
 
     pub mod node {
         pub const RENDER: &str = "strolle_render";
+        pub const TONEMAPPING: &str = "strolle_tonemapping";
         pub const UPSCALING: &str = "strolle_upscaling";
     }
 }
 
 use std::ops;
 
+use bevy::core_pipeline::tonemapping::TonemappingNode;
 use bevy::core_pipeline::upscaling::UpscalingNode;
 use bevy::prelude::*;
 use bevy::render::render_graph::{RenderGraphApp, ViewNodeRunner};
@@ -175,13 +177,21 @@ impl Plugin for StrollePlugin {
                 graph::NAME,
                 graph::node::RENDER,
             )
+            .add_render_graph_node::<ViewNodeRunner<TonemappingNode>>(
+                graph::NAME,
+                graph::node::TONEMAPPING,
+            )
             .add_render_graph_node::<ViewNodeRunner<UpscalingNode>>(
                 graph::NAME,
                 graph::node::UPSCALING,
             )
             .add_render_graph_edges(
                 graph::NAME,
-                &[graph::node::RENDER, graph::node::UPSCALING],
+                &[
+                    graph::node::RENDER,
+                    graph::node::TONEMAPPING,
+                    graph::node::UPSCALING,
+                ],
             );
     }
 
