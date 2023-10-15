@@ -258,15 +258,19 @@ pub(crate) fn instances<Material>(
                 layers,
             )| {
                 if !visibility.is_visible_in_hierarchy() {
+                    // TODO inefficient; we should push only if the object was
+                    //      visible before
                     removed.push(handle);
                     return None;
                 }
 
                 // TODO this is invalid (but good enough for now); instead, we
                 //      should probably propagate the layers up to the BVH
-                //      leaves and adjust the ray-tracer to read those
+                //      leaves and adjust the raytracer to read those
                 if let Some(layers) = layers {
                     if *layers != RenderLayers::all() {
+                        // TODO inefficient; we should push only if the object
+                        //      was visible before
                         removed.push(handle);
                         return None;
                     }

@@ -61,8 +61,7 @@ where
     }
 
     pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
-        self.instances.remove(instance_handle);
-        self.dirty = true;
+        self.dirty |= self.instances.remove(instance_handle).is_some();
     }
 
     pub fn is_empty(&self) -> bool {
