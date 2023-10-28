@@ -30,11 +30,15 @@ impl BoundingBox {
 
         extent.x * extent.y + extent.y * extent.z + extent.z * extent.x
     }
+
+    pub fn is_set(&self) -> bool {
+        self.min.x != Self::default().min.x
+    }
 }
 
 impl Default for BoundingBox {
     fn default() -> Self {
-        Self::new(Vec3::splat(f32::MAX), Vec3::splat(f32::MIN))
+        Self::new(Vec3::MAX, Vec3::MIN)
     }
 }
 
@@ -80,13 +84,8 @@ impl Add<Self> for BoundingBox {
 
 impl AddAssign<Self> for BoundingBox {
     fn add_assign(&mut self, rhs: Self) {
-        if rhs.min != Self::default().min {
-            *self += rhs.min;
-        }
-
-        if rhs.max != Self::default().max {
-            *self += rhs.max;
-        }
+        *self += rhs.min;
+        *self += rhs.max;
     }
 }
 

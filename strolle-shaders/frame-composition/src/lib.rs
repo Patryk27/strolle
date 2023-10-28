@@ -43,7 +43,7 @@ pub fn main_fs(
                 direct_gbuffer_d1.read(screen_pos),
             ]);
 
-            let color = if gbuffer.is_some() {
+            if gbuffer.is_some() {
                 let direct = direct_colors.read(screen_pos).xyz();
                 let direct = direct * (1.0 - gbuffer.metallic);
 
@@ -58,9 +58,7 @@ pub fn main_fs(
                     + indirect_specular
             } else {
                 direct_colors.read(screen_pos).xyz()
-            };
-
-            color
+            }
         }
 
         // CameraMode::DirectLightning

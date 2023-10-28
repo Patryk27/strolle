@@ -1,7 +1,7 @@
 mod camera;
 mod event;
 mod material;
-mod render_node;
+mod rendering_node;
 mod stages;
 mod state;
 mod sun;
@@ -15,7 +15,7 @@ pub mod graph {
     pub const NAME: &str = "strolle";
 
     pub mod node {
-        pub const RENDER: &str = "strolle_render";
+        pub const RENDERING: &str = "strolle_rendering";
         pub const TONEMAPPING: &str = "strolle_tonemapping";
         pub const UPSCALING: &str = "strolle_upscaling";
     }
@@ -35,7 +35,7 @@ pub use strolle as st;
 pub use self::camera::*;
 pub use self::event::*;
 pub use self::material::*;
-use self::render_node::*;
+use self::rendering_node::*;
 use self::state::*;
 pub use self::sun::*;
 
@@ -173,9 +173,9 @@ impl Plugin for StrollePlugin {
 
         render_app
             .add_render_sub_graph(graph::NAME)
-            .add_render_graph_node::<ViewNodeRunner<RenderNode>>(
+            .add_render_graph_node::<ViewNodeRunner<RenderingNode>>(
                 graph::NAME,
-                graph::node::RENDER,
+                graph::node::RENDERING,
             )
             .add_render_graph_node::<ViewNodeRunner<TonemappingNode>>(
                 graph::NAME,
@@ -188,7 +188,7 @@ impl Plugin for StrollePlugin {
             .add_render_graph_edges(
                 graph::NAME,
                 &[
-                    graph::node::RENDER,
+                    graph::node::RENDERING,
                     graph::node::TONEMAPPING,
                     graph::node::UPSCALING,
                 ],

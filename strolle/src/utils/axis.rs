@@ -15,6 +15,17 @@ impl Axis {
     }
 }
 
+impl From<usize> for Axis {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => Self::X,
+            1 => Self::Y,
+            2 => Self::Z,
+            _ => panic!(),
+        }
+    }
+}
+
 impl Index<Axis> for Vec3 {
     type Output = f32;
 

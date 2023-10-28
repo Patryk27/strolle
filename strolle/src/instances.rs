@@ -5,6 +5,8 @@ use std::mem;
 use glam::Affine3A;
 use rand::Rng;
 
+use crate::bvh::Bvh;
+use crate::materials::Materials;
 use crate::meshes::Meshes;
 use crate::triangles::Triangles;
 use crate::{Instance, Params};
@@ -71,7 +73,9 @@ where
     pub fn refresh(
         &mut self,
         meshes: &Meshes<P>,
+        materials: &Materials<P>,
         triangles: &mut Triangles<P>,
+        bvh: &mut Bvh,
     ) -> bool {
         if !mem::take(&mut self.dirty) {
             return false;
@@ -85,14 +89,23 @@ where
             let Some(mesh) = meshes.get(&entry.instance.mesh_handle) else {
                 // If the mesh is not yet available, it might be still being
                 // loaded in the background - in that case let's try again next
-                // frame:
+                // frame
+                entry.dirty = true;
+                self.dirty = true;
+                continue;
+            };
+
+            let Some(material_id) =
+                materials.lookup(&entry.instance.material_handle)
+            else {
+                // Same for materials
                 entry.dirty = true;
                 self.dirty = true;
                 continue;
             };
 
             let mesh_triangles = mesh.triangles().iter().map(|triangle| {
-                triangle.with_transform(
+                triangle.build(
                     entry.instance.transform,
                     entry.instance.transform_inverse,
                 )
@@ -100,14 +113,29 @@ where
 
             if let Some(count) = triangles.count(instance_handle) {
                 if mesh.triangles().len() == count {
-                    triangles.update(instance_handle, mesh_triangles);
+                    triangles.update(
+                        bvh,
+                        instance_handle,
+                        mesh_triangles,
+                        material_id,
+                    );
                 } else {
-                    triangles.remove(instance_handle);
-                    triangles.add(instance_handle.to_owned(), mesh_triangles);
+                    triangles.remove(bvh, instance_handle);
+
+                    triangles.add(
+                        bvh,
+                        instance_handle.to_owned(),
+                        mesh_triangles,
+                        material_id,
+                    );
                 }
             } else {
-                triangles
-                    .add(instance_handle.to_owned(), mesh_triangles.clone());
+                triangles.add(
+                    bvh,
+                    instance_handle.to_owned(),
+                    mesh_triangles,
+                    material_id,
+                );
             }
         }
 

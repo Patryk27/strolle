@@ -6,9 +6,9 @@ use bevy::render::view::ViewTarget;
 use crate::{EngineResource, SyncedState};
 
 #[derive(Default)]
-pub struct RenderNode;
+pub struct RenderingNode;
 
-impl ViewNode for RenderNode {
+impl ViewNode for RenderingNode {
     type ViewQuery = &'static ViewTarget;
 
     fn run(

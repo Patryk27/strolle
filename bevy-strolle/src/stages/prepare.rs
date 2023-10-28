@@ -36,7 +36,7 @@ pub(crate) fn meshes(
             .attribute(Mesh::ATTRIBUTE_POSITION)
             .and_then(VertexAttributeValues::as_float3)
             .unwrap_or_else(|| {
-                panic!("Mesh {:?} has no positions", mesh.handle);
+                panic!("mesh {:?} has no positions", mesh.handle);
             });
 
         let mesh_normals = mesh
@@ -44,7 +44,7 @@ pub(crate) fn meshes(
             .attribute(Mesh::ATTRIBUTE_NORMAL)
             .and_then(VertexAttributeValues::as_float3)
             .unwrap_or_else(|| {
-                panic!("Mesh {:?} has no normals", mesh.handle);
+                panic!("mesh {:?} has no normals", mesh.handle);
             });
 
         let mesh_uvs = mesh
@@ -53,7 +53,7 @@ pub(crate) fn meshes(
             .map(|uvs| match uvs {
                 VertexAttributeValues::Float32x2(uvs) => uvs,
                 _ => panic!(
-                    "Mesh {:?} has unsupported format for UVs",
+                    "mesh {:?} has unsupported format for UVs",
                     mesh.handle
                 ),
             })
@@ -66,7 +66,7 @@ pub(crate) fn meshes(
             .map(|uvs| match uvs {
                 VertexAttributeValues::Float32x4(tangents) => tangents,
                 _ => panic!(
-                    "Mesh {:?} has unsupported format for tangents",
+                    "mesh {:?} has unsupported format for tangents",
                     mesh.handle
                 ),
             })
@@ -77,7 +77,7 @@ pub(crate) fn meshes(
             .mesh
             .indices()
             .unwrap_or_else(|| {
-                panic!("Mesh {:?} has no indices", mesh.handle);
+                panic!("mesh {:?} has no indices", mesh.handle);
             })
             .iter()
             .collect();
@@ -101,7 +101,7 @@ pub(crate) fn meshes(
                 let tan1 = mesh_tans.get(vs[1]).copied().unwrap_or_default();
                 let tan2 = mesh_tans.get(vs[2]).copied().unwrap_or_default();
 
-                st::Triangle::default()
+                st::MeshTriangle::default()
                     .with_positions([position0, position1, position2])
                     .with_normals([normal0, normal1, normal2])
                     .with_uvs([uv0, uv1, uv2])

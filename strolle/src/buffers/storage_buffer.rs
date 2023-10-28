@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use log::debug;
 
 use crate::buffers::utils;
@@ -11,7 +9,7 @@ use crate::Bindable;
 /// have to be accessed on the host machine.
 #[derive(Debug)]
 pub struct StorageBuffer {
-    buffer: Arc<wgpu::Buffer>,
+    buffer: wgpu::Buffer,
 }
 
 impl StorageBuffer {
@@ -24,7 +22,7 @@ impl StorageBuffer {
         let label = label.as_ref();
         let size = utils::pad_size(size);
 
-        debug!("Allocating unmapped storage buffer `{label}`; size={size}");
+        debug!("Allocating storage buffer `{label}`; size={size}");
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
@@ -33,9 +31,7 @@ impl StorageBuffer {
             mapped_at_creation: false,
         });
 
-        Self {
-            buffer: Arc::new(buffer),
-        }
+        Self { buffer }
     }
 
     /// Creates an immutable storage-buffer binding:
@@ -45,7 +41,7 @@ impl StorageBuffer {
     /// items: &[T],
     /// ```
     pub fn bind_readable(&self) -> impl Bindable + '_ {
-        UnmappedStorageBufferBinder {
+        StorageBufferBinder {
             parent: self,
             read_only: true,
         }
@@ -58,19 +54,19 @@ impl StorageBuffer {
     /// items: &mut [T],
     /// ```
     pub fn bind_writable(&self) -> impl Bindable + '_ {
-        UnmappedStorageBufferBinder {
+        StorageBufferBinder {
             parent: self,
             read_only: false,
         }
     }
 }
 
-pub struct UnmappedStorageBufferBinder<'a> {
+pub struct StorageBufferBinder<'a> {
     parent: &'a StorageBuffer,
     read_only: bool,
 }
 
-impl Bindable for UnmappedStorageBufferBinder<'_> {
+impl Bindable for StorageBufferBinder<'_> {
     fn bind(
         &self,
         binding: u32,
