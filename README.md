@@ -8,6 +8,10 @@ global illumination:
 </p>
 
 <p align="center">
+  <img height="512" src="_readme/demo-v10.jpg" />
+</p>
+
+<p align="center">
   <img height="512" src="_readme/demo-v9.jpg" />
 </p>
 
