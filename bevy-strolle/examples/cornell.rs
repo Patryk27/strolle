@@ -38,7 +38,7 @@ fn main() {
 fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     commands.spawn(SceneBundle {
         scene: assets.load("cornell/scene.gltf#Scene0"),
-        ..Default::default()
+        ..default()
     });
 
     commands.spawn(PointLightBundle {
@@ -57,6 +57,10 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
             camera_render_graph: CameraRenderGraph::new(
                 bevy_strolle::graph::NAME,
             ),
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
             ..default()
         })
         .insert(StrolleCamera::default())

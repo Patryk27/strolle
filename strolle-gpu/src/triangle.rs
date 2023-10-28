@@ -61,10 +61,6 @@ impl Triangle {
         [self.position0(), self.position1(), self.position2()]
     }
 
-    pub fn center(&self) -> Vec3 {
-        self.positions().into_iter().sum::<Vec3>() / 3.0
-    }
-
     pub fn hit(&self, ray: Ray, max_distance: f32) -> TriangleHit {
         let v0v1 = self.position1() - self.position0();
         let v0v2 = self.position2() - self.position0();
@@ -132,9 +128,5 @@ impl TriangleId {
 
     pub fn get(self) -> u32 {
         self.0
-    }
-
-    pub fn get_mut(&mut self) -> &mut u32 {
-        &mut self.0
     }
 }

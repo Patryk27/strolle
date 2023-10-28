@@ -1,16 +1,16 @@
-use crate::Triangle;
+use crate::MeshTriangle;
 
 #[derive(Clone, Debug)]
 pub struct Mesh {
-    triangles: Vec<Triangle>,
+    triangles: Vec<MeshTriangle>,
 }
 
 impl Mesh {
-    pub fn new(triangles: Vec<Triangle>) -> Self {
+    pub fn new(triangles: Vec<MeshTriangle>) -> Self {
         Self { triangles }
     }
 
-    pub(crate) fn triangles(&self) -> &[Triangle] {
+    pub(crate) fn triangles(&self) -> &[MeshTriangle] {
         &self.triangles
     }
 }

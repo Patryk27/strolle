@@ -60,6 +60,7 @@ mod lights;
 mod material;
 mod materials;
 mod mesh;
+mod mesh_triangle;
 mod meshes;
 mod noise;
 mod shaders;
@@ -70,35 +71,36 @@ mod utils;
 
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::mem;
 use std::ops::Deref;
 use std::time::Instant;
+use std::{env, mem};
 
 pub use glam;
-use log::info;
+use log::{info, trace};
 use strolle_gpu as gpu;
 
-use self::buffers::*;
-use self::bvh::*;
+pub(crate) use self::buffers::*;
+pub(crate) use self::bvh::*;
 pub use self::camera::*;
-use self::camera_controller::*;
-use self::camera_controllers::*;
+pub(crate) use self::camera_controller::*;
+pub(crate) use self::camera_controllers::*;
 pub use self::image::*;
-use self::images::*;
+pub(crate) use self::images::*;
 pub use self::instance::*;
-use self::instances::*;
+pub(crate) use self::instances::*;
 pub use self::light::*;
-use self::lights::*;
+pub(crate) use self::lights::*;
 pub use self::material::*;
-use self::materials::*;
+pub(crate) use self::materials::*;
 pub use self::mesh::*;
-use self::meshes::*;
-use self::noise::*;
-use self::shaders::*;
+pub use self::mesh_triangle::*;
+pub(crate) use self::meshes::*;
+pub(crate) use self::noise::*;
+pub(crate) use self::shaders::*;
 pub use self::sun::*;
-pub use self::triangle::*;
-use self::triangles::*;
-use self::utils::*;
+pub(crate) use self::triangle::*;
+pub(crate) use self::triangles::*;
+pub(crate) use self::utils::*;
 
 #[derive(Debug)]
 pub struct Engine<P>
@@ -120,6 +122,7 @@ where
     has_dirty_materials: bool,
     has_dirty_images: bool,
     has_dirty_sun: bool,
+    print_stats: bool,
 }
 
 impl<P> Engine<P>
@@ -149,6 +152,7 @@ where
             has_dirty_materials: false,
             has_dirty_images: false,
             has_dirty_sun: true,
+            print_stats: env::var("STROLLE_STATS").as_deref() == Ok("1"),
         }
     }
 
@@ -249,7 +253,7 @@ where
     /// ¹ see the module-level comment for details
     pub fn remove_instance(&mut self, instance_handle: &P::InstanceHandle) {
         self.instances.remove(instance_handle);
-        self.triangles.remove(instance_handle);
+        self.triangles.remove(&mut self.bvh, instance_handle);
     }
 
     /// Creates a light or updates the existing one¹.
@@ -284,28 +288,34 @@ where
         let any_material_modified = mem::take(&mut self.has_dirty_materials);
         let any_image_modified = mem::take(&mut self.has_dirty_images);
 
-        self.noise.flush(queue);
-        self.images.flush(device, queue);
+        utils::measure("flush.noise", || {
+            self.noise.flush(queue);
+        });
+
+        utils::measure("flush.images", || {
+            self.images.flush(device, queue);
+        });
 
         if any_material_modified || any_image_modified {
-            self.materials.refresh(&self.images);
+            utils::measure("flush.materials", || {
+                self.materials.refresh(&self.images);
+            });
         }
 
         // ---
 
-        let any_instance_modified =
-            self.instances.refresh(&self.meshes, &mut self.triangles);
+        utils::measure("flush.instances", || {
+            self.instances.refresh(
+                &self.meshes,
+                &self.materials,
+                &mut self.triangles,
+                &mut self.bvh,
+            );
+        });
 
-        if any_material_modified || any_image_modified || any_instance_modified
-        {
-            utils::measure("bvh.refresh", || {
-                self.bvh.refresh(
-                    &self.instances,
-                    &self.materials,
-                    &self.triangles,
-                );
-            });
-        }
+        utils::measure("flush.bvh.refresh", || {
+            self.bvh.refresh(&self.materials);
+        });
 
         // ---
 
@@ -315,17 +325,21 @@ where
             sun_altitude: self.sun.altitude,
         };
 
-        self.world.flush(queue);
+        utils::measure("flush.world", || {
+            self.world.flush(queue);
+        });
 
         if mem::take(&mut self.has_dirty_sun) {
             self.lights.update_sun(*self.world);
         }
 
-        let any_buffer_reallocated = false
-            | self.bvh.flush(device, queue).reallocated
-            | self.triangles.flush(device, queue).reallocated
-            | self.lights.flush(device, queue).reallocated
-            | self.materials.flush(device, queue).reallocated;
+        let any_buffer_reallocated = utils::measure("flush.buffers", || {
+            false
+                | self.bvh.flush(device, queue).reallocated
+                | self.triangles.flush(device, queue).reallocated
+                | self.lights.flush(device, queue).reallocated
+                | self.materials.flush(device, queue).reallocated
+        });
 
         // ---
 
@@ -339,13 +353,26 @@ where
             self.cameras = cameras;
         }
 
-        for camera in self.cameras.iter_mut() {
-            camera.flush(queue);
-        }
+        utils::measure("flush.cameras", || {
+            for camera in self.cameras.iter_mut() {
+                camera.flush(queue);
+            }
+        });
 
         // ---
 
         utils::metric("flush", tt);
+
+        if self.print_stats {
+            trace!(
+                "meshes={} | triangles={} | nodes={} | materials={} | lights = {}",
+                self.meshes.len(),
+                self.triangles.len(),
+                self.bvh.len(),
+                self.materials.len(),
+                self.lights.len(),
+            );
+        }
     }
 
     /// Creates a new camera¹ that can be used to render the world.

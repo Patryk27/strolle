@@ -1,14 +1,14 @@
 # Strolle
 
-Strolle (from _strålspårning_) is an experimental real-time renderer with
-support for global illumination:
+Strolle (from _strålspårning_) is an real-time renderer with support for dynamic
+global illumination:
 
 <p align="center">
-  <img height="512" src="_readme/demo-v6.jpg" />
+  <img height="512" src="_readme/demo-v8.jpg" />
 </p>
 
 <p align="center">
-  <img height="512" src="_readme/demo-v7.jpg" />
+  <img height="512" src="_readme/demo-v9.jpg" />
 </p>
 
 Our goal is to create an engine able to produce a good-looking image on a
@@ -18,10 +18,12 @@ explore, of course!
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
 
-Status: Work in progress, no official release yet.    
+Status: Experimental, no official release yet.    
 Platforms: Windows, Mac & Linux.
 
-## Example
+## Examples
+
+### Dungeon
 
 ``` shell
 $ cargo run --release --example demo
@@ -45,6 +47,12 @@ Use WASD to move and mouse to navigate the camera - extra controls include:
 
 Model thanks to:    
 https://sketchfab.com/3d-models/low-poly-game-level-82b7a937ae504cfa9f277d9bf6874ad2
+
+### Cornell Box
+
+``` shell
+$ cargo run --release --example cornell
+```
 
 ## Algorithms
 

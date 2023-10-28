@@ -26,15 +26,15 @@ fn unzip_asset(name: &str) {
     let archive = dir.join(name).with_extension("zip");
 
     let archive = File::open(archive)
-        .unwrap_or_else(|err| panic!("Couldn't open asset {}: {}", name, err));
+        .unwrap_or_else(|err| panic!("couldn't open asset {}: {}", name, err));
 
     let mut archive =
         ZipArchive::new(BufReader::new(archive)).unwrap_or_else(|err| {
-            panic!("Couldn't open archive for asset: {}: {}", name, err)
+            panic!("couldn't open archive for asset: {}: {}", name, err)
         });
 
     archive.extract(&dir).unwrap_or_else(|err| {
-        panic!("Couldn't extract asset {}: {}", name, err)
+        panic!("couldn't extract asset {}: {}", name, err)
     });
 }
 

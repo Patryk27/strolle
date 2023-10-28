@@ -1,77 +1,73 @@
-mod build;
-mod bvh_node;
-mod bvh_primitive;
-mod serialize;
+mod builder;
+mod node;
+mod nodes;
+mod primitive;
+mod primitives;
+mod serializer;
 
 use std::fmt::Debug;
+use std::ops::Range;
 
 use spirv_std::glam::Vec4;
 
-pub use self::bvh_node::*;
-pub use self::bvh_primitive::*;
+pub use self::builder::*;
+pub use self::node::*;
+pub use self::nodes::*;
+pub use self::primitive::*;
+pub use self::primitives::*;
 use crate::{
-    Bindable, BufferFlushOutcome, Instances, MappedStorageBuffer, Materials,
-    Params, Triangles,
+    utils, Bindable, BufferFlushOutcome, MappedStorageBuffer, Materials, Params,
 };
 
 #[derive(Debug)]
 pub struct Bvh {
     buffer: MappedStorageBuffer<Vec<Vec4>>,
+    nodes: BvhNodes,
+    primitives: BvhPrimitives,
 }
 
 impl Bvh {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
             buffer: MappedStorageBuffer::new_default(device, "bvh"),
+            nodes: Default::default(),
+            primitives: Default::default(),
         }
     }
 
-    pub fn refresh<P>(
+    pub fn add(&mut self, prim: BvhPrimitive) {
+        self.primitives.add(prim);
+    }
+
+    pub fn update(
         &mut self,
-        instances: &Instances<P>,
-        materials: &Materials<P>,
-        triangles: &Triangles<P>,
-    ) where
+        ids: Range<usize>,
+    ) -> impl Iterator<Item = &mut BvhPrimitive> {
+        self.primitives.update(ids)
+    }
+
+    pub fn refresh<P>(&mut self, materials: &Materials<P>)
+    where
         P: Params,
     {
-        // TODO it would be nice not to re-collect all triangles every frame
-        //      (it doesn't seem to be a bottleneck, though)
-        let mut primitives: Vec<_> = instances
-            .iter()
-            .flat_map(|(instance_handle, instance_entry)| {
-                let material_id =
-                    materials.lookup(&instance_entry.instance.material_handle);
+        utils::measure("flush.bvh.refresh.begin", || {
+            self.primitives.begin_refresh();
+        });
 
-                material_id.into_iter().flat_map(|material_id| {
-                    triangles.iter(instance_handle).map(
-                        move |(triangle_id, triangle)| BvhPrimitive {
-                            bounds: triangle.positions().into_iter().collect(),
-                            center: triangle.center(),
-                            triangle_id,
-                            material_id,
-                        },
-                    )
-                })
-            })
-            .collect();
+        utils::measure("flush.bvh.refresh.builder", || {
+            builder::run(&mut self.nodes, &mut self.primitives);
+        });
 
-        if primitives.is_empty() {
-            return;
-        }
+        utils::measure("flush.bvh.refresh.serializer", || {
+            serializer::run(
+                materials,
+                &self.nodes,
+                &self.primitives,
+                &mut self.buffer,
+            );
+        });
 
-        // TODO it would be nice not to re-allocate the nodes every frame
-        //      (it doesn't seem to be a bottleneck, though)
-        let mut nodes = Vec::new();
-
-        // BVH, being a binary tree, can consist of at most `2 * leafes - 1`
-        // nodes:
-        nodes.resize(2 * primitives.len() - 1, Default::default());
-
-        let nodes = build::run(nodes, &mut primitives);
-
-        self.buffer.clear();
-
-        serialize::run(materials, &nodes, &mut self.buffer);
+        self.primitives.end_refresh();
     }
 
     pub fn flush(
@@ -80,6 +76,10 @@ impl Bvh {
         queue: &wgpu::Queue,
     ) -> BufferFlushOutcome {
         self.buffer.flush(device, queue)
+    }
+
+    pub fn len(&self) -> usize {
+        self.nodes.nodes.len()
     }
 
     pub fn bind_readable(&self) -> impl Bindable + '_ {

@@ -59,8 +59,6 @@ fn setup(
     mut commands: Commands,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
     assets: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut st_materials: ResMut<Assets<StrolleMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
     let mut window = windows.single_mut();
@@ -72,7 +70,7 @@ fn setup(
 
     commands.spawn(SceneBundle {
         scene: assets.load("demo/level.glb#Scene0"),
-        ..Default::default()
+        ..default()
     });
 
     let lights = vec![
@@ -116,33 +114,6 @@ fn setup(
             ..default()
         })
         .insert(Flashlight { enabled: false });
-
-    // -------------------------------------------------------------------------
-
-    let spheres = vec![vec3(-8.0, 0.2, -23.5)];
-
-    for sphere in spheres {
-        commands.spawn(MaterialMeshBundle {
-            mesh: meshes.add(
-                Mesh::try_from(shape::Icosphere {
-                    radius: 1.0,
-                    subdivisions: 4,
-                })
-                .unwrap(),
-            ),
-            material: st_materials.add(StrolleMaterial {
-                parent: StandardMaterial {
-                    base_color: Color::rgba(1.0, 1.0, 1.0, 1.0),
-                    metallic: 1.0,
-                    perceptual_roughness: 0.33,
-                    ..default()
-                },
-                ..default()
-            }),
-            transform: Transform::from_translation(sphere),
-            ..default()
-        });
-    }
 
     // -------------------------------------------------------------------------
 

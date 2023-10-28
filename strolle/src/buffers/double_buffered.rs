@@ -44,7 +44,7 @@ impl DoubleBuffered<&Texture> {
 impl DoubleBuffered<StorageBuffer> {
     /// Creates a double-buffered storage buffer.
     ///
-    /// See: [`UnmappedStorageBuffer::new()`].
+    /// See: [`StorageBuffer::new()`].
     pub fn new(
         device: &wgpu::Device,
         label: impl AsRef<str>,
@@ -60,7 +60,7 @@ impl DoubleBuffered<StorageBuffer> {
 }
 
 impl DoubleBuffered<&StorageBuffer> {
-    /// See: [`UnmappedStorageBuffer::bind_readable()`].
+    /// See: [`StorageBuffer::bind_readable()`].
     pub fn bind_readable(&self) -> impl DoubleBufferedBindable + '_ {
         DoubleBufferedBinder {
             a: self.a.bind_readable(),
@@ -68,7 +68,7 @@ impl DoubleBuffered<&StorageBuffer> {
         }
     }
 
-    /// See: [`UnmappedStorageBuffer::bind_writable()`].
+    /// See: [`StorageBuffer::bind_writable()`].
     pub fn bind_writable(&self) -> impl DoubleBufferedBindable + '_ {
         DoubleBufferedBinder {
             a: self.a.bind_writable(),

@@ -137,8 +137,4 @@ impl MaterialId {
     pub fn get(self) -> u32 {
         self.0
     }
-
-    pub fn get_mut(&mut self) -> &mut u32 {
-        &mut self.0
-    }
 }

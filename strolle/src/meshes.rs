@@ -25,6 +25,10 @@ where
     pub fn remove(&mut self, mesh_handle: &P::MeshHandle) {
         self.meshes.remove(mesh_handle);
     }
+
+    pub fn len(&self) -> usize {
+        self.meshes.len()
+    }
 }
 
 impl<P> Default for Meshes<P>

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Index;
 
+use crate::utils::Allocator;
 use crate::{
     gpu, Bindable, BufferFlushOutcome, Images, MappedStorageBuffer, Material,
     Params,
@@ -13,6 +14,7 @@ pub struct Materials<P>
 where
     P: Params,
 {
+    allocator: Allocator,
     buffer: MappedStorageBuffer<Vec<gpu::Material>>,
     index: HashMap<P::MaterialHandle, gpu::MaterialId>,
     materials: Vec<Material<P>>,
@@ -24,6 +26,7 @@ where
 {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
+            allocator: Default::default(),
             buffer: MappedStorageBuffer::new_default(device, "materials"),
             index: Default::default(),
             materials: Default::default(),
@@ -44,10 +47,14 @@ where
 
             Entry::Vacant(entry) => {
                 let material_id =
-                    gpu::MaterialId::new(self.materials.len() as u32);
+                    if let Some(material_id) = self.allocator.take(1) {
+                        material_id.start
+                    } else {
+                        self.materials.push(material);
+                        self.materials.len() - 1
+                    };
 
-                self.materials.push(material);
-                entry.insert(material_id);
+                entry.insert(gpu::MaterialId::new(material_id as u32));
             }
         }
     }
@@ -61,13 +68,13 @@ where
             return;
         };
 
-        self.materials.remove(id.get() as usize);
+        let id = id.get() as usize;
 
-        for id2 in self.index.values_mut() {
-            if id2.get() > id.get() {
-                *id2.get_mut() -= 1;
-            }
-        }
+        self.allocator.give(id..id);
+    }
+
+    pub fn len(&self) -> usize {
+        self.buffer.len()
     }
 
     pub fn lookup(

@@ -20,7 +20,7 @@ impl CameraControllers {
 
     pub fn get(&self, camera_handle: CameraHandle) -> &CameraController {
         self.cameras.get(&camera_handle).unwrap_or_else(|| {
-            panic!("Camera does not exist: {:?}", camera_handle)
+            panic!("camera does not exist: {:?}", camera_handle)
         })
     }
 
@@ -29,7 +29,7 @@ impl CameraControllers {
         camera_handle: CameraHandle,
     ) -> &mut CameraController {
         self.cameras.get_mut(&camera_handle).unwrap_or_else(|| {
-            panic!("Camera does not exist: {:?}", camera_handle)
+            panic!("camera does not exist: {:?}", camera_handle)
         })
     }
 

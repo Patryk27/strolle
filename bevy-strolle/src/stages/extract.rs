@@ -159,8 +159,8 @@ pub(crate) fn images(
 
             assert!(
                 is_legal,
-                "Image `{:?}` was marked as dynamic but it is missing the \
-                 COPY_SRC usage; please add that usage and try again",
+                "image `{:?}` was marked as dynamic but it is missing the \
+                 COPY_SRC usage - please add that usage and try again",
                 handle
             );
 

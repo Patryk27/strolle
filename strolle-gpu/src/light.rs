@@ -188,4 +188,9 @@ impl LightId {
     pub fn get(self) -> u32 {
         self.0
     }
+
+    #[cfg(not(target_arch = "spirv"))]
+    pub fn get_mut(&mut self) -> &mut u32 {
+        &mut self.0
+    }
 }

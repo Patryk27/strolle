@@ -61,7 +61,7 @@ where
 
         for light_id2 in self.index.values_mut() {
             if light_id2.get() > light_id.get() {
-                *light_id2 = gpu::LightId::new(light_id2.get() - 1);
+                *light_id2.get_mut() -= 1;
             }
         }
     }
