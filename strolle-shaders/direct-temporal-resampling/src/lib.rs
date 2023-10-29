@@ -103,8 +103,6 @@ pub fn main(
     if subject_mode == SubjectMode::None {
         let light_id = LightId::new(candidate.z.to_bits());
 
-        subject_mode = SubjectMode::Candidate;
-
         (subject_ray, subject_ray_distance) =
             lights.get(light_id).ray(&mut wnoise, hit.point);
 
@@ -127,23 +125,21 @@ pub fn main(
 
     // ---
 
-    if subject_mode != SubjectMode::None {
-        if subject_ray.intersect(
-            local_idx,
-            stack,
-            triangles,
-            bvh,
-            materials,
-            atlas_tex,
-            atlas_sampler,
-            subject_ray_distance,
-        ) {
-            subject_reservoir.w = 0.0;
-        }
+    if subject_ray.intersect(
+        local_idx,
+        stack,
+        triangles,
+        bvh,
+        materials,
+        atlas_tex,
+        atlas_sampler,
+        subject_ray_distance,
+    ) {
+        subject_reservoir.w = 0.0;
+    }
 
-        if reservoir.merge(&mut wnoise, &subject_reservoir, subject_p_hat) {
-            reservoir_p_hat = subject_p_hat;
-        }
+    if reservoir.merge(&mut wnoise, &subject_reservoir, subject_p_hat) {
+        reservoir_p_hat = subject_p_hat;
     }
 
     // ---
@@ -157,6 +153,5 @@ pub fn main(
 #[repr(u32)]
 enum SubjectMode {
     None,
-    Candidate,
     Reprojection,
 }

@@ -69,7 +69,6 @@ pub fn main(
     // ---
 
     reservoir.normalize(reservoir_p_hat);
-    reservoir.clamp_w(10.0);
 
     let candidate = vec4(
         reservoir.m_sum,
