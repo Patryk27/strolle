@@ -46,20 +46,21 @@ impl Bvh {
         self.primitives.update(ids)
     }
 
-    pub fn refresh<P>(&mut self, materials: &Materials<P>)
+    pub fn refresh<P>(&mut self, frame: u32, materials: &Materials<P>)
     where
         P: Params,
     {
-        utils::measure("flush.bvh.refresh.begin", || {
+        utils::measure("tick.bvh.begin", || {
             self.primitives.begin_refresh();
         });
 
-        utils::measure("flush.bvh.refresh.builder", || {
+        utils::measure("tick.bvh.build", || {
             builder::run(&mut self.nodes, &mut self.primitives);
         });
 
-        utils::measure("flush.bvh.refresh.serializer", || {
+        utils::measure("tick.bvh.serialize", || {
             serializer::run(
+                frame,
                 materials,
                 &self.nodes,
                 &self.primitives,

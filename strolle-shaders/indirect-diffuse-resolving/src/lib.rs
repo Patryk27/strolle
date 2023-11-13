@@ -30,14 +30,14 @@ pub fn main(
         ]),
     );
 
-    let reservoir = IndirectReservoir::read(
+    let res = IndirectReservoir::read(
         indirect_diffuse_spatial_reservoirs,
         camera.screen_to_idx(screen_pos),
     );
 
-    let radiance = reservoir.sample.radiance * reservoir.w;
-    let cosine = reservoir.sample.cosine(&hit);
-    let brdf = reservoir.sample.diffuse_brdf(&hit);
+    let radiance = res.sample.radiance * res.w;
+    let cosine = res.sample.cosine(&hit);
+    let brdf = res.sample.diffuse_brdf(&hit);
     let out = (radiance * cosine * brdf.radiance).extend(Default::default());
 
     unsafe {

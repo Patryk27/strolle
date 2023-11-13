@@ -49,20 +49,59 @@ pub fn main(
         ]),
     );
 
-    let reservoir = DirectReservoir::read(
+    let res = DirectReservoir::read(
         direct_next_reservoirs,
         camera.screen_to_idx(screen_pos),
     );
 
-    let out = if hit.is_some() {
-        lights.get(reservoir.sample.light_id).radiance(hit) * reservoir.w
+    let color = if hit.is_some() {
+        let w = {
+            let mut sum = vec2(0.0, 0.0);
+            let mut sample_delta = ivec2(-1, -1);
+
+            loop {
+                let sample_pos = screen_pos.as_ivec2() + sample_delta;
+
+                if camera.contains(sample_pos) && sample_delta != ivec2(0, 0) {
+                    let sample = DirectReservoir::read(
+                        direct_next_reservoirs,
+                        camera.screen_to_idx(sample_pos.as_uvec2()),
+                    );
+
+                    if sample.m > 0.0 {
+                        sum += vec2(sample.w, 1.0);
+                    }
+                }
+
+                // ---
+
+                sample_delta.x += 1;
+
+                if sample_delta.x == 2 {
+                    sample_delta.x = -1;
+                    sample_delta.y += 1;
+
+                    if sample_delta.y == 2 {
+                        break;
+                    }
+                }
+            }
+
+            let avg = sum.x / sum.y.max(1.0);
+
+            res.w.clamp(0.0, avg)
+        };
+
+        lights.get(res.sample.light_id).radiance(hit) * w
     } else {
         atmosphere.sky(world.sun_direction(), hit.direction)
     };
 
-    reservoir.write(direct_prev_reservoirs, screen_idx);
+    let quality = (res.m / 400.0).min(1.0);
 
     unsafe {
-        direct_samples.write(screen_pos, out.extend(0.0));
+        direct_samples.write(screen_pos, color.extend(quality));
     }
+
+    res.write(direct_prev_reservoirs, screen_idx);
 }

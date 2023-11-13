@@ -16,14 +16,14 @@ impl SyncedState {
         !self.cameras.is_empty()
     }
 
-    pub fn flush(
+    pub fn tick(
         &mut self,
         engine: &mut st::Engine<EngineParams>,
         device: &RenderDevice,
         queue: &RenderQueue,
     ) {
         if self.is_active() {
-            engine.flush(device.wgpu_device(), queue);
+            engine.tick(device.wgpu_device(), queue);
         }
     }
 }

@@ -82,7 +82,7 @@ impl Ray {
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
         distance: f32,
-    ) -> bool {
+    ) -> (bool, bool) {
         let mut hit = TriangleHit {
             distance,
             ..TriangleHit::none()
@@ -100,7 +100,7 @@ impl Ray {
             &mut hit,
         );
 
-        hit.distance < distance
+        (hit.distance < distance, hit.is_dirty)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -193,6 +193,9 @@ impl Ray {
                 // hit is actually opaque at that particular hit-point.
                 let has_alpha_blending = flags & 2 == 2;
 
+                // Whether the triangle we're looking at was modified just now
+                let is_dirty = flags & 4 == 4;
+
                 let triangle_id = TriangleId::new(d0.y.to_bits());
 
                 let mut hit_candidate =
@@ -200,6 +203,7 @@ impl Ray {
 
                 if hit_candidate.distance < hit.distance {
                     hit_candidate.material_id = MaterialId::new(d0.z.to_bits());
+                    hit_candidate.is_dirty = is_dirty;
 
                     let found_hit = if has_alpha_blending {
                         used_memory += mem::size_of::<Material>();

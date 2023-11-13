@@ -78,8 +78,8 @@ impl CameraController {
             CameraPasses::new(engine, device, &self.camera, &self.buffers);
     }
 
-    pub fn flush(&mut self, queue: &wgpu::Queue) {
-        self.frame += 1;
+    pub fn flush(&mut self, frame: u32, queue: &wgpu::Queue) {
+        self.frame = frame;
         self.buffers.camera.flush(queue);
         self.buffers.prev_camera.flush(queue);
     }

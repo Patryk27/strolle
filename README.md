@@ -4,15 +4,7 @@ Strolle (from _strålspårning_) is an real-time renderer with support for dynam
 global illumination:
 
 <p align="center">
-  <img height="512" src="_readme/demo-v8.jpg" />
-</p>
-
-<p align="center">
-  <img height="512" src="_readme/demo-v10.jpg" />
-</p>
-
-<p align="center">
-  <img height="512" src="_readme/demo-v9.jpg" />
+  <img height="512" src="_readme/demo-v11.jpg" />
 </p>
 
 Our goal is to create an engine able to produce a good-looking image on a
@@ -24,6 +16,28 @@ used on its own (through `wgpu`).
 
 Status: Experimental, no official release yet.    
 Platforms: Windows, Mac & Linux.
+
+## Gallery
+
+<p align="center">
+  <img height="512" src="_readme/demo-v12.jpg" />
+</p>
+
+<p align="center">
+  <img height="512" src="_readme/demo-v13.jpg" />
+</p>
+
+<p align="center">
+  <img height="512" src="_readme/demo-v14.jpg" />
+</p>
+
+<p align="center">
+  <img height="512" src="_readme/demo-v15.jpg" />
+</p>
+
+<p align="center">
+  <img height="512" src="_readme/demo-v9.jpg" />
+</p>
 
 ## Examples
 

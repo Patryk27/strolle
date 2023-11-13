@@ -23,10 +23,10 @@ pub struct Reservoir<T> {
     /// the temporal and spatial resampling passes.
     ///
     /// ¹ so technically kinda-sorta u32, but using f32 allows for convenient
-    ///   things like `m_sum *= 0.25;`
-    pub m_sum: f32,
+    ///   things like `m *= 0.25;`
+    pub m: f32,
 
-    /// Reweighting factor, following the ReSTIR paper.
+    /// Reweighting factor.
     ///
     /// It's capped to a certain limit, depending on the reservoir's kind, over
     /// the temporal and spatial resampling passes.
@@ -42,7 +42,7 @@ where
             sample,
             w_sum: weight,
             w: 1.0,
-            m_sum: 1.0,
+            m: 1.0,
         }
     }
 
@@ -53,20 +53,14 @@ where
         weight: f32,
     ) -> bool {
         self.w_sum += weight;
-        self.m_sum += 1.0;
+        self.m += 1.0;
 
-        if wnoise.sample() <= weight / self.w_sum {
+        if self.w_sum == 0.0 || wnoise.sample() <= weight / self.w_sum {
             self.sample = sample;
             true
         } else {
             false
         }
-    }
-
-    pub fn set(&mut self, sample: T, weight: f32) {
-        self.w_sum += weight;
-        self.m_sum += 1.0;
-        self.sample = sample;
     }
 
     pub fn merge(
@@ -75,39 +69,21 @@ where
         rhs: &Self,
         p_hat: f32,
     ) -> bool {
-        // If the reservoir is empty, reject its sample as soon as possible.
-        //
-        // Note that it looks like the code below would do it anyway (since we
-        // multiply by m_sum there), but the thing is that if both `self` *and*
-        // `rhs` are empty reservoirs, without this explicit `if` here we would
-        // merge `rhs` into `self` even if it doesn't actually contain any valid
-        // sample.
-        //
-        // This comes up mostly (only?) for indirect lightning reservoirs which
-        // can contain illegal samples (e.g. with zeroed-out normals) if the
-        // camera is looking at the sky - and if we didn't handle those illegal
-        // samples here, we could propagate those zeroed-out normals and other
-        // funky numbers up to the spatial resampling pass which would then end
-        // up generating NaN and INFs Jacobians: baaaad.
-        if rhs.m_sum <= 0.0 {
+        if rhs.m <= 0.0 {
             return false;
         }
 
-        self.m_sum += rhs.m_sum - 1.0;
-        self.add(wnoise, rhs.sample, rhs.w * rhs.m_sum * p_hat)
+        self.m += rhs.m - 1.0;
+        self.add(wnoise, rhs.sample, rhs.w * rhs.m * p_hat)
     }
 
     pub fn normalize(&mut self, p_hat: f32) {
-        let t = self.m_sum * p_hat;
+        let t = self.m * p_hat;
 
         self.w = if t == 0.0 { 0.0 } else { self.w_sum / t };
     }
 
     pub fn clamp_m(&mut self, max: f32) {
-        self.m_sum = self.m_sum.min(max);
-    }
-
-    pub fn clamp_w(&mut self, max: f32) {
-        self.w = self.w.min(max);
+        self.m = self.m.min(max);
     }
 }

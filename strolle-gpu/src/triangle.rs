@@ -113,6 +113,7 @@ impl Triangle {
             normal,
             uv,
             material_id: MaterialId::new(0),
+            is_dirty: false,
         }
     }
 }

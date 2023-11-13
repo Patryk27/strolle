@@ -27,7 +27,7 @@ impl BilinearFilter {
         reprojection: Reprojection,
         sample: impl Fn(UVec2) -> (Vec4, f32),
     ) -> Vec4 {
-        if reprojection.prev_pos_fract().length_squared() == 0.0 {
+        if reprojection.is_exact() {
             sample(reprojection.prev_pos_round()).0
         } else {
             Self::from_reprojection(reprojection, sample).eval(vec2(

@@ -2,7 +2,7 @@
 
 use strolle_gpu::prelude::*;
 
-const MAX_HISTORY: f32 = 8.0;
+const MAX_HISTORY: f32 = 32.0;
 
 #[spirv(compute(threads(8, 8)))]
 #[allow(clippy::too_many_arguments)]
@@ -38,6 +38,12 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
+    let current = direct_samples.read(screen_pos);
+    let current_color = current.xyz();
+    let current_quality = current.w;
+
+    // -------------------------------------------------------------------------
+
     let mut previous;
     let history;
 
@@ -50,7 +56,7 @@ pub fn main(
         });
 
         previous = (2.0 * sample.xyz()).extend(2.0);
-        history = sample.w;
+        history = sample.w.min(2.0);
     } else {
         previous = Vec4::ZERO;
         history = 0.0;
@@ -59,12 +65,12 @@ pub fn main(
     // -------------------------------------------------------------------------
 
     let mut sample_idx = 0;
-    let mut sample_radius = 0.0f32;
+    let mut sample_radius = 1.0f32;
     let mut sample_angle = 2.0 * PI * bnoise.second_sample().x;
 
     while sample_idx < 5 {
         sample_idx += 1;
-        sample_radius += 0.5;
+        sample_radius += 1.0;
         sample_angle += GOLDEN_ANGLE;
 
         let sample_offset =
@@ -98,23 +104,59 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let current = direct_samples.read(screen_pos).xyz();
+    let (aabb_min, aabb_max) = {
+        let mut min = Vec3::MAX;
+        let mut max = Vec3::MIN;
+        let mut cursor = ivec2(-1, -1);
+
+        loop {
+            let pos = screen_pos.as_ivec2() + cursor;
+
+            if camera.contains(pos) {
+                let sample = direct_samples.read(pos.as_uvec2()).xyz();
+
+                min = min.min(sample);
+                max = max.max(sample);
+            }
+
+            // ---
+
+            cursor.x += 1;
+
+            if cursor.x == 2 {
+                cursor.x = -1;
+                cursor.y += 1;
+
+                if cursor.y == 2 {
+                    break;
+                }
+            }
+        }
+
+        (min, max)
+    };
+
+    // ---
 
     let out = if history == 0.0 {
         if previous.w == 0.0 {
-            current.extend(1.0)
+            current_color.extend(1.0)
         } else {
             let previous = previous.xyz() / previous.w;
 
-            (0.5 * current + 0.5 * previous).extend(2.0)
+            (0.5 * current_color + 0.5 * previous).extend(2.0)
         }
     } else {
         let history = history + 1.0;
         let previous = previous.xyz() / previous.w;
+
+        let previous =
+            lerp(previous, previous.clip(aabb_min, aabb_max), current_quality);
+
         let speed = 1.0 / history;
 
         previous
-            .lerp(current, speed)
+            .lerp(current_color, speed)
             .extend(history.min(MAX_HISTORY))
     };
 

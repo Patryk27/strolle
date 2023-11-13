@@ -39,14 +39,14 @@ impl IndirectReservoir {
                     frame: d2.w.to_bits(),
                 },
                 w_sum: Default::default(),
-                m_sum: d0.w,
+                m: d0.w,
                 w: d1.w,
             },
         }
     }
 
     pub fn write(&self, buffer: &mut [Vec4], id: usize) {
-        let d0 = self.sample.radiance.extend(self.m_sum);
+        let d0 = self.sample.radiance.extend(self.m);
         let d1 = self.sample.hit_point.extend(self.w);
 
         let d2 = self

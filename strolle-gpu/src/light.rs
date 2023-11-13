@@ -39,7 +39,7 @@ impl Light {
     pub fn sun(position: Vec3, color: Vec3) -> Self {
         Self {
             // TODO incorrect
-            d0: position.extend(100.0),
+            d0: position.extend(25.0),
             d1: color.extend(f32::INFINITY),
             d2: vec4(
                 f32::from_bits(Self::TYPE_POINT),
@@ -144,7 +144,7 @@ impl Light {
     ) -> f32 {
         let (ray, distance) = self.ray(wnoise, hit_point);
 
-        let is_occluded = ray.intersect(
+        let (is_occluded, _) = ray.intersect(
             local_idx,
             stack,
             triangles,
