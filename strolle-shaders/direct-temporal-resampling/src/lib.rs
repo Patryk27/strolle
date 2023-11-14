@@ -61,97 +61,125 @@ pub fn main(
 
     let candidate = unsafe { *direct_candidates.index_unchecked(screen_idx) };
 
-    let mut reservoir = DirectReservoir::default();
-    let mut reservoir_p_hat = 0.0;
+    let mut res = DirectReservoir::default();
+    let mut res_p_hat = 0.0;
 
-    let mut subject_mode = SubjectMode::None;
-    let mut subject_reservoir = DirectReservoir::default();
-    let mut subject_p_hat = 0.0;
-    let mut subject_ray = Ray::default();
-    let mut subject_ray_distance = 0.0;
+    let mut other = DirectReservoir::default();
+    let mut other_p_hat = 0.0;
+    let mut other_ray = Ray::default();
+    let mut other_dist = 0.0;
 
     // ---
 
     let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
-        subject_reservoir = DirectReservoir::read(
+        other = DirectReservoir::read(
             direct_prev_reservoirs,
             camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
-        subject_reservoir.clamp_m(20.0 * candidate.x);
+        let other_light_id = other.sample.light_id;
 
-        subject_p_hat = subject_reservoir.sample.p_hat(lights, hit);
+        let filter = BilinearFilter::reproject(reprojection, move |pos| {
+            let res = DirectReservoir::read(
+                direct_prev_reservoirs,
+                camera.screen_to_idx(pos),
+            );
 
-        if subject_p_hat > 0.0 {
-            if debug::DIRECT_VALIDATION_ENABLED && params.frame % 3 == 0 {
-                subject_mode = SubjectMode::Reprojection;
+            let res_weight = if res.sample.light_id == other_light_id {
+                1.0
+            } else {
+                0.0
+            };
 
-                (subject_ray, subject_ray_distance) =
-                    subject_reservoir.sample.ray(hit);
-            } else if reservoir.merge(
-                &mut wnoise,
-                &subject_reservoir,
-                subject_p_hat,
-            ) {
-                reservoir_p_hat = subject_p_hat;
+            (vec4(res.w, 0.0, 0.0, 0.0), res_weight)
+        });
+
+        other.w = filter.x;
+
+        if other.sample.is_valid(lights) {
+            if other.cooldown > 0 {
+                res.cooldown = other.cooldown - 1;
             }
+
+            other_p_hat = other.sample.p_hat(lights, hit);
+
+            if debug::DIRECT_VALIDATION_ENABLED && params.frame % 2 == 0 {
+                (other_ray, other_dist) = other.sample.ray(hit);
+            } else {
+                if res.merge(&mut wnoise, &other, other_p_hat) {
+                    res_p_hat = other_p_hat;
+                }
+
+                other.m = 0.0;
+            }
+        } else {
+            other.m = 0.0;
         }
     }
 
-    if subject_mode == SubjectMode::None {
+    if other.m == 0.0 && candidate.x > 0.0 {
         let light_id = LightId::new(candidate.z.to_bits());
 
-        (subject_ray, subject_ray_distance) =
+        (other_ray, other_dist) =
             lights.get(light_id).ray(&mut wnoise, hit.point);
 
-        subject_reservoir = DirectReservoir {
+        other = DirectReservoir {
             reservoir: Reservoir {
                 sample: DirectReservoirSample {
                     light_id,
-                    light_position: subject_ray.origin(),
-                    surface_point: hit.point,
+                    light_point: other_ray.origin(),
+                    visibility: 0,
                 },
                 w_sum: 0.0,
-                m_sum: candidate.x,
+                m: candidate.x,
                 w: candidate.y,
             },
-            frame: params.frame,
+            cooldown: 0,
         };
 
-        subject_p_hat = candidate.w;
+        other_p_hat = candidate.w;
     }
 
     // ---
 
-    if subject_ray.intersect(
-        local_idx,
-        stack,
-        triangles,
-        bvh,
-        materials,
-        atlas_tex,
-        atlas_sampler,
-        subject_ray_distance,
-    ) {
-        subject_reservoir.w = 0.0;
-    }
+    if other.m > 0.0 {
+        let has_changed_visibility;
 
-    if reservoir.merge(&mut wnoise, &subject_reservoir, subject_p_hat) {
-        reservoir_p_hat = subject_p_hat;
+        let (is_occluded, is_dirty) = other_ray.intersect(
+            local_idx,
+            stack,
+            triangles,
+            bvh,
+            materials,
+            atlas_tex,
+            atlas_sampler,
+            other_dist,
+        );
+
+        if is_occluded {
+            has_changed_visibility = other.sample.visibility == 1;
+
+            other.w = 0.0;
+            other.sample.visibility = 2;
+        } else {
+            has_changed_visibility = other.sample.visibility == 2;
+
+            other.sample.visibility = 1;
+        }
+
+        if has_changed_visibility && is_dirty {
+            res.cooldown = 32;
+        }
+
+        if res.merge(&mut wnoise, &other, other_p_hat) {
+            res_p_hat = other_p_hat;
+        }
     }
 
     // ---
 
-    reservoir.normalize(reservoir_p_hat);
-    reservoir.clamp_w(10.0);
-    reservoir.write(direct_curr_reservoirs, screen_idx);
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-enum SubjectMode {
-    None,
-    Reprojection,
+    res.normalize(res_p_hat);
+    res.write(direct_curr_reservoirs, screen_idx);
 }

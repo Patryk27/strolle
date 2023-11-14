@@ -5,6 +5,7 @@ use super::{BvhNodeId, BvhNodes, BvhPrimitives};
 use crate::{AlphaMode, BvhNode, Materials, Params};
 
 pub fn run<P>(
+    frame: u32,
     materials: &Materials<P>,
     nodes: &BvhNodes,
     primitives: &BvhPrimitives,
@@ -14,10 +15,18 @@ pub fn run<P>(
 {
     buffer.clear();
 
-    serialize(materials, nodes, primitives, buffer, BvhNodeId::root());
+    serialize(
+        frame,
+        materials,
+        nodes,
+        primitives,
+        buffer,
+        BvhNodeId::root(),
+    );
 }
 
 fn serialize<P>(
+    frame: u32,
     materials: &Materials<P>,
     nodes: &BvhNodes,
     primitives: &BvhPrimitives,
@@ -45,10 +54,11 @@ where
             let right_bb = nodes[right_id].bounds();
 
             let _left_ptr =
-                serialize(materials, nodes, primitives, buffer, left_id);
+                serialize(frame, materials, nodes, primitives, buffer, left_id);
 
-            let right_ptr =
-                serialize(materials, nodes, primitives, buffer, right_id);
+            let right_ptr = serialize(
+                frame, materials, nodes, primitives, buffer, right_id,
+            );
 
             buffer[ptr] = vec4(
                 left_bb.min().x,
@@ -94,8 +104,11 @@ where
                     let has_alpha_blending =
                         matches!(material.alpha_mode, AlphaMode::Blend);
 
+                    let is_dirty = primitive.updated_at == frame;
+
                     (got_more_entries as u32)
                         | ((has_alpha_blending as u32) << 1)
+                        | ((is_dirty as u32) << 2)
                 };
 
                 buffer.push(vec4(

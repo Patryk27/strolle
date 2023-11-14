@@ -48,6 +48,10 @@ impl Reprojection {
     pub fn prev_pos_fract(&self) -> Vec2 {
         self.prev_pos().fract()
     }
+
+    pub fn is_exact(&self) -> bool {
+        self.prev_pos_fract().length_squared() == 0.0
+    }
 }
 
 pub struct ReprojectionMap<'a> {

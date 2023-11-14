@@ -32,18 +32,16 @@ pub fn main(
 
     let mut out = Vec4::ZERO;
 
-    let reservoir = IndirectReservoir::read(
+    let res = IndirectReservoir::read(
         indirect_specular_reservoirs,
         camera.screen_to_idx(screen_pos),
     );
 
-    let radiance = reservoir.sample.radiance * reservoir.w;
-    let cosine = reservoir.sample.cosine(&hit);
-    let brdf = reservoir.sample.specular_brdf(&hit);
+    let radiance = res.sample.radiance * res.w;
+    let cosine = res.sample.cosine(&hit);
+    let brdf = res.sample.specular_brdf(&hit);
 
-    if reservoir.sample.is_within_specular_lobe_of(&hit)
-        && brdf.probability > 0.0
-    {
+    if res.sample.is_within_specular_lobe_of(&hit) && brdf.probability > 0.0 {
         out += (radiance * cosine * brdf.radiance).extend(brdf.probability);
     }
 
@@ -54,7 +52,6 @@ pub fn main(
     };
 
     unsafe {
-        indirect_specular_samples
-            .write(screen_pos, out.extend(reservoir.m_sum / 8.0));
+        indirect_specular_samples.write(screen_pos, out.extend(res.m / 8.0));
     }
 }

@@ -5,6 +5,7 @@ use spirv_std::arch::IndexUnchecked;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
+use crate::utils::U32Ext;
 use crate::{Hit, LightId, LightsView, Ray, Reservoir, Vec3Ext};
 
 /// Reservoir for sampling direct lightning.
@@ -14,61 +15,58 @@ use crate::{Hit, LightId, LightsView, Ray, Reservoir, Vec3Ext};
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectReservoir {
     pub reservoir: Reservoir<DirectReservoirSample>,
-    pub frame: u32,
+    pub cooldown: u32,
 }
 
 impl DirectReservoir {
-    pub fn new(sample: DirectReservoirSample, p_hat: f32, frame: u32) -> Self {
+    pub fn new(sample: DirectReservoirSample, p_hat: f32) -> Self {
         Self {
             reservoir: Reservoir::new(sample, p_hat),
-            frame,
+            cooldown: 0,
         }
     }
 
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
-        let d0 = unsafe { *buffer.index_unchecked(3 * id) };
-        let d1 = unsafe { *buffer.index_unchecked(3 * id + 1) };
-        let d2 = unsafe { *buffer.index_unchecked(3 * id + 2) };
+        let d0 = unsafe { *buffer.index_unchecked(2 * id) };
+        let d1 = unsafe { *buffer.index_unchecked(2 * id + 1) };
 
         Self {
             reservoir: Reservoir {
                 sample: DirectReservoirSample {
                     light_id: LightId::new(d1.w.to_bits()),
-                    light_position: d1.xyz(),
-                    surface_point: d2.xyz(),
+                    light_point: d1.xyz(),
+                    visibility: d0.w.to_bits().to_bytes()[0],
                 },
                 w_sum: Default::default(),
-                m_sum: d0.x,
+                m: d0.x,
                 w: d0.y,
             },
-            frame: d0.z.to_bits(),
+            cooldown: d0.w.to_bits().to_bytes()[1],
         }
     }
 
     pub fn write(&self, buffer: &mut [Vec4], id: usize) {
         let d0 = vec4(
-            self.reservoir.m_sum,
+            self.reservoir.m,
             self.reservoir.w,
-            f32::from_bits(self.frame),
-            Default::default(),
+            0.0,
+            f32::from_bits(u32::from_bytes([
+                self.sample.visibility,
+                self.cooldown,
+                0,
+                0,
+            ])),
         );
 
         let d1 = self
             .sample
-            .light_position
+            .light_point
             .extend(f32::from_bits(self.sample.light_id.get()));
 
-        let d2 = self.sample.surface_point.extend(0.0);
-
         unsafe {
-            *buffer.index_unchecked_mut(3 * id) = d0;
-            *buffer.index_unchecked_mut(3 * id + 1) = d1;
-            *buffer.index_unchecked_mut(3 * id + 2) = d2;
+            *buffer.index_unchecked_mut(2 * id) = d0;
+            *buffer.index_unchecked_mut(2 * id + 1) = d1;
         }
-    }
-
-    pub fn age(&self, frame: u32) -> u32 {
-        frame - self.frame
     }
 }
 
@@ -90,18 +88,28 @@ impl DerefMut for DirectReservoir {
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectReservoirSample {
     pub light_id: LightId,
-    pub light_position: Vec3,
-    pub surface_point: Vec3,
+    pub light_point: Vec3,
+    pub visibility: u32,
 }
 
 impl DirectReservoirSample {
+    pub fn is_valid(&self, lights: LightsView) -> bool {
+        if self.light_id.get() >= lights.len() as u32 {
+            return false;
+        }
+
+        let light = lights.get(self.light_id);
+
+        light.center().distance(self.light_point) <= light.radius()
+    }
+
     pub fn p_hat(&self, lights: LightsView, hit: Hit) -> f32 {
         lights.get(self.light_id).radiance(hit).luminance()
     }
 
     pub fn ray(&self, hit: Hit) -> (Ray, f32) {
-        let dir = hit.point - self.light_position;
-        let ray = Ray::new(self.light_position, dir.normalize());
+        let dir = hit.point - self.light_point;
+        let ray = Ray::new(self.light_point, dir.normalize());
 
         (ray, dir.length())
     }
@@ -119,19 +127,19 @@ mod tests {
             DirectReservoir {
                 reservoir: Reservoir {
                     sample: DirectReservoirSample {
-                        light_id: LightId::new(1234),
-                        light_position: vec3(1.0, 2.0, 3.0),
-                        surface_point: vec3(4.0, 5.0, 6.0),
+                        light_id: LightId::new(3 * idx as u32),
+                        light_point: vec3(1.0, 2.0, 3.0 + (idx as f32)),
+                        visibility: idx as u32,
                     },
-                    w_sum: 10.0,
-                    m_sum: 11.0,
-                    w: 12.0,
+                    w_sum: 0.0,
+                    m: 11.0,
+                    w: 12.0 + (idx as f32),
                 },
-                frame: 100 + (idx as u32),
+                cooldown: idx as u32,
             }
         }
 
-        let mut buffer = [Vec4::ZERO; 3 * 10];
+        let mut buffer = [Vec4::ZERO; 2 * 10];
 
         for idx in 0..10 {
             target(idx).write(&mut buffer, idx);
@@ -139,13 +147,7 @@ mod tests {
 
         for idx in 0..10 {
             let actual = DirectReservoir::read(&buffer, idx);
-
-            let expected = {
-                let mut t = target(idx);
-
-                t.w_sum = 0.0;
-                t
-            };
+            let expected = target(idx);
 
             assert_eq!(expected, actual);
         }

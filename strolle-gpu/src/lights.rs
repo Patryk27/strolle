@@ -15,4 +15,8 @@ impl<'a> LightsView<'a> {
     pub fn get(&self, id: LightId) -> Light {
         unsafe { *self.items.index_unchecked(id.get() as usize) }
     }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
 }

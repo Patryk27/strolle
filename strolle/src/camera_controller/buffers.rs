@@ -139,19 +139,19 @@ impl CameraBuffers {
         let direct_prev_reservoirs = StorageBuffer::new(
             device,
             "direct_prev_reservoirs",
-            viewport_buffer_size(3 * 4 * 4),
+            viewport_buffer_size(2 * 4 * 4),
         );
 
         let direct_curr_reservoirs = StorageBuffer::new(
             device,
             "direct_curr_reservoirs",
-            viewport_buffer_size(3 * 4 * 4),
+            viewport_buffer_size(2 * 4 * 4),
         );
 
         let direct_next_reservoirs = StorageBuffer::new(
             device,
             "direct_next_reservoirs",
-            viewport_buffer_size(3 * 4 * 4),
+            viewport_buffer_size(2 * 4 * 4),
         );
 
         // ---------------------------------------------------------------------

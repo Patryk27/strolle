@@ -119,6 +119,7 @@ where
     world: MappedUniformBuffer<gpu::World>,
     cameras: CameraControllers,
     sun: Sun,
+    frame: u32,
     has_dirty_materials: bool,
     has_dirty_images: bool,
     has_dirty_sun: bool,
@@ -149,6 +150,7 @@ where
             ),
             cameras: Default::default(),
             sun: Default::default(),
+            frame: 0,
             has_dirty_materials: false,
             has_dirty_images: false,
             has_dirty_sun: true,
@@ -283,29 +285,30 @@ where
     ///
     /// (if you have multiple cameras, calling this function just once is
     /// enough.)
-    pub fn flush(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+    pub fn tick(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         let tt = Instant::now();
         let any_material_modified = mem::take(&mut self.has_dirty_materials);
         let any_image_modified = mem::take(&mut self.has_dirty_images);
 
-        utils::measure("flush.noise", || {
+        utils::measure("tick.noise", || {
             self.noise.flush(queue);
         });
 
-        utils::measure("flush.images", || {
+        utils::measure("tick.images", || {
             self.images.flush(device, queue);
         });
 
         if any_material_modified || any_image_modified {
-            utils::measure("flush.materials", || {
+            utils::measure("tick.materials", || {
                 self.materials.refresh(&self.images);
             });
         }
 
         // ---
 
-        utils::measure("flush.instances", || {
+        utils::measure("tick.instances", || {
             self.instances.refresh(
+                self.frame,
                 &self.meshes,
                 &self.materials,
                 &mut self.triangles,
@@ -313,8 +316,8 @@ where
             );
         });
 
-        utils::measure("flush.bvh.refresh", || {
-            self.bvh.refresh(&self.materials);
+        utils::measure("tick.bvh", || {
+            self.bvh.refresh(self.frame, &self.materials);
         });
 
         // ---
@@ -325,7 +328,7 @@ where
             sun_altitude: self.sun.altitude,
         };
 
-        utils::measure("flush.world", || {
+        utils::measure("tick.world", || {
             self.world.flush(queue);
         });
 
@@ -333,7 +336,7 @@ where
             self.lights.update_sun(*self.world);
         }
 
-        let any_buffer_reallocated = utils::measure("flush.buffers", || {
+        let any_buffer_reallocated = utils::measure("tick.buffers", || {
             false
                 | self.bvh.flush(device, queue).reallocated
                 | self.triangles.flush(device, queue).reallocated
@@ -353,11 +356,13 @@ where
             self.cameras = cameras;
         }
 
-        utils::measure("flush.cameras", || {
+        utils::measure("tick.cameras", || {
             for camera in self.cameras.iter_mut() {
-                camera.flush(queue);
+                camera.flush(self.frame, queue);
             }
         });
+
+        self.frame += 1;
 
         // ---
 

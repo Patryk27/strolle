@@ -42,8 +42,8 @@ pub fn main(
 
     // ---
 
-    let mut reservoir = EphemeralReservoir::default();
-    let mut reservoir_p_hat = 0.0;
+    let mut res = EphemeralReservoir::default();
+    let mut res_p_hat = 0.0;
 
     let light_prob = 1.0 / (world.light_count as f32);
     let mut light_idx = 0;
@@ -59,8 +59,10 @@ pub fn main(
 
         let sample_p_hat = sample.p_hat();
 
-        if reservoir.add(&mut wnoise, sample, sample_p_hat / light_prob) {
-            reservoir_p_hat = sample_p_hat;
+        if sample_p_hat > 0.0 {
+            if res.add(&mut wnoise, sample, sample_p_hat / light_prob) {
+                res_p_hat = sample_p_hat;
+            }
         }
 
         light_idx += 1;
@@ -68,13 +70,13 @@ pub fn main(
 
     // ---
 
-    reservoir.normalize(reservoir_p_hat);
+    res.normalize(res_p_hat);
 
     let candidate = vec4(
-        reservoir.m_sum,
-        reservoir.w,
-        f32::from_bits(reservoir.sample.light_id.get()),
-        reservoir_p_hat,
+        res.m,
+        res.w,
+        f32::from_bits(res.sample.light_id.get()),
+        res_p_hat,
     );
 
     unsafe {

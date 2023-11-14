@@ -101,7 +101,7 @@ pub fn main(
         light_radiance =
             atmosphere.sky(world.sun_direction(), indirect_hit.direction);
     } else {
-        let mut reservoir = EphemeralReservoir::default();
+        let mut res = EphemeralReservoir::default();
         let mut light_idx = 0;
 
         while light_idx < world.light_count {
@@ -115,14 +115,14 @@ pub fn main(
                 light_radiance,
             };
 
-            reservoir.add(&mut wnoise, sample, sample.p_hat());
+            res.add(&mut wnoise, sample, sample.p_hat());
             light_idx += 1;
         }
 
-        if reservoir.w_sum > 0.0 {
-            light_id = reservoir.sample.light_id;
-            light_pdf = reservoir.sample.p_hat() / reservoir.w_sum;
-            light_radiance = reservoir.sample.light_radiance;
+        if res.w_sum > 0.0 {
+            light_id = res.sample.light_id;
+            light_pdf = res.sample.p_hat() / res.w_sum;
+            light_radiance = res.sample.light_radiance;
         } else {
             light_id = LightId::new(0);
             light_pdf = 0.0;

@@ -7,9 +7,17 @@ use strolle_gpu::prelude::*;
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(push_constant)] params: &PassParams,
-    #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8f,
-    #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
+    #[spirv(local_invocation_index)] local_idx: u32,
+    #[spirv(workgroup)] stack: BvhStack,
+    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
+    triangles: &[Triangle],
+    #[spirv(descriptor_set = 0, binding = 1, storage_buffer)] bvh: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)]
+    materials: &[Material],
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     lights: &[Light],
+    #[spirv(descriptor_set = 0, binding = 4)] atlas_tex: Tex,
+    #[spirv(descriptor_set = 0, binding = 5)] atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)] surface_map: TexRgba32f,
     #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
@@ -21,10 +29,12 @@ pub fn main(
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
-    let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
-    let surface_map = SurfaceMap::new(surface_map);
+    let triangles = TrianglesView::new(triangles);
+    let bvh = BvhView::new(bvh);
+    let materials = MaterialsView::new(materials);
     let lights = LightsView::new(lights);
+    let surface_map = SurfaceMap::new(surface_map);
 
     if !camera.contains(screen_pos) {
         return;
@@ -49,59 +59,117 @@ pub fn main(
 
     // ---
 
-    let mut reservoir = DirectReservoir::default();
-    let mut reservoir_p_hat = 0.0;
-    let mut sample_idx = 0;
-    let mut sample_radius = 0.0;
-    let mut sample_angle = 2.0 * PI * bnoise.first_sample().x;
-
-    while sample_idx < 6 {
-        sample_idx += 1;
-        sample_radius += 1.33;
-        sample_angle += GOLDEN_ANGLE;
-
-        let rhs_pos = if sample_idx > 1 {
-            let rhs_offset =
-                vec2(sample_angle.sin(), sample_angle.cos()) * sample_radius;
-
-            let rhs_pos = screen_pos.as_vec2() + rhs_offset;
-
-            camera.contain(rhs_pos.as_ivec2())
-        } else {
-            screen_pos
-        };
-
-        if sample_idx > 1 {
-            let rhs_surface = surface_map.get(rhs_pos);
-
-            if rhs_surface.is_sky() {
-                continue;
-            }
-
-            if (rhs_surface.depth - surface.depth).abs() > 0.2 * surface.depth {
-                continue;
-            }
-
-            if rhs_surface.normal.dot(surface.normal) < 0.8 {
-                continue;
-            }
-        }
-
-        let rhs = DirectReservoir::read(
+    let (lhs, lhs_p_hat) = {
+        let mut res = DirectReservoir::read(
             direct_curr_reservoirs,
-            camera.screen_to_idx(rhs_pos),
+            camera.screen_to_idx(screen_pos),
         );
 
-        let rhs_p_hat = rhs.sample.p_hat(lights, hit);
+        let res_p_hat = res.sample.p_hat(lights, hit);
 
-        if reservoir.merge(&mut wnoise, &rhs, rhs_p_hat) {
-            reservoir_p_hat = rhs_p_hat;
+        res.clamp_m(512.0);
+
+        (res, res_p_hat)
+    };
+
+    let mut cooldown = lhs.cooldown;
+
+    // ---
+
+    let (rhs, rhs_p_hat) = {
+        let mut res = DirectReservoir::default();
+        let mut res_p_hat = 0.0;
+        let mut sample_idx = 0;
+
+        while sample_idx < 5 {
+            sample_idx += 1;
+
+            let sample_pos = screen_pos.as_vec2() + wnoise.sample_disk() * 10.0;
+            let sample_pos = camera.contain(sample_pos.as_ivec2());
+
+            if sample_pos == screen_pos {
+                continue;
+            }
+
+            let sample_surface = surface_map.get(sample_pos);
+
+            if sample_surface.is_sky() {
+                continue;
+            }
+
+            if (sample_surface.depth - surface.depth).abs()
+                > 0.2 * surface.depth
+            {
+                continue;
+            }
+
+            if sample_surface.normal.dot(surface.normal) < 0.8 {
+                continue;
+            }
+
+            let sample = DirectReservoir::read(
+                direct_curr_reservoirs,
+                camera.screen_to_idx(sample_pos),
+            );
+
+            if sample.cooldown > cooldown {
+                cooldown = sample.cooldown - 1;
+            }
+
+            let sample_p_hat = sample.sample.p_hat(lights, hit);
+
+            if res.merge(&mut wnoise, &sample, sample_p_hat) {
+                res_p_hat = sample_p_hat;
+            }
         }
-    }
+
+        if res.m > 0.0 {
+            let (ray, ray_distance) = res.sample.ray(hit);
+
+            let (is_occluded, _) = ray.intersect(
+                local_idx,
+                stack,
+                triangles,
+                bvh,
+                materials,
+                atlas_tex,
+                atlas_sampler,
+                ray_distance,
+            );
+
+            if is_occluded {
+                res.w = 0.0;
+                res.sample.visibility = 2;
+            } else {
+                res.normalize(res_p_hat);
+                res.sample.visibility = 1;
+            }
+
+            res.clamp_m(64.0);
+        }
+
+        (res, res_p_hat)
+    };
 
     // -------------------------------------------------------------------------
 
-    reservoir.normalize(reservoir_p_hat);
-    reservoir.clamp_w(10.0);
-    reservoir.write(direct_next_reservoirs, screen_idx);
+    let mut res = DirectReservoir::default();
+    let mut res_p_hat = 0.0;
+
+    if res.merge(&mut wnoise, &lhs, lhs_p_hat) {
+        res_p_hat = lhs_p_hat;
+    }
+
+    if res.merge(&mut wnoise, &rhs, rhs_p_hat) {
+        res_p_hat = rhs_p_hat;
+    }
+
+    res.normalize(res_p_hat);
+
+    if cooldown > 0 {
+        res.m = 1.0;
+        res.cooldown = cooldown;
+    }
+
+    res.write(direct_next_reservoirs, screen_idx);
 }

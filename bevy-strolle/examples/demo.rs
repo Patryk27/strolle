@@ -60,6 +60,8 @@ fn setup(
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
     assets: Res<AssetServer>,
     mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let mut window = windows.single_mut();
 
@@ -81,7 +83,6 @@ fn setup(
         vec3(-3.15, 0.75, 1.25),
         vec3(-3.25, 0.75, 20.25),
         vec3(13.25, 0.75, -28.25),
-        vec3(1.15, 0.75, -3.75),
     ];
 
     for light in lights {
@@ -89,12 +90,33 @@ fn setup(
             point_light: PointLight {
                 color: Color::WHITE,
                 range: 35.0,
-                radius: 0.25,
-                intensity: 3000.0,
+                radius: 0.15,
+                intensity: 1500.0,
                 shadows_enabled: true,
                 ..default()
             },
             transform: Transform::from_translation(light),
+            ..default()
+        });
+    }
+
+    let cubes = [
+        vec3(-0.5, 0.33, -5.5),
+        vec3(-11.0, 0.33, 28.0),
+        vec3(-11.5, 0.33, 13.5),
+    ];
+
+    for cube in cubes {
+        let color = Color::rgba(0.85, 0.05, 0.25, 1.0);
+
+        commands.spawn(MaterialMeshBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.33))),
+            material: materials.add(StandardMaterial {
+                base_color: color,
+                emissive: color * 3.5,
+                ..default()
+            }),
+            transform: Transform::from_translation(cube),
             ..default()
         });
     }
@@ -276,7 +298,7 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::Key9) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 2 };
+        camera.mode = st::CameraMode::Reference { depth: 1 };
     }
 
     if keys.just_pressed(KeyCode::Key0) {
@@ -308,6 +330,7 @@ fn handle_camera(
 struct Sun {
     azimuth: f32,
     altitude: f32,
+    initialized: bool,
 }
 
 impl Default for Sun {
@@ -315,6 +338,7 @@ impl Default for Sun {
         Self {
             azimuth: 3.0,
             altitude: StrolleSun::default().altitude,
+            initialized: false,
         }
     }
 }
@@ -337,12 +361,22 @@ fn handle_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
     }
 }
 
-fn animate_sun(time: Res<Time>, mut st_sun: ResMut<StrolleSun>, sun: Res<Sun>) {
-    st_sun.azimuth =
-        st_sun.azimuth + (sun.azimuth - st_sun.azimuth) * time.delta_seconds();
+fn animate_sun(
+    time: Res<Time>,
+    mut st_sun: ResMut<StrolleSun>,
+    mut sun: ResMut<Sun>,
+) {
+    if sun.initialized {
+        st_sun.azimuth = st_sun.azimuth
+            + (sun.azimuth - st_sun.azimuth) * time.delta_seconds();
 
-    st_sun.altitude = st_sun.altitude
-        + (sun.altitude - st_sun.altitude) * time.delta_seconds();
+        st_sun.altitude = st_sun.altitude
+            + (sun.altitude - st_sun.altitude) * time.delta_seconds();
+    } else {
+        sun.initialized = true;
+        st_sun.azimuth = sun.azimuth;
+        st_sun.altitude = sun.altitude;
+    }
 }
 
 // -----------------------------------------------------------------------------

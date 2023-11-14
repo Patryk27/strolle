@@ -41,8 +41,8 @@ pub fn main(
 
     // ---
 
-    let mut reservoir = IndirectReservoir::default();
-    let mut reservoir_p_hat = 0.0;
+    let mut res = IndirectReservoir::default();
+    let mut res_p_hat = 0.0;
 
     let d0 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx) };
     let d1 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx + 1) };
@@ -57,8 +57,8 @@ pub fn main(
             frame: params.frame,
         };
 
-        reservoir_p_hat = sample.temporal_p_hat();
-        reservoir.add(&mut wnoise, sample, reservoir_p_hat);
+        res_p_hat = sample.temporal_p_hat();
+        res.add(&mut wnoise, sample, res_p_hat);
     }
 
     // ---
@@ -67,13 +67,13 @@ pub fn main(
 
     if reprojection.is_some() && !hit.gbuffer.is_mirror() {
         let sample = BilinearFilter::reproject(reprojection, move |pos| {
-            let rhs = IndirectReservoir::read(
+            let res = IndirectReservoir::read(
                 prev_indirect_specular_reservoirs,
                 camera.screen_to_idx(pos),
             );
 
-            if rhs.sample.is_within_specular_lobe_of(&hit) {
-                ((rhs.sample.radiance * rhs.w).extend(rhs.m_sum), 1.0)
+            if res.sample.is_within_specular_lobe_of(&hit) {
+                ((res.sample.radiance * res.w).extend(res.m), 1.0)
             } else {
                 (Vec4::ZERO, 0.0)
             }
@@ -101,28 +101,28 @@ pub fn main(
             .powf(8.0)
         };
 
-        let mut rhs = IndirectReservoir::read(
+        let mut other = IndirectReservoir::read(
             prev_indirect_specular_reservoirs,
             camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
-        if rhs.sample.is_within_specular_lobe_of(&hit) {
+        if other.sample.is_within_specular_lobe_of(&hit) {
             // TODO
-            rhs.sample.radiance = sample.xyz();
-            rhs.m_sum = sample.w * reprojectability;
-            rhs.w = 1.0;
+            other.sample.radiance = sample.xyz();
+            other.m = sample.w * reprojectability;
+            other.w = 1.0;
 
-            let rhs_p_hat = rhs.sample.temporal_p_hat();
+            let rhs_p_hat = other.sample.temporal_p_hat();
 
-            if reservoir.merge(&mut wnoise, &rhs, rhs_p_hat) {
-                reservoir_p_hat = rhs_p_hat;
+            if res.merge(&mut wnoise, &other, rhs_p_hat) {
+                res_p_hat = rhs_p_hat;
             }
         }
     }
 
     // ---
 
-    reservoir.normalize(reservoir_p_hat);
-    reservoir.clamp_m(8.0);
-    reservoir.write(indirect_specular_reservoirs, screen_idx);
+    res.normalize(res_p_hat);
+    res.clamp_m(8.0);
+    res.write(indirect_specular_reservoirs, screen_idx);
 }

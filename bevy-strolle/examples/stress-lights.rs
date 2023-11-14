@@ -59,7 +59,9 @@ fn setup(
             },
             ..default()
         })
-        .insert(StrolleCamera::default())
+        .insert(StrolleCamera {
+            mode: st::CameraMode::DirectLightning,
+        })
         .insert(FpsCameraBundle::new(
             {
                 let mut controller = FpsCameraController::default();

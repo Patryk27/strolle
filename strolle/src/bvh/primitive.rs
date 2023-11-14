@@ -12,6 +12,7 @@ pub struct BvhPrimitive {
     pub material_id: gpu::MaterialId,
     pub center: Vec3,
     pub bounds: BoundingBox,
+    pub updated_at: u32,
 }
 
 impl BvhPrimitive {

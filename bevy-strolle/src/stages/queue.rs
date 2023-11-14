@@ -90,5 +90,5 @@ pub(crate) fn write(
     mut engine: ResMut<EngineResource>,
     mut state: ResMut<SyncedState>,
 ) {
-    state.flush(&mut engine, &device, &queue);
+    state.tick(&mut engine, &device, &queue);
 }
