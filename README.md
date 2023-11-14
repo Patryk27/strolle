@@ -1,6 +1,6 @@
 # Strolle
 
-Strolle (from _strålspårning_) is an real-time renderer with support for dynamic
+Strolle (from _strålspårning_) is a real-time renderer with support for dynamic
 global illumination:
 
 <p align="center">
