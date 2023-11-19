@@ -112,7 +112,7 @@ $ cargo run --release --example cornell
 
 Note that at the moment Strolle is not optimized well towards higher
 resolutions - especially on non-high-end GPUs it's recommended to stick to
-resolutions such as 800x600 and upscale the camera (see the `demo.rs` here).
+~800x600 and upscale the camera (see the `demo.rs` here).
 
 There are some tricks that Strolle could employ to support higher resolutions in
 the future, though.
