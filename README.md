@@ -72,6 +72,51 @@ https://sketchfab.com/3d-models/low-poly-game-level-82b7a937ae504cfa9f277d9bf687
 $ cargo run --release --example cornell
 ```
 
+## Using with Bevy
+
+(currently supported Bevy version: 0.11.3)
+
+1. Add Strolle to your dependencies:
+
+    ``` toml
+    [dependencies]
+    bevy_strolle = { git = "https://github.com/patryk27/strolle" }
+    ```
+
+2. Add a patch to work-around [a bug in Naga](https://github.com/gfx-rs/naga/issues/2373):
+
+    ``` toml
+    [patch."crates-io"]
+    naga = { git = "https://github.com/Patryk27/naga", branch = "v0.12.3-strolle" }
+    ```
+
+3. Setup & enjoy!
+
+    ```rust
+    App::new()
+        /* ... */
+        .add_plugins(StrollePlugin);
+
+    commands
+        .spawn(Camera3dBundle {
+            camera_render_graph: CameraRenderGraph::new(
+                bevy_strolle::graph::NAME,
+            ),
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            ..default()
+        });
+    ```
+
+Note that at the moment Strolle is not optimized well towards higher
+resolutions - especially on non-high-end GPUs it's recommended to stick to
+resolutions such as 800x600 and upscale the camera (see the `demo.rs` here).
+
+There are some tricks that Strolle could employ to support higher resolutions in
+the future, though.
+
 ## Algorithms
 
 Notable algorithms implemented in Strolle include:
