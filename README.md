@@ -7,14 +7,14 @@ global illumination:
   <img height="512" src="_readme/demo-v11.jpg" />
 </p>
 
-Our goal is to create an engine able to produce a good-looking image on a
-consumer GPU _without_ hardware ray-tracing capabilities -- and to learn &
-explore, of course!
+Our goal is to experiment with modern real-time lightning techniques such as
+ReSTIR and see how far we can go on consumer hardware (especially the one
+without dedicated ray-tracing cores).
 
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
 
-Status: Experimental, no official release yet.    
+Status: Experimental, no official release yet (see the demo below, though!).    
 Platforms: Windows, Mac & Linux.
 
 ## Gallery
