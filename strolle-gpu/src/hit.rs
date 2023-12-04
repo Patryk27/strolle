@@ -47,7 +47,12 @@ impl Hit {
         }
     }
 
-    pub fn specular_kernel_basis(&self, length: f32) -> (Vec3, Vec3) {
+    pub fn kernel_basis(
+        normal: Vec3,
+        direction: Vec3,
+        roughness: f32,
+        size: f32,
+    ) -> (Vec3, Vec3) {
         fn dominant_direction(n: Vec3, v: Vec3, roughness: f32) -> Vec3 {
             let f = (1.0 - roughness) * ((1.0 - roughness).sqrt() + roughness);
             let r = (-v).reflect(n);
@@ -55,26 +60,20 @@ impl Hit {
             n.lerp(r, f).normalize()
         }
 
-        let roughness = self.gbuffer.roughness;
-        let n = self.gbuffer.normal;
-        let v = -self.direction;
-
-        // ---
-
         let t;
         let b;
 
         if roughness == 1.0 {
-            (t, b) = n.any_orthonormal_pair();
+            (t, b) = normal.any_orthonormal_pair();
         } else {
-            let d = dominant_direction(n, v, roughness);
-            let r = (-d).reflect(n);
+            let d = dominant_direction(normal, -direction, roughness);
+            let r = (-d).reflect(normal);
 
-            t = n.cross(r).normalize();
+            t = normal.cross(r).normalize();
             b = r.cross(t);
         }
 
-        (t * length, b * length)
+        (t * size, b * size)
     }
 }
 

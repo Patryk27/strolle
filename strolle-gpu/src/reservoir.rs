@@ -46,7 +46,7 @@ where
         }
     }
 
-    pub fn add(
+    pub fn update(
         &mut self,
         wnoise: &mut WhiteNoise,
         sample: T,
@@ -55,7 +55,7 @@ where
         self.w_sum += weight;
         self.m += 1.0;
 
-        if self.w_sum == 0.0 || wnoise.sample() <= weight / self.w_sum {
+        if self.w_sum == 0.0 || wnoise.sample() < weight / self.w_sum {
             self.sample = sample;
             true
         } else {
@@ -74,7 +74,7 @@ where
         }
 
         self.m += rhs.m - 1.0;
-        self.add(wnoise, rhs.sample, rhs.w * rhs.m * p_hat)
+        self.update(wnoise, rhs.sample, rhs.w * rhs.m * p_hat)
     }
 
     pub fn normalize(&mut self, p_hat: f32) {

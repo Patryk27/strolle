@@ -8,7 +8,7 @@ pub fn main(
     global_id: UVec3,
     transmittance_lut_tex: Tex,
     transmittance_lut_sampler: &Sampler,
-    out: TexRgba16f,
+    out: TexRgba16,
 ) {
     let global_id = global_id.xy();
 

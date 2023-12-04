@@ -65,24 +65,13 @@ impl WhiteNoise {
 
     /// Generates a uniform sample on a hemisphere around given normal.
     pub fn sample_hemisphere(&mut self, normal: Vec3) -> Vec3 {
-        loop {
-            let sample = {
-                let cos_theta = self.sample();
-                let sin_theta = (1.0f32 - cos_theta.sqr()).sqrt();
-                let phi = 2.0 * PI * self.sample();
+        let cos_theta = self.sample();
+        let sin_theta = (1.0f32 - cos_theta.sqr()).sqrt();
+        let phi = 2.0 * PI * self.sample();
 
-                let (t, b) = normal.any_orthonormal_pair();
+        let (t, b) = normal.any_orthonormal_pair();
 
-                (t * phi.cos() + b * phi.sin()) * sin_theta + normal * cos_theta
-            };
-
-            if sample.dot(normal) > 0.0 {
-                break sample;
-            } else {
-                // Very rarely, like one in a million samples, this function
-                // actually returns an invalid sample - if this happens, no
-                // worries, let's just try again
-            }
-        }
+        // TODO uh, is this correct?
+        (t * phi.cos() + b * phi.sin()) * sin_theta + normal * cos_theta
     }
 }

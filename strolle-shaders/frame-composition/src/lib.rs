@@ -23,14 +23,14 @@ pub fn main_fs(
     #[spirv(frag_coord)] pos: Vec4,
     #[spirv(push_constant)] params: &FrameCompositionPassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] _camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: TexRgba16f,
-    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 3)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: TexRgba16,
+    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 3)] direct_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 4)]
-    indirect_diffuse_colors: TexRgba16f,
+    indirect_diffuse_colors: TexRgba16,
     #[spirv(descriptor_set = 0, binding = 5)]
-    indirect_specular_colors: TexRgba16f,
-    #[spirv(descriptor_set = 0, binding = 6)] reference_colors: TexRgba32f,
+    indirect_specular_colors: TexRgba16,
+    #[spirv(descriptor_set = 0, binding = 6)] reference_colors: TexRgba32,
     frag_color: &mut Vec4,
 ) {
     let screen_pos = pos.xy().as_uvec2();
@@ -45,16 +45,18 @@ pub fn main_fs(
 
             if gbuffer.is_some() {
                 let direct = direct_colors.read(screen_pos).xyz();
-                let direct = direct * (1.0 - gbuffer.metallic);
 
-                let indirect_diffuse =
-                    indirect_diffuse_colors.read(screen_pos).xyz();
+                let indirect_diffuse = ycocg_to_rgb(
+                    indirect_diffuse_colors.read(screen_pos).xyz(),
+                );
 
                 let indirect_specular =
                     indirect_specular_colors.read(screen_pos).xyz();
 
                 gbuffer.emissive
-                    + gbuffer.base_color.xyz() * (direct + indirect_diffuse)
+                    + gbuffer.base_color.xyz()
+                        * (1.0 - gbuffer.metallic)
+                        * (direct + indirect_diffuse)
                     + indirect_specular
             } else {
                 direct_colors.read(screen_pos).xyz()
@@ -65,7 +67,7 @@ pub fn main_fs(
         1 => direct_colors.read(screen_pos).xyz(),
 
         // CameraMode::IndirectDiffuseLightning
-        2 => indirect_diffuse_colors.read(screen_pos).xyz(),
+        2 => ycocg_to_rgb(indirect_diffuse_colors.read(screen_pos).xyz()),
 
         // CameraMode::IndirectSpecularLightning
         3 => indirect_specular_colors.read(screen_pos).xyz(),

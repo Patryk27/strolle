@@ -9,7 +9,7 @@ pub fn main(
     transmittance_lut_sampler: &Sampler,
     scattering_lut_tex: Tex,
     scattering_lut_sampler: &Sampler,
-    out: TexRgba16f,
+    out: TexRgba16,
 ) {
     let global_id = global_id.xy();
     let uv = global_id.as_vec2() / Atmosphere::SKY_LUT_RESOLUTION.as_vec2();

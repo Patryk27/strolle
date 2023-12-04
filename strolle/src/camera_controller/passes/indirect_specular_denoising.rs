@@ -18,17 +18,10 @@ impl IndirectSpecularDenoisingPass {
         P: Params,
     {
         let pass = CameraComputePass::builder("indirect_specular_denoising")
-            .bind([&engine.noise.bind_blue_noise_texture()])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.prev_camera.bind_readable(),
-                &buffers.reprojection_map.bind_readable(),
-                &buffers.surface_map.prev().bind_readable(),
-                &buffers.direct_gbuffer_d0.bind_readable(),
-                &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.indirect_specular_samples.bind_readable(),
                 &buffers.indirect_specular_colors.curr().bind_writable(),
-                &buffers.indirect_specular_colors.prev().bind_readable(),
             ])
             .build(device, &engine.shaders.indirect_specular_denoising);
 

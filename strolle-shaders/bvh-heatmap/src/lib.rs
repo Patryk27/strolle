@@ -16,7 +16,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 3)] atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 4)] atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] direct_colors: TexRgba16f,
+    #[spirv(descriptor_set = 1, binding = 1)] direct_colors: TexRgba16,
 ) {
     let screen_pos = global_id.xy();
     let triangles = TrianglesView::new(triangles);

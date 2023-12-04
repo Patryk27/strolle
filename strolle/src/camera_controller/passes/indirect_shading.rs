@@ -6,11 +6,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct IndirectSeedingPass {
+pub struct IndirectShadingPass {
     pass: CameraComputePass<gpu::IndirectPassParams>,
 }
 
-impl IndirectSeedingPass {
+impl IndirectShadingPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -21,7 +21,7 @@ impl IndirectSeedingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("indirect_seeding")
+        let pass = CameraComputePass::builder("indirect_shading")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -41,7 +41,7 @@ impl IndirectSeedingPass {
                 &buffers.indirect_gbuffer_d1.bind_readable(),
                 &buffers.indirect_samples.bind_writable(),
             ])
-            .build(device, &engine.shaders.indirect_seeding);
+            .build(device, &engine.shaders.indirect_shading);
 
         Self { pass }
     }

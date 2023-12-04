@@ -2,7 +2,7 @@ use glam::{UVec2, Vec3, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{Normal, TexRgba32f};
+use crate::{Normal, TexRgba32};
 
 #[derive(Clone, Copy)]
 pub struct Surface {
@@ -51,11 +51,11 @@ impl Surface {
 
 #[derive(Clone, Copy)]
 pub struct SurfaceMap<'a> {
-    tex: TexRgba32f<'a>,
+    tex: TexRgba32<'a>,
 }
 
 impl<'a> SurfaceMap<'a> {
-    pub fn new(tex: TexRgba32f<'a>) -> Self {
+    pub fn new(tex: TexRgba32<'a>) -> Self {
         Self { tex }
     }
 

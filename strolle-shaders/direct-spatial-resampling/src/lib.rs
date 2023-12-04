@@ -19,9 +19,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 4)] atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 5)] atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 1)] surface_map: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 4, storage_buffer)]
     direct_curr_reservoirs: &[Vec4],
     #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]

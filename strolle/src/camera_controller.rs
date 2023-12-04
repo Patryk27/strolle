@@ -120,7 +120,7 @@ impl CameraController {
                     self.passes.frame_reprojection.run(self, encoder);
 
                     if self.camera.mode.needs_direct_lightning() {
-                        self.passes.direct_seeding.run(self, encoder);
+                        self.passes.direct_shading.run(self, encoder);
 
                         self.passes
                             .direct_temporal_resampling
@@ -141,7 +141,7 @@ impl CameraController {
                             gpu::IndirectPassParams::MODE_DIFFUSE,
                         );
 
-                        self.passes.indirect_seeding.run(
+                        self.passes.indirect_shading.run(
                             self,
                             encoder,
                             gpu::IndirectPassParams::MODE_DIFFUSE,
@@ -171,7 +171,7 @@ impl CameraController {
                             gpu::IndirectPassParams::MODE_SPECULAR,
                         );
 
-                        self.passes.indirect_seeding.run(
+                        self.passes.indirect_shading.run(
                             self,
                             encoder,
                             gpu::IndirectPassParams::MODE_SPECULAR,

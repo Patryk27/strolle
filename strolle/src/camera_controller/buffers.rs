@@ -32,7 +32,8 @@ pub struct CameraBuffers {
     pub indirect_diffuse_colors: DoubleBuffered<Texture>,
     pub indirect_diffuse_samples: Texture,
     pub indirect_diffuse_temporal_reservoirs: DoubleBuffered<StorageBuffer>,
-    pub indirect_diffuse_spatial_reservoirs: DoubleBuffered<StorageBuffer>,
+    pub indirect_diffuse_spatial_reservoirs_a: StorageBuffer,
+    pub indirect_diffuse_spatial_reservoirs_b: StorageBuffer,
 
     pub indirect_specular_colors: DoubleBuffered<Texture>,
     pub indirect_specular_samples: Texture,
@@ -193,7 +194,7 @@ impl CameraBuffers {
         let indirect_diffuse_samples =
             Texture::builder("indirect_diffuse_samples")
                 .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .build(device);
 
@@ -204,12 +205,17 @@ impl CameraBuffers {
                 viewport_buffer_size(4 * 4 * 4),
             );
 
-        let indirect_diffuse_spatial_reservoirs =
-            DoubleBuffered::<StorageBuffer>::new(
-                device,
-                "indirect_diffuse_spatial_reservoirs",
-                viewport_buffer_size(4 * 4 * 4),
-            );
+        let indirect_diffuse_spatial_reservoirs_a = StorageBuffer::new(
+            device,
+            "indirect_diffuse_spatial_reservoirs_a",
+            viewport_buffer_size(4 * 4 * 4),
+        );
+
+        let indirect_diffuse_spatial_reservoirs_b = StorageBuffer::new(
+            device,
+            "indirect_diffuse_spatial_reservoirs_b",
+            viewport_buffer_size(4 * 4 * 4),
+        );
 
         // ---
 
@@ -310,7 +316,8 @@ impl CameraBuffers {
             indirect_diffuse_colors,
             indirect_diffuse_samples,
             indirect_diffuse_temporal_reservoirs,
-            indirect_diffuse_spatial_reservoirs,
+            indirect_diffuse_spatial_reservoirs_a,
+            indirect_diffuse_spatial_reservoirs_b,
 
             indirect_specular_colors,
             indirect_specular_samples,

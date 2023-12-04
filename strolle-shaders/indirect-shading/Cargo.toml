@@ -1,5 +1,5 @@
 [package]
-name = "strolle-direct-seeding-shader"
+name = "strolle-indirect-shading-shader"
 version = "0.1.0"
 edition = "2021"
 

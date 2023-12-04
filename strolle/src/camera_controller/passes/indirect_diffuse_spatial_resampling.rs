@@ -1,10 +1,12 @@
 use crate::{
-    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
+    Params,
 };
 
 #[derive(Debug)]
 pub struct IndirectDiffuseSpatialResamplingPass {
-    pass: CameraComputePass,
+    pass_a: CameraComputePass<gpu::IndirectDiffuseSpatialResamplingPassParams>,
+    pass_b: CameraComputePass<gpu::IndirectDiffuseSpatialResamplingPassParams>,
 }
 
 impl IndirectDiffuseSpatialResamplingPass {
@@ -18,8 +20,8 @@ impl IndirectDiffuseSpatialResamplingPass {
     where
         P: Params,
     {
-        let pass =
-            CameraComputePass::builder("indirect_diffuse_spatial_resampling")
+        let pass_a =
+            CameraComputePass::builder("indirect_diffuse_spatial_resampling_a")
                 .bind([
                     &buffers.camera.bind_readable(),
                     &buffers.direct_gbuffer_d0.bind_readable(),
@@ -31,20 +33,35 @@ impl IndirectDiffuseSpatialResamplingPass {
                         .curr()
                         .bind_readable(),
                     &buffers
-                        .indirect_diffuse_spatial_reservoirs
-                        .curr()
+                        .indirect_diffuse_spatial_reservoirs_a
                         .bind_writable(),
-                    &buffers
-                        .indirect_diffuse_spatial_reservoirs
-                        .prev()
-                        .bind_readable(),
                 ])
                 .build(
                     device,
                     &engine.shaders.indirect_diffuse_spatial_resampling,
                 );
 
-        Self { pass }
+        let pass_b =
+            CameraComputePass::builder("indirect_diffuse_spatial_resampling_b")
+                .bind([
+                    &buffers.camera.bind_readable(),
+                    &buffers.direct_gbuffer_d0.bind_readable(),
+                    &buffers.direct_gbuffer_d1.bind_readable(),
+                    &buffers.surface_map.curr().bind_readable(),
+                    &buffers.reprojection_map.bind_readable(),
+                    &buffers
+                        .indirect_diffuse_spatial_reservoirs_a
+                        .bind_readable(),
+                    &buffers
+                        .indirect_diffuse_spatial_reservoirs_b
+                        .bind_writable(),
+                ])
+                .build(
+                    device,
+                    &engine.shaders.indirect_diffuse_spatial_resampling,
+                );
+
+        Self { pass_a, pass_b }
     }
 
     pub fn run(
@@ -55,6 +72,29 @@ impl IndirectDiffuseSpatialResamplingPass {
         // This pass uses 8x8 warps:
         let size = (camera.camera.viewport.size + 7) / 8;
 
-        self.pass.run(camera, encoder, size, camera.pass_params());
+        let params_a = camera.pass_params();
+        let params_b = camera.pass_params();
+
+        self.pass_a.run(
+            camera,
+            encoder,
+            size,
+            gpu::IndirectDiffuseSpatialResamplingPassParams {
+                seed: params_a.seed,
+                frame: params_a.frame,
+                nth: 1,
+            },
+        );
+
+        self.pass_b.run(
+            camera,
+            encoder,
+            size,
+            gpu::IndirectDiffuseSpatialResamplingPassParams {
+                seed: params_b.seed,
+                frame: params_b.frame,
+                nth: 2,
+            },
+        );
     }
 }

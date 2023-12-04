@@ -20,9 +20,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 4)] atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 5)] atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 1)] reprojection_map: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 4, storage_buffer)]
     direct_candidates: &[Vec4],
     #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
@@ -61,8 +61,8 @@ pub fn main(
 
     let candidate = unsafe { *direct_candidates.index_unchecked(screen_idx) };
 
-    let mut res = DirectReservoir::default();
-    let mut res_p_hat = 0.0;
+    let mut main = DirectReservoir::default();
+    let mut main_p_hat = 0.0;
 
     let mut other = DirectReservoir::default();
     let mut other_p_hat = 0.0;
@@ -100,16 +100,16 @@ pub fn main(
 
         if other.sample.is_valid(lights) {
             if other.cooldown > 0 {
-                res.cooldown = other.cooldown - 1;
+                main.cooldown = other.cooldown - 1;
             }
 
             other_p_hat = other.sample.p_hat(lights, hit);
 
-            if debug::DIRECT_VALIDATION_ENABLED && params.frame % 2 == 0 {
+            if params.frame % 2 == 0 {
                 (other_ray, other_dist) = other.sample.ray(hit);
             } else {
-                if res.merge(&mut wnoise, &other, other_p_hat) {
-                    res_p_hat = other_p_hat;
+                if main.merge(&mut wnoise, &other, other_p_hat) {
+                    main_p_hat = other_p_hat;
                 }
 
                 other.m = 0.0;
@@ -170,16 +170,16 @@ pub fn main(
         }
 
         if has_changed_visibility && is_dirty {
-            res.cooldown = 32;
+            main.cooldown = 32;
         }
 
-        if res.merge(&mut wnoise, &other, other_p_hat) {
-            res_p_hat = other_p_hat;
+        if main.merge(&mut wnoise, &other, other_p_hat) {
+            main_p_hat = other_p_hat;
         }
     }
 
     // ---
 
-    res.normalize(res_p_hat);
-    res.write(direct_curr_reservoirs, screen_idx);
+    main.normalize(main_p_hat);
+    main.write(direct_curr_reservoirs, screen_idx);
 }

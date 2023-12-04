@@ -291,7 +291,7 @@ where
         let any_image_modified = mem::take(&mut self.has_dirty_images);
 
         utils::measure("tick.noise", || {
-            self.noise.flush(queue);
+            self.noise.flush(device, queue);
         });
 
         utils::measure("tick.images", || {

@@ -28,11 +28,11 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 3)] atmosphere_sky_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 4)]
     atmosphere_sky_lut_sampler: &Sampler,
-    #[spirv(descriptor_set = 1, binding = 5)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d1: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 7)] indirect_rays: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 8)] indirect_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 9)] indirect_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 5)] direct_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 7)] indirect_rays: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 8)] indirect_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 9)] indirect_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 10, storage_buffer)]
     indirect_samples: &mut [Vec4],
 ) {
@@ -115,7 +115,7 @@ pub fn main(
                 light_radiance,
             };
 
-            res.add(&mut wnoise, sample, sample.p_hat());
+            res.update(&mut wnoise, sample, sample.p_hat());
             light_idx += 1;
         }
 

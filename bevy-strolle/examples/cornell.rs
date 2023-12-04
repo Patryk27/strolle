@@ -63,7 +63,6 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
             },
             ..default()
         })
-        .insert(StrolleCamera::default())
         .insert(OrbitCameraBundle::new(
             {
                 let mut controller = OrbitCameraController::default();

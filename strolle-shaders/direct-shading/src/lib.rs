@@ -12,8 +12,8 @@ pub fn main(
     lights: &[Light],
     #[spirv(descriptor_set = 0, binding = 1, uniform)] world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 1)] direct_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 3, storage_buffer)]
     direct_candidates: &mut [Vec4],
 ) {
@@ -59,10 +59,10 @@ pub fn main(
 
         let sample_p_hat = sample.p_hat();
 
-        if sample_p_hat > 0.0 {
-            if res.add(&mut wnoise, sample, sample_p_hat / light_prob) {
-                res_p_hat = sample_p_hat;
-            }
+        if sample_p_hat > 0.0
+            && res.update(&mut wnoise, sample, sample_p_hat / light_prob)
+        {
+            res_p_hat = sample_p_hat;
         }
 
         light_idx += 1;

@@ -17,13 +17,13 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 3)] atmosphere_sky_lut_tex: Tex,
     #[spirv(descriptor_set = 1, binding = 4)]
     atmosphere_sky_lut_sampler: &Sampler,
-    #[spirv(descriptor_set = 1, binding = 5)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 5)] direct_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 6)] direct_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
     direct_next_reservoirs: &[Vec4],
     #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
     direct_prev_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 1, binding = 9)] direct_samples: TexRgba16f,
+    #[spirv(descriptor_set = 1, binding = 9)] direct_samples: TexRgba16,
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);

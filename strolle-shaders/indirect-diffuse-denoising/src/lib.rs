@@ -9,17 +9,18 @@ const MAX_HISTORY: f32 = 24.0;
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(push_constant)] params: &PassParams,
-    #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8f,
+    #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)] surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)] prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4)]
-    indirect_diffuse_samples: TexRgba16f,
+    #[spirv(descriptor_set = 1, binding = 1, uniform)] prev_camera: &Camera,
+    #[spirv(descriptor_set = 1, binding = 2)] reprojection_map: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 3)] surface_map: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 4)] prev_surface_map: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 5)]
-    indirect_diffuse_colors: TexRgba16f,
+    indirect_diffuse_samples: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 6)]
-    prev_indirect_diffuse_colors: TexRgba16f,
+    indirect_diffuse_colors: TexRgba16,
+    #[spirv(descriptor_set = 1, binding = 7)]
+    prev_indirect_diffuse_colors: TexRgba16,
 ) {
     let screen_pos = global_id.xy();
     let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
@@ -31,95 +32,119 @@ pub fn main(
         return;
     }
 
-    if !debug::INDIRECT_DIFFUSE_DENOISING_ENABLED {
+    // -------------------------------------------------------------------------
+
+    let surface = surface_map.get(screen_pos);
+    let hit_ray = camera.ray(screen_pos);
+    let hit_point = hit_ray.at(surface.depth);
+    let hit_normal = surface.normal;
+    let reprojection = reprojection_map.get(screen_pos);
+
+    if surface.is_sky() {
         unsafe {
-            indirect_diffuse_colors
-                .write(screen_pos, indirect_diffuse_samples.read(screen_pos));
+            indirect_diffuse_colors.write(screen_pos, Vec4::ZERO);
         }
 
         return;
     }
 
-    // -------------------------------------------------------------------------
+    // ---
 
     let mut previous;
     let history;
-
-    let surface = surface_map.get(screen_pos);
-    let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
         let sample = BilinearFilter::reproject(reprojection, move |pos| {
             (prev_indirect_diffuse_colors.read(pos), 1.0)
         });
 
-        previous = (2.0 * sample.xyz()).extend(2.0);
+        previous = sample.xyz().extend(1.0);
         history = sample.w;
     } else {
         previous = Vec4::ZERO;
         history = 0.0;
     }
 
-    // -------------------------------------------------------------------------
+    // ---
 
     let mut sample_idx = 0;
-    let mut sample_radius = 0.0f32;
-    let mut sample_angle = 2.0 * PI * bnoise.second_sample().y;
+    let mut sample_angle = bnoise.second_sample().x * 2.0 * PI;
+    let mut sample_radius = 0.0;
 
-    while sample_idx < 5 {
+    let (sample_kernel_t, sample_kernel_b) =
+        Hit::kernel_basis(hit_normal, hit_ray.direction(), 1.0, surface.depth);
+
+    while sample_idx < 8 {
         sample_idx += 1;
-        sample_radius += 1.0;
         sample_angle += GOLDEN_ANGLE;
+        sample_radius += lerp(0.006, 0.004, history / MAX_HISTORY);
 
-        let sample_offset =
-            vec2(sample_angle.sin(), sample_angle.cos()) * sample_radius;
+        let sample_pos = {
+            let offset = sample_angle.cos() * sample_kernel_t
+                + sample_angle.sin() * sample_kernel_b;
 
-        let sample_pos = if reprojection.is_some() {
-            reprojection.prev_pos() + sample_offset
-        } else {
-            screen_pos.as_vec2() + sample_offset
+            let offset = offset * sample_radius;
+
+            prev_camera.world_to_screen(hit_point + offset)
         };
 
-        let sample_reprojection = Reprojection {
-            prev_x: sample_pos.x,
-            prev_y: sample_pos.y,
-            confidence: 1.0,
-            validity: u32::MAX,
-        };
+        if !camera.contains(sample_pos) {
+            continue;
+        }
 
-        let sample =
-            BilinearFilter::reproject(sample_reprojection, move |pos| {
-                if camera.contains(pos) {
-                    let sample = prev_indirect_diffuse_colors.read(pos);
-                    let color = sample.xyz();
-                    let history = sample.w / MAX_HISTORY;
+        let sample_pos = sample_pos.as_uvec2();
+        let sample_color = prev_indirect_diffuse_colors.read(sample_pos);
+        let sample_surface = prev_surface_map.get(sample_pos);
 
-                    let weight = prev_surface_map
-                        .get(pos)
-                        .evaluate_similarity_to(&surface);
+        if sample_surface.is_sky() {
+            continue;
+        }
 
-                    (color.extend(history), weight)
+        let sample_point = prev_camera.ray(sample_pos).at(sample_surface.depth);
+        let sample_normal = sample_surface.normal;
+
+        let mut sample_weight = {
+            let geometry_weight = {
+                let ray = hit_point - sample_point;
+                let dist_to_plane = sample_normal.dot(ray);
+                let plane_dist_norm = history / (1.0 + surface.depth);
+
+                (1.0 - dist_to_plane.abs() * plane_dist_norm).saturate()
+            };
+
+            let normal_weight = {
+                let val = hit_normal.dot(sample_normal);
+                let max = lerp(0.5, 0.95, history / MAX_HISTORY);
+
+                if val <= max {
+                    0.0
                 } else {
-                    (Default::default(), 0.0)
+                    (val - max) / (1.0 - max)
                 }
-            });
+            };
 
-        if sample.w > 0.0 {
-            previous += (sample.xyz() * sample.w).extend(sample.w);
+            geometry_weight * normal_weight
+        };
+
+        sample_weight *= lerp(1.0, 0.2, history / MAX_HISTORY);
+
+        if sample_weight > 0.0 {
+            previous +=
+                (sample_color.xyz() * sample_weight).extend(sample_weight);
         }
     }
 
     // -------------------------------------------------------------------------
 
-    let current = indirect_diffuse_samples.read(screen_pos).xyz();
+    let current = indirect_diffuse_samples.read(screen_pos);
 
     let out = if history == 0.0 {
         if previous.w == 0.0 {
-            current.extend(1.0)
+            current.xyz().extend(1.0)
         } else {
             let previous = previous.xyz() / previous.w;
 
-            (0.5 * current + 0.5 * previous).extend(2.0)
+            (0.5 * current.xyz() + 0.5 * previous).extend(2.0)
         }
     } else {
         let history = history + 1.0;
@@ -127,7 +152,7 @@ pub fn main(
         let speed = 1.0 / history;
 
         previous
-            .lerp(current, speed)
+            .lerp(current.xyz(), speed)
             .extend(history.min(MAX_HISTORY))
     };
 

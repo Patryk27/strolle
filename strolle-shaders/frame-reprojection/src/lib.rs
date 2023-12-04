@@ -11,10 +11,10 @@ pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] prev_camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 2)] surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 3)] prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 4)] velocity_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 5)] reprojection_map: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 2)] surface_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 3)] prev_surface_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 4)] velocity_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 5)] reprojection_map: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
     let surface_map = SurfaceMap::new(surface_map);

@@ -40,6 +40,12 @@ impl Camera {
     }
 
     pub(crate) fn serialize(&self) -> gpu::Camera {
+        let t = if let CameraMode::Reference { depth } = self.mode {
+            f32::from_bits(depth as u32)
+        } else {
+            0.0
+        };
+
         gpu::Camera {
             projection_view: self.projection * self.transform.inverse(),
             ndc_to_world: self.transform * self.projection.inverse(),
@@ -56,7 +62,7 @@ impl Camera {
                 .extend(Default::default()),
             data: vec4(
                 f32::from_bits(self.mode.serialize()),
-                Default::default(),
+                t,
                 Default::default(),
                 Default::default(),
             ),

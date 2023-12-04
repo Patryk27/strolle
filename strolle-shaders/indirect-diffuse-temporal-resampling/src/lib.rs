@@ -9,15 +9,15 @@ pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(push_constant)] params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 2)] prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 3)] reprojection_map: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 1)] surface_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 2)] prev_surface_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 3)] reprojection_map: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     indirect_samples: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
-    indirect_diffuse_temporal_reservoirs: &mut [Vec4],
+    indirect_diffuse_curr_temporal_reservoirs: &mut [Vec4],
     #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
-    prev_indirect_diffuse_temporal_reservoirs: &[Vec4],
+    indirect_diffuse_prev_temporal_reservoirs: &[Vec4],
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
@@ -35,10 +35,10 @@ pub fn main(
     let surface = surface_map.get(screen_pos);
     let reprojection = reprojection_map.get(screen_pos);
 
-    // ---
+    let mut main = IndirectReservoir::default();
+    let mut main_p_hat = 0.0;
 
-    let mut res = IndirectReservoir::default();
-    let mut res_p_hat = 0.0;
+    // ---
 
     let d0 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx) };
     let d1 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx + 1) };
@@ -47,22 +47,21 @@ pub fn main(
     if d0.w.to_bits() == 1 {
         let sample = IndirectReservoirSample {
             radiance: d1.xyz(),
-            hit_point: d0.xyz(),
-            sample_point: d2.xyz(),
-            sample_normal: Normal::decode(vec2(d1.w, d2.w)),
+            direct_point: d0.xyz(),
+            indirect_point: d2.xyz(),
+            indirect_normal: Normal::decode(vec2(d1.w, d2.w)),
             frame: params.frame,
         };
 
-        res_p_hat = sample.temporal_p_hat();
-        res.add(&mut wnoise, sample, res_p_hat);
+        main_p_hat = sample.temporal_p_hat();
+        main.update(&mut wnoise, sample, main_p_hat);
     }
 
     // ---
 
-    let mut res_m = 0.0;
     let mut sample_idx = 0;
 
-    while res.m < 32.0 && sample_idx < 5 {
+    while main.m < 20.0 && sample_idx < 5 {
         let mut sample_pos = if reprojection.is_some() {
             reprojection.prev_pos_round().as_ivec2()
         } else {
@@ -70,7 +69,7 @@ pub fn main(
         };
 
         if reprojection.is_none() {
-            sample_pos += (wnoise.sample_disk() * 16.0).as_ivec2();
+            sample_pos += (wnoise.sample_disk() * 32.0).as_ivec2();
         }
 
         if reprojection.is_none() || sample_idx > 0 {
@@ -96,8 +95,8 @@ pub fn main(
             continue;
         }
 
-        let mut sample = IndirectReservoir::read(
-            prev_indirect_diffuse_temporal_reservoirs,
+        let sample = IndirectReservoir::read(
+            indirect_diffuse_prev_temporal_reservoirs,
             camera.screen_to_idx(sample_pos),
         );
 
@@ -107,20 +106,14 @@ pub fn main(
 
         let sample_p_hat = sample.sample.temporal_p_hat();
 
-        sample.m *= sample_similarity;
-
-        if res.merge(&mut wnoise, &sample, sample_p_hat) {
-            res_p_hat = sample_p_hat;
-        }
-
-        if sample_idx == 1 {
-            res_m = sample.m;
+        if main.merge(&mut wnoise, &sample, sample_p_hat) {
+            main_p_hat = sample_p_hat;
         }
     }
 
     // -------------------------------------------------------------------------
 
-    res.normalize(res_p_hat);
-    res.m = (res_m + 1.0).min(32.0);
-    res.write(indirect_diffuse_temporal_reservoirs, screen_idx);
+    main.normalize(main_p_hat);
+    main.clamp_m(64.0);
+    main.write(indirect_diffuse_curr_temporal_reservoirs, screen_idx);
 }

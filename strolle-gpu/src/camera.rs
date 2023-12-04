@@ -102,7 +102,7 @@ impl Camera {
     }
 
     pub fn mode(&self) -> u32 {
-        self.data.x.to_bits()
+        self.data.x.to_bits() + self.data.y.to_bits()
     }
 
     pub fn is_eq(&self, rhs: &Self) -> bool {

@@ -32,7 +32,7 @@ pub fn main(
     reference_rays: &mut [Vec4],
     #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
     reference_hits: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 8)] reference_colors: TexRgba32f,
+    #[spirv(descriptor_set = 1, binding = 8)] reference_colors: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);

@@ -9,6 +9,7 @@ strolle-gpu = { path = "../strolle-gpu" }
 strolle-atmosphere-shader = { path = "../strolle-shaders/atmosphere" }
 
 # Crates.io
+blue-noise-sampler = "0.1.0"
 bytemuck = "1.13.1"
 derivative = "2.2.0"
 fxhash = "0.2.1"

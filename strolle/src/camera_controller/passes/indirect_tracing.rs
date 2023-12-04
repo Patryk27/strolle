@@ -23,6 +23,9 @@ impl IndirectTracingPass {
     {
         let pass = CameraComputePass::builder("indirect_tracing")
             .bind([
+                &engine.noise.bind_blue_noise_sobol(),
+                &engine.noise.bind_blue_noise_scrambling_tile(),
+                &engine.noise.bind_blue_noise_ranking_tile(),
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.materials.bind_readable(),

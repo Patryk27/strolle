@@ -9,14 +9,14 @@ const MAX_HISTORY: f32 = 32.0;
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(push_constant)] params: &PassParams,
-    #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8f,
+    #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] reprojection_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 2)] surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 3)] prev_surface_map: TexRgba32f,
-    #[spirv(descriptor_set = 1, binding = 4)] direct_samples: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 5)] direct_colors: TexRgba16f,
-    #[spirv(descriptor_set = 1, binding = 6)] prev_direct_colors: TexRgba16f,
+    #[spirv(descriptor_set = 1, binding = 1)] reprojection_map: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 2)] surface_map: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 3)] prev_surface_map: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 4)] direct_samples: TexRgba16,
+    #[spirv(descriptor_set = 1, binding = 5)] direct_colors: TexRgba16,
+    #[spirv(descriptor_set = 1, binding = 6)] prev_direct_colors: TexRgba16,
 ) {
     let screen_pos = global_id.xy();
     let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
@@ -28,7 +28,12 @@ pub fn main(
         return;
     }
 
-    if !debug::DIRECT_DENOISING_ENABLED {
+    // -------------------------------------------------------------------------
+
+    let surface = surface_map.get(screen_pos);
+    let reprojection = reprojection_map.get(screen_pos);
+
+    if surface.is_sky() {
         unsafe {
             direct_colors.write(screen_pos, direct_samples.read(screen_pos));
         }
@@ -36,19 +41,10 @@ pub fn main(
         return;
     }
 
-    // -------------------------------------------------------------------------
-
-    let current = direct_samples.read(screen_pos);
-    let current_color = current.xyz();
-    let current_quality = current.w;
-
-    // -------------------------------------------------------------------------
+    // ---
 
     let mut previous;
     let history;
-
-    let surface = surface_map.get(screen_pos);
-    let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
         let sample = BilinearFilter::reproject(reprojection, move |pos| {
@@ -62,7 +58,7 @@ pub fn main(
         history = 0.0;
     }
 
-    // -------------------------------------------------------------------------
+    // ---
 
     let mut sample_idx = 0;
     let mut sample_radius = 1.0f32;
@@ -135,6 +131,12 @@ pub fn main(
 
         (min, max)
     };
+
+    // ---
+
+    let current = direct_samples.read(screen_pos);
+    let current_color = current.xyz();
+    let current_quality = current.w;
 
     // ---
 

@@ -7,12 +7,12 @@ use strolle_gpu::prelude::*;
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] direct_gbuffer_d0: TexRgba32f,
-    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d1: TexRgba32f,
+    #[spirv(descriptor_set = 0, binding = 1)] direct_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     indirect_specular_reservoirs: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 4)]
-    indirect_specular_samples: TexRgba16f,
+    indirect_specular_samples: TexRgba16,
 ) {
     let screen_pos = global_id.xy();
 
@@ -41,7 +41,7 @@ pub fn main(
     let cosine = res.sample.cosine(&hit);
     let brdf = res.sample.specular_brdf(&hit);
 
-    if res.sample.is_within_specular_lobe_of(&hit) && brdf.probability > 0.0 {
+    if brdf.probability > 0.0 {
         out += (radiance * cosine * brdf.radiance).extend(brdf.probability);
     }
 
@@ -52,6 +52,7 @@ pub fn main(
     };
 
     unsafe {
-        indirect_specular_samples.write(screen_pos, out.extend(res.m / 8.0));
+        indirect_specular_samples
+            .write(screen_pos, out.extend(Default::default()));
     }
 }

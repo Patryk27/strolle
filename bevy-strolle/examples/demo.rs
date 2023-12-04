@@ -113,7 +113,7 @@ fn setup(
             mesh: meshes.add(Mesh::from(shape::Cube::new(0.33))),
             material: materials.add(StandardMaterial {
                 base_color: color,
-                emissive: color * 3.5,
+                emissive: color * 5.0,
                 ..default()
             }),
             transform: Transform::from_translation(cube),

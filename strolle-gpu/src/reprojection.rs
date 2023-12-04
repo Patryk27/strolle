@@ -1,6 +1,6 @@
 use glam::{vec2, vec4, UVec2, Vec2, Vec4};
 
-use crate::TexRgba32f;
+use crate::TexRgba32;
 
 #[derive(Clone, Copy, Default)]
 pub struct Reprojection {
@@ -55,11 +55,11 @@ impl Reprojection {
 }
 
 pub struct ReprojectionMap<'a> {
-    tex: TexRgba32f<'a>,
+    tex: TexRgba32<'a>,
 }
 
 impl<'a> ReprojectionMap<'a> {
-    pub fn new(tex: TexRgba32f<'a>) -> Self {
+    pub fn new(tex: TexRgba32<'a>) -> Self {
         Self { tex }
     }
 

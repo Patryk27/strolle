@@ -60,7 +60,6 @@ fn setup(
             },
             ..default()
         })
-        .insert(StrolleCamera::default())
         .insert(FpsCameraBundle::new(
             {
                 let mut controller = FpsCameraController::default();

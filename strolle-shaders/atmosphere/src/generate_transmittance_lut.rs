@@ -2,7 +2,7 @@ use strolle_gpu::prelude::*;
 
 use crate::utils::eval_scattering;
 
-pub fn main(global_id: UVec3, out: TexRgba16f) {
+pub fn main(global_id: UVec3, out: TexRgba16) {
     let global_id = global_id.xy();
 
     let uv = global_id.as_vec2()

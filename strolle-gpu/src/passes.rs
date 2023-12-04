@@ -124,3 +124,12 @@ impl IndirectPassParams {
         self.mode == Self::MODE_SPECULAR
     }
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct IndirectDiffuseSpatialResamplingPassParams {
+    pub seed: u32,
+    pub frame: u32,
+    pub nth: u32,
+}

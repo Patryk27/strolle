@@ -49,7 +49,7 @@ pub fn main_generate_scattering_lut(
     #[spirv(descriptor_set = 0, binding = 0)] transmittance_lut_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 1)]
     transmittance_lut_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 2)] out: TexRgba16,
 ) {
     generate_scattering_lut::main(
         global_id,
@@ -69,7 +69,7 @@ pub fn main_generate_sky_lut(
     transmittance_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 0, binding = 3)] scattering_lut_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 4)] scattering_lut_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 5)] out: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 5)] out: TexRgba16,
 ) {
     generate_sky_lut::main(
         global_id,
@@ -86,7 +86,7 @@ pub fn main_generate_sky_lut(
 #[allow(clippy::too_many_arguments)]
 pub fn main_generate_transmittance_lut(
     #[spirv(global_invocation_id)] global_id: UVec3,
-    #[spirv(descriptor_set = 0, binding = 0)] out: TexRgba16f,
+    #[spirv(descriptor_set = 0, binding = 0)] out: TexRgba16,
 ) {
     generate_transmittance_lut::main(global_id, out);
 }

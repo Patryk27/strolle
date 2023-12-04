@@ -6,7 +6,7 @@ use spirv_std::arch::IndexUnchecked;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{BrdfValue, F32Ext, Hit, Reservoir, SpecularBrdf, Vec3Ext};
+use crate::{BrdfValue, F32Ext, Hit, Normal, Reservoir, SpecularBrdf, Vec3Ext};
 
 /// Reservoir for sampling indirect lightning.
 ///
@@ -33,9 +33,9 @@ impl IndirectReservoir {
             reservoir: Reservoir {
                 sample: IndirectReservoirSample {
                     radiance: d0.xyz(),
-                    hit_point: d1.xyz(),
-                    sample_point: d2.xyz(),
-                    sample_normal: d3.xyz(),
+                    direct_point: d1.xyz(),
+                    indirect_point: d2.xyz(),
+                    indirect_normal: Normal::decode(d3.xy()),
                     frame: d2.w.to_bits(),
                 },
                 w_sum: Default::default(),
@@ -47,14 +47,16 @@ impl IndirectReservoir {
 
     pub fn write(&self, buffer: &mut [Vec4], id: usize) {
         let d0 = self.sample.radiance.extend(self.m);
-        let d1 = self.sample.hit_point.extend(self.w);
+        let d1 = self.sample.direct_point.extend(self.w);
 
         let d2 = self
             .sample
-            .sample_point
+            .indirect_point
             .extend(f32::from_bits(self.sample.frame));
 
-        let d3 = self.sample.sample_normal.extend(Default::default());
+        let d3 = Normal::encode(self.sample.indirect_normal)
+            .extend(0.0)
+            .extend(0.0);
 
         unsafe {
             *buffer.index_unchecked_mut(4 * id) = d0;
@@ -86,9 +88,9 @@ impl DerefMut for IndirectReservoir {
 #[derive(Clone, Copy, Default)]
 pub struct IndirectReservoirSample {
     pub radiance: Vec3,
-    pub hit_point: Vec3,
-    pub sample_point: Vec3,
-    pub sample_normal: Vec3,
+    pub direct_point: Vec3,
+    pub indirect_point: Vec3,
+    pub indirect_normal: Vec3,
     pub frame: u32,
 }
 
@@ -97,12 +99,13 @@ impl IndirectReservoirSample {
         self.radiance.luminance()
     }
 
-    pub fn spatial_p_hat(&self, point: Vec3, normal: Vec3) -> f32 {
-        self.temporal_p_hat() * self.direction(point).dot(normal).max(0.0)
+    pub fn spatial_p_hat(&self, hit: &Hit) -> f32 {
+        self.temporal_p_hat()
+            * self.direction(hit.point).dot(hit.gbuffer.normal).max(0.0)
     }
 
     pub fn direction(&self, point: Vec3) -> Vec3 {
-        (self.sample_point - point).normalize()
+        (self.indirect_point - point).normalize()
     }
 
     pub fn cosine(&self, hit: &Hit) -> f32 {
@@ -134,7 +137,7 @@ impl IndirectReservoirSample {
         let (new_distance, new_cosine) = self.partial_jacobian(new_hit_point);
 
         let (orig_distance, orig_cosine) =
-            self.partial_jacobian(self.hit_point);
+            self.partial_jacobian(self.direct_point);
 
         let x = new_cosine * orig_distance * orig_distance;
         let y = orig_cosine * new_distance * new_distance;
@@ -147,9 +150,9 @@ impl IndirectReservoirSample {
     }
 
     fn partial_jacobian(&self, hit_point: Vec3) -> (f32, f32) {
-        let vec = hit_point - self.sample_point;
+        let vec = hit_point - self.indirect_point;
         let distance = vec.length();
-        let cosine = self.sample_normal.dot(vec / distance).saturate();
+        let cosine = self.indirect_normal.dot(vec / distance).saturate();
 
         (distance, cosine)
     }
