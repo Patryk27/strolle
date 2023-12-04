@@ -117,6 +117,17 @@ resolutions - especially on non-high-end GPUs it's recommended to stick to
 There are some tricks that Strolle could employ to support higher resolutions in
 the future, though.
 
+## Roadmap
+
+- support for normal mapping
+- support for ReSTIR GI validation
+- support for importance sampling emissive materials
+- support for multi-bounce global illumination
+- (better) validation for ReSTIR DI reservoirs (to avoid artifacts caused by moving lights)
+- (better) support for specular materials
+- (better) support for higher resolutions
+- (better) support for lots of lights
+
 ## Algorithms
 
 Notable algorithms implemented in Strolle include:
