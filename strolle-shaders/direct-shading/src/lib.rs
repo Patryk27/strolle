@@ -59,9 +59,7 @@ pub fn main(
 
         let sample_p_hat = sample.p_hat();
 
-        if sample_p_hat > 0.0
-            && res.update(&mut wnoise, sample, sample_p_hat / light_prob)
-        {
+        if res.update(&mut wnoise, sample, sample_p_hat / light_prob) {
             res_p_hat = sample_p_hat;
         }
 
