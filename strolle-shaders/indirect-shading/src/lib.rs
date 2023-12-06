@@ -94,6 +94,8 @@ pub fn main(
     let light_pdf;
     let light_radiance;
 
+    let mut light_dir = Vec3::ZERO;
+
     if indirect_hit.is_none() {
         light_id = LightId::sky();
         light_pdf = 1.0;
@@ -101,32 +103,42 @@ pub fn main(
         light_radiance =
             atmosphere.sky(world.sun_direction(), indirect_hit.direction);
     } else {
-        let mut res = EphemeralReservoir::default();
-        let mut light_idx = 0;
+        // TODO optimization: don't sample when sun's altitude <= -1.0
+        if wnoise.sample() < 0.25 {
+            light_id = LightId::sky();
+            light_pdf = 0.25;
+            light_dir = wnoise.sample_hemisphere(indirect_hit.gbuffer.normal);
 
-        while light_idx < world.light_count {
-            let light_id = LightId::new(light_idx);
-
-            let light_radiance =
-                lights.get(light_id).contribution(indirect_hit);
-
-            let sample = EphemeralReservoirSample {
-                light_id,
-                light_radiance,
-            };
-
-            res.update(&mut wnoise, sample, sample.p_hat());
-            light_idx += 1;
-        }
-
-        if res.w_sum > 0.0 {
-            light_id = res.sample.light_id;
-            light_pdf = res.sample.p_hat() / res.w_sum;
-            light_radiance = res.sample.light_radiance;
+            light_radiance = atmosphere.sky(world.sun_direction(), light_dir)
+                * indirect_hit.gbuffer.normal.dot(light_dir);
         } else {
-            light_id = LightId::new(0);
-            light_pdf = 0.0;
-            light_radiance = Vec3::ZERO;
+            let mut res = EphemeralReservoir::default();
+            let mut light_idx = 0;
+
+            while light_idx < world.light_count {
+                let light_id = LightId::new(light_idx);
+
+                let light_radiance =
+                    lights.get(light_id).contribution(indirect_hit);
+
+                let sample = EphemeralReservoirSample {
+                    light_id,
+                    light_radiance,
+                };
+
+                res.update(&mut wnoise, sample, sample.p_hat());
+                light_idx += 1;
+            }
+
+            if res.w_sum > 0.0 {
+                light_id = res.sample.light_id;
+                light_pdf = res.sample.p_hat() / res.w_sum / 0.75;
+                light_radiance = res.sample.light_radiance;
+            } else {
+                light_id = LightId::new(0);
+                light_pdf = 0.0;
+                light_radiance = Vec3::ZERO;
+            }
         }
     }
 
@@ -134,7 +146,13 @@ pub fn main(
 
     let mut radiance = if light_pdf > 0.0 {
         let light_visibility = if indirect_hit.is_some() {
-            lights.get(light_id).visibility(
+            let (ray, ray_dist) = if light_id == LightId::sky() {
+                (Ray::new(indirect_hit.point, light_dir), f32::MAX)
+            } else {
+                lights.get(light_id).ray(&mut wnoise, indirect_hit.point)
+            };
+
+            let (is_occluded, _) = ray.intersect(
                 local_idx,
                 stack,
                 triangles,
@@ -142,9 +160,14 @@ pub fn main(
                 materials,
                 atlas_tex,
                 atlas_sampler,
-                &mut wnoise,
-                indirect_hit.point,
-            )
+                ray_dist,
+            );
+
+            if is_occluded {
+                0.0
+            } else {
+                1.0
+            }
         } else {
             // If we hit nothing, our indirect-ray must be pointing towards
             // the sky - no point retracing it, then
