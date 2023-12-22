@@ -8,24 +8,13 @@ use spirv_std::num_traits::Float;
 use crate::utils::U32Ext;
 use crate::{Hit, LightId, LightsView, Ray, Reservoir, Vec3Ext};
 
-/// Reservoir for sampling direct lightning.
-///
-/// See: [`Reservoir`].
 #[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectReservoir {
     pub reservoir: Reservoir<DirectReservoirSample>,
-    pub cooldown: u32,
 }
 
 impl DirectReservoir {
-    pub fn new(sample: DirectReservoirSample, p_hat: f32) -> Self {
-        Self {
-            reservoir: Reservoir::new(sample, p_hat),
-            cooldown: 0,
-        }
-    }
-
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
         let d0 = unsafe { *buffer.index_unchecked(2 * id) };
         let d1 = unsafe { *buffer.index_unchecked(2 * id + 1) };
@@ -35,13 +24,11 @@ impl DirectReservoir {
                 sample: DirectReservoirSample {
                     light_id: LightId::new(d1.w.to_bits()),
                     light_point: d1.xyz(),
-                    visibility: d0.w.to_bits().to_bytes()[0],
+                    exists: d0.w.to_bits().to_bytes()[0],
                 },
-                w_sum: Default::default(),
                 m: d0.x,
                 w: d0.y,
             },
-            cooldown: d0.w.to_bits().to_bytes()[1],
         }
     }
 
@@ -50,12 +37,7 @@ impl DirectReservoir {
             self.reservoir.m,
             self.reservoir.w,
             0.0,
-            f32::from_bits(u32::from_bytes([
-                self.sample.visibility,
-                self.cooldown,
-                0,
-                0,
-            ])),
+            f32::from_bits(u32::from_bytes([self.sample.exists, 0, 0, 0])),
         );
 
         let d1 = self
@@ -89,7 +71,7 @@ impl DerefMut for DirectReservoir {
 pub struct DirectReservoirSample {
     pub light_id: LightId,
     pub light_point: Vec3,
-    pub visibility: u32,
+    pub exists: u32,
 }
 
 impl DirectReservoirSample {
@@ -103,7 +85,7 @@ impl DirectReservoirSample {
         light.center().distance(self.light_point) <= light.radius()
     }
 
-    pub fn p_hat(&self, lights: LightsView, hit: Hit) -> f32 {
+    pub fn pdf(&self, lights: LightsView, hit: Hit) -> f32 {
         lights.get(self.light_id).radiance(hit).luminance()
     }
 
@@ -129,13 +111,11 @@ mod tests {
                     sample: DirectReservoirSample {
                         light_id: LightId::new(3 * idx as u32),
                         light_point: vec3(1.0, 2.0, 3.0 + (idx as f32)),
-                        visibility: idx as u32,
+                        exists: idx as u32,
                     },
-                    w_sum: 0.0,
                     m: 11.0,
                     w: 12.0 + (idx as f32),
                 },
-                cooldown: idx as u32,
             }
         }
 

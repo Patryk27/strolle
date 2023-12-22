@@ -4,10 +4,6 @@ use glam::Vec3;
 
 use crate::{LightId, Reservoir, Vec3Ext};
 
-/// Reservoir for sampling lights temporarily, without storing them in-between
-/// frames.
-///
-/// See: [`Reservoir`].
 #[derive(Clone, Copy, Default)]
 pub struct EphemeralReservoir {
     pub reservoir: Reservoir<EphemeralReservoirSample>,
@@ -34,7 +30,7 @@ pub struct EphemeralReservoirSample {
 }
 
 impl EphemeralReservoirSample {
-    pub fn p_hat(&self) -> f32 {
+    pub fn pdf(&self) -> f32 {
         self.light_radiance.luminance()
     }
 }

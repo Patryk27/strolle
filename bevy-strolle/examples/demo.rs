@@ -19,7 +19,7 @@ use wgpu::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 
-const VIEWPORT_SIZE: UVec2 = uvec2(640, 420);
+const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
 const WINDOW_SCALE: f32 = 1.5;
 
 fn main() {
@@ -43,7 +43,9 @@ fn main() {
             FpsCameraPlugin::default(),
             StrollePlugin,
         ))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, setup_window)
+        .add_systems(Startup, setup_camera)
+        .add_systems(Startup, setup_scene)
         .add_systems(Update, adjust_materials)
         .add_systems(Update, handle_materials)
         .add_systems(Update, handle_camera)
@@ -55,89 +57,19 @@ fn main() {
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    mut windows: Query<&mut Window, With<PrimaryWindow>>,
-    assets: Res<AssetServer>,
-    mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-) {
-    let mut window = windows.single_mut();
+fn setup_window(mut window: Query<&mut Window, With<PrimaryWindow>>) {
+    let mut window = window.single_mut();
 
     window.cursor.visible = false;
     window.cursor.grab_mode = CursorGrabMode::Locked;
+}
 
-    // ---
-
-    commands.spawn(SceneBundle {
-        scene: assets.load("demo/level.glb#Scene0"),
-        ..default()
-    });
-
-    let lights = vec![
-        vec3(-3.0, 0.75, -23.0),
-        vec3(-17.5, 0.75, -31.0),
-        vec3(-23.75, 0.75, -24.0),
-        vec3(1.25, 0.75, -10.5),
-        vec3(-3.15, 0.75, 1.25),
-        vec3(-3.25, 0.75, 20.25),
-        vec3(13.25, 0.75, -28.25),
-    ];
-
-    for light in lights {
-        commands.spawn(PointLightBundle {
-            point_light: PointLight {
-                color: Color::WHITE,
-                range: 35.0,
-                radius: 0.15,
-                intensity: 1500.0,
-                shadows_enabled: true,
-                ..default()
-            },
-            transform: Transform::from_translation(light),
-            ..default()
-        });
-    }
-
-    let cubes = [
-        vec3(-0.5, 0.33, -5.5),
-        vec3(-11.0, 0.33, 28.0),
-        vec3(-11.5, 0.33, 13.5),
-    ];
-
-    for cube in cubes {
-        let color = Color::rgba(0.85, 0.05, 0.25, 1.0);
-
-        commands.spawn(MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.33))),
-            material: materials.add(StandardMaterial {
-                base_color: color,
-                emissive: color * 5.0,
-                ..default()
-            }),
-            transform: Transform::from_translation(cube),
-            ..default()
-        });
-    }
-
-    commands
-        .spawn(SpotLightBundle {
-            spot_light: SpotLight {
-                color: Color::WHITE,
-                range: 100.0,
-                radius: 0.1,
-                intensity: 0.0,
-                shadows_enabled: true,
-                inner_angle: 0.1 * PI,
-                outer_angle: 0.1 * PI,
-                ..default()
-            },
-            ..default()
-        })
-        .insert(Flashlight { enabled: false });
-
-    // -------------------------------------------------------------------------
+fn setup_camera(
+    mut commands: Commands,
+    mut window: Query<&Window, With<PrimaryWindow>>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let window = window.single_mut();
 
     let mut viewport = Image {
         texture_descriptor: TextureDescriptor {
@@ -217,6 +149,80 @@ fn setup(
         ));
 }
 
+fn setup_scene(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    commands.spawn(SceneBundle {
+        scene: assets.load("demo/level.glb#Scene0"),
+        ..default()
+    });
+
+    let lights = vec![
+        vec3(-3.0, 0.75, -23.0),
+        vec3(-17.5, 0.75, -31.0),
+        vec3(-23.75, 0.75, -24.0),
+        vec3(1.25, 0.75, -10.5),
+        vec3(-3.15, 0.75, 1.25),
+        vec3(-3.25, 0.75, 20.25),
+        vec3(13.25, 0.75, -28.25),
+    ];
+
+    for light in lights {
+        commands.spawn(PointLightBundle {
+            point_light: PointLight {
+                color: Color::WHITE,
+                range: 35.0,
+                radius: 0.15,
+                intensity: 1500.0,
+                shadows_enabled: true,
+                ..default()
+            },
+            transform: Transform::from_translation(light),
+            ..default()
+        });
+    }
+
+    let cubes = [
+        vec3(-0.5, 0.33, -5.5),
+        vec3(-11.0, 0.33, 28.0),
+        vec3(-11.5, 0.33, 13.5),
+    ];
+
+    for cube in cubes {
+        let color = Color::rgba(0.85, 0.05, 0.25, 1.0);
+
+        commands.spawn(MaterialMeshBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube::new(0.33))),
+            material: materials.add(StandardMaterial {
+                base_color: color,
+                emissive: color * 5.0,
+                ..default()
+            }),
+            transform: Transform::from_translation(cube),
+            ..default()
+        });
+    }
+
+    commands
+        .spawn(SpotLightBundle {
+            spot_light: SpotLight {
+                color: Color::WHITE,
+                range: 100.0,
+                radius: 0.1,
+                intensity: 0.0,
+                shadows_enabled: true,
+                inner_angle: 0.1 * PI,
+                outer_angle: 0.1 * PI,
+                ..default()
+            },
+            ..default()
+        })
+        .insert(Flashlight { enabled: false });
+}
+
 // -----------------------------------------------------------------------------
 
 /// Most of materials in our demo-scene have the `unlit` flag toggled on, making
@@ -256,7 +262,7 @@ fn handle_materials(
 
 fn handle_camera(
     keys: Res<Input<KeyCode>>,
-    mut windows: Query<&mut Window, With<PrimaryWindow>>,
+    mut window: Query<&mut Window, With<PrimaryWindow>>,
     mut camera: Query<(
         &Transform,
         &mut CameraRenderGraph,
@@ -308,7 +314,7 @@ fn handle_camera(
     if keys.just_pressed(KeyCode::Semicolon) {
         fps_camera_controller.enabled = !fps_camera_controller.enabled;
 
-        let mut window = windows.single_mut();
+        let mut window = window.single_mut();
 
         window.cursor.visible = !fps_camera_controller.enabled;
 

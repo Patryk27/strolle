@@ -8,21 +8,12 @@ use spirv_std::num_traits::Float;
 
 use crate::{BrdfValue, F32Ext, Hit, Normal, Reservoir, SpecularBrdf, Vec3Ext};
 
-/// Reservoir for sampling indirect lightning.
-///
-/// See: [`Reservoir`].
 #[derive(Clone, Copy, Default)]
 pub struct IndirectReservoir {
     pub reservoir: Reservoir<IndirectReservoirSample>,
 }
 
 impl IndirectReservoir {
-    pub fn new(sample: IndirectReservoirSample, p_hat: f32) -> Self {
-        Self {
-            reservoir: Reservoir::new(sample, p_hat),
-        }
-    }
-
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
         let d0 = unsafe { *buffer.index_unchecked(4 * id) };
         let d1 = unsafe { *buffer.index_unchecked(4 * id + 1) };
@@ -38,7 +29,6 @@ impl IndirectReservoir {
                     indirect_normal: Normal::decode(d3.xy()),
                     frame: d2.w.to_bits(),
                 },
-                w_sum: Default::default(),
                 m: d0.w,
                 w: d1.w,
             },
@@ -95,12 +85,12 @@ pub struct IndirectReservoirSample {
 }
 
 impl IndirectReservoirSample {
-    pub fn temporal_p_hat(&self) -> f32 {
+    pub fn temporal_pdf(&self) -> f32 {
         self.radiance.luminance()
     }
 
-    pub fn spatial_p_hat(&self, hit: &Hit) -> f32 {
-        self.temporal_p_hat()
+    pub fn spatial_pdf(&self, hit: &Hit) -> f32 {
+        self.temporal_pdf()
             * self.direction(hit.point).dot(hit.gbuffer.normal).max(0.0)
     }
 

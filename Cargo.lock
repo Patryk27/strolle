@@ -308,6 +308,7 @@ name = "bevy-strolle"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_mod_raycast",
  "bevy_rapier3d",
  "lazy_static",
  "log",
@@ -698,6 +699,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6cfc2a21ea47970a9b1f0f4735af3256a8f204815bd756110051d10f9d909497"
 dependencies = [
  "glam",
+]
+
+[[package]]
+name = "bevy_mod_raycast"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b833e94bd71d2ef27445f3e146b07da4a7922fdb7b464f0f1221521f85a5725a"
+dependencies = [
+ "bevy",
+ "crossbeam-channel",
 ]
 
 [[package]]

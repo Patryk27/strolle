@@ -11,6 +11,7 @@ wgpu = "0.16.3"
 
 [dev-dependencies]
 bevy = { version = "0.11.3", features = ["jpeg"] }
+bevy_mod_raycast = "0.15"
 bevy_rapier3d = "0.22.0"
 lazy_static = "1.4.0"
 smooth-bevy-cameras = "0.9.0"

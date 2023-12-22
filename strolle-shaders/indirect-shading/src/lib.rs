@@ -103,10 +103,15 @@ pub fn main(
         light_radiance =
             atmosphere.sky(world.sun_direction(), indirect_hit.direction);
     } else {
-        // TODO optimization: don't sample when sun's altitude <= -1.0
-        if wnoise.sample() < 0.25 {
+        let atmosphere_pdf = if world.sun_altitude <= -1.0 {
+            0.0
+        } else {
+            0.25
+        };
+
+        if wnoise.sample() < atmosphere_pdf {
             light_id = LightId::sky();
-            light_pdf = 0.25;
+            light_pdf = atmosphere_pdf;
             light_dir = wnoise.sample_hemisphere(indirect_hit.gbuffer.normal);
 
             light_radiance = atmosphere.sky(world.sun_direction(), light_dir)
@@ -126,13 +131,13 @@ pub fn main(
                     light_radiance,
                 };
 
-                res.update(&mut wnoise, sample, sample.p_hat());
+                res.update(&mut wnoise, sample, sample.pdf());
                 light_idx += 1;
             }
 
-            if res.w_sum > 0.0 {
+            if res.w > 0.0 {
                 light_id = res.sample.light_id;
-                light_pdf = res.sample.p_hat() / res.w_sum / 0.75;
+                light_pdf = res.sample.pdf() / res.w / (1.0 - atmosphere_pdf);
                 light_radiance = res.sample.light_radiance;
             } else {
                 light_id = LightId::new(0);
@@ -152,7 +157,7 @@ pub fn main(
                 lights.get(light_id).ray(&mut wnoise, indirect_hit.point)
             };
 
-            let (is_occluded, _) = ray.intersect(
+            let is_occluded = ray.intersect(
                 local_idx,
                 stack,
                 triangles,

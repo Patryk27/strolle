@@ -36,7 +36,6 @@ where
 
     pub fn add(
         &mut self,
-        frame: u32,
         bvh: &mut Bvh,
         instance_handle: P::InstanceHandle,
         triangles: impl Iterator<Item = Triangle> + ExactSizeIterator,
@@ -53,18 +52,13 @@ where
             "instance {instance_handle:?} contains no triangles"
         );
 
-        let triangle_ids =
-            if let Some(triangle_ids) = self.allocator.take(triangles.len()) {
-                self.add_reusing_space(
-                    frame,
-                    bvh,
-                    triangles,
-                    material_id,
-                    triangle_ids,
-                )
-            } else {
-                self.add_allocating_space(frame, bvh, triangles, material_id)
-            };
+        let triangle_ids = if let Some(triangle_ids) =
+            self.allocator.take(triangles.len())
+        {
+            self.add_reusing_space(bvh, triangles, material_id, triangle_ids)
+        } else {
+            self.add_allocating_space(bvh, triangles, material_id)
+        };
 
         self.index.insert(
             instance_handle,
@@ -79,7 +73,6 @@ where
 
     fn add_reusing_space(
         &mut self,
-        frame: u32,
         bvh: &mut Bvh,
         triangles: impl Iterator<Item = Triangle>,
         material_id: gpu::MaterialId,
@@ -100,7 +93,6 @@ where
                 material_id,
                 center: triangle.center(),
                 bounds: triangle.bounds(),
-                updated_at: frame,
             };
 
             triangle_id += 1;
@@ -111,7 +103,6 @@ where
 
     fn add_allocating_space(
         &mut self,
-        frame: u32,
         bvh: &mut Bvh,
         triangles: impl Iterator<Item = Triangle>,
         material_id: gpu::MaterialId,
@@ -128,7 +119,6 @@ where
                 material_id,
                 center: triangle.center(),
                 bounds: triangle.bounds(),
-                updated_at: frame,
             });
         }
 
@@ -137,7 +127,6 @@ where
 
     pub fn update(
         &mut self,
-        frame: u32,
         bvh: &mut Bvh,
         instance_handle: &P::InstanceHandle,
         triangles: impl Iterator<Item = Triangle> + ExactSizeIterator,
@@ -159,7 +148,6 @@ where
             prim.material_id = material_id;
             prim.center = triangle.center();
             prim.bounds = triangle.bounds();
-            prim.updated_at = frame;
         }
 
         instance.dirty = true;

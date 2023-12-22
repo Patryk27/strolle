@@ -34,12 +34,12 @@ fn main() {
 
 fn setup(
     mut commands: Commands,
-    mut windows: Query<&mut Window, With<PrimaryWindow>>,
+    mut window: Query<&mut Window, With<PrimaryWindow>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut sun: ResMut<StrolleSun>,
 ) {
-    let mut window = windows.single_mut();
+    let mut window = window.single_mut();
 
     window.cursor.visible = false;
     window.cursor.grab_mode = CursorGrabMode::Locked;

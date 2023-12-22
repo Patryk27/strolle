@@ -36,7 +36,7 @@ pub fn main(
     let reprojection = reprojection_map.get(screen_pos);
 
     let mut main = IndirectReservoir::default();
-    let mut main_p_hat = 0.0;
+    let mut main_pdf = 0.0;
 
     // ---
 
@@ -53,67 +53,72 @@ pub fn main(
             frame: params.frame,
         };
 
-        main_p_hat = sample.temporal_p_hat();
-        main.update(&mut wnoise, sample, main_p_hat);
+        main_pdf = sample.temporal_pdf();
+        main.update(&mut wnoise, sample, main_pdf);
+    }
+
+    // ---
+
+    if reprojection.is_some() {
+        let mut sample = IndirectReservoir::read(
+            indirect_diffuse_prev_temporal_reservoirs,
+            camera.screen_to_idx(reprojection.prev_pos_round()),
+        );
+
+        sample.clamp_m(50.0);
+
+        let sample_pdf = sample.sample.temporal_pdf();
+
+        if main.merge(&mut wnoise, &sample, sample_pdf) {
+            main_pdf = sample_pdf;
+        }
     }
 
     // ---
 
     let mut sample_idx = 0;
 
-    while main.m < 20.0 && sample_idx < 5 {
+    while main.m < 16.0 && sample_idx < 4 {
         let mut sample_pos = if reprojection.is_some() {
             reprojection.prev_pos_round().as_ivec2()
         } else {
             screen_pos.as_ivec2()
         };
 
-        if reprojection.is_none() {
-            sample_pos += (wnoise.sample_disk() * 32.0).as_ivec2();
-        }
-
-        if reprojection.is_none() || sample_idx > 0 {
-            let offset = wnoise.sample_int();
-            let offset = ivec2((offset % 2) as i32, ((offset >> 2) % 2) as i32);
-            let offset = offset - ivec2(1, 1);
-
-            sample_pos += offset;
-            sample_pos.x ^= 3;
-            sample_pos.y ^= 3;
-            sample_pos -= offset;
-        }
-
+        sample_pos += (wnoise.sample_disk() * 32.0).as_ivec2();
         sample_idx += 1;
 
         let sample_pos = camera.contain(sample_pos);
+        let sample_surface = prev_surface_map.get(sample_pos);
 
-        let sample_similarity = prev_surface_map
-            .get(sample_pos)
-            .evaluate_similarity_to(&surface);
-
-        if sample_similarity < 0.5 {
+        if sample_surface.is_sky() {
             continue;
         }
 
-        let sample = IndirectReservoir::read(
+        if (sample_surface.depth - surface.depth).abs() > 0.2 * surface.depth {
+            continue;
+        }
+
+        if sample_surface.normal.dot(surface.normal) < 0.8 {
+            continue;
+        }
+
+        let mut sample = IndirectReservoir::read(
             indirect_diffuse_prev_temporal_reservoirs,
             camera.screen_to_idx(sample_pos),
         );
 
-        if sample.is_empty() {
-            continue;
-        }
+        sample.clamp_m(1.0);
 
-        let sample_p_hat = sample.sample.temporal_p_hat();
+        let sample_pdf = sample.sample.temporal_pdf();
 
-        if main.merge(&mut wnoise, &sample, sample_p_hat) {
-            main_p_hat = sample_p_hat;
+        if main.merge(&mut wnoise, &sample, sample_pdf) {
+            main_pdf = sample_pdf;
         }
     }
 
     // -------------------------------------------------------------------------
 
-    main.normalize(main_p_hat);
-    main.clamp_m(64.0);
+    main.normalize(main_pdf);
     main.write(indirect_diffuse_curr_temporal_reservoirs, screen_idx);
 }

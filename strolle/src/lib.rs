@@ -306,19 +306,20 @@ where
 
         // ---
 
-        utils::measure("tick.instances", || {
+        let any_instance_changed = utils::measure("tick.instances", || {
             self.instances.refresh(
-                self.frame,
                 &self.meshes,
                 &self.materials,
                 &mut self.triangles,
                 &mut self.bvh,
-            );
+            )
         });
 
-        utils::measure("tick.bvh", || {
-            self.bvh.refresh(self.frame, &self.materials);
-        });
+        if any_instance_changed {
+            utils::measure("tick.bvh", || {
+                self.bvh.refresh(&self.materials);
+            });
+        }
 
         // ---
 
@@ -366,7 +367,7 @@ where
 
         // ---
 
-        utils::metric("flush", tt);
+        utils::metric("tick", tt);
 
         if self.print_stats {
             trace!(

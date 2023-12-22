@@ -41,7 +41,7 @@ pub fn main(
     // ---
 
     let mut main = IndirectReservoir::default();
-    let mut main_p_hat = 0.0;
+    let mut main_pdf = 0.0;
 
     let d0 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx) };
     let d1 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx + 1) };
@@ -56,8 +56,8 @@ pub fn main(
             frame: params.frame,
         };
 
-        main_p_hat = sample.temporal_p_hat();
-        main.update(&mut wnoise, sample, main_p_hat);
+        main_pdf = sample.temporal_pdf();
+        main.update(&mut wnoise, sample, main_pdf);
     }
 
     // ---
@@ -71,17 +71,17 @@ pub fn main(
         );
 
         if sample.sample.is_within_specular_lobe_of(&hit) {
-            let sample_p_hat = sample.sample.temporal_p_hat();
+            let sample_pdf = sample.sample.temporal_pdf();
 
-            if main.merge(&mut wnoise, &sample, sample_p_hat) {
-                main_p_hat = sample_p_hat;
+            if main.merge(&mut wnoise, &sample, sample_pdf) {
+                main_pdf = sample_pdf;
             }
         }
     }
 
     // ---
 
-    main.normalize(main_p_hat);
+    main.normalize(main_pdf);
     main.clamp_m(32.0);
     main.write(indirect_specular_curr_reservoirs, screen_idx);
 }

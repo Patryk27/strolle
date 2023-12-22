@@ -20,15 +20,11 @@ Platforms: Windows, Mac & Linux.
 ## Gallery
 
 <p align="center">
+  <img height="512" src="_readme/demo-v16.jpg" />
+</p>
+
+<p align="center">
   <img height="512" src="_readme/demo-v12.jpg" />
-</p>
-
-<p align="center">
-  <img height="512" src="_readme/demo-v13.jpg" />
-</p>
-
-<p align="center">
-  <img height="512" src="_readme/demo-v14.jpg" />
 </p>
 
 <p align="center">
@@ -117,13 +113,18 @@ resolutions - especially on non-high-end GPUs it's recommended to stick to
 There are some tricks that Strolle could employ to support higher resolutions in
 the future, though.
 
+## Known bugs
+
+- direct lightning is noisy (the previous denoiser was... not great, so
+  currently there's no denoiser for direct lightning whatsoever)
+
 ## Roadmap
 
+- denoising for direct lightning
 - support for normal mapping
 - support for ReSTIR GI validation
 - support for importance sampling emissive materials
 - support for multi-bounce global illumination
-- (better) validation for ReSTIR DI reservoirs (to avoid artifacts caused by moving lights)
 - (better) support for specular materials
 - (better) support for higher resolutions
 - (better) support for lots of lights

@@ -54,7 +54,7 @@ impl Ray {
     ) -> (TriangleHit, usize) {
         let mut hit = TriangleHit::none();
 
-        let traversed_nodes = self.traverse(
+        let used_memory = self.traverse(
             local_idx,
             stack,
             triangles,
@@ -66,7 +66,7 @@ impl Ray {
             &mut hit,
         );
 
-        (hit, traversed_nodes)
+        (hit, used_memory)
     }
 
     /// Returns whether this ray intersects with anything in the world; used for
@@ -82,7 +82,7 @@ impl Ray {
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
         distance: f32,
-    ) -> (bool, bool) {
+    ) -> bool {
         let mut hit = TriangleHit {
             distance,
             ..TriangleHit::none()
@@ -100,7 +100,7 @@ impl Ray {
             &mut hit,
         );
 
-        (hit.distance < distance, hit.is_dirty)
+        hit.distance < distance
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -193,41 +193,39 @@ impl Ray {
                 // hit is actually opaque at that particular hit-point.
                 let has_alpha_blending = flags & 2 == 2;
 
-                // Whether the triangle we're looking at was modified just now
-                let is_dirty = flags & 4 == 4;
-
                 let triangle_id = TriangleId::new(d0.y.to_bits());
+                let material_id = MaterialId::new(d0.z.to_bits());
 
-                let mut hit_candidate =
-                    triangles.get(triangle_id).hit(self, hit.distance);
+                let prev_uv = hit.uv;
+                let prev_normal = hit.normal;
+                let prev_distance = hit.distance;
 
-                if hit_candidate.distance < hit.distance {
-                    hit_candidate.material_id = MaterialId::new(d0.z.to_bits());
-                    hit_candidate.is_dirty = is_dirty;
+                let mut found_hit = triangles.get(triangle_id).hit(self, hit);
 
-                    let found_hit = if has_alpha_blending {
-                        used_memory += mem::size_of::<Material>();
-                        used_memory += mem::size_of::<Vec4>();
+                if found_hit && has_alpha_blending {
+                    used_memory += mem::size_of::<Material>();
+                    used_memory += mem::size_of::<Vec4>();
 
-                        let hit_candidate_color = materials
-                            .get(hit_candidate.material_id)
-                            .base_color(
-                                atlas_tex,
-                                atlas_sampler,
-                                hit_candidate.uv,
-                            );
+                    let base_color = materials.get(material_id).base_color(
+                        atlas_tex,
+                        atlas_sampler,
+                        hit.uv,
+                    );
 
-                        hit_candidate_color.w >= 1.0
-                    } else {
-                        true
-                    };
+                    if base_color.w < 1.0 {
+                        found_hit = false;
 
-                    if found_hit {
-                        *hit = hit_candidate;
+                        hit.uv = prev_uv;
+                        hit.normal = prev_normal;
+                        hit.distance = prev_distance;
+                    }
+                }
 
-                        if let Tracing::ReturnFirst = tracing {
-                            break;
-                        }
+                if found_hit {
+                    hit.material_id = material_id;
+
+                    if let Tracing::ReturnFirst = tracing {
+                        break;
                     }
                 }
 
@@ -251,6 +249,10 @@ impl Ray {
             } else {
                 break;
             }
+        }
+
+        if hit.is_some() {
+            hit.point = self.at(hit.distance);
         }
 
         used_memory

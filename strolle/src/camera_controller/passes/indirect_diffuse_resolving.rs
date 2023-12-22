@@ -24,10 +24,6 @@ impl IndirectDiffuseResolvingPass {
                 &buffers.direct_gbuffer_d1.bind_readable(),
                 &buffers.indirect_diffuse_samples.bind_writable(),
                 &buffers
-                    .indirect_diffuse_temporal_reservoirs
-                    .curr()
-                    .bind_readable(),
-                &buffers
                     .indirect_diffuse_spatial_reservoirs_b
                     .bind_readable(),
             ])

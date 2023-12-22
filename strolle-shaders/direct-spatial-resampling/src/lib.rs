@@ -59,32 +59,27 @@ pub fn main(
 
     // ---
 
-    let (lhs, lhs_p_hat) = {
-        let mut res = DirectReservoir::read(
+    let (lhs, lhs_pdf) = {
+        let res = DirectReservoir::read(
             direct_curr_reservoirs,
             camera.screen_to_idx(screen_pos),
         );
 
-        let res_p_hat = res.sample.p_hat(lights, hit);
+        let res_pdf = res.sample.pdf(lights, hit);
 
-        res.clamp_m(512.0);
-
-        (res, res_p_hat)
+        (res, res_pdf)
     };
 
-    let mut cooldown = lhs.cooldown;
-
-    // ---
-
-    let (rhs, rhs_p_hat) = {
+    let (rhs, mut rhs_pdf) = {
         let mut res = DirectReservoir::default();
-        let mut res_p_hat = 0.0;
+        let mut res_pdf = 0.0;
         let mut sample_idx = 0;
+        let max_sample_idx = if params.frame % 2 == 0 { 5 } else { 0 };
 
-        while sample_idx < 5 {
+        while sample_idx < max_sample_idx {
             sample_idx += 1;
 
-            let sample_pos = screen_pos.as_vec2() + wnoise.sample_disk() * 10.0;
+            let sample_pos = screen_pos.as_vec2() + wnoise.sample_disk() * 32.0;
             let sample_pos = camera.contain(sample_pos.as_ivec2());
 
             if sample_pos == screen_pos {
@@ -112,64 +107,56 @@ pub fn main(
                 camera.screen_to_idx(sample_pos),
             );
 
-            if sample.cooldown > cooldown {
-                cooldown = sample.cooldown - 1;
+            if sample.sample.exists == 0 {
+                continue;
             }
 
-            let sample_p_hat = sample.sample.p_hat(lights, hit);
+            let sample_pdf = sample.sample.pdf(lights, hit);
 
-            if res.merge(&mut wnoise, &sample, sample_p_hat) {
-                res_p_hat = sample_p_hat;
+            if sample_pdf <= 0.0 {
+                continue;
             }
+
+            res = sample;
+            res_pdf = sample_pdf;
+            break;
         }
 
-        if res.m > 0.0 {
-            let (ray, ray_distance) = res.sample.ray(hit);
+        res.clamp_m(0.25 * lhs.m);
 
-            let (is_occluded, _) = ray.intersect(
-                local_idx,
-                stack,
-                triangles,
-                bvh,
-                materials,
-                atlas_tex,
-                atlas_sampler,
-                ray_distance,
-            );
-
-            if is_occluded {
-                res.w = 0.0;
-                res.sample.visibility = 2;
-            } else {
-                res.normalize(res_p_hat);
-                res.sample.visibility = 1;
-            }
-
-            res.clamp_m(64.0);
-        }
-
-        (res, res_p_hat)
+        (res, res_pdf)
     };
 
-    // -------------------------------------------------------------------------
+    let mut main = DirectReservoir::default();
+    let mut main_pdf = 0.0;
 
-    let mut res = DirectReservoir::default();
-    let mut res_p_hat = 0.0;
-
-    if res.merge(&mut wnoise, &lhs, lhs_p_hat) {
-        res_p_hat = lhs_p_hat;
+    if main.merge(&mut wnoise, &lhs, lhs_pdf) {
+        main_pdf = lhs_pdf;
     }
 
-    if res.merge(&mut wnoise, &rhs, rhs_p_hat) {
-        res_p_hat = rhs_p_hat;
+    if rhs_pdf > 0.0 {
+        let (ray, dist) = rhs.sample.ray(hit);
+
+        let is_occluded = ray.intersect(
+            local_idx,
+            stack,
+            triangles,
+            bvh,
+            materials,
+            atlas_tex,
+            atlas_sampler,
+            dist,
+        );
+
+        if is_occluded {
+            rhs_pdf = 0.0;
+        }
     }
 
-    res.normalize(res_p_hat);
-
-    if cooldown > 0 {
-        res.m = 1.0;
-        res.cooldown = cooldown;
+    if main.merge(&mut wnoise, &rhs, rhs_pdf) {
+        main_pdf = rhs_pdf;
     }
 
-    res.write(direct_next_reservoirs, screen_idx);
+    main.normalize(main_pdf);
+    main.write(direct_next_reservoirs, screen_idx);
 }

@@ -144,7 +144,7 @@ impl Light {
     ) -> f32 {
         let (ray, distance) = self.ray(wnoise, hit_point);
 
-        let (is_occluded, _) = ray.intersect(
+        let is_occluded = ray.intersect(
             local_idx,
             stack,
             triangles,

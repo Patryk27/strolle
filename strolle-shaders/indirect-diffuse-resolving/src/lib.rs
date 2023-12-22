@@ -12,8 +12,6 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 3)]
     indirect_diffuse_samples: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
-    _indirect_diffuse_temporal_reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
     indirect_diffuse_spatial_reservoirs: &[Vec4],
 ) {
     let screen_pos = global_id.xy();

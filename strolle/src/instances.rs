@@ -72,7 +72,6 @@ where
 
     pub fn refresh(
         &mut self,
-        frame: u32,
         meshes: &Meshes<P>,
         materials: &Materials<P>,
         triangles: &mut Triangles<P>,
@@ -115,7 +114,6 @@ where
             if let Some(count) = triangles.count(instance_handle) {
                 if mesh.triangles().len() == count {
                     triangles.update(
-                        frame,
                         bvh,
                         instance_handle,
                         mesh_triangles,
@@ -125,7 +123,6 @@ where
                     triangles.remove(bvh, instance_handle);
 
                     triangles.add(
-                        frame,
                         bvh,
                         instance_handle.to_owned(),
                         mesh_triangles,
@@ -134,7 +131,6 @@ where
                 }
             } else {
                 triangles.add(
-                    frame,
                     bvh,
                     instance_handle.to_owned(),
                     mesh_triangles,

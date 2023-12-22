@@ -4,7 +4,7 @@ use spirv_std::num_traits::Float;
 
 use crate::{GBufferEntry, MaterialId, Normal, Ray, Surface, Vec3Ext};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Hit {
     pub origin: Vec3,
     pub direction: Vec3,
@@ -84,7 +84,6 @@ pub struct TriangleHit {
     pub normal: Vec3,
     pub uv: Vec2,
     pub material_id: MaterialId,
-    pub is_dirty: bool,
 }
 
 impl TriangleHit {
@@ -95,7 +94,6 @@ impl TriangleHit {
             normal: Default::default(),
             uv: Default::default(),
             material_id: MaterialId::new(0),
-            is_dirty: false,
         }
     }
 
@@ -112,7 +110,6 @@ impl TriangleHit {
                 normal,
                 uv: d1.zw(),
                 material_id: MaterialId::new(d0.w.to_bits()),
-                is_dirty: false,
             }
         }
     }

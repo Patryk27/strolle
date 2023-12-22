@@ -18,15 +18,11 @@ impl DirectDenoisingPass {
         P: Params,
     {
         let pass = CameraComputePass::builder("direct_denoising")
-            .bind([&engine.noise.bind_blue_noise()])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.reprojection_map.bind_readable(),
                 &buffers.surface_map.curr().bind_readable(),
-                &buffers.surface_map.prev().bind_readable(),
                 &buffers.direct_samples.bind_readable(),
                 &buffers.direct_colors.curr().bind_writable(),
-                &buffers.direct_colors.prev().bind_readable(),
             ])
             .build(device, &engine.shaders.direct_denoising);
 

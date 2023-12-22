@@ -31,7 +31,6 @@ impl DirectTemporalResamplingPass {
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
-                &buffers.direct_candidates.bind_readable(),
                 &buffers.direct_prev_reservoirs.bind_readable(),
                 &buffers.direct_curr_reservoirs.bind_writable(),
             ])

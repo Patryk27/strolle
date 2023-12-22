@@ -55,17 +55,17 @@ pub fn main(
     // -------------------------------------------------------------------------
 
     if params.depth == u8::MAX as u32 {
-        let previous_color = if camera.is_eq(prev_camera) {
+        let prev_color = if camera.is_eq(prev_camera) {
             reference_colors.read(screen_pos)
         } else {
             Default::default()
         };
 
-        let current_color = reference_rays[3 * screen_idx + 2].xyz();
+        let curr_color = reference_rays[3 * screen_idx + 2].xyz();
 
         unsafe {
             reference_colors
-                .write(screen_pos, previous_color + current_color.extend(1.0));
+                .write(screen_pos, prev_color + curr_color.extend(1.0));
         }
 
         return;

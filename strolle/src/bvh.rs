@@ -46,7 +46,7 @@ impl Bvh {
         self.primitives.update(ids)
     }
 
-    pub fn refresh<P>(&mut self, frame: u32, materials: &Materials<P>)
+    pub fn refresh<P>(&mut self, materials: &Materials<P>)
     where
         P: Params,
     {
@@ -60,7 +60,6 @@ impl Bvh {
 
         utils::measure("tick.bvh.serialize", || {
             serializer::run(
-                frame,
                 materials,
                 &self.nodes,
                 &self.primitives,

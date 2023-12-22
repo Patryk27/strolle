@@ -1,6 +1,5 @@
 #![no_std]
 
-use spirv_std::arch::IndexUnchecked;
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
@@ -24,10 +23,8 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 3)] direct_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 4, storage_buffer)]
-    direct_candidates: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
     direct_prev_reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
     direct_curr_reservoirs: &mut [Vec4],
 ) {
     let screen_pos = global_id.xy();
@@ -59,95 +56,64 @@ pub fn main(
 
     // ---
 
-    let candidate = unsafe { *direct_candidates.index_unchecked(screen_idx) };
-
     let mut main = DirectReservoir::default();
-    let mut main_p_hat = 0.0;
+    let mut main_pdf = 0.0;
 
-    let mut other = DirectReservoir::default();
-    let mut other_p_hat = 0.0;
-    let mut other_ray = Ray::default();
-    let mut other_dist = 0.0;
+    let mut curr_m = 0.0;
+    let mut prev_m = 0.0;
+
+    let mut selected_prev = false;
+
+    // ---
+
+    let curr = DirectReservoir::read(direct_curr_reservoirs, screen_idx);
+
+    if curr.m > 0.0 {
+        let curr_pdf = curr.sample.pdf(lights, hit);
+
+        if main.merge(&mut wnoise, &curr, curr_pdf) {
+            main_pdf = curr_pdf;
+        }
+
+        curr_m = curr.m;
+    }
 
     // ---
 
     let reprojection = reprojection_map.get(screen_pos);
+    let mut prev = DirectReservoir::default();
 
     if reprojection.is_some() {
-        other = DirectReservoir::read(
+        prev = DirectReservoir::read(
             direct_prev_reservoirs,
             camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
-        let other_light_id = other.sample.light_id;
+        prev.clamp_m(20.0 * curr_m.max(1.0));
 
-        let filter = BilinearFilter::reproject(reprojection, move |pos| {
-            let res = DirectReservoir::read(
-                direct_prev_reservoirs,
-                camera.screen_to_idx(pos),
-            );
-
-            let res_weight = if res.sample.light_id == other_light_id {
-                1.0
-            } else {
-                0.0
-            };
-
-            (vec4(res.w, 0.0, 0.0, 0.0), res_weight)
-        });
-
-        other.w = filter.x;
-
-        if other.sample.is_valid(lights) {
-            if other.cooldown > 0 {
-                main.cooldown = other.cooldown - 1;
-            }
-
-            other_p_hat = other.sample.p_hat(lights, hit);
-
-            if params.frame % 2 == 0 {
-                (other_ray, other_dist) = other.sample.ray(hit);
-            } else {
-                if main.merge(&mut wnoise, &other, other_p_hat) {
-                    main_p_hat = other_p_hat;
-                }
-
-                other.m = 0.0;
-            }
+        let prev_pdf = if prev.sample.exists == 0 {
+            0.0
         } else {
-            other.m = 0.0;
-        }
-    }
-
-    if other.m == 0.0 && candidate.x > 0.0 {
-        let light_id = LightId::new(candidate.z.to_bits());
-
-        (other_ray, other_dist) =
-            lights.get(light_id).ray(&mut wnoise, hit.point);
-
-        other = DirectReservoir {
-            reservoir: Reservoir {
-                sample: DirectReservoirSample {
-                    light_id,
-                    light_point: other_ray.origin(),
-                    visibility: 0,
-                },
-                w_sum: 0.0,
-                m: candidate.x,
-                w: candidate.y,
-            },
-            cooldown: 0,
+            prev.sample.pdf(lights, hit)
         };
 
-        other_p_hat = candidate.w;
+        if main.merge(&mut wnoise, &prev, prev_pdf) {
+            main_pdf = prev_pdf;
+            selected_prev = true;
+        }
+
+        prev_m = prev.m;
     }
 
     // ---
 
-    if other.m > 0.0 {
-        let has_changed_visibility;
+    let mut pi = main_pdf;
+    let mut pi_sum = main_pdf * curr_m;
 
-        let (is_occluded, is_dirty) = other_ray.intersect(
+    if prev_m > 0.0 && main.sample.exists == 1 {
+        let (ray, dist) = main.sample.ray(hit);
+
+        let mut is_occluded = ray.intersect(
             local_idx,
             stack,
             triangles,
@@ -155,31 +121,25 @@ pub fn main(
             materials,
             atlas_tex,
             atlas_sampler,
-            other_dist,
+            dist,
         );
 
-        if is_occluded {
-            has_changed_visibility = other.sample.visibility == 1;
+        if main.sample.light_id == prev.sample.light_id {
+            if prev.m > 0.0 && prev.w == 0.0 {
+                is_occluded = true;
+            }
+        }
 
-            other.w = 0.0;
-            other.sample.visibility = 2;
+        let ps = if is_occluded {
+            0.0
         } else {
-            has_changed_visibility = other.sample.visibility == 2;
+            main.sample.pdf(lights, hit)
+        };
 
-            other.sample.visibility = 1;
-        }
-
-        if has_changed_visibility && is_dirty {
-            main.cooldown = 32;
-        }
-
-        if main.merge(&mut wnoise, &other, other_p_hat) {
-            main_p_hat = other_p_hat;
-        }
+        pi = if selected_prev { ps } else { pi };
+        pi_sum += ps * prev_m;
     }
 
-    // ---
-
-    main.normalize(main_p_hat);
+    main.normalize_ex(main_pdf, pi, pi_sum);
     main.write(direct_curr_reservoirs, screen_idx);
 }

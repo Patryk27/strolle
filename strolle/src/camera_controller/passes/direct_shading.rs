@@ -20,14 +20,18 @@ impl DirectShadingPass {
     {
         let pass = CameraComputePass::builder("direct_shading")
             .bind([
+                &engine.triangles.bind_readable(),
+                &engine.bvh.bind_readable(),
+                &engine.materials.bind_readable(),
                 &engine.lights.bind_readable(),
+                &engine.images.bind_atlas(),
                 &engine.world.bind_readable(),
             ])
             .bind([
                 &buffers.camera.bind_readable(),
                 &buffers.direct_gbuffer_d0.bind_readable(),
                 &buffers.direct_gbuffer_d1.bind_readable(),
-                &buffers.direct_candidates.bind_writable(),
+                &buffers.direct_curr_reservoirs.bind_writable(),
             ])
             .build(device, &engine.shaders.direct_shading);
 
