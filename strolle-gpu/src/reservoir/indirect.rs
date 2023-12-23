@@ -85,13 +85,13 @@ pub struct IndirectReservoirSample {
 }
 
 impl IndirectReservoirSample {
-    pub fn temporal_pdf(&self) -> f32 {
+    pub fn specular_pdf(&self) -> f32 {
         self.radiance.luminance()
     }
 
-    pub fn spatial_pdf(&self, hit: &Hit) -> f32 {
-        self.temporal_pdf()
-            * self.direction(hit.point).dot(hit.gbuffer.normal).max(0.0)
+    pub fn diffuse_pdf(&self, hit_point: Vec3, hit_normal: Vec3) -> f32 {
+        self.radiance.luminance()
+            * self.direction(hit_point).dot(hit_normal).max(0.0)
     }
 
     pub fn direction(&self, point: Vec3) -> Vec3 {

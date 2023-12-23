@@ -55,7 +55,7 @@ pub fn main(
     let sample =
         IndirectReservoir::read(indirect_diffuse_input_reservoirs, screen_idx);
 
-    let sample_pdf = sample.sample.spatial_pdf(&hit);
+    let sample_pdf = sample.sample.diffuse_pdf(hit.point, hit.gbuffer.normal);
 
     if main.merge(&mut wnoise, &sample, sample_pdf) {
         main_pdf = sample_pdf;
@@ -111,7 +111,8 @@ pub fn main(
             continue;
         }
 
-        let sample_pdf = sample.sample.spatial_pdf(&hit);
+        let sample_pdf =
+            sample.sample.diffuse_pdf(hit.point, hit.gbuffer.normal);
 
         if sample_pdf < 0.0 {
             continue;

@@ -137,11 +137,11 @@ pub fn main(
 
             if res.w > 0.0 {
                 light_id = res.sample.light_id;
-                light_pdf = res.sample.pdf() / res.w / (1.0 - atmosphere_pdf);
+                light_pdf = (res.sample.pdf() / res.w) * (1.0 - atmosphere_pdf);
                 light_radiance = res.sample.light_radiance;
             } else {
                 light_id = LightId::new(0);
-                light_pdf = 0.0;
+                light_pdf = 1.0;
                 light_radiance = Vec3::ZERO;
             }
         }

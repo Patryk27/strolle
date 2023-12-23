@@ -44,6 +44,9 @@ pub fn main(
     let d1 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx + 1) };
     let d2 = unsafe { *indirect_samples.index_unchecked(3 * screen_idx + 2) };
 
+    let hit_point = d0.xyz();
+    let hit_normal = surface.normal;
+
     if d0.w.to_bits() == 1 {
         let sample = IndirectReservoirSample {
             radiance: d1.xyz(),
@@ -53,7 +56,7 @@ pub fn main(
             frame: params.frame,
         };
 
-        main_pdf = sample.temporal_pdf();
+        main_pdf = sample.diffuse_pdf(hit_point, hit_normal);
         main.update(&mut wnoise, sample, main_pdf);
     }
 
@@ -67,7 +70,7 @@ pub fn main(
 
         sample.clamp_m(50.0);
 
-        let sample_pdf = sample.sample.temporal_pdf();
+        let sample_pdf = sample.sample.diffuse_pdf(hit_point, hit_normal);
 
         if main.merge(&mut wnoise, &sample, sample_pdf) {
             main_pdf = sample_pdf;
@@ -110,7 +113,7 @@ pub fn main(
 
         sample.clamp_m(1.0);
 
-        let sample_pdf = sample.sample.temporal_pdf();
+        let sample_pdf = sample.sample.diffuse_pdf(hit_point, hit_normal);
 
         if main.merge(&mut wnoise, &sample, sample_pdf) {
             main_pdf = sample_pdf;

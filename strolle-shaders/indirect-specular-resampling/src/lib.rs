@@ -56,7 +56,7 @@ pub fn main(
             frame: params.frame,
         };
 
-        main_pdf = sample.temporal_pdf();
+        main_pdf = sample.specular_pdf();
         main.update(&mut wnoise, sample, main_pdf);
     }
 
@@ -71,7 +71,7 @@ pub fn main(
         );
 
         if sample.sample.is_within_specular_lobe_of(&hit) {
-            let sample_pdf = sample.sample.temporal_pdf();
+            let sample_pdf = sample.sample.specular_pdf();
 
             if main.merge(&mut wnoise, &sample, sample_pdf) {
                 main_pdf = sample_pdf;
