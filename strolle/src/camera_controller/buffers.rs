@@ -18,7 +18,10 @@ pub struct CameraBuffers {
     pub direct_gbuffer_d1: Texture,
 
     pub direct_samples: Texture,
-    pub direct_colors: DoubleBuffered<Texture>,
+    pub direct_colors_a: Texture,
+    pub direct_colors_b: Texture,
+    pub direct_colors_c: Texture,
+    pub direct_moments: DoubleBuffered<Texture>,
     pub direct_prev_reservoirs: StorageBuffer,
     pub direct_curr_reservoirs: StorageBuffer,
     pub direct_next_reservoirs: StorageBuffer,
@@ -118,17 +121,35 @@ impl CameraBuffers {
 
         let direct_samples = Texture::builder("direct_samples")
             .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba16Float)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
-        let direct_colors = DoubleBuffered::<Texture>::new(
+        let direct_moments = DoubleBuffered::<Texture>::new(
             device,
-            Texture::builder("direct_colors")
+            Texture::builder("direct_moments")
                 .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
+
+        let direct_colors_a = Texture::builder("direct_colors_a")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
+
+        let direct_colors_b = Texture::builder("direct_colors_b")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
+
+        let direct_colors_c = Texture::builder("direct_colors_c")
+            .with_size(camera.viewport.size)
+            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
+            .build(device);
 
         let direct_prev_reservoirs = StorageBuffer::new(
             device,
@@ -180,7 +201,7 @@ impl CameraBuffers {
             device,
             Texture::builder("indirect_diffuse_colors")
                 .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
 
@@ -216,14 +237,14 @@ impl CameraBuffers {
             device,
             Texture::builder("indirect_specular_colors")
                 .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
 
         let indirect_specular_samples =
             Texture::builder("indirect_specular_samples")
                 .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba16Float)
+                .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .build(device);
 
@@ -295,7 +316,10 @@ impl CameraBuffers {
             direct_gbuffer_d1,
 
             direct_samples,
-            direct_colors,
+            direct_colors_a,
+            direct_colors_b,
+            direct_colors_c,
+            direct_moments,
             direct_prev_reservoirs,
             direct_curr_reservoirs,
             direct_next_reservoirs,

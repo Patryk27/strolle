@@ -107,7 +107,7 @@ pub fn main(
                 camera.screen_to_idx(sample_pos),
             );
 
-            if sample.sample.exists == 0 {
+            if !sample.sample.exists {
                 continue;
             }
 

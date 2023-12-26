@@ -62,7 +62,7 @@ pub fn main(
     let mut curr_m = 0.0;
     let mut prev_m = 0.0;
 
-    let mut selected_prev = false;
+    let mut selected = 0;
 
     // ---
 
@@ -73,6 +73,7 @@ pub fn main(
 
         if main.merge(&mut wnoise, &curr, curr_pdf) {
             main_pdf = curr_pdf;
+            selected = 1;
         }
 
         curr_m = curr.m;
@@ -91,15 +92,15 @@ pub fn main(
 
         prev.clamp_m(20.0 * curr_m.max(1.0));
 
-        let prev_pdf = if prev.sample.exists == 0 {
-            0.0
-        } else {
+        let prev_pdf = if prev.sample.exists {
             prev.sample.pdf(lights, hit)
+        } else {
+            0.0
         };
 
         if main.merge(&mut wnoise, &prev, prev_pdf) {
             main_pdf = prev_pdf;
-            selected_prev = true;
+            selected = 2;
         }
 
         prev_m = prev.m;
@@ -110,24 +111,25 @@ pub fn main(
     let mut pi = main_pdf;
     let mut pi_sum = main_pdf * curr_m;
 
-    if prev_m > 0.0 && main.sample.exists == 1 {
+    if (prev_m > 0.0) & main.sample.exists {
         let (ray, dist) = main.sample.ray(hit);
+        let mut is_occluded = false;
 
-        let mut is_occluded = ray.intersect(
-            local_idx,
-            stack,
-            triangles,
-            bvh,
-            materials,
-            atlas_tex,
-            atlas_sampler,
-            dist,
-        );
+        if (main.sample.light_id == prev.sample.light_id) & (prev.w == 0.0) {
+            is_occluded = true;
+        }
 
-        if main.sample.light_id == prev.sample.light_id {
-            if prev.m > 0.0 && prev.w == 0.0 {
-                is_occluded = true;
-            }
+        if !is_occluded & (selected == 2) {
+            is_occluded |= ray.intersect(
+                local_idx,
+                stack,
+                triangles,
+                bvh,
+                materials,
+                atlas_tex,
+                atlas_sampler,
+                dist,
+            );
         }
 
         let ps = if is_occluded {
@@ -136,7 +138,7 @@ pub fn main(
             main.sample.pdf(lights, hit)
         };
 
-        pi = if selected_prev { ps } else { pi };
+        pi = if selected == 2 { ps } else { pi };
         pi_sum += ps * prev_m;
     }
 

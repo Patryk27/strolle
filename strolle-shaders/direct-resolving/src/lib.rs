@@ -23,7 +23,7 @@ pub fn main(
     direct_next_reservoirs: &[Vec4],
     #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
     direct_prev_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 1, binding = 9)] direct_samples: TexRgba16,
+    #[spirv(descriptor_set = 1, binding = 9)] direct_samples: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
@@ -60,10 +60,8 @@ pub fn main(
         atmosphere.sky(world.sun_direction(), hit.direction)
     };
 
-    let quality = (res.m / 32.0).min(1.0);
-
     unsafe {
-        direct_samples.write(screen_pos, color.extend(quality));
+        direct_samples.write(screen_pos, color.extend(0.0));
     }
 
     res.write(direct_prev_reservoirs, screen_idx);

@@ -27,7 +27,7 @@ impl FrameCompositionPass {
 
         let bg0 = BindGroup::builder("frame_composition_bg0")
             .add(&buffers.camera.bind_readable())
-            .add(&buffers.direct_colors.curr().bind_readable())
+            .add(&buffers.direct_colors_b.bind_readable())
             .add(&buffers.direct_gbuffer_d0.bind_readable())
             .add(&buffers.direct_gbuffer_d1.bind_readable())
             .add(&buffers.indirect_diffuse_colors.curr().bind_readable())

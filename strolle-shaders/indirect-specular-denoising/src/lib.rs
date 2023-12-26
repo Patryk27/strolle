@@ -8,9 +8,9 @@ pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)]
-    indirect_specular_samples: TexRgba16,
+    indirect_specular_samples: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 2)]
-    indirect_specular_colors: TexRgba16,
+    indirect_specular_colors: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
 

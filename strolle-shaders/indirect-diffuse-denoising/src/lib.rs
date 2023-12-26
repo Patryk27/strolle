@@ -18,9 +18,9 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 5)]
     indirect_diffuse_samples: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 6)]
-    indirect_diffuse_colors: TexRgba16,
+    indirect_diffuse_colors: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 7)]
-    prev_indirect_diffuse_colors: TexRgba16,
+    prev_indirect_diffuse_colors: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
     let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);

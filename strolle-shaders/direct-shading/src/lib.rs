@@ -105,7 +105,7 @@ pub fn main(
                 sample: DirectReservoirSample {
                     light_id: res.sample.light_id,
                     light_point: ray.origin(),
-                    exists: 1,
+                    exists: true,
                 },
                 m: res.m,
                 w: res.w,

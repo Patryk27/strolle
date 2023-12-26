@@ -23,13 +23,13 @@ pub fn main_fs(
     #[spirv(frag_coord)] pos: Vec4,
     #[spirv(push_constant)] params: &FrameCompositionPassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] _camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: TexRgba16,
+    #[spirv(descriptor_set = 0, binding = 1)] direct_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 2)] direct_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 3)] direct_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 4)]
-    indirect_diffuse_colors: TexRgba16,
+    indirect_diffuse_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 5)]
-    indirect_specular_colors: TexRgba16,
+    indirect_specular_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 6)] reference_colors: TexRgba32,
     frag_color: &mut Vec4,
 ) {

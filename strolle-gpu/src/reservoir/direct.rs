@@ -24,7 +24,7 @@ impl DirectReservoir {
                 sample: DirectReservoirSample {
                     light_id: LightId::new(d1.w.to_bits()),
                     light_point: d1.xyz(),
-                    exists: d0.w.to_bits().to_bytes()[0],
+                    exists: d0.w.to_bits() > 0,
                 },
                 m: d0.x,
                 w: d0.y,
@@ -37,7 +37,12 @@ impl DirectReservoir {
             self.reservoir.m,
             self.reservoir.w,
             0.0,
-            f32::from_bits(u32::from_bytes([self.sample.exists, 0, 0, 0])),
+            f32::from_bits(u32::from_bytes([
+                self.sample.exists as u32,
+                0,
+                0,
+                0,
+            ])),
         );
 
         let d1 = self
@@ -71,7 +76,7 @@ impl DerefMut for DirectReservoir {
 pub struct DirectReservoirSample {
     pub light_id: LightId,
     pub light_point: Vec3,
-    pub exists: u32,
+    pub exists: bool,
 }
 
 impl DirectReservoirSample {
@@ -111,7 +116,7 @@ mod tests {
                     sample: DirectReservoirSample {
                         light_id: LightId::new(3 * idx as u32),
                         light_point: vec3(1.0, 2.0, 3.0 + (idx as f32)),
-                        exists: idx as u32,
+                        exists: idx as u32 % 2 == 0,
                     },
                     m: 11.0,
                     w: 12.0 + (idx as f32),
