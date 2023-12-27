@@ -183,8 +183,10 @@ where
     pub fn as_vertex_buffer(
         &self,
         instance_handle: &P::InstanceHandle,
-    ) -> (usize, wgpu::BufferSlice<'_>) {
-        let IndexedInstance { triangle_ids, .. } = &self.index[instance_handle];
+    ) -> Option<(usize, wgpu::BufferSlice<'_>)> {
+        let IndexedInstance { triangle_ids, .. } =
+            self.index.get(instance_handle)?;
+
         let vertices = 3 * triangle_ids.len();
 
         let vertex_buffer = {
@@ -196,7 +198,7 @@ where
             self.buffer.as_buffer().slice(min..)
         };
 
-        (vertices, vertex_buffer)
+        Some((vertices, vertex_buffer))
     }
 
     pub fn flush(

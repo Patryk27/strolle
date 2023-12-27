@@ -88,7 +88,7 @@ fn setup_camera(
                 | TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         },
-        sampler_descriptor: ImageSampler::nearest(),
+        sampler: ImageSampler::nearest(),
         ..default()
     };
 

@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         SpirvBuilder::new(crate_path, "spirv-unknown-spv1.3")
             .capability(Capability::Int8)
-            .release(true)
+            .extra_arg("--spirt-passes=reduce,fuse_selects")
             .build()?;
     }
 

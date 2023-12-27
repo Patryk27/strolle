@@ -17,12 +17,12 @@ pub(crate) fn meshes(
     mut engine: ResMut<EngineResource>,
     mut meshes: ResMut<ExtractedMeshes>,
 ) {
-    for mesh_handle in meshes
+    for mesh_id in meshes
         .removed
         .iter()
-        .chain(meshes.changed.iter().map(|mesh| &mesh.handle))
+        .chain(meshes.changed.iter().map(|mesh| &mesh.id))
     {
-        engine.remove_mesh(mesh_handle);
+        engine.remove_mesh(mesh_id);
     }
 
     for mesh in mem::take(&mut meshes.changed) {
@@ -36,7 +36,7 @@ pub(crate) fn meshes(
             .attribute(Mesh::ATTRIBUTE_POSITION)
             .and_then(VertexAttributeValues::as_float3)
             .unwrap_or_else(|| {
-                panic!("mesh {:?} has no positions", mesh.handle);
+                panic!("mesh {:?} has no positions", mesh.id);
             });
 
         let mesh_normals = mesh
@@ -44,7 +44,7 @@ pub(crate) fn meshes(
             .attribute(Mesh::ATTRIBUTE_NORMAL)
             .and_then(VertexAttributeValues::as_float3)
             .unwrap_or_else(|| {
-                panic!("mesh {:?} has no normals", mesh.handle);
+                panic!("mesh {:?} has no normals", mesh.id);
             });
 
         let mesh_uvs = mesh
@@ -52,10 +52,9 @@ pub(crate) fn meshes(
             .attribute(Mesh::ATTRIBUTE_UV_0)
             .map(|uvs| match uvs {
                 VertexAttributeValues::Float32x2(uvs) => uvs,
-                _ => panic!(
-                    "mesh {:?} has unsupported format for UVs",
-                    mesh.handle
-                ),
+                _ => {
+                    panic!("mesh {:?} has unsupported format for UVs", mesh.id)
+                }
             })
             .map(|uvs| uvs.as_slice())
             .unwrap_or(&[]);
@@ -67,7 +66,7 @@ pub(crate) fn meshes(
                 VertexAttributeValues::Float32x4(tangents) => tangents,
                 _ => panic!(
                     "mesh {:?} has unsupported format for tangents",
-                    mesh.handle
+                    mesh.id
                 ),
             })
             .map(|tangents| tangents.as_slice())
@@ -77,7 +76,7 @@ pub(crate) fn meshes(
             .mesh
             .indices()
             .unwrap_or_else(|| {
-                panic!("mesh {:?} has no indices", mesh.handle);
+                panic!("mesh {:?} has no indices", mesh.id);
             })
             .iter()
             .collect();
@@ -109,7 +108,7 @@ pub(crate) fn meshes(
             })
             .collect();
 
-        engine.add_mesh(mesh.handle, st::Mesh::new(mesh_triangles));
+        engine.add_mesh(mesh.id, st::Mesh::new(mesh_triangles));
     }
 }
 
@@ -119,13 +118,13 @@ pub(crate) fn materials<M>(
 ) where
     M: MaterialLike,
 {
-    for material_handle in materials.removed.iter() {
-        engine.remove_material(&M::map_handle(material_handle.clone_weak()));
+    for material_id in materials.removed.iter() {
+        engine.remove_material(&M::map_id(*material_id));
     }
 
     for material in materials.changed.drain(..) {
         engine.add_material(
-            M::map_handle(material.handle),
+            M::map_id(material.id),
             material.material.into_material(),
         );
     }
@@ -158,11 +157,7 @@ pub(crate) fn images(
 
             ExtractedImageData::Texture { is_dynamic } => {
                 st::ImageData::Texture {
-                    texture: textures
-                        .get(&image.handle)
-                        .unwrap()
-                        .texture
-                        .clone(),
+                    texture: textures.get(image.id).unwrap().texture.clone(),
                     is_dynamic,
                 }
             }
@@ -180,7 +175,7 @@ pub(crate) fn images(
         //      material, in which case a simple condition right here will not
         //      be sufficient
         engine.add_image(
-            image.handle,
+            image.id,
             st::Image::new(
                 data,
                 image.texture_descriptor,
@@ -202,10 +197,10 @@ pub(crate) fn instances<M>(
 
     for instance in mem::take(&mut instances.changed) {
         engine.add_instance(
-            instance.handle,
+            instance.id,
             st::Instance::new(
-                instance.mesh_handle,
-                M::map_handle(instance.material_handle),
+                instance.mesh_id,
+                M::map_id(instance.material_id),
                 instance.xform.compat(),
             ),
         );
@@ -221,7 +216,7 @@ pub(crate) fn lights(
     }
 
     for light in mem::take(&mut lights.changed) {
-        engine.add_light(light.handle, light.light);
+        engine.add_light(light.id, light.light);
     }
 }
 

@@ -1,13 +1,14 @@
 use std::error::Error;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::{env, process};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let profile = env::var("PROFILE").unwrap();
+
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../strolle-shader-builder/Cargo.toml");
     println!("cargo:rerun-if-changed=../strolle-shader-builder/src/main.rs");
-
-    let profile = env::var("PROFILE").unwrap();
     println!("cargo:rustc-env=PROFILE={profile}");
 
     let mut dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
@@ -25,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let dir = dir.join("shader-builder");
 
-    let status = process::Command::new("cargo")
+    let status = Command::new("cargo")
         .args([
             "run",
             "--release",
@@ -35,8 +36,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         ])
         .arg(dir)
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
-        .stderr(process::Stdio::inherit())
-        .stdout(process::Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .stdout(Stdio::inherit())
         .status()?;
 
     if !status.success() {

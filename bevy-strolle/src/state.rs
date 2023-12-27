@@ -30,18 +30,18 @@ impl SyncedState {
 
 #[derive(Debug)]
 pub(crate) struct SyncedCamera {
-    pub handle: st::CameraHandle,
+    pub id: st::CameraHandle,
 }
 
 #[derive(Debug, Resource)]
 pub(crate) struct ExtractedMeshes {
     pub changed: Vec<ExtractedMesh>,
-    pub removed: Vec<Handle<Mesh>>,
+    pub removed: Vec<AssetId<Mesh>>,
 }
 
 #[derive(Debug)]
 pub(crate) struct ExtractedMesh {
-    pub handle: Handle<Mesh>,
+    pub id: AssetId<Mesh>,
     pub mesh: Mesh,
 }
 
@@ -51,7 +51,7 @@ where
     M: MaterialLike,
 {
     pub changed: Vec<ExtractedMaterial<M>>,
-    pub removed: Vec<Handle<M>>,
+    pub removed: Vec<AssetId<M>>,
 }
 
 #[derive(Debug)]
@@ -59,19 +59,19 @@ pub(crate) struct ExtractedMaterial<M>
 where
     M: MaterialLike,
 {
-    pub handle: Handle<M>,
+    pub id: AssetId<M>,
     pub material: M,
 }
 
 #[derive(Debug, Resource)]
 pub(crate) struct ExtractedImages {
     pub changed: Vec<ExtractedImage>,
-    pub removed: Vec<Handle<Image>>,
+    pub removed: Vec<AssetId<Image>>,
 }
 
 #[derive(Debug)]
 pub(crate) struct ExtractedImage {
-    pub handle: Handle<Image>,
+    pub id: AssetId<Image>,
     pub texture_descriptor: wgpu::TextureDescriptor<'static>,
     pub sampler_descriptor: wgpu::SamplerDescriptor<'static>,
     pub data: ExtractedImageData,
@@ -97,9 +97,9 @@ pub(crate) struct ExtractedInstance<M>
 where
     M: MaterialLike,
 {
-    pub handle: Entity,
-    pub mesh_handle: Handle<Mesh>,
-    pub material_handle: Handle<M>,
+    pub id: Entity,
+    pub mesh_id: AssetId<Mesh>,
+    pub material_id: AssetId<M>,
     pub xform: Affine3A,
 }
 
@@ -111,7 +111,7 @@ pub(crate) struct ExtractedLights {
 
 #[derive(Debug)]
 pub(crate) struct ExtractedLight {
-    pub handle: Entity,
+    pub id: Entity,
     pub light: st::Light,
 }
 

@@ -89,7 +89,7 @@ fn setup_camera(
                 | TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         },
-        sampler_descriptor: ImageSampler::nearest(),
+        sampler: ImageSampler::nearest(),
         ..default()
     };
 
@@ -362,7 +362,7 @@ fn process_input(
 
     // ---
 
-    for event in wheel.iter() {
+    for event in wheel.read() {
         if event.y < 0.0 {
             state.selected_item = state
                 .selected_item
@@ -379,7 +379,7 @@ fn process_blocks(
     mut commands: Commands,
     mut events: EventReader<Event>,
 ) {
-    for block in events.iter() {
+    for block in events.read() {
         match block {
             Event::Spawn { position, item } => {
                 let item = &state.items[*item];

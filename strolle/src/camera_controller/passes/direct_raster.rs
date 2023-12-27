@@ -228,8 +228,11 @@ impl DirectRasterPass {
                 }
             };
 
-            let (vertices, vertex_buffer) =
-                engine.triangles.as_vertex_buffer(instance_handle);
+            let Some((vertices, vertex_buffer)) =
+                engine.triangles.as_vertex_buffer(instance_handle)
+            else {
+                continue;
+            };
 
             pass.set_vertex_buffer(0, vertex_buffer);
 

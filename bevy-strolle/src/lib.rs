@@ -44,7 +44,7 @@ pub struct StrollePlugin;
 impl Plugin for StrollePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<StrolleEvent>();
-        app.add_asset::<StrolleMaterial>();
+        app.init_asset::<StrolleMaterial>();
         app.insert_resource(StrolleSun::default());
 
         let render_app = app.sub_app_mut(RenderApp);
@@ -211,12 +211,12 @@ struct EngineResource(st::Engine<EngineParams>);
 struct EngineParams;
 
 impl st::Params for EngineParams {
-    type ImageHandle = Handle<Image>;
+    type ImageHandle = AssetId<Image>;
     type ImageTexture = Texture;
     type InstanceHandle = Entity;
     type LightHandle = Entity;
-    type MaterialHandle = MaterialHandle;
-    type MeshHandle = Handle<Mesh>;
+    type MaterialHandle = MaterialId;
+    type MeshHandle = AssetId<Mesh>;
 }
 
 impl ops::Deref for EngineResource {

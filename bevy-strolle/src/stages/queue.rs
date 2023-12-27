@@ -56,12 +56,12 @@ pub(crate) fn cameras(
 
         match state.cameras.entry(entity) {
             Entry::Occupied(entry) => {
-                engine.update_camera(device, entry.into_mut().handle, camera);
+                engine.update_camera(device, entry.into_mut().id, camera);
             }
 
             Entry::Vacant(entry) => {
                 entry.insert(SyncedCamera {
-                    handle: engine.create_camera(device, camera),
+                    id: engine.create_camera(device, camera),
                 });
             }
         }
@@ -76,7 +76,7 @@ pub(crate) fn cameras(
             let is_alive = alive_cameras.contains(entity2);
 
             if !is_alive {
-                engine.delete_camera(camera2.handle);
+                engine.delete_camera(camera2.id);
             }
 
             is_alive

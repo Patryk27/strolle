@@ -1,9 +1,8 @@
-use std::collections::VecDeque;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, CameraRenderGraph};
-use bevy::render::texture::ImageSampler;
+use bevy::render::texture::{ImageSampler, ImageSamplerDescriptor};
 use bevy::render::view::RenderLayers;
 use bevy::render::Extract;
 use bevy::utils::HashSet;
@@ -26,26 +25,28 @@ pub(crate) fn meshes(
     let mut changed = HashSet::default();
     let mut removed = Vec::new();
 
-    for event in events.iter() {
+    for event in events.read() {
         match event {
-            AssetEvent::Created { handle }
-            | AssetEvent::Modified { handle } => {
-                changed.insert(handle.clone_weak());
+            AssetEvent::Added { id } | AssetEvent::Modified { id } => {
+                changed.insert(*id);
             }
-            AssetEvent::Removed { handle } => {
-                removed.push(handle.clone_weak());
+            AssetEvent::Removed { id } => {
+                removed.push(*id);
+            }
+            AssetEvent::LoadedWithDependencies { .. } => {
+                //
             }
         }
     }
 
-    let changed = changed.into_iter().flat_map(|handle| {
-        if let Some(mesh) = meshes.get(&handle) {
+    let changed = changed.into_iter().flat_map(|id| {
+        if let Some(mesh) = meshes.get(id) {
             Some(ExtractedMesh {
-                handle,
+                id,
                 mesh: mesh.to_owned(),
             })
         } else {
-            removed.push(handle.clone_weak());
+            removed.push(id);
             None
         }
     });
@@ -66,26 +67,28 @@ pub(crate) fn materials<Material>(
     let mut changed = HashSet::default();
     let mut removed = Vec::new();
 
-    for event in events.iter() {
+    for event in events.read() {
         match event {
-            AssetEvent::Created { handle }
-            | AssetEvent::Modified { handle } => {
-                changed.insert(handle.clone_weak());
+            AssetEvent::Added { id } | AssetEvent::Modified { id } => {
+                changed.insert(*id);
             }
-            AssetEvent::Removed { handle } => {
-                removed.push(handle.clone_weak());
+            AssetEvent::Removed { id } => {
+                removed.push(*id);
+            }
+            AssetEvent::LoadedWithDependencies { .. } => {
+                //
             }
         }
     }
 
-    let changed = changed.into_iter().flat_map(|handle| {
-        if let Some(material) = materials.get(&handle) {
+    let changed = changed.into_iter().flat_map(|id| {
+        if let Some(material) = materials.get(id) {
             Some(ExtractedMaterial {
-                handle,
+                id,
                 material: material.to_owned(),
             })
         } else {
-            removed.push(handle.clone_weak());
+            removed.push(id);
             None
         }
     });
@@ -101,12 +104,12 @@ pub(crate) fn images(
     mut events: Extract<EventReader<StrolleEvent>>,
     mut asset_events: Extract<EventReader<AssetEvent<Image>>>,
     images: Extract<Res<Assets<Image>>>,
-    mut dynamic_images: Local<HashSet<Handle<Image>>>,
+    mut dynamic_images: Local<HashSet<AssetId<Image>>>,
 ) {
-    for event in events.iter() {
+    for event in events.read() {
         match event {
-            StrolleEvent::MarkImageAsDynamic { handle } => {
-                dynamic_images.insert(handle.clone_weak());
+            StrolleEvent::MarkImageAsDynamic { id } => {
+                dynamic_images.insert(*id);
             }
         }
     }
@@ -116,42 +119,43 @@ pub(crate) fn images(
     let mut changed = HashSet::default();
     let mut removed = Vec::new();
 
-    for event in asset_events.iter() {
+    for event in asset_events.read() {
         match event {
-            AssetEvent::Created { handle }
-            | AssetEvent::Modified { handle } => {
-                changed.insert(handle.clone_weak());
+            AssetEvent::Added { id } | AssetEvent::Modified { id } => {
+                changed.insert(*id);
             }
-            AssetEvent::Removed { handle } => {
-                changed.remove(handle);
-                removed.push(handle.clone_weak());
-                dynamic_images.remove(handle);
+            AssetEvent::Removed { id } => {
+                changed.remove(id);
+                removed.push(*id);
+                dynamic_images.remove(id);
+            }
+            AssetEvent::LoadedWithDependencies { .. } => {
+                //
             }
         }
     }
 
-    let changed = changed.into_iter().flat_map(|handle| -> Option<_> {
-        let Some(image) = images.get(&handle) else {
-            removed.push(handle);
+    let changed = changed.into_iter().flat_map(|id| {
+        let Some(image) = images.get(id) else {
+            removed.push(id);
             return None;
         };
 
         let texture_descriptor = image.texture_descriptor.clone();
 
-        let sampler_descriptor = match &image.sampler_descriptor {
-            ImageSampler::Default => {
-                // According to Bevy's docs, this should read the defaults as
-                // specified in the `ImagePlugin`'s setup, but it seems that it
-                // is not actually possible for us to access that value in here.
-                //
-                // So let's to the next best thing: assume our own default!
-                ImageSampler::nearest_descriptor()
-            }
+        let sampler_descriptor = match &image.sampler {
+            ImageSampler::Default => wgpu::SamplerDescriptor {
+                label: None,
+                ..ImageSamplerDescriptor::nearest().as_wgpu()
+            },
 
-            ImageSampler::Descriptor(descriptor) => descriptor.clone(),
+            ImageSampler::Descriptor(descriptor) => wgpu::SamplerDescriptor {
+                label: None,
+                ..descriptor.as_wgpu()
+            },
         };
 
-        let data = if dynamic_images.contains(&handle) {
+        let data = if dynamic_images.contains(&id) {
             let is_legal = image
                 .texture_descriptor
                 .usage
@@ -161,7 +165,7 @@ pub(crate) fn images(
                 is_legal,
                 "image `{:?}` was marked as dynamic but it is missing the \
                  COPY_SRC usage - please add that usage and try again",
-                handle
+                id
             );
 
             ExtractedImageData::Texture { is_dynamic: true }
@@ -172,7 +176,7 @@ pub(crate) fn images(
         };
 
         Some(ExtractedImage {
-            handle,
+            id,
             texture_descriptor,
             sampler_descriptor,
             data,
@@ -188,18 +192,6 @@ pub(crate) fn images(
 #[allow(clippy::type_complexity)]
 pub(crate) fn instances<Material>(
     mut commands: Commands,
-    children: Extract<Query<(Entity, &Children)>>,
-    changed_visibilities: Extract<Query<Entity, Changed<Visibility>>>,
-    all: Extract<
-        Query<(
-            Entity,
-            &Handle<Mesh>,
-            &Handle<Material>,
-            &GlobalTransform,
-            &ComputedVisibility,
-            Option<&RenderLayers>,
-        )>,
-    >,
     changed: Extract<
         Query<
             (
@@ -207,13 +199,14 @@ pub(crate) fn instances<Material>(
                 &Handle<Mesh>,
                 &Handle<Material>,
                 &GlobalTransform,
-                &ComputedVisibility,
+                &InheritedVisibility,
                 Option<&RenderLayers>,
             ),
             Or<(
                 Changed<Handle<Mesh>>,
                 Changed<Handle<Material>>,
                 Changed<GlobalTransform>,
+                Changed<InheritedVisibility>,
                 Changed<RenderLayers>,
             )>,
         >,
@@ -222,32 +215,10 @@ pub(crate) fn instances<Material>(
 ) where
     Material: MaterialLike,
 {
-    // TODO switch to `Changed<ComputedVisibility>` after¹ gets fixed
-    //      ¹ https://github.com/bevyengine/bevy/issues/8267
-    let changed_visibilities = {
-        let mut changed = Vec::new();
-        let mut pending: VecDeque<_> = changed_visibilities.iter().collect();
-
-        while let Some(entity) = pending.pop_front() {
-            if let Ok(payload) = all.get(entity) {
-                changed.push(payload);
-            }
-
-            if let Ok((_, children)) = children.get(entity) {
-                pending.extend(children);
-            }
-        }
-
-        changed
-    };
-
-    // ---
-
-    let mut removed: Vec<_> = removed.iter().collect();
+    let mut removed: Vec<_> = removed.read().collect();
 
     let changed = changed
         .iter()
-        .chain(changed_visibilities)
         .filter_map(
             |(
                 handle,
@@ -257,7 +228,7 @@ pub(crate) fn instances<Material>(
                 visibility,
                 layers,
             )| {
-                if !visibility.is_visible_in_hierarchy() {
+                if !visibility.get() {
                     // TODO inefficient; we should push only if the object was
                     //      visible before
                     removed.push(handle);
@@ -277,9 +248,9 @@ pub(crate) fn instances<Material>(
                 }
 
                 Some(ExtractedInstance {
-                    handle,
-                    mesh_handle: mesh_handle.clone_weak(),
-                    material_handle: material_handle.clone_weak(),
+                    id: handle,
+                    mesh_id: mesh_handle.id(),
+                    material_id: material_handle.id(),
                     xform: transform.affine(),
                 })
             },
@@ -308,8 +279,8 @@ pub(crate) fn lights(
     mut removed_spot_lights: Extract<RemovedComponents<SpotLight>>,
 ) {
     let mut removed: Vec<_> = removed_point_lights
-        .iter()
-        .chain(removed_spot_lights.iter())
+        .read()
+        .chain(removed_spot_lights.read())
         .collect();
 
     let changed_point_lights: Vec<_> = changed_point_lights
@@ -329,7 +300,7 @@ pub(crate) fn lights(
                 range: light.range,
             };
 
-            Some(ExtractedLight { handle, light })
+            Some(ExtractedLight { id: handle, light })
         })
         .collect();
 
@@ -355,7 +326,7 @@ pub(crate) fn lights(
                 angle: light.outer_angle,
             };
 
-            Some(ExtractedLight { handle, light })
+            Some(ExtractedLight { id: handle, light })
         })
         .collect();
 

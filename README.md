@@ -70,7 +70,7 @@ $ cargo run --release --example cornell
 
 ## Using with Bevy
 
-(currently supported Bevy version: 0.11.3)
+(currently supported Bevy version: 0.12.1)
 
 1. Add Strolle to your dependencies:
 
@@ -83,7 +83,7 @@ $ cargo run --release --example cornell
 
     ``` toml
     [patch."crates-io"]
-    naga = { git = "https://github.com/Patryk27/naga", branch = "v0.12.3-strolle" }
+    naga = { git = "https://github.com/Patryk27/naga", branch = "v0.13.0-strolle" }
     ```
 
 3. Setup & enjoy!

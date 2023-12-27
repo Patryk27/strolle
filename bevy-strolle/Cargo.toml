@@ -4,15 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.11.3" # TODO use default-features = false
+bevy = "0.12.1" # TODO use default-features = false
 log = "0.4.18"
 strolle = { path = "../strolle", features = ["metrics"] }
-wgpu = "0.16.3"
+wgpu = "0.17.2"
 
 [dev-dependencies]
-bevy = { version = "0.11.3", features = ["jpeg"] }
-bevy_mod_raycast = "0.15"
-bevy_rapier3d = "0.22.0"
+bevy = { version = "0.12.1", features = ["jpeg"] }
+bevy_mod_raycast = "0.16.0"
+bevy_rapier3d = "0.23.0"
 lazy_static = "1.4.0"
-smooth-bevy-cameras = "0.9.0"
+smooth-bevy-cameras = "0.10.0"
 zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
