@@ -1,11 +1,10 @@
-use super::BvhPrimitivesRef;
-use crate::BoundingBox;
+use crate::{BoundingBox, PrimitivesRef};
 
 #[derive(Clone, Copy, Debug)]
 pub enum BvhNode {
     Internal {
         bounds: BoundingBox,
-        primitives_ref: BvhPrimitivesRef,
+        primitives_ref: PrimitivesRef,
         left_id: BvhNodeId,
         left_hash: BvhNodeHash,
         right_id: BvhNodeId,
@@ -14,7 +13,7 @@ pub enum BvhNode {
 
     Leaf {
         bounds: BoundingBox,
-        primitives_ref: BvhPrimitivesRef,
+        primitives_ref: PrimitivesRef,
     },
 }
 
@@ -26,7 +25,7 @@ impl BvhNode {
         }
     }
 
-    pub fn primitives_ref(&self) -> BvhPrimitivesRef {
+    pub fn primitives_ref(&self) -> PrimitivesRef {
         match self {
             BvhNode::Internal { primitives_ref, .. } => *primitives_ref,
             BvhNode::Leaf { primitives_ref, .. } => *primitives_ref,

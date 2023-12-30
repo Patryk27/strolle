@@ -83,21 +83,24 @@ where
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> bool {
-        let curr_size = self.buffer.size() as usize;
-        let new_size = utils::pad_size(self.data.size());
+        let prev_size = self.buffer.size() as usize;
+        let curr_size = utils::pad_size(self.data.size());
 
-        if (self.buffer.size() as usize) >= new_size {
+        if (self.buffer.size() as usize) >= curr_size {
             return false;
         }
 
+        // TODO consider better strategy
+        let target_size = 2 * curr_size;
+
         debug!(
             "Reallocating mapped storage buffer `{}`; \
-             curr-size={curr_size}, new-size={new_size}",
+             prev-size={prev_size}, curr-size={curr_size}, target-size={target_size}",
             self.label,
         );
 
         self.buffer.destroy();
-        self.buffer = Self::create_buffer(device, &self.label, new_size);
+        self.buffer = Self::create_buffer(device, &self.label, target_size);
         self.dirty = false;
 
         queue.write_buffer(&self.buffer, 0, self.data.data());

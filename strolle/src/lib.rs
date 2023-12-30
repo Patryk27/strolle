@@ -63,9 +63,10 @@ mod mesh;
 mod mesh_triangle;
 mod meshes;
 mod noise;
+mod primitive;
+mod primitives;
 mod shaders;
 mod sun;
-mod triangle;
 mod triangles;
 mod utils;
 
@@ -96,10 +97,12 @@ pub use self::mesh::*;
 pub use self::mesh_triangle::*;
 pub(crate) use self::meshes::*;
 pub(crate) use self::noise::*;
+pub(crate) use self::primitive::*;
+pub(crate) use self::primitives::*;
 pub(crate) use self::shaders::*;
 pub use self::sun::*;
-pub(crate) use self::triangle::*;
 pub(crate) use self::triangles::*;
+pub use self::utils::BoundingBox;
 pub(crate) use self::utils::*;
 
 #[derive(Debug)]
@@ -112,6 +115,7 @@ where
     meshes: Meshes<P>,
     instances: Instances<P>,
     triangles: Triangles<P>,
+    primitives: Primitives<P>,
     bvh: Bvh,
     lights: Lights<P>,
     images: Images<P>,
@@ -139,6 +143,7 @@ where
             meshes: Meshes::default(),
             instances: Instances::default(),
             triangles: Triangles::new(device),
+            primitives: Primitives::default(),
             bvh: Bvh::new(device),
             lights: Lights::new(device),
             images: Images::new(device),
@@ -161,7 +166,22 @@ where
     /// Creates a mesh¹ or updates the existing one.
     ///
     /// ¹ see the module-level comment for details
-    pub fn add_mesh(&mut self, mesh_handle: P::MeshHandle, mesh: Mesh) {
+    pub fn add_mesh(&mut self, mesh_handle: P::MeshHandle, mut mesh: Mesh) {
+        self.triangles.add(
+            PrimitiveOwner::Mesh(mesh_handle),
+            mesh.take_triangles().into_iter().map(|tri| tri.serialize()),
+        );
+
+        if let Some(prev_mesh) = self.meshes.get(&mesh_handle) {
+            if let Some(prev_node_id) = prev_mesh.node_id().take() {
+                self.bvh.delete_blas(prev_node_id);
+                self.triangles.remove(&PrimitiveOwner::Mesh(mesh_handle));
+
+                self.primitives
+                    .delete_scope(PrimitiveScope::Blas(mesh_handle));
+            }
+        }
+
         self.meshes.add(mesh_handle, mesh);
     }
 
@@ -176,6 +196,7 @@ where
     ///
     /// ¹ see the module-level comment for details
     pub fn remove_mesh(&mut self, mesh_handle: &P::MeshHandle) {
+        self.triangles.remove(&PrimitiveOwner::Mesh(*mesh_handle));
         self.meshes.remove(mesh_handle);
     }
 
@@ -254,8 +275,16 @@ where
     ///
     /// ¹ see the module-level comment for details
     pub fn remove_instance(&mut self, instance_handle: &P::InstanceHandle) {
-        self.instances.remove(instance_handle);
-        self.triangles.remove(&mut self.bvh, instance_handle);
+        if let Some(instance) = self.instances.remove(instance_handle) {
+            if instance.inline {
+                self.triangles
+                    .remove(&PrimitiveOwner::Instance(*instance_handle));
+            }
+
+            self.primitives
+                .scope_mut(PrimitiveScope::Tlas)
+                .remove(&PrimitiveOwner::Instance(*instance_handle));
+        }
     }
 
     /// Creates a light or updates the existing one¹.
@@ -308,16 +337,21 @@ where
 
         let any_instance_changed = utils::measure("tick.instances", || {
             self.instances.refresh(
-                &self.meshes,
+                &mut self.meshes,
                 &self.materials,
                 &mut self.triangles,
+                &mut self.primitives,
                 &mut self.bvh,
             )
         });
 
         if any_instance_changed {
             utils::measure("tick.bvh", || {
-                self.bvh.refresh(&self.materials);
+                self.bvh.refresh(
+                    &mut self.meshes,
+                    &mut self.primitives,
+                    &self.materials,
+                );
             });
         }
 
@@ -439,47 +473,15 @@ where
     }
 }
 
-/// Parameters used by Strolle to index textures, meshes etc.
-///
-/// This exists to faciliate integrations with existing systems, such as Bevy,
-/// that already have their own newtypes for images, instances and so on.
+// TODO get rid of
 pub trait Params
 where
-    Self: Clone + Debug,
+    Self: Clone + Debug + PartialEq + Eq + Hash + Send + Sync + Default,
 {
-    /// Handle used to lookup images.
-    ///
-    /// This corresponds to `Handle<Image>` in Bevy, but a simpler
-    /// implementation can use just `usize` or `String`.
-    type ImageHandle: Eq + Hash + Clone + Debug;
-
-    /// Image's texture.
-    ///
-    /// This corresponds to `Texture` in Bevy as it doesn't provide direct
-    /// access to owned `wgpu::Texture`.
+    type ImageHandle: Clone + Copy + Eq + Hash + Debug + Send + Sync;
     type ImageTexture: Debug + Deref<Target = wgpu::Texture>;
-
-    /// Handle used to lookup instances of meshes.
-    ///
-    /// This corresponds to `Entity` in Bevy, but a simpler implementation can
-    /// use just `usize` or `String`.
-    type InstanceHandle: Eq + Hash + Clone + Debug;
-
-    /// Handle used to lookup lights.
-    ///
-    /// This corresponds to `Entity` in Bevy, but a simpler implementation can
-    /// use just `usize` or `String`.
-    type LightHandle: Eq + Hash + Clone + Debug;
-
-    /// Handle used to lookup materials.
-    ///
-    /// This corresponds to `Handle<StandardMaterial>` in Bevy, but a simpler
-    /// implementation can use just `usize` or `String`.
-    type MaterialHandle: Eq + Hash + Clone + Debug;
-
-    /// Handle used to lookup meshes.
-    ///
-    /// This corresponds to `Handle<Mesh>` in Bevy, but a simpler implementation
-    /// can use just `usize` or `String`.
-    type MeshHandle: Eq + Hash + Clone + Debug;
+    type InstanceHandle: Clone + Copy + Eq + Hash + Debug + Send + Sync;
+    type LightHandle: Clone + Copy + Eq + Hash + Debug + Send + Sync;
+    type MaterialHandle: Clone + Copy + Eq + Hash + Debug + Send + Sync;
+    type MeshHandle: Clone + Copy + Eq + Hash + Debug + Send + Sync;
 }

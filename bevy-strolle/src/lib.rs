@@ -207,7 +207,7 @@ impl Plugin for StrollePlugin {
 #[derive(Resource)]
 struct EngineResource(st::Engine<EngineParams>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 struct EngineParams;
 
 impl st::Params for EngineParams {

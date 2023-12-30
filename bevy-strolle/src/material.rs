@@ -109,7 +109,7 @@ impl MaterialLike for StrolleMaterial {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum MaterialId {
     Standard(AssetId<StandardMaterial>),
     Strolle(AssetId<StrolleMaterial>),

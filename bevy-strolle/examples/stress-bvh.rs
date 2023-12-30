@@ -60,6 +60,9 @@ fn setup(
             },
             ..default()
         })
+        .insert(StrolleCamera {
+            mode: st::CameraMode::BvhHeatmap,
+        })
         .insert(FpsCameraBundle::new(
             {
                 let mut controller = FpsCameraController::default();
@@ -158,7 +161,7 @@ fn handle_spawning(
         .insert(collider)
         .insert(Object {
             despawner: Timer::from_seconds(
-                (rand4 as f32) / 255.0 * 20.0,
+                (rand4 as f32) / 255.0 * 2000.0,
                 TimerMode::Once,
             ),
         });
@@ -171,10 +174,10 @@ fn handle_despawning(
     keys: Res<Input<KeyCode>>,
 ) {
     for (object_entity, mut object) in objects.iter_mut() {
-        if object.despawner.tick(time.delta()).just_finished()
-            || keys.just_pressed(KeyCode::X)
-        {
-            commands.entity(object_entity).despawn();
-        }
+        // if object.despawner.tick(time.delta()).just_finished()
+        //     || keys.just_pressed(KeyCode::X)
+        // {
+        //     commands.entity(object_entity).despawn();
+        // }
     }
 }

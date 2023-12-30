@@ -7,7 +7,7 @@ pub struct Meshes<P>
 where
     P: Params,
 {
-    meshes: HashMap<P::MeshHandle, Mesh>,
+    pub meshes: HashMap<P::MeshHandle, Mesh>,
 }
 
 impl<P> Meshes<P>
@@ -20,6 +20,13 @@ where
 
     pub fn get(&self, mesh_handle: &P::MeshHandle) -> Option<&Mesh> {
         self.meshes.get(mesh_handle)
+    }
+
+    pub fn get_mut(
+        &mut self,
+        mesh_handle: &P::MeshHandle,
+    ) -> Option<&mut Mesh> {
+        self.meshes.get_mut(mesh_handle)
     }
 
     pub fn remove(&mut self, mesh_handle: &P::MeshHandle) {

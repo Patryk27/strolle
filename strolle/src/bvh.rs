@@ -1,29 +1,26 @@
 mod builder;
 mod node;
 mod nodes;
-mod primitive;
-mod primitives;
 mod serializer;
 
 use std::fmt::Debug;
-use std::ops::Range;
 
 use spirv_std::glam::Vec4;
 
 pub use self::builder::*;
 pub use self::node::*;
 pub use self::nodes::*;
-pub use self::primitive::*;
-pub use self::primitives::*;
+use crate::meshes::Meshes;
+use crate::primitives::PrimitiveScope;
 use crate::{
-    utils, Bindable, BufferFlushOutcome, MappedStorageBuffer, Materials, Params,
+    utils, Bindable, BufferFlushOutcome, MappedStorageBuffer, Materials,
+    Params, Primitives,
 };
 
 #[derive(Debug)]
 pub struct Bvh {
     buffer: MappedStorageBuffer<Vec<Vec4>>,
     nodes: BvhNodes,
-    primitives: BvhPrimitives,
 }
 
 impl Bvh {
@@ -31,43 +28,61 @@ impl Bvh {
         Self {
             buffer: MappedStorageBuffer::new_default(device, "bvh"),
             nodes: Default::default(),
-            primitives: Default::default(),
         }
     }
 
-    pub fn add(&mut self, prim: BvhPrimitive) {
-        self.primitives.add(prim);
-    }
-
-    pub fn update(
+    pub fn create_blas<P>(
         &mut self,
-        ids: Range<usize>,
-    ) -> impl Iterator<Item = &mut BvhPrimitive> {
-        self.primitives.update(ids)
-    }
-
-    pub fn refresh<P>(&mut self, materials: &Materials<P>)
+        primitives: &mut Primitives<P>,
+        mesh_handle: &P::MeshHandle,
+    ) -> BvhNodeId
     where
         P: Params,
     {
+        let primitives =
+            primitives.create_scope(PrimitiveScope::Blas(*mesh_handle));
+
+        builder::run_blas(primitives, &mut self.nodes)
+    }
+
+    pub fn delete_blas(&mut self, node_id: BvhNodeId) {
+        self.nodes.remove_tree(node_id);
+    }
+
+    pub fn refresh<P>(
+        &mut self,
+        meshes: &mut Meshes<P>,
+        primitives: &mut Primitives<P>,
+        materials: &Materials<P>,
+    ) where
+        P: Params,
+    {
         utils::measure("tick.bvh.begin", || {
-            self.primitives.begin_refresh();
+            primitives
+                .scope_mut(PrimitiveScope::Tlas)
+                .begin_bvh_refresh();
         });
 
         utils::measure("tick.bvh.build", || {
-            builder::run(&mut self.nodes, &mut self.primitives);
+            builder::run_tlas(
+                primitives.scope_mut(PrimitiveScope::Tlas),
+                &mut self.nodes,
+            );
         });
 
         utils::measure("tick.bvh.serialize", || {
             serializer::run(
+                meshes,
+                primitives,
                 materials,
                 &self.nodes,
-                &self.primitives,
                 &mut self.buffer,
             );
         });
 
-        self.primitives.end_refresh();
+        utils::measure("tick.bvh.end", || {
+            primitives.scope_mut(PrimitiveScope::Tlas).end_bvh_refresh();
+        });
     }
 
     pub fn flush(
@@ -79,7 +94,7 @@ impl Bvh {
     }
 
     pub fn len(&self) -> usize {
-        self.nodes.nodes.len()
+        self.nodes.len()
     }
 
     pub fn bind_readable(&self) -> impl Bindable + '_ {

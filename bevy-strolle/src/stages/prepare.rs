@@ -108,7 +108,15 @@ pub(crate) fn meshes(
             })
             .collect();
 
-        engine.add_mesh(mesh.id, st::Mesh::new(mesh_triangles));
+        let mesh_bounds = mesh
+            .mesh
+            .compute_aabb()
+            .map(|aabb| {
+                st::BoundingBox::new(aabb.min().into(), aabb.max().into())
+            })
+            .unwrap_or_default();
+
+        engine.add_mesh(mesh.id, st::Mesh::new(mesh_triangles, mesh_bounds));
     }
 }
 

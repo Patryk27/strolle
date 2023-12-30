@@ -1,5 +1,6 @@
 use std::ops::{Add, AddAssign};
 
+use glam::{vec3, Affine3A};
 use spirv_std::glam::Vec3;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -29,6 +30,20 @@ impl BoundingBox {
         let extent = self.extent();
 
         extent.x * extent.y + extent.y * extent.z + extent.z * extent.x
+    }
+
+    pub fn with_transform(&self, transform: Affine3A) -> Self {
+        (0..8)
+            .map(|i| {
+                let point = vec3(
+                    if i & 1 > 0 { self.max.x } else { self.min.x },
+                    if i & 2 > 0 { self.max.y } else { self.min.y },
+                    if i & 4 > 0 { self.max.z } else { self.min.z },
+                );
+
+                transform.transform_point3(point)
+            })
+            .collect()
     }
 
     pub fn is_set(&self) -> bool {

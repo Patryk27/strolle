@@ -2,10 +2,10 @@ use std::{mem, ops};
 
 use super::{BvhNode, BvhNodeId};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct BvhNodes {
-    pub nodes: Vec<BvhNode>,
-    pub free_nodes: Vec<BvhNodeId>,
+    nodes: Vec<BvhNode>,
+    free_nodes: Vec<BvhNodeId>,
 }
 
 impl BvhNodes {
@@ -39,12 +39,25 @@ impl BvhNodes {
         self.free_nodes.push(id);
     }
 
-    pub fn set_root(&mut self, node: BvhNode) -> Option<BvhNode> {
+    pub fn update_root(&mut self, node: BvhNode) -> Option<BvhNode> {
         if self.nodes.is_empty() {
             self.nodes.push(node);
             None
         } else {
             Some(mem::replace(&mut self[BvhNodeId::root()], node))
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+}
+
+impl Default for BvhNodes {
+    fn default() -> Self {
+        Self {
+            nodes: vec![BvhNode::default()],
+            free_nodes: Default::default(),
         }
     }
 }

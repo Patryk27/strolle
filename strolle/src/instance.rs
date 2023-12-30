@@ -1,4 +1,4 @@
-use glam::Affine3A;
+use glam::{Affine3A, Mat4};
 
 use crate::Params;
 
@@ -9,8 +9,10 @@ where
 {
     pub(crate) mesh_handle: P::MeshHandle,
     pub(crate) material_handle: P::MaterialHandle,
-    pub(crate) transform: Affine3A,
-    pub(crate) transform_inverse: Affine3A,
+    pub(crate) xform: Affine3A,
+    pub(crate) xform_inv: Affine3A,
+    pub(crate) xform_inv_trans: Mat4,
+    pub(crate) inline: bool,
 }
 
 impl<P> Instance<P>
@@ -20,13 +22,18 @@ where
     pub fn new(
         mesh_handle: P::MeshHandle,
         material_handle: P::MaterialHandle,
-        transform: Affine3A,
+        xform: Affine3A,
     ) -> Self {
+        let xform_inv = xform.inverse();
+        let xform_inv_trans = Mat4::from(xform_inv).transpose();
+
         Self {
             mesh_handle,
             material_handle,
-            transform,
-            transform_inverse: transform.inverse(),
+            xform,
+            xform_inv,
+            xform_inv_trans,
+            inline: true,
         }
     }
 }

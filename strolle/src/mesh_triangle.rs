@@ -1,14 +1,14 @@
-use glam::Affine3A;
-use spirv_std::glam::{Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
+use glam::Vec3Swizzles;
+use spirv_std::glam::{Vec2, Vec3, Vec4};
 
-use crate::Triangle;
+use crate::{gpu, BoundingBox};
 
 #[derive(Clone, Debug, Default)]
 pub struct MeshTriangle {
-    positions: [Vec3; 3],
-    normals: [Vec3; 3],
-    uvs: [Vec2; 3],
-    tangents: [Vec4; 3],
+    pub(crate) positions: [Vec3; 3],
+    pub(crate) normals: [Vec3; 3],
+    pub(crate) uvs: [Vec2; 3],
+    pub(crate) tangents: [Vec4; 3],
 }
 
 impl MeshTriangle {
@@ -44,44 +44,27 @@ impl MeshTriangle {
         self.uvs
     }
 
-    pub(crate) fn build(
-        &self,
-        xform: Affine3A,
-        xform_inv: Affine3A,
-    ) -> Triangle {
-        let positions =
-            self.positions.map(|vertex| xform.transform_point3(vertex));
+    pub(crate) fn center(&self) -> Vec3 {
+        self.positions.iter().sum::<Vec3>() / 3.0
+    }
 
-        let normals = {
-            // Transforming normals requires inversing and transposing the
-            // matrix in order to get correct results under scaling, see:
-            //
-            // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
-            let mat = Mat4::from(xform_inv).transpose();
+    pub(crate) fn bounds(&self) -> BoundingBox {
+        self.positions.iter().copied().collect()
+    }
 
-            self.normals
-                .map(|normal| mat.transform_vector3(normal).normalize())
-        };
+    pub(crate) fn serialize(&self) -> gpu::Triangle {
+        gpu::Triangle {
+            d0: self.positions[0].xyz().extend(self.uvs[0].x),
+            d1: self.normals[0].xyz().extend(self.uvs[0].y),
+            d2: self.tangents[0],
 
-        let tangents = {
-            let sign = if xform.matrix3.determinant().is_sign_positive() {
-                1.0
-            } else {
-                -1.0
-            };
+            d3: self.positions[1].xyz().extend(self.uvs[1].x),
+            d4: self.normals[1].xyz().extend(self.uvs[1].y),
+            d5: self.tangents[1],
 
-            self.tangents.map(|tangent| {
-                (xform.matrix3 * tangent.xyz())
-                    .normalize()
-                    .extend(tangent.w * sign)
-            })
-        };
-
-        Triangle {
-            positions,
-            normals,
-            uvs: self.uvs,
-            tangents,
+            d6: self.positions[2].xyz().extend(self.uvs[2].x),
+            d7: self.normals[2].xyz().extend(self.uvs[2].y),
+            d8: self.tangents[2],
         }
     }
 }

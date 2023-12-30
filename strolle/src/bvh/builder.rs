@@ -6,27 +6,62 @@ use std::thread;
 use fxhash::FxHasher;
 use glam::UVec3;
 
-use super::{
-    BvhNode, BvhNodeHash, BvhNodeId, BvhNodes, BvhPrimitiveId, BvhPrimitives,
-    BvhPrimitivesRef,
+use super::{BvhNode, BvhNodeHash, BvhNodeId, BvhNodes};
+use crate::{
+    Axis, BoundingBox, Params, PrimitiveId, PrimitivesRef, ScopedPrimitives,
 };
-use crate::{Axis, BoundingBox};
 
 const BINS: usize = 12;
 
-pub fn run(nodes: &mut BvhNodes, primitives: &mut BvhPrimitives) {
+pub fn run_blas<P>(
+    primitives: &mut ScopedPrimitives<P>,
+    nodes: &mut BvhNodes,
+) -> BvhNodeId
+where
+    P: Params,
+{
+    let id = nodes.add(BvhNode::Leaf {
+        bounds: Default::default(),
+        primitives_ref: primitives.get_ref(),
+    });
+
+    run(primitives, nodes, BvhNodeRef { id, ghost: None });
+
+    id
+}
+
+pub fn run_tlas<P>(primitives: &mut ScopedPrimitives<P>, nodes: &mut BvhNodes)
+where
+    P: Params,
+{
+    let prev_root = nodes.update_root(BvhNode::Leaf {
+        bounds: Default::default(),
+        primitives_ref: primitives.get_ref(),
+    });
+
+    run(
+        primitives,
+        nodes,
+        BvhNodeRef {
+            id: BvhNodeId::root(),
+            ghost: prev_root,
+        },
+    );
+}
+
+fn run<P>(
+    primitives: &mut ScopedPrimitives<P>,
+    nodes: &mut BvhNodes,
+    root: BvhNodeRef,
+) where
+    P: Params,
+{
     thread::scope(|s| {
         s.spawn(|| {
-            let root = nodes.set_root(BvhNode::Leaf {
-                bounds: Default::default(),
-                primitives_ref: primitives.current_ref(),
-            });
-
-            let root = BvhNodeRef::root(root);
             let mut stack = VecDeque::from_iter([root]);
 
             while let Some(node) = stack.pop_front() {
-                match balance(nodes, primitives, node) {
+                match balance::<true, _>(primitives, nodes, node) {
                     (Some(left), Some(right)) => {
                         stack.push_back(left);
                         stack.push_back(right);
@@ -44,14 +79,17 @@ pub fn run(nodes: &mut BvhNodes, primitives: &mut BvhPrimitives) {
 }
 
 #[inline(always)]
-fn balance(
+fn balance<const TLAS: bool, P>(
+    primitives: &mut ScopedPrimitives<P>,
     nodes: &mut BvhNodes,
-    primitives: &mut BvhPrimitives,
     node_ref: BvhNodeRef,
-) -> (Option<BvhNodeRef>, Option<BvhNodeRef>) {
-    if let Some(plane) = find_splitting_plane(nodes, primitives, node_ref.id) {
+) -> (Option<BvhNodeRef>, Option<BvhNodeRef>)
+where
+    P: Params,
+{
+    if let Some(plane) = find_splitting_plane(primitives, nodes, node_ref.id) {
         if plane.split_cost < nodes[node_ref.id].sah_cost() {
-            return split(nodes, primitives, node_ref, plane);
+            return split::<TLAS, _>(nodes, primitives, node_ref, plane);
         }
     }
 
@@ -67,11 +105,14 @@ fn balance(
 }
 
 #[inline(always)]
-fn find_splitting_plane(
+fn find_splitting_plane<P>(
+    primitives: &ScopedPrimitives<P>,
     nodes: &BvhNodes,
-    primitives: &BvhPrimitives,
     node_id: BvhNodeId,
-) -> Option<SplittingPlane> {
+) -> Option<SplittingPlane>
+where
+    P: Params,
+{
     let BvhNode::Leaf { primitives_ref, .. } = nodes[node_id] else {
         unreachable!();
     };
@@ -86,27 +127,27 @@ fn find_splitting_plane(
 
     let centroid_bb: BoundingBox = primitives
         .iter()
-        .map(|primitive| primitive.center)
+        .map(|primitive| primitive.center())
         .collect();
 
     let mut bins = [[Bin::default(); BINS]; 3];
     let scale = (BINS as f32) / centroid_bb.extent();
 
     for primitive in primitives {
-        let bin_id = scale * (primitive.center - centroid_bb.min());
+        let bin_id = scale * (primitive.center() - centroid_bb.min());
         let bin_id = bin_id.as_uvec3().min(UVec3::splat((BINS as u32) - 1));
         let bin_idx = bin_id.x as usize;
         let bin_idy = bin_id.y as usize;
         let bin_idz = bin_id.z as usize;
 
         bins[0][bin_idx].count += 1;
-        bins[0][bin_idx].bounds += primitive.bounds;
+        bins[0][bin_idx].bounds += primitive.bounds();
 
         bins[1][bin_idy].count += 1;
-        bins[1][bin_idy].bounds += primitive.bounds;
+        bins[1][bin_idy].bounds += primitive.bounds();
 
         bins[2][bin_idz].count += 1;
-        bins[2][bin_idz].bounds += primitive.bounds;
+        bins[2][bin_idz].bounds += primitive.bounds();
     }
 
     // ---
@@ -180,12 +221,15 @@ fn find_splitting_plane(
     best
 }
 
-fn split(
+fn split<const TLAS: bool, P>(
     nodes: &mut BvhNodes,
-    primitives: &mut BvhPrimitives,
+    primitives: &mut ScopedPrimitives<P>,
     node_ref: BvhNodeRef,
     plane: SplittingPlane,
-) -> (Option<BvhNodeRef>, Option<BvhNodeRef>) {
+) -> (Option<BvhNodeRef>, Option<BvhNodeRef>)
+where
+    P: Params,
+{
     let BvhNode::Leaf {
         bounds,
         primitives_ref,
@@ -211,31 +255,31 @@ fn split(
     while left_prim_idx <= right_prim_idx {
         let primitive = primitives_data[left_prim_idx as usize];
 
-        if primitive.center[plane.split_by] < plane.split_at {
+        if primitive.center()[plane.split_by] < plane.split_at {
             left_prim_idx += 1;
-            left_bounds += primitive.bounds;
+            left_bounds += primitive.bounds();
 
-            primitive.hash(&mut left_hash);
+            if TLAS {
+                primitive.hash(&mut left_hash);
+            }
         } else {
             primitives_data
                 .swap(left_prim_idx as usize, right_prim_idx as usize);
 
             right_prim_idx -= 1;
-            right_bounds += primitive.bounds;
+            right_bounds += primitive.bounds();
 
-            primitive.hash(&mut right_hash);
+            if TLAS {
+                primitive.hash(&mut right_hash);
+            }
         }
     }
 
-    let pivot = BvhPrimitiveId::new(
-        primitives_ref.start().get() + (left_prim_idx as u32),
-    );
+    let pivot =
+        PrimitiveId::new(primitives_ref.start().get() + (left_prim_idx as u32));
 
-    let left_primitives_ref =
-        BvhPrimitivesRef::new(primitives_ref.start(), pivot);
-
-    let right_primitives_ref =
-        BvhPrimitivesRef::new(pivot, primitives_ref.end());
+    let left_primitives_ref = PrimitivesRef::new(primitives_ref.start(), pivot);
+    let right_primitives_ref = PrimitivesRef::new(pivot, primitives_ref.end());
 
     let left_hash = BvhNodeHash::new(left_hash.finish());
     let right_hash = BvhNodeHash::new(right_hash.finish());
@@ -251,30 +295,32 @@ fn split(
     let mut left_continue = true;
     let mut right_continue = true;
 
-    if let Some(BvhNode::Internal {
-        left_id: prev_left_id,
-        left_hash: prev_left_hash,
-        right_id: prev_right_id,
-        right_hash: prev_right_hash,
-        ..
-    }) = node_ref.ghost
-    {
-        if prev_left_hash == left_hash {
-            left_id = Some(prev_left_id);
-            left_continue = false;
+    if TLAS {
+        if let Some(BvhNode::Internal {
+            left_id: prev_left_id,
+            left_hash: prev_left_hash,
+            right_id: prev_right_id,
+            right_hash: prev_right_hash,
+            ..
+        }) = node_ref.ghost
+        {
+            // if prev_left_hash == left_hash {
+            //     left_id = Some(prev_left_id);
+            //     left_continue = false;
 
-            copy(nodes, primitives, prev_left_id, left_primitives_ref);
-        } else {
+            //     copy(nodes, primitives, prev_left_id, left_primitives_ref);
+            // } else {
             left_ghost = Some(nodes.remove(prev_left_id));
-        }
+            // }
 
-        if prev_right_hash == right_hash {
-            right_id = Some(prev_right_id);
-            right_continue = false;
+            // if prev_right_hash == right_hash {
+            //     right_id = Some(prev_right_id);
+            //     right_continue = false;
 
-            copy(nodes, primitives, prev_right_id, right_primitives_ref);
-        } else {
+            //     copy(nodes, primitives, prev_right_id, right_primitives_ref);
+            // } else {
             right_ghost = Some(nodes.remove(prev_right_id));
+            // }
         }
     }
 
@@ -318,12 +364,14 @@ fn split(
     (left, right)
 }
 
-fn copy(
+fn copy<P>(
     nodes: &mut BvhNodes,
-    primitives: &mut BvhPrimitives,
+    primitives: &mut ScopedPrimitives<P>,
     id: BvhNodeId,
-    primitives_ref: BvhPrimitivesRef,
-) {
+    primitives_ref: PrimitivesRef,
+) where
+    P: Params,
+{
     let prev_primitives_ref = nodes[id].primitives_ref();
 
     primitives.copy_previous_to_current(prev_primitives_ref, primitives_ref);
@@ -370,13 +418,4 @@ struct Bin {
 struct BvhNodeRef {
     id: BvhNodeId,
     ghost: Option<BvhNode>,
-}
-
-impl BvhNodeRef {
-    fn root(ghost: Option<BvhNode>) -> Self {
-        Self {
-            id: BvhNodeId::root(),
-            ghost,
-        }
-    }
 }
