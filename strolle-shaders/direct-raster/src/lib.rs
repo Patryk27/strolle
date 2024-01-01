@@ -23,25 +23,13 @@ pub fn main_vs(
     out_normal: &mut Vec3,
     out_uv: &mut Vec2,
 ) {
-    let mut point = vertex_d0.xyz();
-    let mut normal = vertex_d1.xyz();
+    let point = vertex_d0.xyz();
+    let normal = vertex_d1.xyz();
     let uv = vec2(vertex_d0.w, vertex_d1.w);
-    let prev_point;
 
-    if params.is_inline() {
-        prev_point = params.curr_xform_inv().transform_point3(point);
-    } else {
-        prev_point = point;
-
-        point = params.curr_xform().transform_point3(point);
-
-        normal = params
-            .curr_xform_inv_trans
-            .transform_vector3(normal)
-            .normalize();
-    }
-
-    let prev_point = params.prev_xform().transform_point3(prev_point);
+    let prev_point = params
+        .prev_xform()
+        .transform_point3(params.curr_xform_inv().transform_point3(point));
 
     *out_vertex = camera.world_to_clip(point);
     *out_curr_vertex = camera.world_to_clip(point);

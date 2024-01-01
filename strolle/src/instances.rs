@@ -4,9 +4,8 @@ use std::{iter, mem};
 
 use glam::Affine3A;
 
-use crate::bvh::Bvh;
+use crate::bvh::{Bvh, BvhNodeId};
 use crate::primitive::Primitive;
-use crate::primitives::{PrimitiveOwner, PrimitiveScope};
 use crate::utils::TriangleExt;
 use crate::{Instance, Materials, Meshes, Params, Primitives, Triangles};
 
@@ -40,6 +39,7 @@ where
             Entry::Vacant(entry) => {
                 entry.insert(InstanceEntry {
                     prev_xform: instance.xform,
+                    node_id: None,
                     dirty: true,
                     instance,
                 });
@@ -58,6 +58,20 @@ where
             .map(|(instance_handle, instance_entry)| {
                 (instance_handle, instance_entry)
             })
+    }
+
+    pub fn node_to_handle(&self, node: BvhNodeId) -> P::InstanceHandle {
+        self.instances
+            .iter()
+            .find_map(|(key, val)| {
+                // TODO use HashMap
+                if val.node_id == Some(node) {
+                    Some(*key)
+                } else {
+                    None
+                }
+            })
+            .unwrap()
     }
 
     pub fn remove(
@@ -112,69 +126,49 @@ where
                 continue;
             };
 
-            if entry.instance.inline {
-                let tris = triangles.copy(
-                    PrimitiveOwner::Mesh(mesh_handle),
-                    PrimitiveOwner::Instance(*instance_handle),
-                );
-
-                let prims = tris.map(|(triangle_id, triangle)| {
-                    *triangle = triangle.with_xform(
+            let tris = triangles.add(
+                *instance_handle,
+                mesh.triangles().iter().map(|triangle| {
+                    triangle.build(
                         entry.instance.xform,
                         entry.instance.xform_inv_trans,
-                    );
+                    )
+                }),
+            );
 
-                    Primitive::Triangle {
-                        center: triangle.center(),
-                        bounds: triangle.bounds(),
-                        triangle_id,
-                        material_id,
-                        inline: true,
-                    }
+            let prims =
+                tris.map(|(triangle_id, triangle)| Primitive::Triangle {
+                    center: triangle.center(),
+                    bounds: triangle.bounds(),
+                    triangle_id,
+                    material_id,
                 });
 
-                primitives
-                    .scope_mut(PrimitiveScope::Tlas)
-                    .add(PrimitiveOwner::Instance(*instance_handle), prims);
+            if entry.instance.inline {
+                primitives.tlas_mut().add(*instance_handle, prims);
             } else {
-                let node_id = if let Some(node_id) = mesh.node_id() {
-                    node_id
-                } else {
-                    let mesh_primitives = triangles
-                        .get(PrimitiveOwner::Mesh(mesh_handle))
-                        .map(|(triangle_id, triangle)| Primitive::Triangle {
-                            triangle_id,
-                            material_id,
-                            center: triangle.center(),
-                            bounds: triangle.bounds(),
-                            inline: false,
-                        });
+                if let Some(node_id) = entry.node_id.take() {
+                    bvh.delete_blas(node_id);
+                }
 
-                    primitives
-                        .create_scope(PrimitiveScope::Blas(mesh_handle))
-                        .add(
-                            PrimitiveOwner::Mesh(mesh_handle),
-                            mesh_primitives,
-                        );
+                let blas = primitives.create_blas(*instance_handle);
 
-                    let node_id = bvh.create_blas(primitives, &mesh_handle);
+                blas.add(prims);
 
-                    *mesh.node_id_mut() = Some(node_id);
+                let node_id = bvh.create_blas(blas);
 
-                    node_id
-                };
-
-                primitives.scope_mut(PrimitiveScope::Tlas).add(
-                    PrimitiveOwner::Instance(*instance_handle),
+                primitives.tlas_mut().add(
+                    *instance_handle,
                     iter::once(Primitive::Instance {
                         center: entry.instance.xform.translation.into(),
                         bounds: mesh
                             .bounds()
                             .with_transform(entry.instance.xform),
-                        xform_inv: entry.instance.xform_inv,
                         node_id,
                     }),
                 );
+
+                entry.node_id = Some(node_id);
             }
         }
 
@@ -200,6 +194,7 @@ where
     P: Params,
 {
     pub instance: Instance<P>,
+    pub node_id: Option<BvhNodeId>,
     pub prev_xform: Affine3A,
     pub dirty: bool,
 }

@@ -1,7 +1,7 @@
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
 
-use glam::{Affine3A, Vec3};
+use glam::Vec3;
 
 use crate::bvh::BvhNodeId;
 use crate::gpu;
@@ -14,13 +14,11 @@ pub enum Primitive {
         bounds: BoundingBox,
         triangle_id: gpu::TriangleId,
         material_id: gpu::MaterialId,
-        inline: bool,
     },
 
     Instance {
         center: Vec3,
         bounds: BoundingBox,
-        xform_inv: Affine3A,
         node_id: BvhNodeId,
     },
 
@@ -43,18 +41,6 @@ impl Primitive {
             | Primitive::Instance { bounds, .. } => *bounds,
 
             Primitive::Killed => Default::default(),
-        }
-    }
-
-    pub fn kill(&mut self) {
-        *self = Self::Killed;
-    }
-
-    pub fn is_required_for_tlas(&self) -> bool {
-        match self {
-            Primitive::Triangle { inline, .. } => !inline,
-            Primitive::Instance { .. } => true,
-            Primitive::Killed => false,
         }
     }
 }

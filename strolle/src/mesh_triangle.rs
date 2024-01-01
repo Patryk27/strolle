@@ -1,9 +1,9 @@
-use glam::Vec3Swizzles;
+use glam::{Affine3A, Mat4, Vec3Swizzles, Vec4Swizzles};
 use spirv_std::glam::{Vec2, Vec3, Vec4};
 
-use crate::{gpu, BoundingBox};
+use crate::gpu;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct MeshTriangle {
     pub(crate) positions: [Vec3; 3],
     pub(crate) normals: [Vec3; 3],
@@ -44,15 +44,36 @@ impl MeshTriangle {
         self.uvs
     }
 
-    pub(crate) fn center(&self) -> Vec3 {
-        self.positions.iter().sum::<Vec3>() / 3.0
+    pub(crate) fn build(
+        mut self,
+        xform: Affine3A,
+        xform_inv_trans: Mat4,
+    ) -> gpu::Triangle {
+        self.positions =
+            self.positions.map(|vertex| xform.transform_point3(vertex));
+
+        self.normals = self.normals.map(|normal| {
+            xform_inv_trans.transform_vector3(normal).normalize()
+        });
+
+        self.tangents = {
+            let sign = if xform.matrix3.determinant().is_sign_positive() {
+                1.0
+            } else {
+                -1.0
+            };
+
+            self.tangents.map(|tangent| {
+                (xform.matrix3 * tangent.xyz())
+                    .normalize()
+                    .extend(tangent.w * sign)
+            })
+        };
+
+        self.serialize()
     }
 
-    pub(crate) fn bounds(&self) -> BoundingBox {
-        self.positions.iter().copied().collect()
-    }
-
-    pub(crate) fn serialize(&self) -> gpu::Triangle {
+    fn serialize(self) -> gpu::Triangle {
         gpu::Triangle {
             d0: self.positions[0].xyz().extend(self.uvs[0].x),
             d1: self.normals[0].xyz().extend(self.uvs[0].y),

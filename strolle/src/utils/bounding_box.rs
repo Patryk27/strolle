@@ -27,6 +27,10 @@ impl BoundingBox {
     }
 
     pub fn half_area(&self) -> f32 {
+        if !self.is_set() {
+            return f32::MAX;
+        }
+
         let extent = self.extent();
 
         extent.x * extent.y + extent.y * extent.z + extent.z * extent.x

@@ -1,71 +1,46 @@
-use std::collections::HashMap;
-
 use glam::Vec4;
 use spirv_std::glam::vec4;
 
 use super::{BvhNodeId, BvhNodes};
-use crate::meshes::Meshes;
-use crate::primitives::PrimitiveScope;
-use crate::{
-    AlphaMode, BvhNode, Materials, Params, Primitive, Primitives,
-    ScopedPrimitives,
-};
+use crate::instances::Instances;
+use crate::{AlphaMode, BvhNode, Materials, Params, Primitive, Primitives};
 
 pub fn run<P>(
-    meshes: &mut Meshes<P>,
-    primitives: &Primitives<P>,
     materials: &Materials<P>,
+    instances: &Instances<P>,
+    primitives: &Primitives<P>,
     nodes: &BvhNodes,
     buffer: &mut Vec<Vec4>,
 ) where
     P: Params,
 {
     buffer.clear();
-    buffer.push(Vec4::ZERO);
 
-    let mut links = HashMap::new();
-
-    for (mesh_handle, mesh) in meshes.meshes.iter() {
-        if let Some(node_id) = mesh.node_id() {
-            let node_ptr = serialize(
-                materials,
-                nodes,
-                primitives.scope(PrimitiveScope::Blas(*mesh_handle)),
-                buffer,
-                &Default::default(),
-                node_id,
-            );
-
-            links.insert(node_id.get(), node_ptr);
-        }
-    }
-
-    let ptr = serialize(
+    serialize(
         materials,
+        instances,
+        primitives,
         nodes,
-        primitives.scope(PrimitiveScope::Tlas),
         buffer,
-        &links,
         BvhNodeId::root(),
+        None,
     );
-
-    buffer[0].x = f32::from_bits(ptr);
 }
 
-fn serialize<P>(
+pub fn serialize<P>(
     materials: &Materials<P>,
+    instances: &Instances<P>,
+    primitives: &Primitives<P>,
     nodes: &BvhNodes,
-    primitives: &ScopedPrimitives<P>,
     buffer: &mut Vec<Vec4>,
-    links: &HashMap<u32, u32>,
     id: BvhNodeId,
+    context: Option<BvhNodeId>,
 ) -> u32
 where
     P: Params,
 {
     const OP_INTERNAL: u32 = 0;
-    const OP_LEAF_TRIANGLE: u32 = 1;
-    const OP_LEAF_INSTANCE: u32 = 2;
+    const OP_LEAF: u32 = 1;
 
     let ptr = buffer.len();
 
@@ -81,11 +56,14 @@ where
             let left_bb = nodes[left_id].bounds();
             let right_bb = nodes[right_id].bounds();
 
-            let _left_ptr =
-                serialize(materials, nodes, primitives, buffer, links, left_id);
+            let _left_ptr = serialize(
+                materials, instances, primitives, nodes, buffer, left_id,
+                context,
+            );
 
             let right_ptr = serialize(
-                materials, nodes, primitives, buffer, links, right_id,
+                materials, instances, primitives, nodes, buffer, right_id,
+                context,
             );
 
             buffer[ptr] = vec4(
@@ -120,9 +98,17 @@ where
         }
 
         BvhNode::Leaf { primitives_ref, .. } => {
-            for (primitive_idx, primitive) in
-                primitives.current(primitives_ref).iter().enumerate()
-            {
+            let prims = if let Some(context) = context {
+                primitives
+                    .blas(instances.node_to_handle(context))
+                    .index(primitives_ref)
+            } else {
+                primitives.tlas().index(primitives_ref)
+            };
+
+            let mut t = false;
+
+            for (primitive_idx, primitive) in prims.iter().enumerate() {
                 match primitive {
                     Primitive::Triangle {
                         triangle_id,
@@ -146,47 +132,24 @@ where
                             f32::from_bits(flags),
                             f32::from_bits(triangle_id.get()),
                             f32::from_bits(material_id.get()),
-                            f32::from_bits(OP_LEAF_TRIANGLE),
+                            f32::from_bits(OP_LEAF),
                         ));
                     }
 
-                    Primitive::Instance {
-                        xform_inv, node_id, ..
-                    } => {
-                        let flags = {
-                            let got_more_entries =
-                                primitive_idx + 1 < primitives_ref.len();
+                    Primitive::Instance { node_id, .. } => {
+                        assert!(!t);
 
-                            got_more_entries as u32
-                        };
-
-                        buffer.push(vec4(
-                            f32::from_bits(flags),
-                            f32::from_bits(links[&node_id.get()]),
-                            f32::from_bits(0),
-                            f32::from_bits(OP_LEAF_INSTANCE),
-                        ));
-
-                        buffer.push(
-                            xform_inv
-                                .matrix3
-                                .x_axis
-                                .extend(xform_inv.translation.x),
+                        serialize(
+                            materials,
+                            instances,
+                            primitives,
+                            nodes,
+                            buffer,
+                            *node_id,
+                            Some(*node_id),
                         );
 
-                        buffer.push(
-                            xform_inv
-                                .matrix3
-                                .y_axis
-                                .extend(xform_inv.translation.y),
-                        );
-
-                        buffer.push(
-                            xform_inv
-                                .matrix3
-                                .z_axis
-                                .extend(xform_inv.translation.z),
-                        );
+                        t = true;
                     }
 
                     Primitive::Killed => {

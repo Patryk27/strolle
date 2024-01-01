@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{vec3a, vec4, Affine3A, Mat3A, Mat4, Vec4};
+use glam::{vec3a, vec4, Affine3A, Mat3A, Vec4};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
@@ -14,13 +14,9 @@ pub struct PassParams {
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct DirectRasterPassParams {
     pub payload: Vec4,
-    pub curr_xform_d0: Vec4,
-    pub curr_xform_d1: Vec4,
-    pub curr_xform_d2: Vec4,
     pub curr_xform_inv_d0: Vec4,
     pub curr_xform_inv_d1: Vec4,
     pub curr_xform_inv_d2: Vec4,
-    pub curr_xform_inv_trans: Mat4,
     pub prev_xform_d0: Vec4,
     pub prev_xform_d1: Vec4,
     pub prev_xform_d2: Vec4,
@@ -29,18 +25,6 @@ pub struct DirectRasterPassParams {
 impl DirectRasterPassParams {
     pub fn material_id(&self) -> u32 {
         self.payload.x.to_bits()
-    }
-
-    pub fn is_inline(&self) -> bool {
-        self.payload.y.to_bits() == 1
-    }
-
-    pub fn curr_xform(&self) -> Affine3A {
-        Self::decode_affine([
-            self.curr_xform_d0,
-            self.curr_xform_d1,
-            self.curr_xform_d2,
-        ])
     }
 
     pub fn curr_xform_inv(&self) -> Affine3A {

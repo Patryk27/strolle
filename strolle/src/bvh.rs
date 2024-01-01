@@ -10,8 +10,8 @@ use spirv_std::glam::Vec4;
 pub use self::builder::*;
 pub use self::node::*;
 pub use self::nodes::*;
-use crate::meshes::Meshes;
-use crate::primitives::PrimitiveScope;
+use crate::instances::Instances;
+use crate::primitives::BlasPrimitives;
 use crate::{
     utils, Bindable, BufferFlushOutcome, MappedStorageBuffer, Materials,
     Params, Primitives,
@@ -31,17 +31,10 @@ impl Bvh {
         }
     }
 
-    pub fn create_blas<P>(
+    pub fn create_blas(
         &mut self,
-        primitives: &mut Primitives<P>,
-        mesh_handle: &P::MeshHandle,
-    ) -> BvhNodeId
-    where
-        P: Params,
-    {
-        let primitives =
-            primitives.create_scope(PrimitiveScope::Blas(*mesh_handle));
-
+        primitives: &mut BlasPrimitives,
+    ) -> BvhNodeId {
         builder::run_blas(primitives, &mut self.nodes)
     }
 
@@ -51,37 +44,32 @@ impl Bvh {
 
     pub fn refresh<P>(
         &mut self,
-        meshes: &mut Meshes<P>,
-        primitives: &mut Primitives<P>,
         materials: &Materials<P>,
+        instances: &Instances<P>,
+        primitives: &mut Primitives<P>,
     ) where
         P: Params,
     {
         utils::measure("tick.bvh.begin", || {
-            primitives
-                .scope_mut(PrimitiveScope::Tlas)
-                .begin_bvh_refresh();
+            primitives.tlas_mut().begin();
         });
 
         utils::measure("tick.bvh.build", || {
-            builder::run_tlas(
-                primitives.scope_mut(PrimitiveScope::Tlas),
-                &mut self.nodes,
-            );
+            builder::run_tlas(primitives.tlas_mut(), &mut self.nodes);
         });
 
         utils::measure("tick.bvh.serialize", || {
             serializer::run(
-                meshes,
-                primitives,
                 materials,
+                instances,
+                primitives,
                 &self.nodes,
                 &mut self.buffer,
             );
         });
 
         utils::measure("tick.bvh.end", || {
-            primitives.scope_mut(PrimitiveScope::Tlas).end_bvh_refresh();
+            primitives.tlas_mut().commit();
         });
     }
 

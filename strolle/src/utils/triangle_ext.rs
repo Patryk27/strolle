@@ -1,6 +1,6 @@
-use glam::{Affine3A, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
+use glam::{Vec2, Vec3, Vec4};
 
-use crate::{gpu, BoundingBox, MeshTriangle};
+use crate::{gpu, BoundingBox};
 
 pub trait TriangleExt {
     fn positions(&self) -> [Vec3; 3];
@@ -15,8 +15,6 @@ pub trait TriangleExt {
     fn bounds(&self) -> BoundingBox {
         self.positions().iter().copied().collect()
     }
-
-    fn with_xform(&self, xform: Affine3A, xform_inv_trans: Mat4) -> Self;
 }
 
 impl TriangleExt for gpu::Triangle {
@@ -35,37 +33,5 @@ impl TriangleExt for gpu::Triangle {
 
     fn uvs(&self) -> [Vec2; 3] {
         [self.uv0(), self.uv1(), self.uv2()]
-    }
-
-    fn with_xform(&self, xform: Affine3A, xform_inv_trans: Mat4) -> Self {
-        let positions = self
-            .positions()
-            .map(|vertex| xform.transform_point3(vertex));
-
-        let normals = self.normals().map(|normal| {
-            xform_inv_trans.transform_vector3(normal).normalize()
-        });
-
-        let tangents = {
-            let sign = if xform.matrix3.determinant().is_sign_positive() {
-                1.0
-            } else {
-                -1.0
-            };
-
-            self.tangents().map(|tangent| {
-                (xform.matrix3 * tangent.xyz())
-                    .normalize()
-                    .extend(tangent.w * sign)
-            })
-        };
-
-        MeshTriangle {
-            positions,
-            normals,
-            uvs: self.uvs(),
-            tangents,
-        }
-        .serialize()
     }
 }

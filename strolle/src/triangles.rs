@@ -4,10 +4,7 @@ use std::mem;
 use std::ops::Range;
 
 use crate::utils::Allocator;
-use crate::{
-    gpu, Bindable, BufferFlushOutcome, MappedStorageBuffer, Params,
-    PrimitiveOwner,
-};
+use crate::{gpu, Bindable, BufferFlushOutcome, MappedStorageBuffer, Params};
 
 #[derive(Debug)]
 pub struct Triangles<P>
@@ -16,7 +13,7 @@ where
 {
     allocator: Allocator,
     buffer: MappedStorageBuffer<Vec<gpu::Triangle>>,
-    index: HashMap<PrimitiveOwner<P>, TriangleObject>,
+    index: HashMap<P::InstanceHandle, TriangleObject>,
     dirty: bool,
 }
 
@@ -35,20 +32,19 @@ where
 
     pub fn add(
         &mut self,
-        handle: PrimitiveOwner<P>,
+        handle: P::InstanceHandle,
         triangles: impl Iterator<Item = gpu::Triangle> + ExactSizeIterator,
-    ) -> Range<usize> {
-        assert!(
-            triangles.len() > 0,
-            "object {handle:?} contains no triangles"
-        );
-
+    ) -> impl Iterator<Item = (gpu::TriangleId, gpu::Triangle)>
+           + ExactSizeIterator
+           + '_ {
         let ids;
 
         if let Some(object) = self.index.get_mut(&handle) {
-            ids = object.ids.clone();
+            object.dirty = true;
 
             if object.len() == triangles.len() {
+                ids = object.ids.clone();
+
                 let tris = triangles
                     .into_iter()
                     .zip(&mut self.buffer[object.ids.clone()]);
@@ -59,8 +55,6 @@ where
             } else {
                 todo!();
             }
-
-            object.dirty = true;
         } else {
             ids = if let Some(ids) = self.allocator.take(triangles.len()) {
                 let tris =
@@ -90,78 +84,16 @@ where
 
         self.dirty = true;
 
-        ids
+        self.buffer[ids.clone()].iter().enumerate().map(
+            move |(tri_id, &tri)| {
+                let tri_id = gpu::TriangleId::new((ids.start + tri_id) as u32);
+
+                (tri_id, tri)
+            },
+        )
     }
 
-    pub fn get(
-        &self,
-        handle: PrimitiveOwner<P>,
-    ) -> impl Iterator<Item = (gpu::TriangleId, gpu::Triangle)>
-           + ExactSizeIterator
-           + '_ {
-        let ids = self.index[&handle].ids.clone();
-
-        self.buffer[ids.clone()]
-            .iter()
-            .enumerate()
-            .map(move |(id, &tri)| {
-                let id = gpu::TriangleId::new((ids.start + id) as u32);
-
-                (id, tri)
-            })
-    }
-
-    pub fn copy(
-        &mut self,
-        src: PrimitiveOwner<P>,
-        dst: PrimitiveOwner<P>,
-    ) -> impl Iterator<Item = (gpu::TriangleId, &mut gpu::Triangle)>
-           + ExactSizeIterator {
-        let src_obj = self.index[&src].clone();
-
-        if let Some(dst_obj) = self.index.remove(&dst) {
-            self.allocator.give(dst_obj.ids);
-        }
-
-        let ids = if let Some(ids) = self.allocator.take(src_obj.len()) {
-            self.index.insert(
-                dst,
-                TriangleObject {
-                    ids: ids.clone(),
-                    dirty: true,
-                },
-            );
-
-            self.buffer.copy_within(src_obj.ids, ids.start);
-
-            ids
-        } else {
-            let ids = self.buffer.len()..(self.buffer.len() + src_obj.len());
-
-            self.index.insert(
-                dst,
-                TriangleObject {
-                    ids: ids.clone(),
-                    dirty: true,
-                },
-            );
-
-            self.buffer.extend_from_within(src_obj.ids);
-
-            ids
-        };
-
-        self.buffer[ids.clone()]
-            .iter_mut()
-            .enumerate()
-            .map(move |(id, tri)| {
-                let id = gpu::TriangleId::new((ids.start + id) as u32);
-
-                (id, tri)
-            })
-    }
-
-    pub fn remove(&mut self, handle: &PrimitiveOwner<P>) {
+    pub fn remove(&mut self, handle: &P::InstanceHandle) {
         if let Some(object) = self.index.remove(handle) {
             self.allocator.give(object.ids);
         }
@@ -173,7 +105,7 @@ where
 
     pub fn as_vertex_buffer(
         &self,
-        handle: &PrimitiveOwner<P>,
+        handle: &P::InstanceHandle,
     ) -> Option<(usize, wgpu::BufferSlice<'_>)> {
         let TriangleObject { ids, .. } = self.index.get(handle)?;
         let vertices = 3 * ids.len();

@@ -4,7 +4,6 @@ use std::ops::Range;
 use glam::vec4;
 use log::debug;
 
-use crate::primitives::PrimitiveOwner;
 use crate::{
     gpu, BindGroup, Camera, CameraBuffers, CameraController, Engine, Params,
 };
@@ -219,31 +218,21 @@ impl DirectRasterPass {
                 gpu::DirectRasterPassParams {
                     payload: vec4(
                         f32::from_bits(material_id.get()),
-                        f32::from_bits(instance.inline as u32),
+                        Default::default(),
                         Default::default(),
                         Default::default(),
                     ),
-                    curr_xform_d0: curr_xform[0],
-                    curr_xform_d1: curr_xform[1],
-                    curr_xform_d2: curr_xform[2],
                     curr_xform_inv_d0: curr_xform_inv[0],
                     curr_xform_inv_d1: curr_xform_inv[1],
                     curr_xform_inv_d2: curr_xform_inv[2],
-                    curr_xform_inv_trans: instance.xform_inv_trans,
                     prev_xform_d0: prev_xform[0],
                     prev_xform_d1: prev_xform[1],
                     prev_xform_d2: prev_xform[2],
                 }
             };
 
-            let handle = if instance.inline {
-                PrimitiveOwner::Instance(*instance_handle)
-            } else {
-                PrimitiveOwner::Mesh(instance.mesh_handle)
-            };
-
             let Some((vertices, vertex_buffer)) =
-                engine.triangles.as_vertex_buffer(&handle)
+                engine.triangles.as_vertex_buffer(instance_handle)
             else {
                 continue;
             };

@@ -54,7 +54,7 @@ impl Default for BvhNode {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BvhNodeId(u32);
 
 impl BvhNodeId {

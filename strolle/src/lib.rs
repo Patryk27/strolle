@@ -167,21 +167,6 @@ where
     ///
     /// ¹ see the module-level comment for details
     pub fn add_mesh(&mut self, mesh_handle: P::MeshHandle, mut mesh: Mesh) {
-        self.triangles.add(
-            PrimitiveOwner::Mesh(mesh_handle),
-            mesh.take_triangles().into_iter().map(|tri| tri.serialize()),
-        );
-
-        if let Some(prev_mesh) = self.meshes.get(&mesh_handle) {
-            if let Some(prev_node_id) = prev_mesh.node_id().take() {
-                self.bvh.delete_blas(prev_node_id);
-                self.triangles.remove(&PrimitiveOwner::Mesh(mesh_handle));
-
-                self.primitives
-                    .delete_scope(PrimitiveScope::Blas(mesh_handle));
-            }
-        }
-
         self.meshes.add(mesh_handle, mesh);
     }
 
@@ -196,7 +181,6 @@ where
     ///
     /// ¹ see the module-level comment for details
     pub fn remove_mesh(&mut self, mesh_handle: &P::MeshHandle) {
-        self.triangles.remove(&PrimitiveOwner::Mesh(*mesh_handle));
         self.meshes.remove(mesh_handle);
     }
 
@@ -276,14 +260,12 @@ where
     /// ¹ see the module-level comment for details
     pub fn remove_instance(&mut self, instance_handle: &P::InstanceHandle) {
         if let Some(instance) = self.instances.remove(instance_handle) {
-            if instance.inline {
-                self.triangles
-                    .remove(&PrimitiveOwner::Instance(*instance_handle));
-            }
+            self.triangles.remove(instance_handle);
+            self.primitives.tlas_mut().remove(instance_handle);
 
-            self.primitives
-                .scope_mut(PrimitiveScope::Tlas)
-                .remove(&PrimitiveOwner::Instance(*instance_handle));
+            if instance.inline {
+                self.primitives.delete_blas(*instance_handle);
+            }
         }
     }
 
@@ -348,9 +330,9 @@ where
         if any_instance_changed {
             utils::measure("tick.bvh", || {
                 self.bvh.refresh(
-                    &mut self.meshes,
-                    &mut self.primitives,
                     &self.materials,
+                    &self.instances,
+                    &mut self.primitives,
                 );
             });
         }

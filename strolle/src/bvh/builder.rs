@@ -7,39 +7,35 @@ use fxhash::FxHasher;
 use glam::UVec3;
 
 use super::{BvhNode, BvhNodeHash, BvhNodeId, BvhNodes};
-use crate::{
-    Axis, BoundingBox, Params, PrimitiveId, PrimitivesRef, ScopedPrimitives,
-};
+use crate::primitives::{BlasPrimitives, PrimitivesAccessor, TlasPrimitives};
+use crate::{Axis, BoundingBox, Params, PrimitiveId, PrimitivesRef};
 
 const BINS: usize = 12;
 
-pub fn run_blas<P>(
-    primitives: &mut ScopedPrimitives<P>,
+pub fn run_blas(
+    primitives: &mut BlasPrimitives,
     nodes: &mut BvhNodes,
-) -> BvhNodeId
-where
-    P: Params,
-{
+) -> BvhNodeId {
     let id = nodes.add(BvhNode::Leaf {
         bounds: Default::default(),
-        primitives_ref: primitives.get_ref(),
+        primitives_ref: primitives.all(),
     });
 
-    run(primitives, nodes, BvhNodeRef { id, ghost: None });
+    run::<false>(primitives, nodes, BvhNodeRef { id, ghost: None });
 
     id
 }
 
-pub fn run_tlas<P>(primitives: &mut ScopedPrimitives<P>, nodes: &mut BvhNodes)
+pub fn run_tlas<P>(primitives: &mut TlasPrimitives<P>, nodes: &mut BvhNodes)
 where
     P: Params,
 {
     let prev_root = nodes.update_root(BvhNode::Leaf {
         bounds: Default::default(),
-        primitives_ref: primitives.get_ref(),
+        primitives_ref: primitives.all(),
     });
 
-    run(
+    run::<true>(
         primitives,
         nodes,
         BvhNodeRef {
@@ -49,19 +45,17 @@ where
     );
 }
 
-fn run<P>(
-    primitives: &mut ScopedPrimitives<P>,
+fn run<const TLAS: bool>(
+    primitives: &mut impl PrimitivesAccessor,
     nodes: &mut BvhNodes,
     root: BvhNodeRef,
-) where
-    P: Params,
-{
+) {
     thread::scope(|s| {
         s.spawn(|| {
             let mut stack = VecDeque::from_iter([root]);
 
             while let Some(node) = stack.pop_front() {
-                match balance::<true, _>(primitives, nodes, node) {
+                match balance::<TLAS>(primitives, nodes, node) {
                     (Some(left), Some(right)) => {
                         stack.push_back(left);
                         stack.push_back(right);
@@ -79,40 +73,36 @@ fn run<P>(
 }
 
 #[inline(always)]
-fn balance<const TLAS: bool, P>(
-    primitives: &mut ScopedPrimitives<P>,
+fn balance<const TLAS: bool>(
+    primitives: &mut impl PrimitivesAccessor,
     nodes: &mut BvhNodes,
     node_ref: BvhNodeRef,
-) -> (Option<BvhNodeRef>, Option<BvhNodeRef>)
-where
-    P: Params,
-{
+) -> (Option<BvhNodeRef>, Option<BvhNodeRef>) {
     if let Some(plane) = find_splitting_plane(primitives, nodes, node_ref.id) {
         if plane.split_cost < nodes[node_ref.id].sah_cost() {
-            return split::<TLAS, _>(nodes, primitives, node_ref, plane);
+            return split::<TLAS>(nodes, primitives, node_ref, plane);
         }
     }
 
-    if let Some(BvhNode::Internal {
-        left_id, right_id, ..
-    }) = node_ref.ghost
-    {
-        nodes.remove_tree(left_id);
-        nodes.remove_tree(right_id);
+    if TLAS {
+        if let Some(BvhNode::Internal {
+            left_id, right_id, ..
+        }) = node_ref.ghost
+        {
+            nodes.remove_tree(left_id);
+            nodes.remove_tree(right_id);
+        }
     }
 
     (None, None)
 }
 
 #[inline(always)]
-fn find_splitting_plane<P>(
-    primitives: &ScopedPrimitives<P>,
+fn find_splitting_plane(
+    primitives: &impl PrimitivesAccessor,
     nodes: &BvhNodes,
     node_id: BvhNodeId,
-) -> Option<SplittingPlane>
-where
-    P: Params,
-{
+) -> Option<SplittingPlane> {
     let BvhNode::Leaf { primitives_ref, .. } = nodes[node_id] else {
         unreachable!();
     };
@@ -121,7 +111,7 @@ where
         return None;
     }
 
-    let primitives = primitives.current(primitives_ref);
+    let primitives = primitives.index(primitives_ref);
 
     // ---
 
@@ -221,15 +211,12 @@ where
     best
 }
 
-fn split<const TLAS: bool, P>(
+fn split<const TLAS: bool>(
     nodes: &mut BvhNodes,
-    primitives: &mut ScopedPrimitives<P>,
+    primitives: &mut impl PrimitivesAccessor,
     node_ref: BvhNodeRef,
     plane: SplittingPlane,
-) -> (Option<BvhNodeRef>, Option<BvhNodeRef>)
-where
-    P: Params,
-{
+) -> (Option<BvhNodeRef>, Option<BvhNodeRef>) {
     let BvhNode::Leaf {
         bounds,
         primitives_ref,
@@ -240,7 +227,7 @@ where
 
     // ---
 
-    let primitives_data = &mut primitives.current_mut(primitives_ref);
+    let primitives_data = primitives.index_mut(primitives_ref);
 
     let mut left_prim_idx = 0;
     let mut right_prim_idx = (primitives_data.len() - 1) as i32;
@@ -364,42 +351,42 @@ where
     (left, right)
 }
 
-fn copy<P>(
-    nodes: &mut BvhNodes,
-    primitives: &mut ScopedPrimitives<P>,
-    id: BvhNodeId,
-    primitives_ref: PrimitivesRef,
-) where
-    P: Params,
-{
-    let prev_primitives_ref = nodes[id].primitives_ref();
+// fn copy<P>(
+//     nodes: &mut BvhNodes,
+//     primitives: &mut ScopedPrimitives<P>,
+//     id: BvhNodeId,
+//     primitives_ref: PrimitivesRef,
+// ) where
+//     P: Params,
+// {
+//     let prev_primitives_ref = nodes[id].primitives_ref();
 
-    primitives.copy_previous_to_current(prev_primitives_ref, primitives_ref);
+//     primitives.copy_previous_to_current(prev_primitives_ref, primitives_ref);
 
-    let primitives_offset = (primitives_ref.start().get() as i32)
-        - (prev_primitives_ref.start().get() as i32);
+//     let primitives_offset = (primitives_ref.start().get() as i32)
+//         - (prev_primitives_ref.start().get() as i32);
 
-    if primitives_offset != 0 {
-        offset_primitives(nodes, primitives_offset, id);
-    }
-}
+//     if primitives_offset != 0 {
+//         offset_primitives(nodes, primitives_offset, id);
+//     }
+// }
 
-fn offset_primitives(nodes: &mut BvhNodes, offset: i32, id: BvhNodeId) {
-    match &mut nodes[id] {
-        BvhNode::Internal { primitives_ref, .. }
-        | BvhNode::Leaf { primitives_ref, .. } => {
-            primitives_ref.offset(offset);
-        }
-    }
+// fn offset_primitives(nodes: &mut BvhNodes, offset: i32, id: BvhNodeId) {
+//     match &mut nodes[id] {
+//         BvhNode::Internal { primitives_ref, .. }
+//         | BvhNode::Leaf { primitives_ref, .. } => {
+//             primitives_ref.offset(offset);
+//         }
+//     }
 
-    if let BvhNode::Internal {
-        left_id, right_id, ..
-    } = nodes[id]
-    {
-        offset_primitives(nodes, offset, left_id);
-        offset_primitives(nodes, offset, right_id);
-    }
-}
+//     if let BvhNode::Internal {
+//         left_id, right_id, ..
+//     } = nodes[id]
+//     {
+//         offset_primitives(nodes, offset, left_id);
+//         offset_primitives(nodes, offset, right_id);
+//     }
+// }
 
 #[derive(Clone, Copy, Debug)]
 struct SplittingPlane {
