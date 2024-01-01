@@ -60,9 +60,6 @@ fn setup(
             },
             ..default()
         })
-        .insert(StrolleCamera {
-            mode: st::CameraMode::BvhHeatmap,
-        })
         .insert(FpsCameraBundle::new(
             {
                 let mut controller = FpsCameraController::default();
@@ -83,32 +80,14 @@ fn setup(
     let sphere_mesh =
         meshes.add(Mesh::try_from(shape::Icosphere::default()).unwrap());
 
-    for x in 0..5 {
-        for y in 0..5 {
-            for z in 0..5 {
-                commands.spawn(PbrBundle {
-                    mesh: sphere_mesh.clone(),
-                    material: materials
-                        .add(StandardMaterial::from(Color::WHITE)),
-                    transform: Transform::from_translation(vec3(
-                        (x as f32) * 3.0,
-                        (y as f32) * 3.0,
-                        (z as f32) * 3.0,
-                    )),
-                    ..default()
-                });
-            }
-        }
-    }
-
-    // commands
-    //     .spawn(PbrBundle {
-    //         mesh: box_mesh.clone(),
-    //         material: materials.add(StandardMaterial::from(Color::WHITE)),
-    //         transform: Transform::from_scale(vec3(100.0, 1.0, 100.0)),
-    //         ..default()
-    //     })
-    //     .insert(Collider::cuboid(50.0, 0.5, 50.0));
+    commands
+        .spawn(PbrBundle {
+            mesh: box_mesh.clone(),
+            material: materials.add(StandardMaterial::from(Color::WHITE)),
+            transform: Transform::from_scale(vec3(100.0, 1.0, 100.0)),
+            ..default()
+        })
+        .insert(Collider::cuboid(50.0, 0.5, 50.0));
 
     commands.insert_resource(State {
         box_mesh,
@@ -135,8 +114,6 @@ fn handle_spawning(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut state: ResMut<State>,
 ) {
-    return;
-
     if !state.spawner.tick(time.delta()).just_finished() {
         return;
     }
@@ -181,7 +158,7 @@ fn handle_spawning(
         .insert(collider)
         .insert(Object {
             despawner: Timer::from_seconds(
-                (rand4 as f32) / 255.0 * 2000.0,
+                (rand4 as f32) / 255.0 * 20.0,
                 TimerMode::Once,
             ),
         });
@@ -194,10 +171,10 @@ fn handle_despawning(
     keys: Res<Input<KeyCode>>,
 ) {
     for (object_entity, mut object) in objects.iter_mut() {
-        // if object.despawner.tick(time.delta()).just_finished()
-        //     || keys.just_pressed(KeyCode::X)
-        // {
-        //     commands.entity(object_entity).despawn();
-        // }
+        if object.despawner.tick(time.delta()).just_finished()
+            || keys.just_pressed(KeyCode::X)
+        {
+            commands.entity(object_entity).despawn();
+        }
     }
 }

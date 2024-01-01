@@ -1,23 +1,24 @@
 use glam::{Affine3A, Mat4, Vec3Swizzles, Vec4Swizzles};
-use spirv_std::glam::{Vec2, Vec3, Vec4};
+use gpu::F32Ext;
+use spirv_std::glam::{Vec2, Vec3A, Vec4};
 
 use crate::gpu;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MeshTriangle {
-    pub(crate) positions: [Vec3; 3],
-    pub(crate) normals: [Vec3; 3],
+    pub(crate) positions: [Vec3A; 3],
+    pub(crate) normals: [Vec3A; 3],
     pub(crate) uvs: [Vec2; 3],
     pub(crate) tangents: [Vec4; 3],
 }
 
 impl MeshTriangle {
-    pub fn with_positions(mut self, positions: [impl Into<Vec3>; 3]) -> Self {
+    pub fn with_positions(mut self, positions: [impl Into<Vec3A>; 3]) -> Self {
         self.positions = positions.map(Into::into);
         self
     }
 
-    pub fn with_normals(mut self, normals: [impl Into<Vec3>; 3]) -> Self {
+    pub fn with_normals(mut self, normals: [impl Into<Vec3A>; 3]) -> Self {
         self.normals = normals.map(Into::into);
         self
     }
@@ -32,28 +33,19 @@ impl MeshTriangle {
         self
     }
 
-    pub fn positions(&self) -> [Vec3; 3] {
-        self.positions
-    }
-
-    pub fn normals(&self) -> [Vec3; 3] {
-        self.normals
-    }
-
-    pub fn uvs(&self) -> [Vec2; 3] {
-        self.uvs
-    }
-
     pub(crate) fn build(
         mut self,
         xform: Affine3A,
         xform_inv_trans: Mat4,
     ) -> gpu::Triangle {
         self.positions =
-            self.positions.map(|vertex| xform.transform_point3(vertex));
+            self.positions.map(|vertex| xform.transform_point3a(vertex));
 
         self.normals = self.normals.map(|normal| {
-            xform_inv_trans.transform_vector3(normal).normalize()
+            let n = xform_inv_trans.transform_vector3a(normal);
+
+            // TODO why is `normalize()` slower here?
+            n * n.dot(n).inverse_sqrt()
         });
 
         self.tangents = {
