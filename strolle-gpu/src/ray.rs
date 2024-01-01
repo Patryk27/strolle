@@ -133,6 +133,10 @@ impl Ray {
         loop {
             used_memory += mem::size_of::<Vec4>();
 
+            if used_memory >= 32 * 1024 {
+                break;
+            }
+
             let d0 = bvh.get(bvh_ptr);
             let is_internal_node = d0.w.to_bits() == 0;
 

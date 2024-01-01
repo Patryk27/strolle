@@ -12,7 +12,7 @@ where
     P: Params,
 {
     allocator: Allocator,
-    buffer: MappedStorageBuffer<Vec<gpu::Triangle>>,
+    pub buffer: MappedStorageBuffer<Vec<gpu::Triangle>>,
     index: HashMap<P::InstanceHandle, TriangleObject>,
     dirty: bool,
 }
@@ -34,9 +34,7 @@ where
         &mut self,
         handle: P::InstanceHandle,
         triangles: impl Iterator<Item = gpu::Triangle> + ExactSizeIterator,
-    ) -> impl Iterator<Item = (gpu::TriangleId, gpu::Triangle)>
-           + ExactSizeIterator
-           + '_ {
+    ) -> Range<usize> {
         let ids;
 
         if let Some(object) = self.index.get_mut(&handle) {
@@ -84,6 +82,15 @@ where
 
         self.dirty = true;
 
+        ids
+    }
+
+    pub fn get(
+        &self,
+        ids: Range<usize>,
+    ) -> impl Iterator<Item = (gpu::TriangleId, gpu::Triangle)>
+           + ExactSizeIterator
+           + '_ {
         self.buffer[ids.clone()].iter().enumerate().map(
             move |(tri_id, &tri)| {
                 let tri_id = gpu::TriangleId::new((ids.start + tri_id) as u32);

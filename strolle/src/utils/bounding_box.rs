@@ -53,6 +53,29 @@ impl BoundingBox {
     pub fn is_set(&self) -> bool {
         self.min.x != Self::default().min.x
     }
+
+    /// Maps `p` from `self.min() ..= self.max()` to `0.0 ..= 1.0`.
+    pub fn map(&self, mut p: Vec3) -> Vec3 {
+        p = (p - self.min()) / self.extent();
+
+        // This can happen if our extent is a 2D (e.g. a plane) - in that case
+        // it doesn't matter which particular x/y/z gets assigned here, since
+        // all of the vectors will get the same value:
+
+        if p.x.is_nan() {
+            p.x = 0.0;
+        }
+
+        if p.y.is_nan() {
+            p.y = 0.0;
+        }
+
+        if p.z.is_nan() {
+            p.z = 0.0;
+        }
+
+        p.clamp(Vec3::ZERO, Vec3::ONE)
+    }
 }
 
 impl Default for BoundingBox {

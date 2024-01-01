@@ -2,9 +2,12 @@ use std::collections::HashMap;
 use std::mem;
 use std::ops::Range;
 
+use glam::Vec3;
+
 use super::{Primitive, PrimitiveId, PrimitivesRef};
-use crate::utils::Allocator;
-use crate::Params;
+use crate::triangles::Triangles;
+use crate::utils::{Allocator, TriangleExt};
+use crate::{gpu, BoundingBox, Params};
 
 #[derive(Debug)]
 pub struct Primitives<P>
@@ -30,8 +33,10 @@ where
     pub fn create_blas(
         &mut self,
         handle: P::InstanceHandle,
-    ) -> &mut BlasPrimitives {
-        self.blas.entry(handle).or_default()
+        blas: BlasPrimitives,
+    ) -> &BlasPrimitives {
+        self.blas.insert(handle, blas);
+        &self.blas[&handle]
     }
 
     pub fn blas(&self, handle: P::InstanceHandle) -> &BlasPrimitives {
@@ -115,7 +120,7 @@ where
     }
 
     pub fn all(&self) -> PrimitivesRef {
-        PrimitivesRef::new(
+        PrimitivesRef::range(
             PrimitiveId::new(0),
             PrimitiveId::new(self.current.len() as u32),
         )
@@ -149,80 +154,54 @@ where
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct BlasPrimitives {
-    items: Vec<Primitive>,
+    triangle_ids: Range<usize>,
+    bounds: BoundingBox,
+    material_id: gpu::MaterialId,
 }
 
 impl BlasPrimitives {
-    pub fn add(
-        &mut self,
-        mut primitives: impl Iterator<Item = Primitive> + ExactSizeIterator,
-    ) {
-        if self.items.is_empty() {
-            self.items.extend(primitives);
-        } else {
-            // TODO
-            assert_eq!(primitives.len(), self.items.len());
-
-            self.items.fill_with(|| primitives.next().unwrap());
+    pub fn new(
+        triangle_ids: Range<usize>,
+        bounds: BoundingBox,
+        material_id: gpu::MaterialId,
+    ) -> Self {
+        Self {
+            triangle_ids,
+            bounds,
+            material_id,
         }
     }
 
-    pub fn all(&self) -> PrimitivesRef {
-        PrimitivesRef::new(
-            PrimitiveId::new(0),
-            PrimitiveId::new(self.items.len() as u32),
+    pub fn iter<'a, P>(
+        &self,
+        triangles: &'a Triangles<P>,
+    ) -> impl Iterator<Item = (PrimitiveId, BoundingBox, Vec3)> + 'a
+    where
+        P: Params,
+    {
+        triangles.get(self.triangle_ids.clone()).map(
+            |(triangle_id, triangle)| {
+                let prim_id = PrimitiveId::new(triangle_id.get());
+                let prim_bounds = triangle.bounds();
+                let prim_center = triangle.center();
+
+                (prim_id, prim_bounds, prim_center)
+            },
         )
     }
 
-    pub fn index(&self, range: PrimitivesRef) -> &[Primitive] {
-        let start = range.start().get() as usize;
-        let end = range.end().get() as usize;
-
-        &self.items[start..end]
+    pub fn bounds(&self) -> BoundingBox {
+        self.bounds
     }
 
-    pub fn index_mut(&mut self, range: PrimitivesRef) -> &mut [Primitive] {
-        let start = range.start().get() as usize;
-        let end = range.end().get() as usize;
-
-        &mut self.items[start..end]
+    pub fn material_id(&self) -> gpu::MaterialId {
+        self.material_id
     }
 }
 
 #[derive(Debug)]
 struct IndexedPrimitive {
     primitive_ids: Range<usize>,
-}
-
-pub trait PrimitivesAccessor
-where
-    Self: Sync + Send,
-{
-    fn index(&self, range: PrimitivesRef) -> &[Primitive];
-    fn index_mut(&mut self, range: PrimitivesRef) -> &mut [Primitive];
-}
-
-impl<P> PrimitivesAccessor for TlasPrimitives<P>
-where
-    P: Params,
-{
-    fn index(&self, range: PrimitivesRef) -> &[Primitive] {
-        Self::index(self, range)
-    }
-
-    fn index_mut(&mut self, range: PrimitivesRef) -> &mut [Primitive] {
-        Self::index_mut(self, range)
-    }
-}
-
-impl PrimitivesAccessor for BlasPrimitives {
-    fn index(&self, range: PrimitivesRef) -> &[Primitive] {
-        Self::index(self, range)
-    }
-
-    fn index_mut(&mut self, range: PrimitivesRef) -> &mut [Primitive] {
-        Self::index_mut(self, range)
-    }
 }

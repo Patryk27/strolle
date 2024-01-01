@@ -166,7 +166,7 @@ where
     /// Creates a mesh¹ or updates the existing one.
     ///
     /// ¹ see the module-level comment for details
-    pub fn add_mesh(&mut self, mesh_handle: P::MeshHandle, mut mesh: Mesh) {
+    pub fn add_mesh(&mut self, mesh_handle: P::MeshHandle, mesh: Mesh) {
         self.meshes.add(mesh_handle, mesh);
     }
 

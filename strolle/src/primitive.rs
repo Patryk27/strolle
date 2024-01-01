@@ -83,7 +83,11 @@ pub struct PrimitivesRef {
 }
 
 impl PrimitivesRef {
-    pub fn new(start: PrimitiveId, end: PrimitiveId) -> Self {
+    pub fn single(id: PrimitiveId) -> Self {
+        Self::range(id, PrimitiveId::new(id.get() + 1))
+    }
+
+    pub fn range(start: PrimitiveId, end: PrimitiveId) -> Self {
         Self { start, end }
     }
 
@@ -116,6 +120,6 @@ impl PrimitivesRef {
 
 impl Default for PrimitivesRef {
     fn default() -> Self {
-        Self::new(PrimitiveId::new(0), PrimitiveId::new(0))
+        Self::range(PrimitiveId::new(0), PrimitiveId::new(0))
     }
 }

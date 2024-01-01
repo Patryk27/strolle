@@ -204,9 +204,6 @@ impl DirectRasterPass {
             };
 
             let params = {
-                let curr_xform =
-                    gpu::DirectRasterPassParams::encode_affine(instance.xform);
-
                 let curr_xform_inv = gpu::DirectRasterPassParams::encode_affine(
                     instance.xform_inv,
                 );

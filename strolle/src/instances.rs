@@ -6,6 +6,7 @@ use glam::Affine3A;
 
 use crate::bvh::{Bvh, BvhNodeId};
 use crate::primitive::Primitive;
+use crate::primitives::BlasPrimitives;
 use crate::utils::TriangleExt;
 use crate::{Instance, Materials, Meshes, Params, Primitives, Triangles};
 
@@ -99,7 +100,7 @@ where
         bvh: &mut Bvh,
     ) -> bool {
         if !mem::take(&mut self.dirty) {
-            return false;
+            // return false;
         }
 
         for (instance_handle, entry) in &mut self.instances {
@@ -107,7 +108,7 @@ where
             let material_handle = entry.instance.material_handle;
 
             if !mem::take(&mut entry.dirty) {
-                continue;
+                // continue;
             }
 
             let Some(mesh) = meshes.get_mut(&mesh_handle) else {
@@ -126,7 +127,7 @@ where
                 continue;
             };
 
-            let tris = triangles.add(
+            let triangle_ids = triangles.add(
                 *instance_handle,
                 mesh.triangles().iter().map(|triangle| {
                     triangle.build(
@@ -136,26 +137,30 @@ where
                 }),
             );
 
-            let prims =
-                tris.map(|(triangle_id, triangle)| Primitive::Triangle {
-                    center: triangle.center(),
-                    bounds: triangle.bounds(),
-                    triangle_id,
-                    material_id,
-                });
-
             if entry.instance.inline {
-                primitives.tlas_mut().add(*instance_handle, prims);
+                let tris = triangles.get(triangle_ids).map(
+                    |(triangle_id, triangle)| Primitive::Triangle {
+                        center: triangle.center(),
+                        bounds: triangle.bounds(),
+                        triangle_id,
+                        material_id,
+                    },
+                );
+
+                primitives.tlas_mut().add(*instance_handle, tris);
             } else {
                 if let Some(node_id) = entry.node_id.take() {
                     bvh.delete_blas(node_id);
                 }
 
-                let blas = primitives.create_blas(*instance_handle);
+                let bounds = mesh.bounds().with_transform(entry.instance.xform);
 
-                blas.add(prims);
+                let blas = primitives.create_blas(
+                    *instance_handle,
+                    BlasPrimitives::new(triangle_ids, bounds, material_id),
+                );
 
-                let node_id = bvh.create_blas(blas);
+                let node_id = bvh.refresh_blas(triangles, blas);
 
                 primitives.tlas_mut().add(
                     *instance_handle,

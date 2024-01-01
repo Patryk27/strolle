@@ -12,6 +12,7 @@ pub use self::node::*;
 pub use self::nodes::*;
 use crate::instances::Instances;
 use crate::primitives::BlasPrimitives;
+use crate::triangles::Triangles;
 use crate::{
     utils, Bindable, BufferFlushOutcome, MappedStorageBuffer, Materials,
     Params, Primitives,
@@ -31,11 +32,15 @@ impl Bvh {
         }
     }
 
-    pub fn create_blas(
+    pub fn refresh_blas<P>(
         &mut self,
-        primitives: &mut BlasPrimitives,
-    ) -> BvhNodeId {
-        builder::run_blas(primitives, &mut self.nodes)
+        triangles: &Triangles<P>,
+        blas: &BlasPrimitives,
+    ) -> BvhNodeId
+    where
+        P: Params,
+    {
+        builder::blas::run(triangles, blas, &mut self.nodes)
     }
 
     pub fn delete_blas(&mut self, node_id: BvhNodeId) {
@@ -55,7 +60,7 @@ impl Bvh {
         });
 
         utils::measure("tick.bvh.build", || {
-            builder::run_tlas(primitives.tlas_mut(), &mut self.nodes);
+            builder::tlas::run(primitives.tlas_mut(), &mut self.nodes);
         });
 
         utils::measure("tick.bvh.serialize", || {
