@@ -31,11 +31,14 @@ where
     const OP_LEAF: u32 = 1;
 
     let ptr = buffer.len();
+    let is_leaf;
 
     match nodes[id] {
         BvhNode::Internal {
             left_id, right_id, ..
         } => {
+            is_leaf = false;
+
             buffer.push(Default::default());
             buffer.push(Default::default());
             buffer.push(Default::default());
@@ -44,7 +47,7 @@ where
             let left_bb = nodes[left_id].bounds();
             let right_bb = nodes[right_id].bounds();
 
-            let _left_ptr =
+            let left_ptr =
                 serialize(materials, nodes, primitives, buffer, left_id);
 
             let right_ptr =
@@ -61,16 +64,14 @@ where
                 left_bb.max().x,
                 left_bb.max().y,
                 left_bb.max().z,
-                f32::from_bits(right_ptr),
+                f32::from_bits(left_ptr),
             );
 
-            // TODO we could store information about transparency here to
-            //      quickly reject nodes during bvh traversal later
             buffer[ptr + 2] = vec4(
                 right_bb.min().x,
                 right_bb.min().y,
                 right_bb.min().z,
-                Default::default(),
+                f32::from_bits(right_ptr),
             );
 
             buffer[ptr + 3] = vec4(
@@ -82,6 +83,8 @@ where
         }
 
         BvhNode::Leaf { primitives_ref, .. } => {
+            is_leaf = true;
+
             for (primitive_idx, primitive) in
                 primitives.current(primitives_ref).iter().enumerate()
             {
@@ -108,5 +111,11 @@ where
         }
     }
 
-    ptr as u32
+    let ptr = ptr as u32;
+
+    if is_leaf {
+        ptr | 0b10000000000000000000000000000000
+    } else {
+        ptr
+    }
 }
