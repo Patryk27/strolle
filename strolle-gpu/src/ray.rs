@@ -126,25 +126,29 @@ impl Ray {
         // Where this particular thread's stack starts at; see `BvhStack`
         let stack_begins_at = (local_idx as usize) * BVH_STACK_SIZE;
 
+        unsafe {
+            *stack.index_unchecked_mut(stack_begins_at) = u32::MAX;
+        }
+
         // Index into the `stack` array; our stack spans from here up to +
         // BVH_STACK_SIZE items
-        let mut stack_ptr = stack_begins_at;
+        let mut stack_ptr = stack_begins_at + 1;
 
-        loop {
-            used_memory += mem::size_of::<Vec4>();
+        'outer: loop {
+            loop {
+                used_memory += 4 * mem::size_of::<Vec4>();
 
-            let d0 = bvh.get(bvh_ptr);
-            let is_internal_node = d0.w.to_bits() == 0;
+                // if used_memory >= 64 * 1024 {
+                //     break 'outer;
+                // }
 
-            if is_internal_node {
-                used_memory += 3 * mem::size_of::<Vec4>();
-
+                let d0 = bvh.get(bvh_ptr);
                 let d1 = bvh.get(bvh_ptr + 1);
                 let d2 = bvh.get(bvh_ptr + 2);
                 let d3 = bvh.get(bvh_ptr + 3);
 
-                let mut near_ptr = bvh_ptr + 4;
-                let mut far_ptr = d1.w.to_bits();
+                let mut near_ptr = d1.w.to_bits();
+                let mut far_ptr = d2.w.to_bits();
 
                 let mut near_distance = self.intersect_box(d0.xyz(), d1.xyz());
                 let mut far_distance = self.intersect_box(d2.xyz(), d3.xyz());
@@ -154,100 +158,68 @@ impl Ray {
                     mem::swap(&mut near_distance, &mut far_distance);
                 }
 
-                // If the nearest child is closer than our current best shot,
-                // let's check that child first; use stack to save the other
-                // node for later.
-                //
-                // The reasoning here goes that the closer child is more likely
-                // to contain a triangle we can hit; but if we don't hit that
-                // triangle (kind of a "cache miss" kind of thing), we still
-                // have to check the other node.
-                if far_distance < hit.distance {
-                    unsafe {
-                        *stack.index_unchecked_mut(stack_ptr) = far_ptr;
-                        stack_ptr += 1;
-                    }
-                }
-
                 if near_distance < hit.distance {
                     bvh_ptr = near_ptr;
-                    continue;
-                }
-            } else {
-                used_memory += mem::size_of::<Triangle>();
 
-                let flags = d0.x.to_bits();
-
-                // Whether there are any more triangles directly following this
-                // triangle.
-                //
-                // This corresponds to a single BVH leaf node containing
-                // multiple triangles.
-                let got_more_triangles = flags & 1 == 1;
-
-                // Whether the triangle we're looking at supports alpha
-                // blending.
-                //
-                // If this is turned on, we have to load the triangle's material
-                // and compute albedo to make sure that the part of triangle we
-                // hit is actually opaque at that particular hit-point.
-                let has_alpha_blending = flags & 2 == 2;
-
-                let triangle_id = TriangleId::new(d0.y.to_bits());
-                let material_id = MaterialId::new(d0.z.to_bits());
-
-                let prev_uv = hit.uv;
-                let prev_normal = hit.normal;
-                let prev_distance = hit.distance;
-
-                let mut found_hit = triangles.get(triangle_id).hit(self, hit);
-
-                if found_hit && has_alpha_blending {
-                    used_memory += mem::size_of::<Material>();
-                    used_memory += mem::size_of::<Vec4>();
-
-                    let base_color = materials.get(material_id).base_color(
-                        atlas_tex,
-                        atlas_sampler,
-                        hit.uv,
-                    );
-
-                    if base_color.w < 1.0 {
-                        found_hit = false;
-
-                        hit.uv = prev_uv;
-                        hit.normal = prev_normal;
-                        hit.distance = prev_distance;
+                    if far_distance < hit.distance {
+                        unsafe {
+                            *stack.index_unchecked_mut(stack_ptr) = far_ptr;
+                            stack_ptr += 1;
+                        }
+                    }
+                } else {
+                    unsafe {
+                        stack_ptr -= 1;
+                        bvh_ptr = *stack.index_unchecked(stack_ptr);
                     }
                 }
 
-                if found_hit {
-                    hit.material_id = material_id;
+                if bvh_ptr & 0b10000000000000000000000000000000 > 0 {
+                    break;
+                }
+            }
 
-                    if let Tracing::ReturnFirst = tracing {
+            if bvh_ptr == u32::MAX {
+                break;
+            }
+
+            bvh_ptr &= !0b10000000000000000000000000000000;
+
+            loop {
+                loop {
+                    used_memory += mem::size_of::<Triangle>();
+
+                    let d0 = bvh.get(bvh_ptr);
+                    let flags = d0.x.to_bits();
+                    let got_more_triangles = flags & 1 == 1;
+                    let triangle_id = TriangleId::new(d0.y.to_bits());
+                    let material_id = MaterialId::new(d0.z.to_bits());
+
+                    if triangles.get(triangle_id).hit(self, hit) {
+                        hit.material_id = material_id;
+                    }
+
+                    if got_more_triangles {
+                        bvh_ptr += 1;
+                    } else {
                         break;
                     }
                 }
 
-                if got_more_triangles {
-                    bvh_ptr += 1;
-                    continue;
-                }
-            }
-
-            // If the control flow got here, then it means we either tested a
-            // leaf-node or tested an internal-node and got a miss.
-            //
-            // In any case, now it's the time to pop the next node from the
-            // stack and investigate it; if the stack is empty, then we've
-            // tested all nodes and we can safely bail out.
-            if stack_ptr > stack_begins_at {
                 unsafe {
                     stack_ptr -= 1;
                     bvh_ptr = *stack.index_unchecked(stack_ptr);
                 }
-            } else {
-                break;
+
+                if bvh_ptr & 0b10000000000000000000000000000000 > 0 {
+                    if bvh_ptr == u32::MAX {
+                        break 'outer;
+                    }
+
+                    bvh_ptr &= !0b10000000000000000000000000000000;
+                } else {
+                    break;
+                }
             }
         }
 
