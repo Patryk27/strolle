@@ -138,4 +138,4 @@ Notable algorithms implemented in Strolle include:
 
 MIT License
 
-Copyright (c) 2022-2023 Patryk Wychowaniec & Jakub Trąd
+Copyright (c) 2022 Patryk Wychowaniec & Jakub Trąd
