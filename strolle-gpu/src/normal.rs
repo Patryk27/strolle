@@ -12,7 +12,11 @@ impl Normal {
         let n = if n.z >= 0.0 {
             n.xy()
         } else {
-            (1.0 - n.yx().abs()) * n.xy().signum()
+            let mut t = 1.0 - n.yx().abs();
+
+            t.x = t.x.copysign(n.x);
+            t.y = t.y.copysign(n.y);
+            t
         };
 
         n * 0.5 + 0.5
@@ -24,8 +28,8 @@ impl Normal {
         let mut n = vec3(n.x, n.y, 1.0 - n.x.abs() - n.y.abs());
         let t = (-n.z).max(0.0);
 
-        n.x += if n.x > 0.0 { -t } else { t };
-        n.y += if n.y > 0.0 { -t } else { t };
+        n.x -= t.copysign(n.x);
+        n.y -= t.copysign(n.y);
         n.normalize()
     }
 }

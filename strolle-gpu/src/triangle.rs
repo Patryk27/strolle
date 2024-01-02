@@ -98,7 +98,7 @@ impl Triangle {
                 + v * self.normal2()
                 + (1.0 - u - v) * self.normal0();
 
-            normal.normalize() * det.signum()
+            normal.normalize() * 1.0f32.copysign(inv_det)
         };
 
         let uv = self.uv0()
