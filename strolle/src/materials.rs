@@ -1,44 +1,29 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::ops::Index;
 
-use crate::utils::Allocator;
-use crate::{
-    gpu, Bindable, BufferFlushOutcome, Images, MappedStorageBuffer, Material,
-    Params,
-};
+use bevy::ecs::system::Resource;
+use bevy::ecs::world::FromWorld;
+use bevy::pbr::StandardMaterial;
+use bevy::prelude::World;
+use bevy::render::render_resource::BufferVec;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
+use wgpu::BufferUsages;
 
-#[derive(Debug)]
-pub struct Materials<P>
-where
-    P: Params,
-{
+use crate::utils::Allocator;
+use crate::{gpu, Images, MaterialHandle};
+
+#[derive(Resource)]
+pub struct Materials {
     allocator: Allocator,
-    buffer: MappedStorageBuffer<Vec<gpu::Material>>,
-    index: HashMap<P::MaterialHandle, gpu::MaterialId>,
-    materials: Vec<Material<P>>,
+    buffer: BufferVec<gpu::Material>,
+    index: HashMap<MaterialHandle, gpu::MaterialId>,
+    materials: Vec<StandardMaterial>,
 }
 
-impl<P> Materials<P>
-where
-    P: Params,
-{
-    pub fn new(device: &wgpu::Device) -> Self {
-        Self {
-            allocator: Default::default(),
-            buffer: MappedStorageBuffer::new_default(device, "materials"),
-            index: Default::default(),
-            materials: Default::default(),
-        }
-    }
-
-    pub fn add(
-        &mut self,
-        material_handle: P::MaterialHandle,
-        material: Material<P>,
-    ) {
-        match self.index.entry(material_handle) {
+impl Materials {
+    pub fn add(&mut self, handle: MaterialHandle, material: StandardMaterial) {
+        match self.index.entry(handle) {
             Entry::Occupied(entry) => {
                 let material_id = *entry.get();
 
@@ -59,12 +44,12 @@ where
         }
     }
 
-    pub fn has(&self, material_handle: &P::MaterialHandle) -> bool {
-        self.index.contains_key(material_handle)
+    pub fn has(&self, handle: MaterialHandle) -> bool {
+        self.index.contains_key(&handle)
     }
 
-    pub fn remove(&mut self, material_handle: &P::MaterialHandle) {
-        let Some(id) = self.index.remove(material_handle) else {
+    pub fn remove(&mut self, handle: MaterialHandle) {
+        let Some(id) = self.index.remove(&handle) else {
             return;
         };
 
@@ -77,39 +62,36 @@ where
         self.buffer.len()
     }
 
-    pub fn lookup(
-        &self,
-        material_handle: &P::MaterialHandle,
-    ) -> Option<gpu::MaterialId> {
-        self.index.get(material_handle).copied()
+    pub fn lookup(&self, handle: MaterialHandle) -> Option<gpu::MaterialId> {
+        self.index.get(&handle).copied()
     }
 
-    pub fn refresh(&mut self, images: &Images<P>) {
-        *self.buffer = self
-            .materials
-            .iter()
-            .map(|material| material.serialize(images))
-            .collect();
+    pub fn refresh(&mut self, images: &Images) {
+        // *self.buffer = self
+        //     .materials
+        //     .iter()
+        //     .map(|material| material.serialize(images))
+        //     .collect();
     }
 
-    pub fn flush(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> BufferFlushOutcome {
-        self.buffer.flush(device, queue)
-    }
-
-    pub fn bind_readable(&self) -> impl Bindable + '_ {
-        self.buffer.bind_readable()
+    pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
+        self.buffer.write_buffer(device, queue);
     }
 }
 
-impl<P> Index<gpu::MaterialId> for Materials<P>
-where
-    P: Params,
-{
-    type Output = Material<P>;
+impl FromWorld for Materials {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            allocator: Default::default(),
+            buffer: BufferVec::new(BufferUsages::STORAGE),
+            index: Default::default(),
+            materials: Default::default(),
+        }
+    }
+}
+
+impl Index<gpu::MaterialId> for Materials {
+    type Output = StandardMaterial;
 
     fn index(&self, index: gpu::MaterialId) -> &Self::Output {
         &self.materials[index.get() as usize]

@@ -357,21 +357,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy-strolle"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_mod_raycast",
- "bevy_rapier3d",
- "lazy_static",
- "log",
- "smooth-bevy-cameras",
- "strolle",
- "wgpu",
- "zip",
-]
-
-[[package]]
 name = "bevy_a11y"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3564,6 +3549,9 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "strolle"
 version = "0.1.0"
 dependencies = [
+ "bevy",
+ "bevy_mod_raycast",
+ "bevy_rapier3d",
  "blue-noise-sampler",
  "bytemuck",
  "derivative",
@@ -3572,12 +3560,15 @@ dependencies = [
  "guillotiere",
  "humantime",
  "image",
+ "lazy_static",
  "log",
  "rand",
+ "smooth-bevy-cameras",
  "spirv-std",
  "strolle-atmosphere-shader",
  "strolle-gpu",
  "wgpu",
+ "zip",
 ]
 
 [[package]]

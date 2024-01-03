@@ -5,36 +5,31 @@ mod primitive;
 mod primitives;
 mod serializer;
 
-use std::fmt::Debug;
 use std::ops::Range;
 
+use bevy::ecs::system::Resource;
+use bevy::ecs::world::FromWorld;
+use bevy::prelude::World;
+use bevy::render::render_resource::BufferVec;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
 use spirv_std::glam::Vec4;
+use wgpu::BufferUsages;
 
 pub use self::builder::*;
 pub use self::node::*;
 pub use self::nodes::*;
 pub use self::primitive::*;
 pub use self::primitives::*;
-use crate::{
-    utils, Bindable, BufferFlushOutcome, MappedStorageBuffer, Materials, Params,
-};
+use crate::{utils, Materials};
 
-#[derive(Debug)]
+#[derive(Resource)]
 pub struct Bvh {
-    buffer: MappedStorageBuffer<Vec<Vec4>>,
+    buffer: BufferVec<Vec4>,
     nodes: BvhNodes,
     primitives: BvhPrimitives,
 }
 
 impl Bvh {
-    pub fn new(device: &wgpu::Device) -> Self {
-        Self {
-            buffer: MappedStorageBuffer::new_default(device, "bvh"),
-            nodes: Default::default(),
-            primitives: Default::default(),
-        }
-    }
-
     pub fn add(&mut self, prim: BvhPrimitive) {
         self.primitives.add(prim);
     }
@@ -46,10 +41,7 @@ impl Bvh {
         self.primitives.update(ids)
     }
 
-    pub fn refresh<P>(&mut self, materials: &Materials<P>)
-    where
-        P: Params,
-    {
+    pub fn refresh(&mut self, materials: &Materials) {
         utils::measure("tick.bvh.begin", || {
             self.primitives.begin_refresh();
         });
@@ -63,26 +55,28 @@ impl Bvh {
                 materials,
                 &self.nodes,
                 &self.primitives,
-                &mut self.buffer,
+                self.buffer.values_mut(),
             );
         });
 
         self.primitives.end_refresh();
     }
 
-    pub fn flush(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> BufferFlushOutcome {
-        self.buffer.flush(device, queue)
+    pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
+        self.buffer.write_buffer(device, queue);
     }
 
     pub fn len(&self) -> usize {
         self.nodes.nodes.len()
     }
+}
 
-    pub fn bind_readable(&self) -> impl Bindable + '_ {
-        self.buffer.bind_readable()
+impl FromWorld for Bvh {
+    fn from_world(_: &mut World) -> Self {
+        Self {
+            buffer: BufferVec::new(BufferUsages::STORAGE),
+            nodes: Default::default(),
+            primitives: Default::default(),
+        }
     }
 }

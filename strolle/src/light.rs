@@ -1,3 +1,4 @@
+use bevy::ecs::entity::Entity;
 use glam::{vec4, Vec3};
 
 use crate::gpu;
@@ -62,5 +63,14 @@ impl Light {
                 }
             }
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LightHandle(Entity);
+
+impl LightHandle {
+    pub fn new(asset: Entity) -> Self {
+        Self(asset)
     }
 }

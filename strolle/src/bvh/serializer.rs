@@ -1,32 +1,28 @@
+use bevy::pbr::AlphaMode;
 use glam::Vec4;
 use spirv_std::glam::vec4;
 
 use super::{BvhNodeId, BvhNodes, BvhPrimitives};
-use crate::{AlphaMode, BvhNode, Materials, Params};
+use crate::{BvhNode, Materials};
 
-pub fn run<P>(
-    materials: &Materials<P>,
+pub fn run(
+    materials: &Materials,
     nodes: &BvhNodes,
     primitives: &BvhPrimitives,
     buffer: &mut Vec<Vec4>,
-) where
-    P: Params,
-{
+) {
     buffer.clear();
 
     serialize(materials, nodes, primitives, buffer, BvhNodeId::root());
 }
 
-fn serialize<P>(
-    materials: &Materials<P>,
+fn serialize(
+    materials: &Materials,
     nodes: &BvhNodes,
     primitives: &BvhPrimitives,
     buffer: &mut Vec<Vec4>,
     id: BvhNodeId,
-) -> u32
-where
-    P: Params,
-{
+) -> u32 {
     const OP_INTERNAL: u32 = 0;
     const OP_LEAF: u32 = 1;
 

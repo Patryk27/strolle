@@ -3,53 +3,40 @@ use std::fmt::Debug;
 use std::mem;
 use std::ops::Range;
 
+use bevy::ecs::world::FromWorld;
+use bevy::prelude::World;
+use bevy::render::render_resource::BufferVec;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
+use wgpu::BufferUsages;
+
 use crate::bvh::Bvh;
 use crate::utils::Allocator;
-use crate::{
-    gpu, Bindable, BufferFlushOutcome, BvhPrimitive, MappedStorageBuffer,
-    Params, Triangle,
-};
+use crate::{gpu, BvhPrimitive, InstanceHandle, Triangle};
 
-#[derive(Debug)]
-pub struct Triangles<P>
-where
-    P: Params,
-{
+pub struct Triangles {
     allocator: Allocator,
-    buffer: MappedStorageBuffer<Vec<gpu::Triangle>>,
-    index: HashMap<P::InstanceHandle, IndexedInstance>,
+    buffer: BufferVec<gpu::Triangle>,
+    index: HashMap<InstanceHandle, IndexedInstance>,
     dirty: bool,
 }
 
-impl<P> Triangles<P>
-where
-    P: Params,
-{
-    pub fn new(device: &wgpu::Device) -> Self {
-        Self {
-            allocator: Default::default(),
-            buffer: MappedStorageBuffer::new_default(device, "triangles"),
-            index: Default::default(),
-            dirty: Default::default(),
-        }
-    }
-
+impl Triangles {
     pub fn add(
         &mut self,
         bvh: &mut Bvh,
-        instance_handle: P::InstanceHandle,
+        handle: InstanceHandle,
         triangles: impl Iterator<Item = Triangle> + ExactSizeIterator,
         material_id: gpu::MaterialId,
     ) {
         assert!(
-            !self.index.contains_key(&instance_handle),
-            "instance {instance_handle:?} has been already added - now it can \
+            !self.index.contains_key(&handle),
+            "instance {handle:?} has been already added - now it can \
              be only updated or removed"
         );
 
         assert!(
             triangles.len() > 0,
-            "instance {instance_handle:?} contains no triangles"
+            "instance {handle:?} contains no triangles"
         );
 
         let triangle_ids = if let Some(triangle_ids) =
@@ -61,7 +48,7 @@ where
         };
 
         self.index.insert(
-            instance_handle,
+            handle,
             IndexedInstance {
                 triangle_ids,
                 dirty: true,
@@ -82,7 +69,7 @@ where
 
         let iter = triangles
             .into_iter()
-            .zip(&mut self.buffer[triangle_ids.clone()])
+            .zip(&mut self.buffer.values_mut()[triangle_ids.clone()])
             .zip(bvh.update(triangle_ids.clone()));
 
         for ((triangle, tri), prim) in iter {
@@ -128,18 +115,18 @@ where
     pub fn update(
         &mut self,
         bvh: &mut Bvh,
-        instance_handle: &P::InstanceHandle,
+        handle: InstanceHandle,
         triangles: impl Iterator<Item = Triangle> + ExactSizeIterator,
         material_id: gpu::MaterialId,
     ) {
-        let instance =
-            self.index.get_mut(instance_handle).unwrap_or_else(|| {
-                panic!("instance not known: {instance_handle:?}")
-            });
+        let instance = self
+            .index
+            .get_mut(&handle)
+            .unwrap_or_else(|| panic!("instance not known: {handle:?}"));
 
         let iter = triangles
             .into_iter()
-            .zip(&mut self.buffer[instance.triangle_ids.clone()])
+            .zip(&mut self.buffer.values_mut()[instance.triangle_ids.clone()])
             .zip(bvh.update(instance.triangle_ids.clone()));
 
         for ((triangle, tri), prim) in iter {
@@ -154,12 +141,8 @@ where
         self.dirty = true;
     }
 
-    pub fn remove(
-        &mut self,
-        bvh: &mut Bvh,
-        instance_handle: &P::InstanceHandle,
-    ) {
-        let Some(instance) = self.index.remove(instance_handle) else {
+    pub fn remove(&mut self, bvh: &mut Bvh, handle: InstanceHandle) {
+        let Some(instance) = self.index.remove(&handle) else {
             return;
         };
 
@@ -174,68 +157,50 @@ where
         self.buffer.len()
     }
 
-    pub fn count(&self, instance_handle: &P::InstanceHandle) -> Option<usize> {
+    pub fn count(&self, handle: InstanceHandle) -> Option<usize> {
         self.index
-            .get(instance_handle)
+            .get(&handle)
             .map(|instance| instance.triangle_ids.len())
     }
 
-    pub fn as_vertex_buffer(
-        &self,
-        instance_handle: &P::InstanceHandle,
-    ) -> Option<(usize, wgpu::BufferSlice<'_>)> {
-        let IndexedInstance { triangle_ids, .. } =
-            self.index.get(instance_handle)?;
-
-        let vertices = 3 * triangle_ids.len();
-
-        let vertex_buffer = {
-            let min = triangle_ids.start * mem::size_of::<gpu::Triangle>();
-            let min = min as wgpu::BufferAddress;
-
-            // N.B. we could slice up to some `max`, but GPUs care only about
-            // the start of the buffer and the number of vertices
-            self.buffer.as_buffer().slice(min..)
-        };
-
-        Some((vertices, vertex_buffer))
-    }
-
-    pub fn flush(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> BufferFlushOutcome {
+    pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
         if !mem::take(&mut self.dirty) {
-            return BufferFlushOutcome::default();
+            return;
         }
 
-        let reallocated = self.buffer.reallocate(device, queue);
+        self.buffer.write_buffer(device, queue);
 
-        if reallocated {
-            // Reallocating already flushes the entire buffer, so there's no
-            // need to flush it again
-        } else {
-            for instance in self.index.values_mut() {
-                if !mem::take(&mut instance.dirty) {
-                    continue;
-                }
+        // let reallocated = self.buffer.reallocate(device, queue);
 
-                let offset = instance.triangle_ids.start
-                    * mem::size_of::<gpu::Triangle>();
+        // if reallocated {
+        //     // Reallocating already flushes the entire buffer, so there's no
+        //     // need to flush it again
+        // } else {
+        //     for instance in self.index.values_mut() {
+        //         if !mem::take(&mut instance.dirty) {
+        //             continue;
+        //         }
 
-                let size = instance.triangle_ids.len()
-                    * mem::size_of::<gpu::Triangle>();
+        //         let offset = instance.triangle_ids.start
+        //             * mem::size_of::<gpu::Triangle>();
 
-                self.buffer.flush_part(queue, offset, size);
-            }
-        }
+        //         let size = instance.triangle_ids.len()
+        //             * mem::size_of::<gpu::Triangle>();
 
-        BufferFlushOutcome { reallocated }
+        //         self.buffer.flush_part(queue, offset, size);
+        //     }
+        // }
     }
+}
 
-    pub fn bind_readable(&self) -> impl Bindable + '_ {
-        self.buffer.bind_readable()
+impl FromWorld for Triangles {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            allocator: Default::default(),
+            buffer: BufferVec::new(BufferUsages::STORAGE),
+            index: Default::default(),
+            dirty: Default::default(),
+        }
     }
 }
 

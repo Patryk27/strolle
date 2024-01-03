@@ -2,7 +2,6 @@
 resolver = "2"
 
 members = [
-    "bevy-strolle",
     "strolle",
     "strolle-gpu",
     "strolle-shader-builder",

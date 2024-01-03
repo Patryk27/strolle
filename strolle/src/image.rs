@@ -1,11 +1,10 @@
-use crate::Params;
+use bevy::asset::AssetId;
+use bevy::render::render_resource::Texture;
+use bevy::render::texture::Image as BevyImage;
 
 #[derive(Debug)]
-pub struct Image<P>
-where
-    P: Params,
-{
-    pub(crate) data: ImageData<P>,
+pub struct Image {
+    pub(crate) data: ImageData,
     pub(crate) texture_descriptor: wgpu::TextureDescriptor<'static>,
 
     // TODO propagate sampler's addressing modes to the shader so that we know
@@ -13,12 +12,9 @@ where
     pub(crate) _sampler_descriptor: wgpu::SamplerDescriptor<'static>,
 }
 
-impl<P> Image<P>
-where
-    P: Params,
-{
+impl Image {
     pub fn new(
-        data: ImageData<P>,
+        data: ImageData,
         texture_descriptor: wgpu::TextureDescriptor<'static>,
         sampler_descriptor: wgpu::SamplerDescriptor<'static>,
     ) -> Self {
@@ -33,15 +29,20 @@ where
 }
 
 #[derive(Debug)]
-pub enum ImageData<P>
-where
-    P: Params,
-{
-    Raw {
-        data: Vec<u8>,
-    },
-    Texture {
-        texture: P::ImageTexture,
-        is_dynamic: bool,
-    },
+pub enum ImageData {
+    Raw { data: Vec<u8> },
+    Texture { texture: Texture, is_dynamic: bool },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ImageHandle(AssetId<BevyImage>);
+
+impl ImageHandle {
+    pub fn new(asset: AssetId<BevyImage>) -> Self {
+        Self(asset)
+    }
+
+    pub fn get(&self) -> AssetId<BevyImage> {
+        self.0
+    }
 }

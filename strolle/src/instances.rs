@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem;
 
+use bevy::ecs::system::Resource;
 use glam::Affine3A;
 use rand::Rng;
 
@@ -9,27 +10,17 @@ use crate::bvh::Bvh;
 use crate::materials::Materials;
 use crate::meshes::Meshes;
 use crate::triangles::Triangles;
-use crate::{Instance, Params};
+use crate::{Instance, InstanceHandle};
 
-#[derive(Debug)]
-pub struct Instances<P>
-where
-    P: Params,
-{
-    instances: HashMap<P::InstanceHandle, InstanceEntry<P>>,
+#[derive(Debug, Default, Resource)]
+pub struct Instances {
+    instances: HashMap<InstanceHandle, InstanceEntry>,
     dirty: bool,
 }
 
-impl<P> Instances<P>
-where
-    P: Params,
-{
-    pub fn add(
-        &mut self,
-        instance_handle: P::InstanceHandle,
-        instance: Instance<P>,
-    ) {
-        match self.instances.entry(instance_handle) {
+impl Instances {
+    pub fn add(&mut self, handle: InstanceHandle, instance: Instance) {
+        match self.instances.entry(handle) {
             Entry::Occupied(mut entry) => {
                 let entry = entry.get_mut();
 
@@ -53,17 +44,15 @@ where
 
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = (&P::InstanceHandle, &InstanceEntry<P>)> + Clone + '_
+    ) -> impl Iterator<Item = (InstanceHandle, &InstanceEntry)> + Clone + '_
     {
         self.instances
             .iter()
-            .map(|(instance_handle, instance_entry)| {
-                (instance_handle, instance_entry)
-            })
+            .map(|(handle, entry)| (*handle, entry))
     }
 
-    pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
-        self.dirty |= self.instances.remove(instance_handle).is_some();
+    pub fn remove(&mut self, handle: InstanceHandle) {
+        self.dirty |= self.instances.remove(&handle).is_some();
     }
 
     pub fn is_empty(&self) -> bool {
@@ -72,21 +61,21 @@ where
 
     pub fn refresh(
         &mut self,
-        meshes: &Meshes<P>,
-        materials: &Materials<P>,
-        triangles: &mut Triangles<P>,
+        meshes: &Meshes,
+        materials: &Materials,
+        triangles: &mut Triangles,
         bvh: &mut Bvh,
     ) -> bool {
         if !mem::take(&mut self.dirty) {
             return false;
         }
 
-        for (instance_handle, entry) in &mut self.instances {
+        for (&handle, entry) in &mut self.instances {
             if !mem::take(&mut entry.dirty) {
                 continue;
             }
 
-            let Some(mesh) = meshes.get(&entry.instance.mesh_handle) else {
+            let Some(mesh) = meshes.get(entry.instance.mesh_handle) else {
                 // If the mesh is not yet available, it might be still being
                 // loaded in the background - in that case let's try again next
                 // frame
@@ -96,7 +85,7 @@ where
             };
 
             let Some(material_id) =
-                materials.lookup(&entry.instance.material_handle)
+                materials.lookup(entry.instance.material_handle)
             else {
                 // Same for materials
                 entry.dirty = true;
@@ -111,31 +100,21 @@ where
                 )
             });
 
-            if let Some(count) = triangles.count(instance_handle) {
+            if let Some(count) = triangles.count(handle) {
                 if mesh.triangles().len() == count {
-                    triangles.update(
-                        bvh,
-                        instance_handle,
-                        mesh_triangles,
-                        material_id,
-                    );
+                    triangles.update(bvh, handle, mesh_triangles, material_id);
                 } else {
-                    triangles.remove(bvh, instance_handle);
+                    triangles.remove(bvh, handle);
 
                     triangles.add(
                         bvh,
-                        instance_handle.to_owned(),
+                        handle.to_owned(),
                         mesh_triangles,
                         material_id,
                     );
                 }
             } else {
-                triangles.add(
-                    bvh,
-                    instance_handle.to_owned(),
-                    mesh_triangles,
-                    material_id,
-                );
+                triangles.add(bvh, handle, mesh_triangles, material_id);
             }
         }
 
@@ -143,24 +122,9 @@ where
     }
 }
 
-impl<P> Default for Instances<P>
-where
-    P: Params,
-{
-    fn default() -> Self {
-        Self {
-            instances: Default::default(),
-            dirty: Default::default(),
-        }
-    }
-}
-
 #[derive(Debug)]
-pub struct InstanceEntry<P>
-where
-    P: Params,
-{
-    pub instance: Instance<P>,
+pub struct InstanceEntry {
+    pub instance: Instance,
     pub uuid: u32,
     pub prev_transform: Affine3A,
     pub dirty: bool,

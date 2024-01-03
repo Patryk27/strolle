@@ -9,6 +9,7 @@ strolle-gpu = { path = "../strolle-gpu" }
 strolle-atmosphere-shader = { path = "../strolle-shaders/atmosphere" }
 
 # Crates.io
+bevy = "0.12.1" # TODO use default-features = false
 blue-noise-sampler = "0.1.0"
 bytemuck = "1.13.1"
 derivative = "2.2.0"
@@ -21,6 +22,14 @@ log = "0.4.18"
 rand = "0.8.5"
 spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu" }
 wgpu = { version = "0.17.2", features = ["spirv"] }
+
+[dev-dependencies]
+bevy = { version = "0.12.1", features = ["jpeg"] }
+bevy_mod_raycast = "0.16.0"
+bevy_rapier3d = "0.23.0"
+lazy_static = "1.4.0"
+smooth-bevy-cameras = "0.10.0"
+zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
 
 [features]
 metrics = ["humantime"]

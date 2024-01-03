@@ -11,8 +11,7 @@ Our goal is to experiment with modern real-time lightning techniques such as
 ReSTIR and see how far we can go on consumer hardware (especially the one
 without dedicated ray-tracing cores).
 
-Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
-used on its own (through `wgpu`).
+Strolle comes integrated with [Bevy](https://bevyengine.org).
 
 Status: Experimental, no official release yet (see the demo below, though!).    
 Platforms: Windows, Mac & Linux.

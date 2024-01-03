@@ -1,4 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq)]
+use bevy::prelude::Resource;
+
+#[derive(Clone, Copy, Debug, PartialEq, Resource)]
 pub struct Sun {
     pub azimuth: f32,
     pub altitude: f32,

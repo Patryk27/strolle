@@ -1,5 +1,5 @@
 target
-/bevy-strolle/assets/cornell
-/bevy-strolle/assets/demo
-/bevy-strolle/examples/bench-*
-/bevy-strolle/examples/scene*
+/strolle/assets/cornell
+/strolle/assets/demo
+/strolle/examples/bench-*
+/strolle/examples/scene*
