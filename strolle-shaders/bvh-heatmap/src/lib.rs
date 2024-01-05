@@ -15,8 +15,8 @@ pub fn main(
     materials: &[Material],
     #[spirv(descriptor_set = 0, binding = 3)] atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 4)] atlas_sampler: &Sampler,
-    #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] direct_colors: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 5, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 0, binding = 6)] output: TexRgba16,
 ) {
     let screen_pos = global_id.xy();
     let triangles = TrianglesView::new(triangles);
@@ -50,7 +50,7 @@ pub fn main(
     );
 
     unsafe {
-        direct_colors.write(screen_pos, color.extend(1.0));
+        output.write(screen_pos, color.extend(1.0));
     }
 }
 

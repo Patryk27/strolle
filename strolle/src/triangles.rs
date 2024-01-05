@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::mem;
 use std::ops::Range;
 
+use bevy::ecs::system::Resource;
 use bevy::ecs::world::FromWorld;
 use bevy::prelude::World;
-use bevy::render::render_resource::BufferVec;
+use bevy::render::render_resource::{BufferVec, IntoBinding};
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use wgpu::BufferUsages;
 
@@ -13,6 +13,7 @@ use crate::bvh::Bvh;
 use crate::utils::Allocator;
 use crate::{gpu, BvhPrimitive, InstanceHandle, Triangle};
 
+#[derive(Resource)]
 pub struct Triangles {
     allocator: Allocator,
     buffer: BufferVec<gpu::Triangle>,
@@ -153,6 +154,10 @@ impl Triangles {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
@@ -164,9 +169,9 @@ impl Triangles {
     }
 
     pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
-        if !mem::take(&mut self.dirty) {
-            return;
-        }
+        // if !mem::take(&mut self.dirty) {
+        //     return;
+        // }
 
         self.buffer.write_buffer(device, queue);
 
@@ -191,10 +196,17 @@ impl Triangles {
         //     }
         // }
     }
+
+    pub fn bind(&self) -> impl IntoBinding {
+        self.buffer
+            .buffer()
+            .expect("buffer not ready: triangles")
+            .as_entire_buffer_binding()
+    }
 }
 
 impl FromWorld for Triangles {
-    fn from_world(world: &mut World) -> Self {
+    fn from_world(_: &mut World) -> Self {
         Self {
             allocator: Default::default(),
             buffer: BufferVec::new(BufferUsages::STORAGE),

@@ -2,8 +2,8 @@ use bevy::math::Affine3A;
 use bevy::prelude::*;
 
 use crate::{
-    CameraMode, ImageHandle, InstanceHandle, Light, LightHandle,
-    MaterialHandle, MeshHandle, Sun,
+    ImageHandle, InstanceHandle, Light, LightHandle, MaterialHandle,
+    MeshHandle, Sun,
 };
 
 #[derive(Debug, Resource)]
@@ -74,13 +74,6 @@ pub(crate) struct ExtractedLights {
 pub(crate) struct ExtractedLight {
     pub handle: LightHandle,
     pub light: Light,
-}
-
-#[derive(Debug, Component)]
-pub(crate) struct ExtractedCamera {
-    pub transform: Mat4,
-    pub projection: Mat4,
-    pub mode: Option<CameraMode>,
 }
 
 #[derive(Debug, Resource)]

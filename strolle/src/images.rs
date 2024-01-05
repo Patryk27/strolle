@@ -4,11 +4,13 @@ use std::mem;
 use bevy::ecs::system::Resource;
 use bevy::ecs::world::FromWorld;
 use bevy::prelude::World;
+use bevy::render::render_resource::{IntoBinding, Sampler, TextureView};
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use derivative::Derivative;
 use glam::{vec4, Vec4};
 use guillotiere::{size2, Allocation, AtlasAllocator};
 use log::warn;
+use wgpu::{SamplerDescriptor, TextureDescriptor, TextureViewDescriptor};
 
 use crate::{Image, ImageData, ImageHandle, Texture};
 
@@ -18,6 +20,8 @@ pub struct Images {
     #[derivative(Debug = "ignore")]
     atlas: AtlasAllocator,
     atlas_texture: Texture,
+    atlas_texture_view: TextureView,
+    atlas_sampler: Sampler,
     atlas_changes: Vec<AtlasChange>,
     images: HashMap<ImageHandle, Allocation>,
     dynamic_textures: Vec<(Texture, Allocation)>,
@@ -95,10 +99,6 @@ impl Images {
                 alloc.rectangle.height() as f32 / (Self::ATLAS_HEIGHT as f32),
             )
         })
-    }
-
-    pub fn lookup_opt(&self, handle: Option<ImageHandle>) -> Option<Vec4> {
-        self.lookup(handle?)
     }
 
     pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
@@ -192,6 +192,14 @@ impl Images {
         //     queue.submit([encoder.finish()]);
         // }
     }
+
+    pub fn bind_atlas_tex(&self) -> impl IntoBinding {
+        &self.atlas_texture_view
+    }
+
+    pub fn bind_atlas_sampler(&self) -> impl IntoBinding {
+        &self.atlas_sampler
+    }
 }
 
 impl FromWorld for Images {
@@ -203,7 +211,7 @@ impl FromWorld for Images {
             Self::ATLAS_HEIGHT as i32,
         ));
 
-        let atlas_texture = device.create_texture(&wgpu::TextureDescriptor {
+        let atlas_texture = device.create_texture(&TextureDescriptor {
             label: Some("strolle_atlas_texture"),
             size: wgpu::Extent3d {
                 width: Self::ATLAS_WIDTH,
@@ -219,9 +227,17 @@ impl FromWorld for Images {
             view_formats: &[],
         });
 
+        let atlas_texture_view =
+            atlas_texture.create_view(&TextureViewDescriptor::default());
+
+        let atlas_sampler =
+            device.create_sampler(&SamplerDescriptor::default());
+
         Self {
             atlas,
             atlas_texture,
+            atlas_texture_view,
+            atlas_sampler,
             atlas_changes: Default::default(),
             images: Default::default(),
             dynamic_textures: Default::default(),

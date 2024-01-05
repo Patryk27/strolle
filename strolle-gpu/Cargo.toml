@@ -8,5 +8,8 @@ bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
 glam = { version = "0.24", default-features = false, features = ["bytemuck"] }
 spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu" }
 
+[target."cfg(not(target_arch = \"spirv\"))".dependencies]
+encase = "0.6.1"
+
 [dev-dependencies]
 approx = "0.5.1"

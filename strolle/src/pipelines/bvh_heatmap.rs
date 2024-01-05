@@ -1,18 +1,4 @@
-use std::borrow::Cow;
-
-use bevy::ecs::query::QueryItem;
-use bevy::prelude::*;
-use bevy::render::camera::ExtractedCamera;
-use bevy::render::render_graph::{NodeRunError, RenderGraphContext, ViewNode};
-use bevy::render::render_resource::{
-    BindGroup, BindGroupLayout, BindGroupLayoutEntry, CachedComputePipelineId,
-    ComputePipelineDescriptor, PipelineCache,
-};
-use bevy::render::renderer::{RenderContext, RenderDevice};
-use wgpu::{
-    BindGroupLayoutDescriptor, BindingType, BufferBindingType,
-    ComputePassDescriptor, ShaderStages, TextureSampleType,
-};
+use super::prelude::*;
 
 #[derive(Resource)]
 pub struct BvhHeatmapPipeline {
@@ -61,7 +47,7 @@ impl FromWorld for BvhHeatmapPipeline {
                         },
                         count: None,
                     },
-                    // images
+                    // atlas_tex
                     BindGroupLayoutEntry {
                         binding: 3,
                         visibility: ShaderStages::COMPUTE,
@@ -69,19 +55,39 @@ impl FromWorld for BvhHeatmapPipeline {
                             sample_type: TextureSampleType::Float {
                                 filterable: false,
                             },
-                            view_dimension: wgpu::TextureViewDimension::D2,
+                            view_dimension: TextureViewDimension::D2,
                             multisampled: false,
                         },
                         count: None,
                     },
-                    // camera
+                    // atlas_sampler
                     BindGroupLayoutEntry {
                         binding: 4,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Sampler(
+                            SamplerBindingType::NonFiltering,
+                        ),
+                        count: None,
+                    },
+                    // camera
+                    BindGroupLayoutEntry {
+                        binding: 5,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
                             min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // output
+                    BindGroupLayoutEntry {
+                        binding: 6,
+                        visibility: ShaderStages::all(),
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: ViewTarget::TEXTURE_FORMAT_HDR,
+                            view_dimension: TextureViewDimension::D2,
                         },
                         count: None,
                     },
@@ -111,29 +117,23 @@ impl FromWorld for BvhHeatmapPipeline {
     }
 }
 
-#[derive(Component)]
-pub struct BvhHeatmapBindGroups {
-    bind_group: BindGroup,
-}
-
 #[derive(Default)]
 pub struct BvhHeatmapNode;
 
 impl ViewNode for BvhHeatmapNode {
-    type ViewQuery = (&'static ExtractedCamera, &'static BvhHeatmapBindGroups);
+    type ViewQuery = (&'static ExtractedCamera, &'static CameraTextures);
 
     fn run(
         &self,
         graph: &mut RenderGraphContext,
-        render_context: &mut RenderContext,
-        (camera, bind_groups): QueryItem<Self::ViewQuery>,
+        ctxt: &mut RenderContext,
+        (camera, camera_tex): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
-        let entity = graph.view_entity();
         let pipeline = world.resource::<BvhHeatmapPipeline>();
-        let pipeline_cache = world.resource::<PipelineCache>();
+        let pipelines = world.resource::<PipelineCache>();
 
-        let Some(pipeline) = pipeline_cache.get_compute_pipeline(pipeline.id)
+        let Some(pass_pipeline) = pipelines.get_compute_pipeline(pipeline.id)
         else {
             return Ok(());
         };
@@ -142,15 +142,36 @@ impl ViewNode for BvhHeatmapNode {
             return Ok(());
         };
 
-        let mut pass = render_context.command_encoder().begin_compute_pass(
-            &ComputePassDescriptor {
-                label: Some("strolle_bvh_heatmap_pass"),
-                ..default()
-            },
+        if world.resource::<Triangles>().is_empty() {
+            return Ok(());
+        }
+
+        let buffers =
+            &world.resource::<CamerasBuffers>().cameras[&graph.view_entity()];
+
+        let bind_group = ctxt.render_device().create_bind_group(
+            "strolle_bvh_heatmap_bind_group",
+            &pipeline.layout,
+            &BindGroupEntries::sequential((
+                world.resource::<Triangles>().bind(),
+                world.resource::<Bvh>().bind(),
+                world.resource::<Materials>().bind(),
+                world.resource::<Images>().bind_atlas_tex(),
+                world.resource::<Images>().bind_atlas_sampler(),
+                &buffers.camera,
+                &camera_tex.indirect_diffuse.default_view,
+            )),
         );
 
-        pass.set_pipeline(pipeline);
-        pass.set_bind_group(0, &bind_groups.bind_group, &[]);
+        let mut pass =
+            ctxt.command_encoder()
+                .begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("strolle_bvh_heatmap_pass"),
+                    ..default()
+                });
+
+        pass.set_pipeline(pass_pipeline);
+        pass.set_bind_group(0, &bind_group, &[]);
 
         pass.dispatch_workgroups(
             (camera_size.x + 7) / 8,

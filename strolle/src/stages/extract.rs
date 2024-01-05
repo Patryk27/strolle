@@ -1,19 +1,20 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use bevy::render::camera::{CameraProjection, CameraRenderGraph};
+use bevy::render::camera::CameraRenderGraph;
 use bevy::render::texture::{ImageSampler, ImageSamplerDescriptor};
 use bevy::render::view::RenderLayers;
 use bevy::render::Extract;
 use bevy::utils::HashSet;
 
+use crate::camera::ExtractedStrolleCamera;
 use crate::utils::color_to_vec3;
 use crate::{
-    Event, ExtractedCamera, ExtractedImage, ExtractedImageData,
-    ExtractedImages, ExtractedInstance, ExtractedInstances, ExtractedLight,
-    ExtractedLights, ExtractedMaterial, ExtractedMaterials, ExtractedMesh,
-    ExtractedMeshes, ExtractedSun, ImageHandle, InstanceHandle, Light,
-    LightHandle, MaterialHandle, MeshHandle, StrolleCamera, Sun,
+    Event, ExtractedImage, ExtractedImageData, ExtractedImages,
+    ExtractedInstance, ExtractedInstances, ExtractedLight, ExtractedLights,
+    ExtractedMaterial, ExtractedMaterials, ExtractedMesh, ExtractedMeshes,
+    ExtractedSun, ImageHandle, InstanceHandle, Light, LightHandle,
+    MaterialHandle, MeshHandle, Sun,
 };
 
 pub(crate) fn meshes(
@@ -343,37 +344,18 @@ pub(crate) fn lights(
 #[allow(clippy::type_complexity)]
 pub(crate) fn cameras(
     mut commands: Commands,
-    cameras: Extract<
-        Query<(
-            Entity,
-            &Camera,
-            &CameraRenderGraph,
-            &Projection,
-            &GlobalTransform,
-            Option<&StrolleCamera>,
-        )>,
-    >,
+    cameras: Extract<Query<(Entity, &Camera, &CameraRenderGraph)>>,
 ) {
-    for (
-        entity,
-        camera,
-        camera_render_graph,
-        projection,
-        transform,
-        strolle_camera,
-    ) in cameras.iter()
-    {
-        if !camera.is_active || **camera_render_graph != crate::graph::NAME {
+    for (entity, camera, camera_render_graph) in cameras.iter() {
+        if !camera.is_active
+            || **camera_render_graph != crate::graph::BVH_HEATMAP
+        {
             continue;
         }
 
         assert!(camera.hdr, "Strolle requires an HDR camera");
 
-        commands.get_or_spawn(entity).insert(ExtractedCamera {
-            transform: transform.compute_matrix(),
-            projection: projection.get_projection_matrix(),
-            mode: strolle_camera.map(|camera| camera.mode),
-        });
+        commands.get_or_spawn(entity).insert(ExtractedStrolleCamera);
     }
 }
 

@@ -3657,6 +3657,7 @@ version = "0.1.0"
 dependencies = [
  "approx",
  "bytemuck",
+ "encase",
  "glam",
  "spirv-std",
 ]

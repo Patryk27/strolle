@@ -17,8 +17,6 @@ mod mesh_triangle;
 mod meshes;
 mod noise;
 mod pipelines;
-mod rendering_node;
-mod shaders;
 mod stages;
 mod state;
 mod sun;
@@ -26,32 +24,26 @@ mod triangle;
 mod triangles;
 mod utils;
 
-pub mod prelude {
-    // TODO
-}
-
 pub mod graph {
-    pub const NAME: &str = "strolle";
+    pub const BVH_HEATMAP: &str = "strolle_bvh_heatmap";
 
     pub mod node {
         pub const RENDERING: &str = "strolle_rendering";
-        pub const TONEMAPPING: &str = "strolle_tonemapping";
+        pub const COMPOSING: &str = "strolle_composing";
         pub const UPSCALING: &str = "strolle_upscaling";
     }
 }
 
 use bevy::app::{App, Plugin};
-use bevy::core_pipeline::tonemapping::TonemappingNode;
 use bevy::core_pipeline::upscaling::UpscalingNode;
 use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::render::render_graph::{RenderGraphApp, ViewNodeRunner};
 use bevy::render::render_resource::Texture;
-use bevy::render::renderer::RenderDevice;
 use bevy::render::{ExtractSchedule, Render, RenderApp, RenderSet};
 pub(crate) use strolle_gpu as gpu;
 
 pub(crate) use self::bvh::*;
-pub use self::camera::*;
+pub(crate) use self::camera::*;
 pub(crate) use self::event::*;
 pub use self::image::*;
 pub(crate) use self::images::*;
@@ -64,8 +56,7 @@ pub(crate) use self::materials::*;
 pub use self::mesh::*;
 pub use self::mesh_triangle::*;
 pub(crate) use self::meshes::*;
-use self::rendering_node::*;
-pub(crate) use self::shaders::*;
+pub(crate) use self::pipelines::*;
 pub(crate) use self::state::*;
 pub use self::sun::*;
 pub(crate) use self::triangle::*;
@@ -155,49 +146,65 @@ impl Plugin for StrollePlugin {
             stages::prepare::sun.in_set(RenderSet::Prepare),
         );
 
-        // ---------------- //
-        // RenderSet::Queue //
+        render_app.add_systems(
+            Render,
+            stages::prepare::refresh
+                .in_set(RenderSet::Prepare)
+                .after(stages::prepare::instances),
+        );
 
-        // render_app.add_systems(
-        //     Render,
-        //     stages::queue::cameras.in_set(RenderSet::Queue),
-        // );
+        render_app.add_systems(
+            Render,
+            (
+                stages::prepare::buffers.in_set(RenderSet::PrepareResources),
+                stages::prepare::textures.in_set(RenderSet::PrepareResources),
+            )
+                .chain(),
+        );
 
-        // render_app.add_systems(
-        //     Render,
-        //     stages::queue::write
-        //         .in_set(RenderSet::Queue)
-        //         .after(stages::queue::cameras),
-        // );
+        render_app.add_systems(
+            Render,
+            stages::prepare::flush.in_set(RenderSet::PrepareFlush),
+        );
 
         // -----
 
         render_app
-            .add_render_sub_graph(graph::NAME)
-            .add_render_graph_node::<ViewNodeRunner<RenderingNode>>(
-                graph::NAME,
+            .add_render_sub_graph(graph::BVH_HEATMAP)
+            .add_render_graph_node::<ViewNodeRunner<BvhHeatmapNode>>(
+                graph::BVH_HEATMAP,
                 graph::node::RENDERING,
             )
-            .add_render_graph_node::<ViewNodeRunner<TonemappingNode>>(
-                graph::NAME,
-                graph::node::TONEMAPPING,
+            .add_render_graph_node::<ViewNodeRunner<FrameCompositionNode>>(
+                graph::BVH_HEATMAP,
+                graph::node::COMPOSING,
             )
             .add_render_graph_node::<ViewNodeRunner<UpscalingNode>>(
-                graph::NAME,
+                graph::BVH_HEATMAP,
                 graph::node::UPSCALING,
             )
             .add_render_graph_edges(
-                graph::NAME,
+                graph::BVH_HEATMAP,
                 &[
                     graph::node::RENDERING,
-                    graph::node::TONEMAPPING,
+                    graph::node::COMPOSING,
                     graph::node::UPSCALING,
                 ],
             );
     }
 
     fn finish(&self, app: &mut App) {
-        let render_app = app.sub_app_mut(RenderApp);
-        let device = render_app.world.resource::<RenderDevice>();
+        app.sub_app_mut(RenderApp)
+            .init_resource::<Bvh>()
+            .init_resource::<CamerasBuffers>()
+            .init_resource::<Images>()
+            .init_resource::<Instances>()
+            .init_resource::<Lights>()
+            .init_resource::<Materials>()
+            .init_resource::<Meshes>()
+            .init_resource::<Triangles>()
+            .init_resource::<Sun>()
+            .init_resource::<pipelines::BvhHeatmapPipeline>()
+            .init_resource::<pipelines::FrameCompositionPipeline>();
     }
 }

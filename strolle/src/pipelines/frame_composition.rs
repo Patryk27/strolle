@@ -1,114 +1,138 @@
-use std::mem;
-use std::ops::Range;
+use super::prelude::*;
 
-use log::debug;
-
-use crate::{gpu, BindGroup, Camera, CameraBuffers, CameraController};
-
-#[derive(Debug)]
-pub struct FrameCompositionPass {
-    bg0: BindGroup,
-    pipeline: wgpu::RenderPipeline,
+#[derive(Resource)]
+pub struct FrameCompositionPipeline {
+    layout: BindGroupLayout,
+    sampler: Sampler,
+    id: CachedRenderPipelineId,
 }
 
-impl FrameCompositionPass {
-    pub fn new(
-        engine: &Engine,
-        device: &wgpu::Device,
-        camera: &Camera,
-        buffers: &CameraBuffers,
-    ) -> Self {
-        debug!("Initializing pass: frame_composition");
+impl FromWorld for FrameCompositionPipeline {
+    fn from_world(world: &mut World) -> Self {
+        let device = world.resource::<RenderDevice>();
 
-        let bg0 = BindGroup::builder("frame_composition_bg0")
-            .add(&buffers.camera.bind_readable())
-            .add(&buffers.direct_colors_b.bind_readable())
-            .add(&buffers.direct_gbuffer_d0.bind_readable())
-            .add(&buffers.direct_gbuffer_d1.bind_readable())
-            .add(&buffers.indirect_diffuse_colors.curr().bind_readable())
-            .add(&buffers.indirect_specular_colors.curr().bind_readable())
-            .add(&buffers.reference_colors.bind_readable())
-            .build(device);
-
-        let pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_frame_composition_pipeline_layout"),
-                bind_group_layouts: &[bg0.layout()],
-                push_constant_ranges: &[wgpu::PushConstantRange {
-                    stages: wgpu::ShaderStages::FRAGMENT,
-                    range: Range {
-                        start: 0,
-                        end: mem::size_of::<gpu::FrameCompositionPassParams>()
-                            as u32,
+        let layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("strolle_frame_composition"),
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(
+                            SamplerBindingType::NonFiltering,
+                        ),
+                        count: None,
                     },
-                }],
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
+                            sample_type: TextureSampleType::Float {
+                                filterable: false,
+                            },
+                            view_dimension: TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                ],
             });
 
-        let pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("strolle_frame_composition_pipeline"),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &engine.shaders.frame_composition,
-                    entry_point: "main_vs",
-                    buffers: &[],
-                },
-                primitive: wgpu::PrimitiveState::default(),
+        let sampler = device.create_sampler(&SamplerDescriptor::default());
+
+        let shader = {
+            let shader =
+                include_bytes!(env!("strolle_frame_composition_shader.spv"));
+
+            world.resource::<AssetServer>().add(Shader::from_spirv(
+                shader.to_vec(),
+                "frame_composition.spv",
+            ))
+        };
+
+        let id = world.resource_mut::<PipelineCache>().queue_render_pipeline(
+            RenderPipelineDescriptor {
+                label: Some("strolle_frame_composition_pipeline".into()),
+                layout: vec![layout.clone()],
+                push_constant_ranges: Vec::default(),
+                vertex: fullscreen_shader_vertex_state(),
+                primitive: PrimitiveState::default(),
                 depth_stencil: None,
-                multisample: wgpu::MultisampleState::default(),
-                fragment: Some(wgpu::FragmentState {
-                    module: &engine.shaders.frame_composition,
-                    entry_point: "main_fs",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: camera.viewport.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
+                multisample: MultisampleState::default(),
+                fragment: Some(FragmentState {
+                    shader,
+                    shader_defs: Default::default(),
+                    entry_point: Cow::Borrowed("main"),
+                    targets: vec![Some(ColorTargetState {
+                        format: ViewTarget::TEXTURE_FORMAT_HDR,
+                        blend: Some(BlendState::REPLACE),
+                        write_mask: ColorWrites::ALL,
                     })],
                 }),
-                multiview: None,
-            });
+            },
+        );
 
-        Self { bg0, pipeline }
+        Self {
+            layout,
+            sampler,
+            id,
+        }
     }
+}
 
-    pub fn run(
+#[derive(Default)]
+pub struct FrameCompositionNode;
+
+impl ViewNode for FrameCompositionNode {
+    type ViewQuery = (
+        &'static ViewTarget,
+        &'static ExtractedCamera,
+        &'static CameraTextures,
+    );
+
+    fn run(
         &self,
-        camera: &CameraController,
-        encoder: &mut wgpu::CommandEncoder,
-        view: &wgpu::TextureView,
-    ) {
-        let alternate = camera.is_alternate();
+        _: &mut RenderGraphContext,
+        ctxt: &mut RenderContext,
+        (target, camera, camera_tex): QueryItem<Self::ViewQuery>,
+        world: &World,
+    ) -> Result<(), NodeRunError> {
+        let pipeline = world.resource::<FrameCompositionPipeline>();
+        let pipelines = world.resource::<PipelineCache>();
 
-        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("strolle_frame_composition"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view,
+        let Some(pass_pipeline) = pipelines.get_render_pipeline(pipeline.id)
+        else {
+            return Ok(());
+        };
+
+        let bind_group = ctxt.render_device().create_bind_group(
+            "strolle_frame_composition_bind_group",
+            &pipeline.layout,
+            &BindGroupEntries::sequential((
+                &pipeline.sampler,
+                &camera_tex.indirect_diffuse.default_view,
+            )),
+        );
+
+        let mut pass = ctxt.begin_tracked_render_pass(RenderPassDescriptor {
+            label: Some("strolle_frame_composition_pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: target.main_texture_view(),
                 resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: true,
-                },
+                ops: Operations::default(),
             })],
             depth_stencil_attachment: None,
         });
 
-        let params = gpu::FrameCompositionPassParams {
-            camera_mode: camera.camera.mode.serialize(),
-        };
+        pass.set_render_pipeline(pass_pipeline);
+        pass.set_bind_group(0, &bind_group, &[]);
 
-        pass.set_scissor_rect(
-            camera.camera.viewport.position.x,
-            camera.camera.viewport.position.y,
-            camera.camera.viewport.size.x,
-            camera.camera.viewport.size.y,
-        );
-        pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, self.bg0.get(alternate), &[]);
-        pass.set_push_constants(
-            wgpu::ShaderStages::FRAGMENT,
-            0,
-            bytemuck::bytes_of(&params),
-        );
+        if let Some(viewport) = camera.viewport.as_ref() {
+            pass.set_camera_viewport(viewport);
+        }
+
         pass.draw(0..3, 0..1);
+
+        Ok(())
     }
 }

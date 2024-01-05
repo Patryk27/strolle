@@ -1,20 +1,34 @@
 use std::mem;
 
-use bevy::ecs::system::{Res, ResMut};
+use bevy::ecs::entity::Entity;
+use bevy::ecs::query::With;
+use bevy::ecs::system::{Commands, Query, Res, ResMut};
 use bevy::render::mesh::{Mesh as BevyMesh, VertexAttributeValues};
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::PrimitiveTopology;
-use bevy::render::texture::Image as BevyImage;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::texture::{Image as BevyImage, TextureCache};
+use bevy::render::view::{ExtractedView, ViewTarget};
+use bevy::utils::hashbrown::hash_map;
+use glam::Vec4Swizzles;
+use wgpu::{
+    Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+};
 
+use crate::bvh::Bvh;
+use crate::camera::{
+    CameraBuffers, CameraTextures, CamerasBuffers, ExtractedStrolleCamera,
+};
 use crate::images::Images;
 use crate::instances::Instances;
 use crate::lights::Lights;
 use crate::materials::Materials;
 use crate::meshes::Meshes;
+use crate::triangles::Triangles;
 use crate::{
-    ExtractedImageData, ExtractedImages, ExtractedInstances, ExtractedLights,
-    ExtractedMaterials, ExtractedMeshes, ExtractedSun, Image, ImageData,
-    Instance, Mesh, MeshTriangle, Sun,
+    gpu, utils, ExtractedImageData, ExtractedImages, ExtractedInstances,
+    ExtractedLights, ExtractedMaterials, ExtractedMeshes, ExtractedSun, Image,
+    ImageData, Instance, Mesh, MeshTriangle, Sun,
 };
 
 pub(crate) fn meshes(
@@ -140,7 +154,7 @@ pub(crate) fn images(
     }
 
     for entry in mem::take(&mut extracted.changed) {
-        if entry.texture_descriptor.dimension != wgpu::TextureDimension::D2 {
+        if entry.texture_descriptor.dimension != TextureDimension::D2 {
             continue;
         }
 
@@ -216,4 +230,128 @@ pub(crate) fn sun(mut sun: ResMut<Sun>, mut extracted: ResMut<ExtractedSun>) {
     if let Some(extracted_sun) = extracted.sun.take() {
         *sun = extracted_sun;
     }
+}
+
+pub(crate) fn refresh(
+    meshes: Res<Meshes>,
+    mut triangles: ResMut<Triangles>,
+    images: Res<Images>,
+    mut materials: ResMut<Materials>,
+    mut instances: ResMut<Instances>,
+    mut bvh: ResMut<Bvh>,
+) {
+    utils::measure("refresh.materials", || {
+        materials.refresh(&images);
+    });
+
+    let needs_bvh_refresh = utils::measure("refresh.instances", || {
+        instances.refresh(&meshes, &materials, &mut triangles, &mut bvh)
+    });
+
+    if needs_bvh_refresh {
+        utils::measure("refresh.bvh", || {
+            bvh.refresh(&materials);
+        });
+    }
+}
+
+pub(crate) fn buffers(
+    mut buffers: ResMut<CamerasBuffers>,
+    cameras: Query<(Entity, &ExtractedView), With<ExtractedStrolleCamera>>,
+) {
+    let mut alive_cameras = Vec::new();
+
+    for (cam_entity, cam_view) in cameras.iter() {
+        alive_cameras.push(cam_entity);
+
+        let cam_buffer = match buffers.cameras.entry(cam_entity) {
+            hash_map::Entry::Occupied(entry) => entry.into_mut(),
+            hash_map::Entry::Vacant(entry) => entry.insert(CameraBuffers {
+                camera: Default::default(),
+            }),
+        };
+
+        let proj = cam_view.projection;
+        let xform = cam_view.transform.compute_matrix();
+
+        cam_buffer.camera.set(gpu::Camera {
+            projection_view: proj * xform.inverse(),
+            ndc_to_world: xform * proj.inverse(),
+            origin: cam_view
+                .transform
+                .to_scale_rotation_translation()
+                .2
+                .extend(Default::default()),
+            screen: cam_view
+                .viewport
+                .zw()
+                .as_vec2()
+                .extend(Default::default())
+                .extend(Default::default()),
+        });
+    }
+
+    buffers
+        .cameras
+        .retain(|entity, _| alive_cameras.contains(&entity));
+}
+
+pub(crate) fn textures(
+    mut commands: Commands,
+    device: Res<RenderDevice>,
+    mut textures: ResMut<TextureCache>,
+    cameras: Query<(Entity, &ExtractedView), With<ExtractedStrolleCamera>>,
+) {
+    for (cam_entity, cam_view) in cameras.iter() {
+        let mut tex = |label, format, usage| {
+            textures.get(
+                &device,
+                TextureDescriptor {
+                    label: Some(label),
+                    size: Extent3d {
+                        width: cam_view.viewport.z,
+                        height: cam_view.viewport.w,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: TextureDimension::D2,
+                    format,
+                    usage,
+                    view_formats: &[],
+                },
+            )
+        };
+
+        commands.entity(cam_entity).insert(CameraTextures {
+            indirect_diffuse: tex(
+                "strolle_output",
+                ViewTarget::TEXTURE_FORMAT_HDR,
+                TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            ),
+        });
+    }
+}
+
+pub(crate) fn flush(
+    device: Res<RenderDevice>,
+    queue: Res<RenderQueue>,
+    mut bvh: ResMut<Bvh>,
+    mut images: ResMut<Images>,
+    mut lights: ResMut<Lights>,
+    mut materials: ResMut<Materials>,
+    mut triangles: ResMut<Triangles>,
+    mut cameras: ResMut<CamerasBuffers>,
+) {
+    utils::measure("flush", || {
+        bvh.flush(&device, &queue);
+        images.flush(&device, &queue);
+        lights.flush(&device, &queue);
+        materials.flush(&device, &queue);
+        triangles.flush(&device, &queue);
+
+        for camera in cameras.cameras.values_mut() {
+            camera.camera.write_buffer(&device, &queue);
+        }
+    });
 }

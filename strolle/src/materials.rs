@@ -2,16 +2,19 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::Index;
 
+use bevy::asset::Handle;
 use bevy::ecs::system::Resource;
 use bevy::ecs::world::FromWorld;
 use bevy::pbr::StandardMaterial;
 use bevy::prelude::World;
-use bevy::render::render_resource::BufferVec;
+use bevy::render::render_resource::{BufferVec, IntoBinding};
 use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::texture::Image as BevyImage;
+use glam::Vec4;
 use wgpu::BufferUsages;
 
-use crate::utils::Allocator;
-use crate::{gpu, Images, MaterialHandle};
+use crate::utils::{color_to_vec4, Allocator};
+use crate::{gpu, ImageHandle, Images, MaterialHandle};
 
 #[derive(Resource)]
 pub struct Materials {
@@ -67,20 +70,51 @@ impl Materials {
     }
 
     pub fn refresh(&mut self, images: &Images) {
-        // *self.buffer = self
-        //     .materials
-        //     .iter()
-        //     .map(|material| material.serialize(images))
-        //     .collect();
+        let buffer = self.buffer.values_mut();
+
+        buffer.clear();
+
+        buffer.extend(
+            self.materials
+                .iter()
+                .map(|mat| Self::prepare_one(images, mat)),
+        );
+    }
+
+    fn prepare_one(images: &Images, mat: &StandardMaterial) -> gpu::Material {
+        let lookup_tex = |handle: Option<&Handle<BevyImage>>| -> Vec4 {
+            handle
+                .and_then(|handle| images.lookup(ImageHandle::new(handle.id())))
+                .unwrap_or_default()
+        };
+
+        gpu::Material {
+            base_color: color_to_vec4(mat.base_color),
+            base_color_texture: lookup_tex(mat.base_color_texture.as_ref()),
+            emissive: color_to_vec4(mat.emissive),
+            emissive_texture: lookup_tex(mat.emissive_texture.as_ref()),
+            roughness: mat.perceptual_roughness.powf(2.0),
+            metallic: mat.metallic,
+            reflectance: mat.reflectance,
+            ior: mat.ior,
+            normal_map_texture: lookup_tex(mat.normal_map_texture.as_ref()),
+        }
     }
 
     pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
         self.buffer.write_buffer(device, queue);
     }
+
+    pub fn bind(&self) -> impl IntoBinding {
+        self.buffer
+            .buffer()
+            .expect("buffer not ready: materials")
+            .as_entire_buffer_binding()
+    }
 }
 
 impl FromWorld for Materials {
-    fn from_world(world: &mut World) -> Self {
+    fn from_world(_: &mut World) -> Self {
         Self {
             allocator: Default::default(),
             buffer: BufferVec::new(BufferUsages::STORAGE),

@@ -28,7 +28,7 @@ impl Noise {
     //     self.blue_noise_ranking_tile.bind_readable()
     // }
 
-    // pub fn flush(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+    // pub fn flush(&mut self, device: &Device, queue: &Queue) {
     //     if self.flushed {
     //         return;
     //     }
@@ -44,19 +44,19 @@ impl Noise {
     //     let img = img.as_rgba8().unwrap().as_raw();
 
     //     queue.write_texture(
-    //         wgpu::ImageCopyTexture {
+    //         ImageCopyTexture {
     //             texture: self.blue_noise.tex(),
     //             mip_level: 0,
-    //             origin: wgpu::Origin3d { x: 0, y: 0, z: 0 },
-    //             aspect: wgpu::TextureAspect::All,
+    //             origin: Origin3d { x: 0, y: 0, z: 0 },
+    //             aspect: TextureAspect::All,
     //         },
     //         img,
-    //         wgpu::ImageDataLayout {
+    //         ImageDataLayout {
     //             offset: 0,
     //             bytes_per_row: Some(256 * 4),
     //             rows_per_image: None,
     //         },
-    //         wgpu::Extent3d {
+    //         Extent3d {
     //             width: 256,
     //             height: 256,
     //             depth_or_array_layers: 1,
@@ -76,7 +76,7 @@ impl Noise {
 }
 
 impl FromWorld for Noise {
-    fn from_world(world: &mut World) -> Self {
+    fn from_world(_: &mut World) -> Self {
         todo!()
     }
 }

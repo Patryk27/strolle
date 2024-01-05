@@ -7,13 +7,12 @@ use crate::Ray;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug, encase::ShaderType))]
 pub struct Camera {
     pub projection_view: Mat4,
     pub ndc_to_world: Mat4,
     pub origin: Vec4,
     pub screen: Vec4,
-    pub data: Vec4,
 }
 
 impl Camera {
@@ -101,23 +100,9 @@ impl Camera {
         self.origin.xyz()
     }
 
-    pub fn mode(&self) -> u32 {
-        self.data.x.to_bits() + self.data.y.to_bits()
-    }
-
     pub fn is_eq(&self, rhs: &Self) -> bool {
-        if !self
-            .projection_view
+        self.projection_view
             .abs_diff_eq(rhs.projection_view, 0.0025)
-        {
-            return false;
-        }
-
-        if self.mode() != rhs.mode() {
-            return false;
-        }
-
-        true
     }
 }
 
@@ -171,7 +156,6 @@ mod tests {
             ndc_to_world: Default::default(),
             origin: Default::default(),
             screen: vec4(1024.0, 768.0, 0.0, 0.0),
-            data: Default::default(),
         };
 
         // Case: minimum point inside the screen

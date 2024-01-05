@@ -28,15 +28,6 @@ pub fn main(
     // -------------------------------------------------------------------------
 
     let mut reprojection = Reprojection::default();
-
-    // If camera's mode has changed, force the reprojection to be none in order
-    // to reset temporal algorithms (e.g. ReSTIR reservoirs) - this comes handy
-    // for debugging
-    if camera.mode() != prev_camera.mode() {
-        reprojection_map.set(screen_pos, &reprojection);
-        return;
-    }
-
     let surface = surface_map.get(screen_pos);
 
     if surface.is_sky() {

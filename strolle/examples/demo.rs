@@ -3,40 +3,23 @@ mod common;
 
 use std::f32::consts::PI;
 
-use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::math::{uvec2, vec3};
+use bevy::math::vec3;
 use bevy::prelude::*;
-use bevy::render::camera::{CameraRenderGraph, RenderTarget};
-use bevy::render::texture::ImageSampler;
-use bevy::window::{CursorGrabMode, PrimaryWindow, WindowResolution};
-use bevy_strolle::prelude::*;
+use bevy::render::camera::CameraRenderGraph;
+use bevy::window::{CursorGrabMode, PrimaryWindow};
 use smooth_bevy_cameras::controllers::fps::{
     FpsCameraBundle, FpsCameraController, FpsCameraPlugin,
 };
 use smooth_bevy_cameras::LookTransformPlugin;
-use wgpu::{
-    Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-};
-
-const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
-const WINDOW_SCALE: f32 = 1.5;
+use strolle::StrollePlugin;
 
 fn main() {
     common::unzip_assets();
 
     App::new()
         .add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    resolution: WindowResolution::new(
-                        WINDOW_SCALE * VIEWPORT_SIZE.x as f32,
-                        WINDOW_SCALE * VIEWPORT_SIZE.y as f32,
-                    ),
-                    ..default()
-                }),
-                ..default()
-            }),
+            DefaultPlugins,
             LogDiagnosticsPlugin::default(),
             FrameTimeDiagnosticsPlugin::default(),
             LookTransformPlugin,
@@ -64,77 +47,18 @@ fn setup_window(mut window: Query<&mut Window, With<PrimaryWindow>>) {
     window.cursor.grab_mode = CursorGrabMode::Locked;
 }
 
-fn setup_camera(
-    mut commands: Commands,
-    mut window: Query<&Window, With<PrimaryWindow>>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    let window = window.single_mut();
-
-    let mut viewport = Image {
-        texture_descriptor: TextureDescriptor {
-            label: None,
-            size: Extent3d {
-                width: VIEWPORT_SIZE.x,
-                height: VIEWPORT_SIZE.y,
-                depth_or_array_layers: 1,
-            },
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
-            mip_level_count: 1,
-            sample_count: 1,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        },
-        sampler: ImageSampler::nearest(),
-        ..default()
-    };
-
-    viewport.resize(Extent3d {
-        width: VIEWPORT_SIZE.x,
-        height: VIEWPORT_SIZE.y,
-        depth_or_array_layers: 1,
-    });
-
-    let viewport = images.add(viewport);
-
-    commands.spawn(SpriteBundle {
-        texture: viewport.clone(),
-        transform: Transform::from_scale(vec3(
-            window.width() / (VIEWPORT_SIZE.x as f32),
-            window.height() / (VIEWPORT_SIZE.y as f32),
-            1.0,
-        )),
-        ..default()
-    });
-
-    commands.spawn(Camera2dBundle {
-        camera: Camera {
-            order: 1,
-            ..default()
-        },
-        camera_2d: Camera2d {
-            clear_color: ClearColorConfig::None,
-        },
-        ..default()
-    });
-
+fn setup_camera(mut commands: Commands) {
     commands
         .spawn(Camera3dBundle {
             camera_render_graph: CameraRenderGraph::new(
-                bevy_strolle::graph::NAME,
+                strolle::graph::BVH_HEATMAP,
             ),
             camera: Camera {
-                order: 0,
-                target: RenderTarget::Image(viewport),
                 hdr: true,
                 ..default()
             },
             ..default()
         })
-        .insert(StrolleCamera::default())
         .insert(FpsCameraBundle::new(
             {
                 let mut controller = FpsCameraController::default();
@@ -266,59 +190,27 @@ fn handle_camera(
     mut camera: Query<(
         &Transform,
         &mut CameraRenderGraph,
-        &mut StrolleCamera,
         &mut FpsCameraController,
     )>,
 ) {
-    let (
-        camera_xform,
-        mut camera_render_graph,
-        mut camera,
-        mut fps_camera_controller,
-    ) = camera.single_mut();
+    let (camera_xform, mut camera_graph, mut camera_ctrl) = camera.single_mut();
 
     if keys.just_pressed(KeyCode::Key1) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Image;
-    }
-
-    if keys.just_pressed(KeyCode::Key2) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::DirectLightning;
-    }
-
-    if keys.just_pressed(KeyCode::Key3) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectDiffuseLightning;
-    }
-
-    if keys.just_pressed(KeyCode::Key4) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectSpecularLightning;
-    }
-
-    if keys.just_pressed(KeyCode::Key5) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::BvhHeatmap;
-    }
-
-    if keys.just_pressed(KeyCode::Key9) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 1 };
+        camera_graph.set(strolle::graph::BVH_HEATMAP);
     }
 
     if keys.just_pressed(KeyCode::Key0) {
-        camera_render_graph.set("core_3d");
+        camera_graph.set("core_3d");
     }
 
     if keys.just_pressed(KeyCode::Semicolon) {
-        fps_camera_controller.enabled = !fps_camera_controller.enabled;
+        camera_ctrl.enabled = !camera_ctrl.enabled;
 
         let mut window = window.single_mut();
 
-        window.cursor.visible = !fps_camera_controller.enabled;
+        window.cursor.visible = !camera_ctrl.enabled;
 
-        window.cursor.grab_mode = if fps_camera_controller.enabled {
+        window.cursor.grab_mode = if camera_ctrl.enabled {
             CursorGrabMode::Locked
         } else {
             CursorGrabMode::None
@@ -343,7 +235,7 @@ impl Default for Sun {
     fn default() -> Self {
         Self {
             azimuth: 3.0,
-            altitude: StrolleSun::default().altitude,
+            altitude: strolle::Sun::default().altitude,
             initialized: false,
         }
     }
@@ -369,7 +261,7 @@ fn handle_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
 
 fn animate_sun(
     time: Res<Time>,
-    mut st_sun: ResMut<StrolleSun>,
+    mut st_sun: ResMut<strolle::Sun>,
     mut sun: ResMut<Sun>,
 ) {
     if sun.initialized {
@@ -415,11 +307,8 @@ fn handle_flashlight(
 }
 
 fn animate_flashlight(
-    camera: Query<&Transform, With<StrolleCamera>>,
-    mut flashlight: Query<
-        &mut Transform,
-        (With<Flashlight>, Without<StrolleCamera>),
-    >,
+    camera: Query<&Transform, With<Camera>>,
+    mut flashlight: Query<&mut Transform, (With<Flashlight>, Without<Camera>)>,
 ) {
     let camera = camera.single();
     let mut flashlight = flashlight.single_mut();

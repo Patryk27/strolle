@@ -1,62 +1,25 @@
-use bevy::prelude::Component;
+use bevy::ecs::component::Component;
+use bevy::ecs::entity::Entity;
+use bevy::ecs::system::Resource;
+use bevy::render::render_resource::UniformBuffer;
+use bevy::render::texture::CachedTexture;
+use bevy::utils::HashMap;
 
-/// Extends Bevy's camera with extra features supported by Strolle.
-///
-/// This is a component that can be attached into Bevy's `Camera`; when not
-/// attached, the default configuration is used.
-#[derive(Clone, Debug, Default, Component)]
-pub struct StrolleCamera {
-    pub mode: CameraMode,
+use crate::gpu;
+
+#[derive(Default, Resource)]
+pub struct CamerasBuffers {
+    pub cameras: HashMap<Entity, CameraBuffers>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CameraMode {
-    /// Default mode - shows the final image
-    Image,
-
-    /// Shows direct lightning
-    DirectLightning,
-
-    /// Shows indirect diffuse lightning
-    IndirectDiffuseLightning,
-
-    /// Shows indirect diffuse lightning
-    IndirectSpecularLightning,
-
-    /// Shows BVH tree's heatmap
-    BvhHeatmap,
-
-    /// Shows a path-traced reference image
-    Reference { depth: u8 },
+pub struct CameraBuffers {
+    pub camera: UniformBuffer<gpu::Camera>,
 }
 
-impl CameraMode {
-    pub(crate) fn serialize(&self) -> u32 {
-        match self {
-            CameraMode::Image => 0,
-            CameraMode::DirectLightning => 1,
-            CameraMode::IndirectDiffuseLightning => 2,
-            CameraMode::IndirectSpecularLightning => 3,
-            CameraMode::BvhHeatmap => 4,
-            CameraMode::Reference { .. } => 5,
-        }
-    }
-
-    pub(crate) fn needs_direct_lightning(&self) -> bool {
-        matches!(self, Self::Image | Self::DirectLightning)
-    }
-
-    pub(crate) fn needs_indirect_diffuse_lightning(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectDiffuseLightning)
-    }
-
-    pub(crate) fn needs_indirect_specular_lightning(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectSpecularLightning)
-    }
+#[derive(Component)]
+pub struct CameraTextures {
+    pub indirect_diffuse: CachedTexture,
 }
 
-impl Default for CameraMode {
-    fn default() -> Self {
-        Self::Image
-    }
-}
+#[derive(Component, Debug)]
+pub struct ExtractedStrolleCamera;

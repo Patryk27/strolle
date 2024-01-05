@@ -10,7 +10,7 @@ use std::ops::Range;
 use bevy::ecs::system::Resource;
 use bevy::ecs::world::FromWorld;
 use bevy::prelude::World;
-use bevy::render::render_resource::BufferVec;
+use bevy::render::render_resource::{BufferVec, IntoBinding};
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use spirv_std::glam::Vec4;
 use wgpu::BufferUsages;
@@ -41,16 +41,20 @@ impl Bvh {
         self.primitives.update(ids)
     }
 
+    pub fn len(&self) -> usize {
+        self.nodes.nodes.len()
+    }
+
     pub fn refresh(&mut self, materials: &Materials) {
-        utils::measure("tick.bvh.begin", || {
+        utils::measure("refresh.bvh.begin", || {
             self.primitives.begin_refresh();
         });
 
-        utils::measure("tick.bvh.build", || {
+        utils::measure("refresh.bvh.build", || {
             builder::run(&mut self.nodes, &mut self.primitives);
         });
 
-        utils::measure("tick.bvh.serialize", || {
+        utils::measure("refresh.bvh.serialize", || {
             serializer::run(
                 materials,
                 &self.nodes,
@@ -66,8 +70,11 @@ impl Bvh {
         self.buffer.write_buffer(device, queue);
     }
 
-    pub fn len(&self) -> usize {
-        self.nodes.nodes.len()
+    pub fn bind(&self) -> impl IntoBinding {
+        self.buffer
+            .buffer()
+            .expect("buffer not ready: bvh")
+            .as_entire_buffer_binding()
     }
 }
 

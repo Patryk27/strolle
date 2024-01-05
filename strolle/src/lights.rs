@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use bevy::ecs::system::Resource;
 use bevy::ecs::world::FromWorld;
 use bevy::prelude::World;
-use bevy::render::render_resource::BufferVec;
+use bevy::render::render_resource::{BufferVec, IntoBinding};
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use wgpu::BufferUsages;
 
@@ -70,10 +70,17 @@ impl Lights {
     pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
         self.buffer.write_buffer(device, queue);
     }
+
+    pub fn bind(&self) -> impl IntoBinding {
+        self.buffer
+            .buffer()
+            .expect("buffer not ready: lights")
+            .as_entire_buffer_binding()
+    }
 }
 
 impl FromWorld for Lights {
-    fn from_world(world: &mut World) -> Self {
+    fn from_world(_: &mut World) -> Self {
         let mut buffer = BufferVec::new(BufferUsages::STORAGE);
 
         buffer.push(gpu::Light::sun(Default::default(), Default::default()));
