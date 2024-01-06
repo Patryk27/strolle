@@ -3,6 +3,9 @@ mod common;
 
 use std::f32::consts::PI;
 
+use bevy::core_pipeline::prepass::{
+    DeferredPrepass, DepthPrepass, MotionVectorPrepass, NormalPrepass,
+};
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::math::vec3;
 use bevy::prelude::*;
@@ -36,6 +39,10 @@ fn main() {
         .add_systems(Update, animate_sun)
         .add_systems(Update, handle_flashlight)
         .add_systems(Update, animate_flashlight)
+        .insert_resource(AmbientLight {
+            brightness: 0.0,
+            ..default()
+        })
         .insert_resource(Sun::default())
         .run();
 }
@@ -50,15 +57,16 @@ fn setup_window(mut window: Query<&mut Window, With<PrimaryWindow>>) {
 fn setup_camera(mut commands: Commands) {
     commands
         .spawn(Camera3dBundle {
-            camera_render_graph: CameraRenderGraph::new(
-                strolle::graph::BVH_HEATMAP,
-            ),
             camera: Camera {
                 hdr: true,
                 ..default()
             },
             ..default()
         })
+        .insert(DepthPrepass)
+        .insert(NormalPrepass)
+        .insert(MotionVectorPrepass)
+        .insert(DeferredPrepass)
         .insert(FpsCameraBundle::new(
             {
                 let mut controller = FpsCameraController::default();
@@ -86,12 +94,12 @@ fn setup_scene(
 
     let lights = vec![
         vec3(-3.0, 0.75, -23.0),
-        vec3(-17.5, 0.75, -31.0),
-        vec3(-23.75, 0.75, -24.0),
-        vec3(1.25, 0.75, -10.5),
-        vec3(-3.15, 0.75, 1.25),
-        vec3(-3.25, 0.75, 20.25),
-        vec3(13.25, 0.75, -28.25),
+        // vec3(-17.5, 0.75, -31.0),
+        // vec3(-23.75, 0.75, -24.0),
+        // vec3(1.25, 0.75, -10.5),
+        // vec3(-3.15, 0.75, 1.25),
+        // vec3(-3.25, 0.75, 20.25),
+        // vec3(13.25, 0.75, -28.25),
     ];
 
     for light in lights {

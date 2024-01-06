@@ -22,11 +22,12 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 6)] atlas_tex: Tex,
     #[spirv(descriptor_set = 0, binding = 7)] atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] direct_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 2)] direct_gbuffer_d1: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 3)] indirect_rays: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 4)] indirect_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 5)] indirect_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 1)] bevy_gbuffer_sampler: &Sampler,
+    #[spirv(descriptor_set = 1, binding = 2)] bevy_gbuffer_normals: Tex,
+    #[spirv(descriptor_set = 1, binding = 3)] bevy_gbuffer_depth: Tex,
+    #[spirv(descriptor_set = 1, binding = 4)] indirect_rays: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 5)] indirect_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 6)] indirect_gbuffer_d1: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
     let mut bnoise = LdsBlueNoise::new(
@@ -37,7 +38,6 @@ pub fn main(
         params.frame,
         0,
     );
-    let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
     let triangles = TrianglesView::new(triangles);
     let bvh = BvhView::new(bvh);
     let materials = MaterialsView::new(materials);
@@ -48,21 +48,19 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let direct_hit = Hit::new(
-        camera.ray(screen_pos),
-        GBufferEntry::unpack([
-            direct_gbuffer_d0.read(screen_pos),
-            direct_gbuffer_d1.read(screen_pos),
-        ]),
-    );
+    let screen_uv = screen_pos.as_vec2() / camera.screen_size().as_vec2();
 
-    let direct_surface_needs_shading = if params.is_diffuse() {
-        direct_hit.gbuffer.needs_diffuse()
-    } else {
-        direct_hit.gbuffer.needs_specular()
-    };
+    let direct_hit_depth = bevy_gbuffer_depth
+        .sample_by_lod(*bevy_gbuffer_sampler, screen_uv, 0.0)
+        .x;
 
-    if direct_hit.is_none() || !direct_surface_needs_shading {
+    let direct_hit_point = camera.ray(screen_pos).at(direct_hit_depth);
+
+    let direct_hit_normal = bevy_gbuffer_normals
+        .sample_by_lod(*bevy_gbuffer_sampler, screen_uv, 0.0)
+        .xyz();
+
+    if direct_hit_depth <= 0.0 {
         unsafe {
             indirect_rays.write(screen_pos, Vec4::ZERO);
         }
@@ -72,21 +70,10 @@ pub fn main(
 
     // ---
 
-    let indirect_ray_direction = if params.is_diffuse() {
-        bnoise.sample_hemisphere(direct_hit.gbuffer.normal)
-    } else {
-        let sample = SpecularBrdf::new(&direct_hit.gbuffer)
-            .sample(&mut wnoise, direct_hit);
-
-        if sample.is_invalid() {
-            wnoise.sample_hemisphere(direct_hit.gbuffer.normal)
-        } else {
-            sample.direction
-        }
-    };
+    let indirect_ray_direction = bnoise.sample_hemisphere(direct_hit_normal);
 
     let ray = Ray::new(
-        direct_hit.point + direct_hit.gbuffer.normal * 0.001,
+        direct_hit_point + direct_hit_normal * 0.001,
         indirect_ray_direction,
     );
 
@@ -103,8 +90,6 @@ pub fn main(
     // ---
 
     let indirect_gbuffer = if indirect_hit.is_some() {
-        // TODO reloading material here shouldn't be necessary because we
-        //      already load materials during ray-traversal
         let mut indirect_material = materials.get(indirect_hit.material_id);
 
         indirect_material.adjust_for_indirect();
@@ -124,7 +109,7 @@ pub fn main(
             ),
             roughness: indirect_material.roughness,
             reflectance: indirect_material.reflectance,
-            depth: direct_hit.point.distance(indirect_hit.point),
+            depth: direct_hit_point.distance(indirect_hit.point),
         }
     } else {
         Default::default()
@@ -133,10 +118,8 @@ pub fn main(
     let [d0, d1] = indirect_gbuffer.pack();
 
     unsafe {
-        indirect_rays.write(
-            screen_pos,
-            indirect_ray_direction.extend(Default::default()),
-        );
+        indirect_rays
+            .write(screen_pos, indirect_ray_direction.extend(direct_hit_depth));
 
         indirect_gbuffer_d0.write(screen_pos, d0);
         indirect_gbuffer_d1.write(screen_pos, d1);

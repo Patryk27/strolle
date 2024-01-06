@@ -5,7 +5,7 @@ use spirv_std::num_traits::Float;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug, encase::ShaderType))]
 pub struct World {
     pub light_count: u32,
     pub sun_azimuth: f32,

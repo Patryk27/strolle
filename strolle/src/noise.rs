@@ -1,82 +1,85 @@
+use std::mem;
+
 use bevy::ecs::system::Resource;
 use bevy::ecs::world::FromWorld;
 use bevy::prelude::World;
+use bevy::render::render_resource::{BufferVec, IntoBinding};
+use bevy::render::renderer::{RenderDevice, RenderQueue};
+use wgpu::BufferUsages;
 
-#[derive(Debug, Resource)]
+#[derive(Resource)]
 pub struct Noise {
-    // blue_noise: Texture,
-    // blue_noise_sobol: StorageBuffer<Vec<i32>>,
-    // blue_noise_scrambling_tile: StorageBuffer<Vec<i32>>,
-    // blue_noise_ranking_tile: StorageBuffer<Vec<i32>>,
-    // flushed: bool,
+    blue_noise_sobol: BufferVec<i32>,
+    blue_noise_scrambling_tile: BufferVec<i32>,
+    blue_noise_ranking_tile: BufferVec<i32>,
+    dirty: bool,
 }
 
 impl Noise {
-    // pub fn bind_blue_noise(&self) -> impl Bindable + '_ {
-    //     self.blue_noise.bind_readable()
-    // }
+    pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
+        if !mem::take(&mut self.dirty) {
+            return;
+        }
 
-    // pub fn bind_blue_noise_sobol(&self) -> impl Bindable + '_ {
-    //     self.blue_noise_sobol.bind_readable()
-    // }
+        self.blue_noise_sobol.write_buffer(device, queue);
+        self.blue_noise_scrambling_tile.write_buffer(device, queue);
+        self.blue_noise_ranking_tile.write_buffer(device, queue);
+    }
 
-    // pub fn bind_blue_noise_scrambling_tile(&self) -> impl Bindable + '_ {
-    //     self.blue_noise_scrambling_tile.bind_readable()
-    // }
+    pub fn bind_blue_noise_sobol(&self) -> impl IntoBinding {
+        self.blue_noise_sobol
+            .buffer()
+            .expect("buffer not ready: blue_noise_sobol")
+            .as_entire_buffer_binding()
+    }
 
-    // pub fn bind_blue_noise_ranking_tile(&self) -> impl Bindable + '_ {
-    //     self.blue_noise_ranking_tile.bind_readable()
-    // }
+    pub fn bind_blue_noise_scrambling_tile(&self) -> impl IntoBinding {
+        self.blue_noise_scrambling_tile
+            .buffer()
+            .expect("buffer not ready: blue_noise_scrambling_tile")
+            .as_entire_buffer_binding()
+    }
 
-    // pub fn flush(&mut self, device: &Device, queue: &Queue) {
-    //     if self.flushed {
-    //         return;
-    //     }
-
-    //     let bytes = include_bytes!("noise/blue-noise.png");
-
-    //     let img = ImageReader::new(Cursor::new(bytes))
-    //         .with_guessed_format()
-    //         .unwrap()
-    //         .decode()
-    //         .unwrap();
-
-    //     let img = img.as_rgba8().unwrap().as_raw();
-
-    //     queue.write_texture(
-    //         ImageCopyTexture {
-    //             texture: self.blue_noise.tex(),
-    //             mip_level: 0,
-    //             origin: Origin3d { x: 0, y: 0, z: 0 },
-    //             aspect: TextureAspect::All,
-    //         },
-    //         img,
-    //         ImageDataLayout {
-    //             offset: 0,
-    //             bytes_per_row: Some(256 * 4),
-    //             rows_per_image: None,
-    //         },
-    //         Extent3d {
-    //             width: 256,
-    //             height: 256,
-    //             depth_or_array_layers: 1,
-    //         },
-    //     );
-
-    //     // ---
-
-    //     _ = self.blue_noise_sobol.flush(device, queue);
-    //     _ = self.blue_noise_scrambling_tile.flush(device, queue);
-    //     _ = self.blue_noise_ranking_tile.flush(device, queue);
-
-    //     // ---
-
-    //     self.flushed = true;
-    // }
+    pub fn bind_blue_noise_ranking_tile(&self) -> impl IntoBinding {
+        self.blue_noise_ranking_tile
+            .buffer()
+            .expect("buffer not ready: blue_noise_ranking_tile")
+            .as_entire_buffer_binding()
+    }
 }
 
 impl FromWorld for Noise {
     fn from_world(_: &mut World) -> Self {
-        todo!()
+        use blue_noise_sampler::spp2 as bn;
+
+        let mut this = Self {
+            blue_noise_sobol: BufferVec::new(BufferUsages::STORAGE),
+            blue_noise_scrambling_tile: BufferVec::new(BufferUsages::STORAGE),
+            blue_noise_ranking_tile: BufferVec::new(BufferUsages::STORAGE),
+            dirty: true,
+        };
+
+        this.blue_noise_sobol
+            .set_label(Some("strolle_blue_noise_sobol"));
+
+        this.blue_noise_sobol.extend(bn::SOBOL.iter().copied());
+
+        // ---
+
+        this.blue_noise_scrambling_tile
+            .set_label(Some("strolle_blue_noise_scrambling_tile"));
+
+        this.blue_noise_scrambling_tile
+            .extend(bn::SCRAMBLING_TILE.iter().copied());
+
+        // ---
+
+        this.blue_noise_ranking_tile
+            .set_label(Some("strolle_blue_noise_ranking_tile"));
+
+        this.blue_noise_ranking_tile
+            .extend(bn::RANKING_TILE.iter().copied());
+
+        this
     }
 }

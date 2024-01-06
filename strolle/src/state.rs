@@ -1,10 +1,58 @@
+use bevy::ecs::component::Component;
+use bevy::ecs::entity::Entity;
+use bevy::ecs::system::Resource;
 use bevy::math::Affine3A;
-use bevy::prelude::*;
+use bevy::pbr::StandardMaterial;
+use bevy::render::mesh::Mesh;
+use bevy::render::render_resource::{Buffer, UniformBuffer};
+use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::texture::CachedTexture;
+use bevy::utils::HashMap;
 
 use crate::{
-    ImageHandle, InstanceHandle, Light, LightHandle, MaterialHandle,
+    gpu, ImageHandle, InstanceHandle, Light, LightHandle, MaterialHandle,
     MeshHandle, Sun,
 };
+
+#[derive(Default, Resource)]
+pub struct State {
+    pub world: UniformBuffer<gpu::World>,
+    pub cameras: HashMap<Entity, CameraBuffers>,
+}
+
+impl State {
+    pub fn camera(&self, handle: Entity) -> &CameraBuffers {
+        self.cameras
+            .get(&handle)
+            .unwrap_or_else(|| panic!("camera not known: {handle:?}"))
+    }
+
+    pub fn flush(&mut self, device: &RenderDevice, queue: &RenderQueue) {
+        self.world.write_buffer(device, queue);
+
+        for camera in self.cameras.values_mut() {
+            camera.camera.write_buffer(device, queue);
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct CameraTextures {
+    pub indirect_rays: CachedTexture,
+    pub indirect_gbuffer_d0: CachedTexture,
+    pub indirect_gbuffer_d1: CachedTexture,
+    pub indirect_samples: CachedTexture,
+    pub indirect_diffuse: CachedTexture,
+}
+
+#[derive(Default)]
+pub struct CameraBuffers {
+    pub camera: UniformBuffer<gpu::Camera>,
+    pub indirect_samples: Option<Buffer>,
+}
+
+#[derive(Component, Debug)]
+pub struct ExtractedStrolleCamera;
 
 #[derive(Debug, Resource)]
 pub(crate) struct ExtractedMeshes {

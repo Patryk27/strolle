@@ -2,7 +2,7 @@ use super::prelude::*;
 
 #[derive(Resource)]
 pub struct FrameCompositionPipeline {
-    layout: BindGroupLayout,
+    bg0: BindGroupLayout,
     sampler: Sampler,
     id: CachedRenderPipelineId,
 }
@@ -11,32 +11,29 @@ impl FromWorld for FrameCompositionPipeline {
     fn from_world(world: &mut World) -> Self {
         let device = world.resource::<RenderDevice>();
 
-        let layout =
-            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("strolle_frame_composition"),
-                entries: &[
-                    BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Sampler(
-                            SamplerBindingType::NonFiltering,
-                        ),
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Texture {
-                            sample_type: TextureSampleType::Float {
-                                filterable: false,
-                            },
-                            view_dimension: TextureViewDimension::D2,
-                            multisampled: false,
+        let bg0 = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("strolle_frame_composition"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float {
+                            filterable: false,
                         },
-                        count: None,
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
                     },
-                ],
-            });
+                    count: None,
+                },
+            ],
+        });
 
         let sampler = device.create_sampler(&SamplerDescriptor::default());
 
@@ -53,7 +50,7 @@ impl FromWorld for FrameCompositionPipeline {
         let id = world.resource_mut::<PipelineCache>().queue_render_pipeline(
             RenderPipelineDescriptor {
                 label: Some("strolle_frame_composition_pipeline".into()),
-                layout: vec![layout.clone()],
+                layout: vec![bg0.clone()],
                 push_constant_ranges: Vec::default(),
                 vertex: fullscreen_shader_vertex_state(),
                 primitive: PrimitiveState::default(),
@@ -72,11 +69,7 @@ impl FromWorld for FrameCompositionPipeline {
             },
         );
 
-        Self {
-            layout,
-            sampler,
-            id,
-        }
+        Self { bg0, sampler, id }
     }
 }
 
@@ -105,12 +98,12 @@ impl ViewNode for FrameCompositionNode {
             return Ok(());
         };
 
-        let bind_group = ctxt.render_device().create_bind_group(
-            "strolle_frame_composition_bind_group",
-            &pipeline.layout,
+        let bg0 = ctxt.render_device().create_bind_group(
+            "strolle_frame_composition_bg0",
+            &pipeline.bg0,
             &BindGroupEntries::sequential((
                 &pipeline.sampler,
-                &camera_tex.indirect_diffuse.default_view,
+                &camera_tex.indirect_samples.default_view,
             )),
         );
 
@@ -125,7 +118,7 @@ impl ViewNode for FrameCompositionNode {
         });
 
         pass.set_render_pipeline(pass_pipeline);
-        pass.set_bind_group(0, &bind_group, &[]);
+        pass.set_bind_group(0, &bg0, &[]);
 
         if let Some(viewport) = camera.viewport.as_ref() {
             pass.set_camera_viewport(viewport);

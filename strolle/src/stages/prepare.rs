@@ -9,21 +9,19 @@ use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::texture::{Image as BevyImage, TextureCache};
 use bevy::render::view::{ExtractedView, ViewTarget};
-use bevy::utils::hashbrown::hash_map;
 use glam::Vec4Swizzles;
 use wgpu::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 
 use crate::bvh::Bvh;
-use crate::camera::{
-    CameraBuffers, CameraTextures, CamerasBuffers, ExtractedStrolleCamera,
-};
 use crate::images::Images;
 use crate::instances::Instances;
 use crate::lights::Lights;
 use crate::materials::Materials;
 use crate::meshes::Meshes;
+use crate::noise::Noise;
+use crate::state::{CameraTextures, ExtractedStrolleCamera, State};
 use crate::triangles::Triangles;
 use crate::{
     gpu, utils, ExtractedImageData, ExtractedImages, ExtractedInstances,
@@ -256,7 +254,8 @@ pub(crate) fn refresh(
 }
 
 pub(crate) fn buffers(
-    mut buffers: ResMut<CamerasBuffers>,
+    mut state: ResMut<State>,
+    device: Res<RenderDevice>,
     cameras: Query<(Entity, &ExtractedView), With<ExtractedStrolleCamera>>,
 ) {
     let mut alive_cameras = Vec::new();
@@ -264,17 +263,12 @@ pub(crate) fn buffers(
     for (cam_entity, cam_view) in cameras.iter() {
         alive_cameras.push(cam_entity);
 
-        let cam_buffer = match buffers.cameras.entry(cam_entity) {
-            hash_map::Entry::Occupied(entry) => entry.into_mut(),
-            hash_map::Entry::Vacant(entry) => entry.insert(CameraBuffers {
-                camera: Default::default(),
-            }),
-        };
-
         let proj = cam_view.projection;
         let xform = cam_view.transform.compute_matrix();
 
-        cam_buffer.camera.set(gpu::Camera {
+        let cam_buffers = state.cameras.entry(cam_entity).or_default();
+
+        cam_buffers.camera.set(gpu::Camera {
             projection_view: proj * xform.inverse(),
             ndc_to_world: xform * proj.inverse(),
             origin: cam_view
@@ -289,9 +283,19 @@ pub(crate) fn buffers(
                 .extend(Default::default())
                 .extend(Default::default()),
         });
+
+        if cam_buffers.indirect_samples.is_none() {
+            cam_buffers.indirect_samples =
+                Some(device.create_buffer(&wgpu::BufferDescriptor {
+                    label: None,
+                    usage: wgpu::BufferUsages::STORAGE,
+                    size: 64 * 1024 * 1024,
+                    mapped_at_creation: false,
+                }));
+        }
     }
 
-    buffers
+    state
         .cameras
         .retain(|entity, _| alive_cameras.contains(&entity));
 }
@@ -324,8 +328,28 @@ pub(crate) fn textures(
         };
 
         commands.entity(cam_entity).insert(CameraTextures {
+            indirect_rays: tex(
+                "strolle_indirect_rays",
+                TextureFormat::Rgba32Float,
+                TextureUsages::STORAGE_BINDING,
+            ),
+            indirect_gbuffer_d0: tex(
+                "strolle_indirect_gbuffer_d0",
+                TextureFormat::Rgba32Float,
+                TextureUsages::STORAGE_BINDING,
+            ),
+            indirect_gbuffer_d1: tex(
+                "strolle_indirect_gbuffer_d1",
+                TextureFormat::Rgba32Float,
+                TextureUsages::STORAGE_BINDING,
+            ),
+            indirect_samples: tex(
+                "strolle_indirect_samples",
+                TextureFormat::Rgba32Float,
+                TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            ),
             indirect_diffuse: tex(
-                "strolle_output",
+                "strolle_indirect_diffuse",
                 ViewTarget::TEXTURE_FORMAT_HDR,
                 TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
             ),
@@ -336,22 +360,21 @@ pub(crate) fn textures(
 pub(crate) fn flush(
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
+    mut state: ResMut<State>,
+    mut noise: ResMut<Noise>,
     mut bvh: ResMut<Bvh>,
     mut images: ResMut<Images>,
     mut lights: ResMut<Lights>,
     mut materials: ResMut<Materials>,
     mut triangles: ResMut<Triangles>,
-    mut cameras: ResMut<CamerasBuffers>,
 ) {
     utils::measure("flush", || {
+        state.flush(&device, &queue);
+        noise.flush(&device, &queue);
         bvh.flush(&device, &queue);
         images.flush(&device, &queue);
         lights.flush(&device, &queue);
         materials.flush(&device, &queue);
         triangles.flush(&device, &queue);
-
-        for camera in cameras.cameras.values_mut() {
-            camera.camera.write_buffer(&device, &queue);
-        }
     });
 }

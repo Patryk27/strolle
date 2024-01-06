@@ -7,7 +7,7 @@ use bevy::render::view::RenderLayers;
 use bevy::render::Extract;
 use bevy::utils::HashSet;
 
-use crate::camera::ExtractedStrolleCamera;
+use crate::state::ExtractedStrolleCamera;
 use crate::utils::color_to_vec3;
 use crate::{
     Event, ExtractedImage, ExtractedImageData, ExtractedImages,
@@ -347,11 +347,11 @@ pub(crate) fn cameras(
     cameras: Extract<Query<(Entity, &Camera, &CameraRenderGraph)>>,
 ) {
     for (entity, camera, camera_render_graph) in cameras.iter() {
-        if !camera.is_active
-            || **camera_render_graph != crate::graph::BVH_HEATMAP
-        {
-            continue;
-        }
+        // if !camera.is_active
+        //     || **camera_render_graph != crate::graph::BVH_HEATMAP
+        // {
+        //     continue;
+        // }
 
         assert!(camera.hdr, "Strolle requires an HDR camera");
 
