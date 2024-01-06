@@ -63,13 +63,13 @@ pub fn main_fs(
             }
         }
 
-        // CameraMode::DirectLightning
+        // CameraMode::DirectLighting
         1 => direct_colors.read(screen_pos).xyz(),
 
-        // CameraMode::IndirectDiffuseLightning
+        // CameraMode::IndirectDiffuseLighting
         2 => ycocg_to_rgb(indirect_diffuse_colors.read(screen_pos).xyz()),
 
-        // CameraMode::IndirectSpecularLightning
+        // CameraMode::IndirectSpecularLighting
         3 => indirect_specular_colors.read(screen_pos).xyz(),
 
         // CameraMode::BvhHeatmap

@@ -7,7 +7,7 @@ global illumination:
   <img height="512" src="_readme/demo-v11.jpg" />
 </p>
 
-Our goal is to experiment with modern real-time lightning techniques such as
+Our goal is to experiment with modern real-time lighting techniques such as
 ReSTIR and see how far we can go on consumer hardware (especially the one
 without dedicated ray-tracing cores).
 
@@ -52,9 +52,9 @@ Use WASD to move and mouse to navigate the camera - extra controls include:
 - J/K: Adjust sun's altitude,
 - T: Remove textures,
 - 1: Switch camera back to the default mode,
-- 2: Show direct lightning only,
-- 3: Show indirect diffuse lightning only,
-- 4: Show indirect specular lightning only,
+- 2: Show direct lighting only,
+- 3: Show indirect diffuse lighting only,
+- 4: Show indirect specular lighting only,
 - 9: Switch camera to a path-traced reference mode (slow),
 - 0: Switch camera to Bevy's renderer,
 - ;: Toggle camera's controls on/off - useful for taking screenshots.
@@ -115,7 +115,7 @@ the future, though.
 
 ## Roadmap
 
-- better denoising for direct lightning
+- better denoising for direct lighting
 - support for normal mapping
 - support for ReSTIR GI validation
 - support for importance sampling emissive materials

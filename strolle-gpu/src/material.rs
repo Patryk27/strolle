@@ -20,7 +20,7 @@ pub struct Material {
 }
 
 impl Material {
-    /// Adjusts material so that it's ready for computing indirect lightning.
+    /// Adjusts material so that it's ready for computing indirect lighting.
     pub fn adjust_for_indirect(&mut self) {
         // When an indirect ray hits a specular highlight, it causes lots of
         // random pixels to turn white - that's almost impossible to denoise.

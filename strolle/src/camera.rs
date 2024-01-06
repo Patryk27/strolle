@@ -89,14 +89,14 @@ pub enum CameraMode {
     /// Default mode - shows the final image
     Image,
 
-    /// Shows direct lightning
-    DirectLightning,
+    /// Shows direct lighting
+    DirectLighting,
 
-    /// Shows indirect diffuse lightning
-    IndirectDiffuseLightning,
+    /// Shows indirect diffuse lighting
+    IndirectDiffuseLighting,
 
-    /// Shows indirect diffuse lightning
-    IndirectSpecularLightning,
+    /// Shows indirect diffuse lighting
+    IndirectSpecularLighting,
 
     /// Shows BVH tree's heatmap
     BvhHeatmap,
@@ -109,24 +109,24 @@ impl CameraMode {
     pub(crate) fn serialize(&self) -> u32 {
         match self {
             CameraMode::Image => 0,
-            CameraMode::DirectLightning => 1,
-            CameraMode::IndirectDiffuseLightning => 2,
-            CameraMode::IndirectSpecularLightning => 3,
+            CameraMode::DirectLighting => 1,
+            CameraMode::IndirectDiffuseLighting => 2,
+            CameraMode::IndirectSpecularLighting => 3,
             CameraMode::BvhHeatmap => 4,
             CameraMode::Reference { .. } => 5,
         }
     }
 
-    pub(crate) fn needs_direct_lightning(&self) -> bool {
-        matches!(self, Self::Image | Self::DirectLightning)
+    pub(crate) fn needs_direct_lighting(&self) -> bool {
+        matches!(self, Self::Image | Self::DirectLighting)
     }
 
-    pub(crate) fn needs_indirect_diffuse_lightning(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectDiffuseLightning)
+    pub(crate) fn needs_indirect_diffuse_lighting(&self) -> bool {
+        matches!(self, Self::Image | Self::IndirectDiffuseLighting)
     }
 
-    pub(crate) fn needs_indirect_specular_lightning(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectSpecularLightning)
+    pub(crate) fn needs_indirect_specular_lighting(&self) -> bool {
+        matches!(self, Self::Image | Self::IndirectSpecularLighting)
     }
 }
 

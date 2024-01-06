@@ -41,7 +41,7 @@
 //! ## Light
 //!
 //! Light defines how the scene should get lightnened - i.e. whether it's a
-//! point-lightning, a cone-lightning etc.
+//! point-lighting, a cone-lighting etc.
 
 #![feature(hash_raw_entry)]
 #![feature(lint_reasons)]

@@ -284,17 +284,17 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::Key2) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::DirectLightning;
+        camera.mode = st::CameraMode::DirectLighting;
     }
 
     if keys.just_pressed(KeyCode::Key3) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectDiffuseLightning;
+        camera.mode = st::CameraMode::IndirectDiffuseLighting;
     }
 
     if keys.just_pressed(KeyCode::Key4) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectSpecularLightning;
+        camera.mode = st::CameraMode::IndirectSpecularLighting;
     }
 
     if keys.just_pressed(KeyCode::Key5) {

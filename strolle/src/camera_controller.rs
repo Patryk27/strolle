@@ -119,7 +119,7 @@ impl CameraController {
                 if has_any_objects {
                     self.passes.frame_reprojection.run(self, encoder);
 
-                    if self.camera.mode.needs_direct_lightning() {
+                    if self.camera.mode.needs_direct_lighting() {
                         self.passes.direct_shading.run(self, encoder);
 
                         self.passes
@@ -134,7 +134,7 @@ impl CameraController {
                         self.passes.direct_denoising.run(self, encoder);
                     }
 
-                    if self.camera.mode.needs_indirect_diffuse_lightning() {
+                    if self.camera.mode.needs_indirect_diffuse_lighting() {
                         self.passes.indirect_tracing.run(
                             self,
                             encoder,
@@ -164,7 +164,7 @@ impl CameraController {
                             .run(self, encoder);
                     }
 
-                    if self.camera.mode.needs_indirect_specular_lightning() {
+                    if self.camera.mode.needs_indirect_specular_lighting() {
                         self.passes.indirect_tracing.run(
                             self,
                             encoder,
