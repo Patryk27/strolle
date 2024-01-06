@@ -103,8 +103,6 @@ pub fn main(
     // ---
 
     let indirect_gbuffer = if indirect_hit.is_some() {
-        // TODO reloading material here shouldn't be necessary because we
-        //      already load materials during ray-traversal
         let mut indirect_material = materials.get(indirect_hit.material_id);
 
         indirect_material.adjust_for_indirect();

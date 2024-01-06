@@ -14,8 +14,8 @@ use crate::state::{
     ExtractedMaterial, ExtractedMaterials, ExtractedMesh, ExtractedMeshes,
     ExtractedSun,
 };
-use crate::utils::{color_to_vec3, GlamCompat};
-use crate::{MaterialLike, StrolleCamera, StrolleEvent, StrolleSun};
+use crate::utils::color_to_vec3;
+use crate::{StrolleCamera, StrolleEvent, StrolleSun};
 
 pub(crate) fn meshes(
     mut commands: Commands,
@@ -42,7 +42,7 @@ pub(crate) fn meshes(
     let changed = changed.into_iter().flat_map(|id| {
         if let Some(mesh) = meshes.get(id) {
             Some(ExtractedMesh {
-                id,
+                handle: id,
                 mesh: mesh.to_owned(),
             })
         } else {
@@ -57,13 +57,11 @@ pub(crate) fn meshes(
     });
 }
 
-pub(crate) fn materials<Material>(
+pub(crate) fn materials(
     mut commands: Commands,
-    mut events: Extract<EventReader<AssetEvent<Material>>>,
-    materials: Extract<Res<Assets<Material>>>,
-) where
-    Material: MaterialLike,
-{
+    mut events: Extract<EventReader<AssetEvent<StandardMaterial>>>,
+    materials: Extract<Res<Assets<StandardMaterial>>>,
+) {
     let mut changed = HashSet::default();
     let mut removed = Vec::new();
 
@@ -84,7 +82,7 @@ pub(crate) fn materials<Material>(
     let changed = changed.into_iter().flat_map(|id| {
         if let Some(material) = materials.get(id) {
             Some(ExtractedMaterial {
-                id,
+                handle: id,
                 material: material.to_owned(),
             })
         } else {
@@ -176,7 +174,7 @@ pub(crate) fn images(
         };
 
         Some(ExtractedImage {
-            id,
+            handle: id,
             texture_descriptor,
             sampler_descriptor,
             data,
@@ -190,21 +188,21 @@ pub(crate) fn images(
 }
 
 #[allow(clippy::type_complexity)]
-pub(crate) fn instances<Material>(
+pub(crate) fn instances(
     mut commands: Commands,
     changed: Extract<
         Query<
             (
                 Entity,
                 &Handle<Mesh>,
-                &Handle<Material>,
+                &Handle<StandardMaterial>,
                 &GlobalTransform,
                 &InheritedVisibility,
                 Option<&RenderLayers>,
             ),
             Or<(
                 Changed<Handle<Mesh>>,
-                Changed<Handle<Material>>,
+                Changed<Handle<StandardMaterial>>,
                 Changed<GlobalTransform>,
                 Changed<InheritedVisibility>,
                 Changed<RenderLayers>,
@@ -212,9 +210,7 @@ pub(crate) fn instances<Material>(
         >,
     >,
     mut removed: Extract<RemovedComponents<Handle<Mesh>>>,
-) where
-    Material: MaterialLike,
-{
+) {
     let mut removed: Vec<_> = removed.read().collect();
 
     let changed = changed
@@ -248,9 +244,9 @@ pub(crate) fn instances<Material>(
                 }
 
                 Some(ExtractedInstance {
-                    id: handle,
-                    mesh_id: mesh_handle.id(),
-                    material_id: material_handle.id(),
+                    handle,
+                    mesh_handle: mesh_handle.id(),
+                    material_handle: material_handle.id(),
                     xform: transform.affine(),
                 })
             },
@@ -294,13 +290,13 @@ pub(crate) fn lights(
             }
 
             let light = st::Light::Point {
-                position: xform.translation().compat(),
+                position: xform.translation(),
                 radius: light.radius,
-                color: (color_to_vec3(light.color) * intensity).compat(),
+                color: color_to_vec3(light.color) * intensity,
                 range: light.range,
             };
 
-            Some(ExtractedLight { id: handle, light })
+            Some(ExtractedLight { handle, light })
         })
         .collect();
 
@@ -318,15 +314,15 @@ pub(crate) fn lights(
                 xform.to_scale_rotation_translation();
 
             let light = st::Light::Spot {
-                position: translation.compat(),
+                position: translation,
                 radius: light.radius,
-                color: (color_to_vec3(light.color) * intensity).compat(),
+                color: color_to_vec3(light.color) * intensity,
                 range: light.range,
-                direction: -(rotation * Vec3::Z).normalize().compat(),
+                direction: -(rotation * Vec3::Z).normalize(),
                 angle: light.outer_angle,
             };
 
-            Some(ExtractedLight { id: handle, light })
+            Some(ExtractedLight { handle, light })
         })
         .collect();
 

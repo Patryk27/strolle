@@ -1,6 +1,6 @@
 mod camera;
 mod event;
-mod material;
+pub mod graph;
 mod rendering_node;
 mod stages;
 mod state;
@@ -11,32 +11,18 @@ pub mod prelude {
     pub use crate::*;
 }
 
-pub mod graph {
-    pub const NAME: &str = "strolle";
-
-    pub mod node {
-        pub const RENDERING: &str = "strolle_rendering";
-        pub const TONEMAPPING: &str = "strolle_tonemapping";
-        pub const UPSCALING: &str = "strolle_upscaling";
-    }
-}
-
 use std::ops;
 
-use bevy::core_pipeline::tonemapping::TonemappingNode;
-use bevy::core_pipeline::upscaling::UpscalingNode;
 use bevy::prelude::*;
-use bevy::render::render_graph::{RenderGraphApp, ViewNodeRunner};
 use bevy::render::render_resource::Texture;
 use bevy::render::renderer::RenderDevice;
-use bevy::render::{Render, RenderApp, RenderSet};
+use bevy::render::RenderApp;
 pub use strolle as st;
 
 pub use self::camera::*;
 pub use self::event::*;
-pub use self::material::*;
-use self::rendering_node::*;
-use self::state::*;
+pub(crate) use self::rendering_node::*;
+pub(crate) use self::state::*;
 pub use self::sun::*;
 
 pub struct StrollePlugin;
@@ -44,159 +30,21 @@ pub struct StrollePlugin;
 impl Plugin for StrollePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<StrolleEvent>();
-        app.init_asset::<StrolleMaterial>();
         app.insert_resource(StrolleSun::default());
 
-        let render_app = app.sub_app_mut(RenderApp);
+        if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
+            render_app.insert_resource(SyncedState::default());
 
-        render_app.insert_resource(SyncedState::default());
-
-        // -------------------------- //
-        // RenderSet::ExtractCommands //
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::meshes.in_set(RenderSet::ExtractCommands),
-        );
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::materials::<StandardMaterial>
-                .in_set(RenderSet::ExtractCommands),
-        );
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::materials::<StrolleMaterial>
-                .in_set(RenderSet::ExtractCommands),
-        );
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::instances::<StandardMaterial>
-                .in_set(RenderSet::ExtractCommands),
-        );
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::instances::<StrolleMaterial>
-                .in_set(RenderSet::ExtractCommands),
-        );
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::images.in_set(RenderSet::ExtractCommands),
-        );
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::lights.in_set(RenderSet::ExtractCommands),
-        );
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::cameras.in_set(RenderSet::ExtractCommands),
-        );
-
-        render_app.add_systems(
-            ExtractSchedule,
-            stages::extract::sun.in_set(RenderSet::ExtractCommands),
-        );
-
-        // ------------------ //
-        // RenderSet::Prepare //
-
-        render_app.add_systems(
-            Render,
-            stages::prepare::meshes.in_set(RenderSet::Prepare),
-        );
-
-        render_app.add_systems(
-            Render,
-            stages::prepare::materials::<StandardMaterial>
-                .in_set(RenderSet::Prepare),
-        );
-
-        render_app.add_systems(
-            Render,
-            stages::prepare::materials::<StrolleMaterial>
-                .in_set(RenderSet::Prepare),
-        );
-
-        render_app.add_systems(
-            Render,
-            stages::prepare::instances::<StandardMaterial>
-                .in_set(RenderSet::Prepare)
-                .after(stages::prepare::meshes)
-                .after(stages::prepare::materials::<StandardMaterial>),
-        );
-
-        render_app.add_systems(
-            Render,
-            stages::prepare::instances::<StrolleMaterial>
-                .in_set(RenderSet::Prepare)
-                .after(stages::prepare::meshes)
-                .after(stages::prepare::materials::<StrolleMaterial>),
-        );
-
-        render_app.add_systems(
-            Render,
-            stages::prepare::images.in_set(RenderSet::Prepare),
-        );
-
-        render_app.add_systems(
-            Render,
-            stages::prepare::lights.in_set(RenderSet::Prepare),
-        );
-
-        render_app.add_systems(
-            Render,
-            stages::prepare::sun.in_set(RenderSet::Prepare),
-        );
-
-        // ---------------- //
-        // RenderSet::Queue //
-
-        render_app.add_systems(
-            Render,
-            stages::queue::cameras.in_set(RenderSet::Queue),
-        );
-
-        render_app.add_systems(
-            Render,
-            stages::queue::write
-                .in_set(RenderSet::Queue)
-                .after(stages::queue::cameras),
-        );
-
-        // -----
-
-        render_app
-            .add_render_sub_graph(graph::NAME)
-            .add_render_graph_node::<ViewNodeRunner<RenderingNode>>(
-                graph::NAME,
-                graph::node::RENDERING,
-            )
-            .add_render_graph_node::<ViewNodeRunner<TonemappingNode>>(
-                graph::NAME,
-                graph::node::TONEMAPPING,
-            )
-            .add_render_graph_node::<ViewNodeRunner<UpscalingNode>>(
-                graph::NAME,
-                graph::node::UPSCALING,
-            )
-            .add_render_graph_edges(
-                graph::NAME,
-                &[
-                    graph::node::RENDERING,
-                    graph::node::TONEMAPPING,
-                    graph::node::UPSCALING,
-                ],
-            );
+            stages::setup(render_app);
+            graph::setup(render_app);
+        }
     }
 
     fn finish(&self, app: &mut App) {
-        let render_app = app.sub_app_mut(RenderApp);
+        let Ok(render_app) = app.get_sub_app_mut(RenderApp) else {
+            return;
+        };
+
         let render_device = render_app.world.resource::<RenderDevice>();
         let engine = st::Engine::new(render_device.wgpu_device());
 
@@ -215,7 +63,7 @@ impl st::Params for EngineParams {
     type ImageTexture = Texture;
     type InstanceHandle = Entity;
     type LightHandle = Entity;
-    type MaterialHandle = MaterialId;
+    type MaterialHandle = AssetId<StandardMaterial>;
     type MeshHandle = AssetId<Mesh>;
 }
 

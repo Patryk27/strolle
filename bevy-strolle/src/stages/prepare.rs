@@ -1,32 +1,37 @@
 use std::mem;
 
 use bevy::prelude::*;
+use bevy::render::camera::ExtractedCamera as BevyExtractedCamera;
 use bevy::render::mesh::VertexAttributeValues;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::PrimitiveTopology;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::view::ViewTarget;
+use bevy::utils::hashbrown::hash_map::Entry;
+use bevy::utils::HashSet;
 use strolle as st;
 
 use crate::state::{
-    ExtractedImageData, ExtractedImages, ExtractedInstances, ExtractedLights,
-    ExtractedMaterials, ExtractedMeshes, ExtractedSun,
+    ExtractedCamera, ExtractedImageData, ExtractedImages, ExtractedInstances,
+    ExtractedLights, ExtractedMaterials, ExtractedMeshes, ExtractedSun,
+    SyncedCamera, SyncedState,
 };
-use crate::utils::GlamCompat;
-use crate::{EngineResource, MaterialLike};
+use crate::utils::color_to_vec4;
+use crate::EngineResource;
 
 pub(crate) fn meshes(
     mut engine: ResMut<EngineResource>,
     mut meshes: ResMut<ExtractedMeshes>,
 ) {
-    for mesh_id in meshes
+    for handle in meshes
         .removed
         .iter()
-        .chain(meshes.changed.iter().map(|mesh| &mesh.id))
+        .chain(meshes.changed.iter().map(|mesh| &mesh.handle))
     {
-        engine.remove_mesh(mesh_id);
+        engine.remove_mesh(handle);
     }
 
     for mesh in mem::take(&mut meshes.changed) {
-        // HACK
         if mesh.mesh.primitive_topology() != PrimitiveTopology::TriangleList {
             continue;
         }
@@ -36,7 +41,7 @@ pub(crate) fn meshes(
             .attribute(Mesh::ATTRIBUTE_POSITION)
             .and_then(VertexAttributeValues::as_float3)
             .unwrap_or_else(|| {
-                panic!("mesh {:?} has no positions", mesh.id);
+                panic!("mesh {:?} has no positions", mesh.handle);
             });
 
         let mesh_normals = mesh
@@ -44,7 +49,7 @@ pub(crate) fn meshes(
             .attribute(Mesh::ATTRIBUTE_NORMAL)
             .and_then(VertexAttributeValues::as_float3)
             .unwrap_or_else(|| {
-                panic!("mesh {:?} has no normals", mesh.id);
+                panic!("mesh {:?} has no normals", mesh.handle);
             });
 
         let mesh_uvs = mesh
@@ -53,7 +58,10 @@ pub(crate) fn meshes(
             .map(|uvs| match uvs {
                 VertexAttributeValues::Float32x2(uvs) => uvs,
                 _ => {
-                    panic!("mesh {:?} has unsupported format for UVs", mesh.id)
+                    panic!(
+                        "mesh {:?} uses unsupported format for UVs",
+                        mesh.handle
+                    )
                 }
             })
             .map(|uvs| uvs.as_slice())
@@ -65,8 +73,8 @@ pub(crate) fn meshes(
             .map(|uvs| match uvs {
                 VertexAttributeValues::Float32x4(tangents) => tangents,
                 _ => panic!(
-                    "mesh {:?} has unsupported format for tangents",
-                    mesh.id
+                    "mesh {:?} uses unsupported format for tangents",
+                    mesh.handle
                 ),
             })
             .map(|tangents| tangents.as_slice())
@@ -76,7 +84,7 @@ pub(crate) fn meshes(
             .mesh
             .indices()
             .unwrap_or_else(|| {
-                panic!("mesh {:?} has no indices", mesh.id);
+                panic!("mesh {:?} has no indices", mesh.handle);
             })
             .iter()
             .collect();
@@ -108,25 +116,62 @@ pub(crate) fn meshes(
             })
             .collect();
 
-        engine.insert_mesh(mesh.id, st::Mesh::new(mesh_triangles));
+        engine.insert_mesh(mesh.handle, st::Mesh::new(mesh_triangles));
     }
 }
 
-pub(crate) fn materials<M>(
+pub(crate) fn materials(
     mut engine: ResMut<EngineResource>,
-    mut materials: ResMut<ExtractedMaterials<M>>,
-) where
-    M: MaterialLike,
-{
-    for material_id in materials.removed.iter() {
-        engine.remove_material(&M::map_id(*material_id));
+    mut materials: ResMut<ExtractedMaterials>,
+) {
+    for handle in materials.removed.iter() {
+        engine.remove_material(handle);
     }
 
-    for material in materials.changed.drain(..) {
-        engine.insert_material(
-            M::map_id(material.id),
-            material.material.into_material(),
-        );
+    let map = |mat: StandardMaterial| {
+        let base_color = {
+            let color = color_to_vec4(mat.base_color);
+
+            match mat.alpha_mode {
+                AlphaMode::Opaque => color.xyz().extend(1.0),
+                AlphaMode::Mask(mask) => {
+                    if color.w >= mask {
+                        color.xyz().extend(1.0)
+                    } else {
+                        color.xyz().extend(0.0)
+                    }
+                }
+                _ => color,
+            }
+        };
+
+        let ior = if mat.thickness > 0.0 { mat.ior } else { 1.0 };
+
+        let alpha_mode = match mat.alpha_mode {
+            AlphaMode::Opaque => st::AlphaMode::Opaque,
+            _ => st::AlphaMode::Blend,
+        };
+
+        st::Material {
+            base_color,
+            base_color_texture: mat
+                .base_color_texture
+                .map(|handle| handle.id()),
+            emissive: color_to_vec4(mat.emissive),
+            emissive_texture: mat.emissive_texture.map(|handle| handle.id()),
+            perceptual_roughness: mat.perceptual_roughness,
+            metallic: mat.metallic,
+            reflectance: mat.reflectance,
+            normal_map_texture: mat
+                .normal_map_texture
+                .map(|handle| handle.id()),
+            ior,
+            alpha_mode,
+        }
+    };
+
+    for entry in materials.changed.drain(..) {
+        engine.insert_material(entry.handle, map(entry.material));
     }
 }
 
@@ -135,29 +180,25 @@ pub(crate) fn images(
     textures: Res<RenderAssets<Image>>,
     mut images: ResMut<ExtractedImages>,
 ) {
-    for image_handle in &images.removed {
-        engine.remove_image(image_handle);
+    for handle in &images.removed {
+        engine.remove_image(handle);
     }
 
-    for image in mem::take(&mut images.changed) {
-        // HACK because we .add_image() all images we can find (instead of
-        //      making sure to load only images used by any material), we
-        //      unavoidably stumble upon some 1D / 3D images that Bevy (or
-        //      something?) preloads for some internal reasons
-        //
-        //      bottom line is:
-        //      this condition shouldn't be necessary if we realize the "load
-        //      only images used in materials" todo below
-        if image.texture_descriptor.dimension != wgpu::TextureDimension::D2 {
+    for entry in mem::take(&mut images.changed) {
+        if entry.texture_descriptor.dimension != wgpu::TextureDimension::D2 {
             continue;
         }
 
-        let data = match image.data {
+        let data = match entry.data {
             ExtractedImageData::Raw { data } => st::ImageData::Raw { data },
 
             ExtractedImageData::Texture { is_dynamic } => {
                 st::ImageData::Texture {
-                    texture: textures.get(image.id).unwrap().texture.clone(),
+                    texture: textures
+                        .get(entry.handle)
+                        .unwrap()
+                        .texture
+                        .clone(),
                     is_dynamic,
                 }
             }
@@ -175,33 +216,31 @@ pub(crate) fn images(
         //      material, in which case a simple condition right here will not
         //      be sufficient
         engine.insert_image(
-            image.id,
+            entry.handle,
             st::Image::new(
                 data,
-                image.texture_descriptor,
-                image.sampler_descriptor,
+                entry.texture_descriptor,
+                entry.sampler_descriptor,
             ),
         );
     }
 }
 
-pub(crate) fn instances<M>(
+pub(crate) fn instances(
     mut engine: ResMut<EngineResource>,
-    mut instances: ResMut<ExtractedInstances<M>>,
-) where
-    M: MaterialLike,
-{
-    for instance_handle in mem::take(&mut instances.removed) {
-        engine.remove_instance(&instance_handle);
+    mut instances: ResMut<ExtractedInstances>,
+) {
+    for handle in mem::take(&mut instances.removed) {
+        engine.remove_instance(&handle);
     }
 
-    for instance in mem::take(&mut instances.changed) {
+    for entry in mem::take(&mut instances.changed) {
         engine.insert_instance(
-            instance.id,
+            entry.handle,
             st::Instance::new(
-                instance.mesh_id,
-                M::map_id(instance.material_id),
-                instance.xform.compat(),
+                entry.mesh_handle,
+                entry.material_handle,
+                entry.xform,
             ),
         );
     }
@@ -211,12 +250,12 @@ pub(crate) fn lights(
     mut engine: ResMut<EngineResource>,
     mut lights: ResMut<ExtractedLights>,
 ) {
-    for light_handle in &lights.removed {
-        engine.remove_light(light_handle);
+    for handle in &lights.removed {
+        engine.remove_light(handle);
     }
 
-    for light in mem::take(&mut lights.changed) {
-        engine.insert_light(light.id, light.light);
+    for entry in mem::take(&mut lights.changed) {
+        engine.insert_light(entry.handle, entry.light);
     }
 }
 
@@ -227,4 +266,88 @@ pub(crate) fn sun(
     if let Some(sun) = sun.sun.take() {
         engine.update_sun(sun);
     }
+}
+
+pub(crate) fn cameras(
+    device: Res<RenderDevice>,
+    mut state: ResMut<SyncedState>,
+    mut engine: ResMut<EngineResource>,
+    mut cameras: Query<(
+        Entity,
+        &ViewTarget,
+        &BevyExtractedCamera,
+        &ExtractedCamera,
+    )>,
+) {
+    let device = device.wgpu_device();
+    let state = &mut *state;
+    let engine = &mut *engine;
+    let mut alive_cameras = HashSet::new();
+
+    for (entity, view_target, bevy_ext_camera, ext_camera) in cameras.iter_mut()
+    {
+        let camera = st::Camera {
+            mode: ext_camera.mode.unwrap_or_default(),
+
+            viewport: {
+                let format = view_target.main_texture_format();
+
+                let Some(size) = bevy_ext_camera.physical_viewport_size else {
+                    continue;
+                };
+
+                let position = bevy_ext_camera
+                    .viewport
+                    .as_ref()
+                    .map(|v| v.physical_position)
+                    .unwrap_or_default();
+
+                st::CameraViewport {
+                    format,
+                    size,
+                    position,
+                }
+            },
+
+            transform: ext_camera.transform,
+            projection: ext_camera.projection,
+        };
+
+        match state.cameras.entry(entity) {
+            Entry::Occupied(entry) => {
+                engine.update_camera(device, entry.into_mut().handle, camera);
+            }
+
+            Entry::Vacant(entry) => {
+                entry.insert(SyncedCamera {
+                    handle: engine.create_camera(device, camera),
+                });
+            }
+        }
+
+        alive_cameras.insert(entity);
+    }
+
+    // -----
+
+    if alive_cameras.len() != state.cameras.len() {
+        state.cameras.retain(|entity2, camera2| {
+            let is_alive = alive_cameras.contains(entity2);
+
+            if !is_alive {
+                engine.delete_camera(camera2.handle);
+            }
+
+            is_alive
+        });
+    }
+}
+
+pub(crate) fn flush(
+    device: Res<RenderDevice>,
+    queue: Res<RenderQueue>,
+    mut engine: ResMut<EngineResource>,
+    mut state: ResMut<SyncedState>,
+) {
+    state.tick(&mut engine, &device, &queue);
 }

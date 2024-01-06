@@ -27,7 +27,7 @@ impl ViewNode for RenderingNode {
         };
 
         engine.render_camera(
-            camera.id,
+            camera.handle,
             render_context.command_encoder(),
             target.main_texture_view(),
         );

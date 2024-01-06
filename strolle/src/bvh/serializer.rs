@@ -64,8 +64,6 @@ where
                 f32::from_bits(right_ptr),
             );
 
-            // TODO we could store information about transparency here to
-            //      quickly reject nodes during bvh traversal later
             buffer[ptr + 2] = vec4(
                 right_bb.min().x,
                 right_bb.min().y,

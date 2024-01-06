@@ -4,7 +4,7 @@ use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::utils::HashMap;
 use strolle as st;
 
-use crate::{EngineParams, MaterialLike};
+use crate::EngineParams;
 
 #[derive(Default, Resource)]
 pub(crate) struct SyncedState {
@@ -30,7 +30,7 @@ impl SyncedState {
 
 #[derive(Debug)]
 pub(crate) struct SyncedCamera {
-    pub id: st::CameraHandle,
+    pub handle: st::CameraHandle,
 }
 
 #[derive(Debug, Resource)]
@@ -41,26 +41,20 @@ pub(crate) struct ExtractedMeshes {
 
 #[derive(Debug)]
 pub(crate) struct ExtractedMesh {
-    pub id: AssetId<Mesh>,
+    pub handle: AssetId<Mesh>,
     pub mesh: Mesh,
 }
 
 #[derive(Debug, Resource)]
-pub(crate) struct ExtractedMaterials<M>
-where
-    M: MaterialLike,
-{
-    pub changed: Vec<ExtractedMaterial<M>>,
-    pub removed: Vec<AssetId<M>>,
+pub(crate) struct ExtractedMaterials {
+    pub changed: Vec<ExtractedMaterial>,
+    pub removed: Vec<AssetId<StandardMaterial>>,
 }
 
 #[derive(Debug)]
-pub(crate) struct ExtractedMaterial<M>
-where
-    M: MaterialLike,
-{
-    pub id: AssetId<M>,
-    pub material: M,
+pub(crate) struct ExtractedMaterial {
+    pub handle: AssetId<StandardMaterial>,
+    pub material: StandardMaterial,
 }
 
 #[derive(Debug, Resource)]
@@ -71,7 +65,7 @@ pub(crate) struct ExtractedImages {
 
 #[derive(Debug)]
 pub(crate) struct ExtractedImage {
-    pub id: AssetId<Image>,
+    pub handle: AssetId<Image>,
     pub texture_descriptor: wgpu::TextureDescriptor<'static>,
     pub sampler_descriptor: wgpu::SamplerDescriptor<'static>,
     pub data: ExtractedImageData,
@@ -84,22 +78,16 @@ pub(crate) enum ExtractedImageData {
 }
 
 #[derive(Debug, Resource)]
-pub(crate) struct ExtractedInstances<M>
-where
-    M: MaterialLike,
-{
-    pub changed: Vec<ExtractedInstance<M>>,
+pub(crate) struct ExtractedInstances {
+    pub changed: Vec<ExtractedInstance>,
     pub removed: Vec<Entity>,
 }
 
 #[derive(Debug)]
-pub(crate) struct ExtractedInstance<M>
-where
-    M: MaterialLike,
-{
-    pub id: Entity,
-    pub mesh_id: AssetId<Mesh>,
-    pub material_id: AssetId<M>,
+pub(crate) struct ExtractedInstance {
+    pub handle: Entity,
+    pub mesh_handle: AssetId<Mesh>,
+    pub material_handle: AssetId<StandardMaterial>,
     pub xform: Affine3A,
 }
 
@@ -111,7 +99,7 @@ pub(crate) struct ExtractedLights {
 
 #[derive(Debug)]
 pub(crate) struct ExtractedLight {
-    pub id: Entity,
+    pub handle: Entity,
     pub light: st::Light,
 }
 
