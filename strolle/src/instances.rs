@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem;
 
+use derivative::Derivative;
 use glam::Affine3A;
 use rand::Rng;
 
@@ -11,7 +12,8 @@ use crate::meshes::Meshes;
 use crate::triangles::Triangles;
 use crate::{Instance, Params};
 
-#[derive(Debug)]
+#[derive(Debug, Derivative)]
+#[derivative(Default(bound = ""))]
 pub struct Instances<P>
 where
     P: Params,
@@ -140,18 +142,6 @@ where
         }
 
         true
-    }
-}
-
-impl<P> Default for Instances<P>
-where
-    P: Params,
-{
-    fn default() -> Self {
-        Self {
-            instances: Default::default(),
-            dirty: Default::default(),
-        }
     }
 }
 

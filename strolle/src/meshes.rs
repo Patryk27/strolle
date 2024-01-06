@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+use derivative::Derivative;
+
 use crate::{Mesh, Params};
 
-#[derive(Debug)]
+#[derive(Debug, Derivative)]
+#[derivative(Default)]
 pub struct Meshes<P>
 where
     P: Params,
@@ -28,16 +31,5 @@ where
 
     pub fn len(&self) -> usize {
         self.meshes.len()
-    }
-}
-
-impl<P> Default for Meshes<P>
-where
-    P: Params,
-{
-    fn default() -> Self {
-        Self {
-            meshes: Default::default(),
-        }
     }
 }

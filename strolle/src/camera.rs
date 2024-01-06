@@ -84,9 +84,10 @@ impl fmt::Display for Camera {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum CameraMode {
     /// Default mode - shows the final image
+    #[default]
     Image,
 
     /// Shows direct lighting
@@ -127,12 +128,6 @@ impl CameraMode {
 
     pub(crate) fn needs_indirect_specular_lighting(&self) -> bool {
         matches!(self, Self::Image | Self::IndirectSpecularLighting)
-    }
-}
-
-impl Default for CameraMode {
-    fn default() -> Self {
-        Self::Image
     }
 }
 
