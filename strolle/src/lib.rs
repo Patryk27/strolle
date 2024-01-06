@@ -158,116 +158,83 @@ where
         }
     }
 
-    /// Creates a mesh¹ or updates the existing one.
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn add_mesh(&mut self, mesh_handle: P::MeshHandle, mesh: Mesh) {
-        self.meshes.add(mesh_handle, mesh);
+    /// Creates or updates a mesh.
+    pub fn insert_mesh(&mut self, mesh_handle: P::MeshHandle, mesh: Mesh) {
+        self.meshes.insert(mesh_handle, mesh);
     }
 
-    /// Removes a mesh¹.
+    /// Removes a mesh.
     ///
-    /// Note that removing a mesh doesn't automatically remove instances¹ that
-    /// refer to that mesh.
-    ///
-    /// That is to say, if you add an instance with mesh A, and then remove this
-    /// mesh, the instance will remain in the world - it will not be rendered
-    /// though, waiting for the mesh to appear again.
-    ///
-    /// ¹ see the module-level comment for details
+    /// Note that removing a mesh doesn't automatically remove instances that
+    /// refer to this mesh.
     pub fn remove_mesh(&mut self, mesh_handle: &P::MeshHandle) {
         self.meshes.remove(mesh_handle);
     }
 
-    /// Creates a material¹ or updates the existing one.
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn add_material(
+    /// Creates or updates a material.
+    pub fn insert_material(
         &mut self,
         material_handle: P::MaterialHandle,
         material: Material<P>,
     ) {
-        self.materials.add(material_handle, material);
+        self.materials.insert(material_handle, material);
         self.has_dirty_materials = true;
     }
 
-    /// Returns whether material¹ with given handle exists or not.
-    ///
-    /// ¹ see the module-level comment for details
+    /// Returns whether given material exists.
     pub fn has_material(&self, material_handle: &P::MaterialHandle) -> bool {
         self.materials.has(material_handle)
     }
 
-    /// Removes a material¹.
+    /// Removes a material.
     ///
-    /// Note that removing a material doesn't automatically remove instances¹
-    /// that refer to that material.
-    ///
-    /// That is to say, if you add an instance with material A, and then remove
-    /// this material, the instance will remain in the world - it will not be
-    /// rendered though, waiting for the material to appear again.
-    ///
-    /// ¹ see the module-level comment for details
+    /// Note that removing a material doesn't automatically remove instances
+    /// that refer to this material.
     pub fn remove_material(&mut self, material_handle: &P::MaterialHandle) {
         self.materials.remove(material_handle);
         self.has_dirty_materials = true;
     }
 
-    /// Creates an image¹ or updates the existing one.
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn add_image(&mut self, image_handle: P::ImageHandle, image: Image<P>) {
-        self.images.add(image_handle, image);
+    /// Creates or updates an image.
+    pub fn insert_image(
+        &mut self,
+        image_handle: P::ImageHandle,
+        image: Image<P>,
+    ) {
+        self.images.insert(image_handle, image);
         self.has_dirty_images = true;
     }
 
-    /// Removes an image¹.
+    /// Removes an image.
     ///
-    /// Note that removing an image doesn't automatically remove materials¹ that
-    /// refer to that image.
-    ///
-    /// That is to say, if you add a material with image A, and then remove this
-    /// image, the material will remain in the world - instances related to that
-    /// material will not be rendered though, waiting for the image to appear
-    /// again.
-    ///
-    /// (or, well, waiting for the material to get unbound from the image etc.)
-    ///
-    /// ¹ see the module-level comment for details
+    /// Note that removing an image doesn't automatically remove materials that
+    /// refer to this image.
     pub fn remove_image(&mut self, image_handle: &P::ImageHandle) {
         self.images.remove(image_handle);
         self.has_dirty_images = true;
     }
 
-    /// Creates an instance¹ or updates the existing one.
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn add_instance(
+    /// Creates or updates an instance.
+    pub fn insert_instance(
         &mut self,
         instance_handle: P::InstanceHandle,
         instance: Instance<P>,
     ) {
-        self.instances.add(instance_handle, instance);
+        self.instances.insert(instance_handle, instance);
     }
 
-    /// Removes an instance¹.
-    ///
-    /// ¹ see the module-level comment for details
+    /// Removes an instance.
     pub fn remove_instance(&mut self, instance_handle: &P::InstanceHandle) {
         self.instances.remove(instance_handle);
         self.triangles.remove(&mut self.bvh, instance_handle);
     }
 
-    /// Creates a light or updates the existing one¹.
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn add_light(&mut self, light_handle: P::LightHandle, light: Light) {
-        self.lights.add(light_handle, light);
+    /// Creates or updates a light.
+    pub fn insert_light(&mut self, light_handle: P::LightHandle, light: Light) {
+        self.lights.insert(light_handle, light);
     }
 
-    /// Removes a light¹.
-    ///
-    /// ¹ see the module-level comment for details
+    /// Removes a light.
     pub fn remove_light(&mut self, light_handle: &P::LightHandle) {
         self.lights.remove(light_handle);
     }
@@ -278,11 +245,58 @@ where
         self.has_dirty_sun = true;
     }
 
+    /// Creates a new camera that can be used to render the world.
+    ///
+    /// Note that this is a pretty heavy operation that allocates per-camera
+    /// buffers etc., and so it's expected that you only call this function when
+    /// necessary (not, say, each frame).
+    pub fn create_camera(
+        &mut self,
+        device: &wgpu::Device,
+        camera: Camera,
+    ) -> CameraHandle {
+        self.cameras
+            .add(CameraController::new(self, device, camera))
+    }
+
+    /// Updates camera, changing its mode, position, size etc.
+    pub fn update_camera(
+        &mut self,
+        device: &wgpu::Device,
+        handle: CameraHandle,
+        camera: Camera,
+    ) {
+        let mut cameras = mem::take(&mut self.cameras);
+
+        cameras.get_mut(handle).update(self, device, camera);
+
+        self.cameras = cameras;
+    }
+
+    /// Renders camera to texture.
+    ///
+    /// Note that `view`'s texture format must be the same as the format given
+    /// to [`Self::create_camera()`].
+    pub fn render_camera(
+        &self,
+        handle: CameraHandle,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+    ) {
+        self.cameras.get(handle).render(self, encoder, view);
+    }
+
+    /// Deletes a camera.
+    ///
+    /// After this function is called, updating or rendering this camera will
+    /// panic.
+    pub fn delete_camera(&mut self, handle: CameraHandle) {
+        self.cameras.remove(handle);
+    }
+
     /// Sends all changes to the GPU and prepares it for the upcoming frame.
     ///
-    /// This function must be called before each frame, i.e. before invoking
-    /// [`Self::render_camera()`].
-    ///
+    /// This function must be called before invoking [`Self::render_camera()`]
     /// (if you have multiple cameras, calling this function just once is
     /// enough.)
     pub fn tick(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
@@ -380,106 +394,17 @@ where
             );
         }
     }
-
-    /// Creates a new camera¹ that can be used to render the world.
-    ///
-    /// Note that this is a pretty heavy operation that allocates per-camera
-    /// buffers etc., and so it's expected that you only call this function when
-    /// necessary (not, say, each frame).
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn create_camera(
-        &mut self,
-        device: &wgpu::Device,
-        camera: Camera,
-    ) -> CameraHandle {
-        self.cameras
-            .add(CameraController::new(self, device, camera))
-    }
-
-    /// Updates camera¹, changing its mode, position, size etc.
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn update_camera(
-        &mut self,
-        device: &wgpu::Device,
-        handle: CameraHandle,
-        camera: Camera,
-    ) {
-        let mut cameras = mem::take(&mut self.cameras);
-
-        cameras.get_mut(handle).update(self, device, camera);
-
-        self.cameras = cameras;
-    }
-
-    /// Renders camera¹ to texture.
-    ///
-    /// Texture's format must be the same as the format given to
-    /// [`Self::create_camera()`] and - if any changes to the world have been
-    /// made - [`Self::flush()`] must've been already called (otherwise the
-    /// renderer might panic, draw invalid meshes, stuff like that).
-    ///
-    /// ¹ see the module-level comment for details
-    pub fn render_camera(
-        &self,
-        handle: CameraHandle,
-        encoder: &mut wgpu::CommandEncoder,
-        view: &wgpu::TextureView,
-    ) {
-        self.cameras.get(handle).render(self, encoder, view);
-    }
-
-    /// Deletes camera, releasing its buffers.
-    ///
-    /// After this function is called, updating or rendering this camera will
-    /// panic.
-    pub fn delete_camera(&mut self, handle: CameraHandle) {
-        self.cameras.remove(handle);
-    }
 }
 
 /// Parameters used by Strolle to index textures, meshes etc.
 ///
 /// This exists to faciliate integrations with existing systems, such as Bevy,
 /// that already have their own newtypes for images, instances and so on.
-pub trait Params
-where
-    Self: Clone + Debug,
-{
-    /// Handle used to lookup images.
-    ///
-    /// This corresponds to `Handle<Image>` in Bevy, but a simpler
-    /// implementation can use just `usize` or `String`.
-    type ImageHandle: Eq + Hash + Clone + Debug;
-
-    /// Image's texture.
-    ///
-    /// This corresponds to `Texture` in Bevy as it doesn't provide direct
-    /// access to owned `wgpu::Texture`.
+pub trait Params {
+    type ImageHandle: Clone + Debug + Eq + Hash;
     type ImageTexture: Debug + Deref<Target = wgpu::Texture>;
-
-    /// Handle used to lookup instances of meshes.
-    ///
-    /// This corresponds to `Entity` in Bevy, but a simpler implementation can
-    /// use just `usize` or `String`.
-    type InstanceHandle: Eq + Hash + Clone + Debug;
-
-    /// Handle used to lookup lights.
-    ///
-    /// This corresponds to `Entity` in Bevy, but a simpler implementation can
-    /// use just `usize` or `String`.
-    type LightHandle: Eq + Hash + Clone + Debug;
-
-    /// Handle used to lookup materials.
-    ///
-    /// This corresponds to `Handle<StandardMaterial>` in Bevy, but a simpler
-    /// implementation can use just `usize` or `String`.
-    type MaterialHandle: Eq + Hash + Clone + Debug;
-
-    /// Handle used to lookup meshes.
-    ///
-    /// This corresponds to `Handle<Mesh>` in Bevy, but a simpler implementation
-    /// can use just `usize` or `String`.
-    type MeshHandle: Eq + Hash + Clone + Debug;
+    type InstanceHandle: Clone + Debug + Eq + Hash;
+    type LightHandle: Clone + Debug + Eq + Hash;
+    type MaterialHandle: Clone + Debug + Eq + Hash;
+    type MeshHandle: Clone + Debug + Eq + Hash;
 }

@@ -33,7 +33,7 @@ where
         }
     }
 
-    pub fn add(
+    pub fn insert(
         &mut self,
         material_handle: P::MaterialHandle,
         material: Material<P>,

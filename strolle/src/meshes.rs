@@ -14,7 +14,7 @@ impl<P> Meshes<P>
 where
     P: Params,
 {
-    pub fn add(&mut self, mesh_handle: P::MeshHandle, mesh: Mesh) {
+    pub fn insert(&mut self, mesh_handle: P::MeshHandle, mesh: Mesh) {
         self.meshes.insert(mesh_handle, mesh);
     }
 

@@ -51,7 +51,7 @@ where
         }
     }
 
-    pub fn add(&mut self, image_handle: P::ImageHandle, image: Image<P>) {
+    pub fn insert(&mut self, image_handle: P::ImageHandle, image: Image<P>) {
         let image_size = size2(
             image.texture_descriptor.size.width as i32,
             image.texture_descriptor.size.height as i32,

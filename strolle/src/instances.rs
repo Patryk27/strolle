@@ -24,7 +24,7 @@ impl<P> Instances<P>
 where
     P: Params,
 {
-    pub fn add(
+    pub fn insert(
         &mut self,
         instance_handle: P::InstanceHandle,
         instance: Instance<P>,
@@ -122,7 +122,7 @@ where
                 } else {
                     triangles.remove(bvh, instance_handle);
 
-                    triangles.add(
+                    triangles.create(
                         bvh,
                         instance_handle.to_owned(),
                         mesh_triangles,
@@ -130,7 +130,7 @@ where
                     );
                 }
             } else {
-                triangles.add(
+                triangles.create(
                     bvh,
                     instance_handle.to_owned(),
                     mesh_triangles,

@@ -108,7 +108,7 @@ pub(crate) fn meshes(
             })
             .collect();
 
-        engine.add_mesh(mesh.id, st::Mesh::new(mesh_triangles));
+        engine.insert_mesh(mesh.id, st::Mesh::new(mesh_triangles));
     }
 }
 
@@ -123,7 +123,7 @@ pub(crate) fn materials<M>(
     }
 
     for material in materials.changed.drain(..) {
-        engine.add_material(
+        engine.insert_material(
             M::map_id(material.id),
             material.material.into_material(),
         );
@@ -174,7 +174,7 @@ pub(crate) fn images(
         //      loaded first *and then* (e.g. in next frame) it's used by some
         //      material, in which case a simple condition right here will not
         //      be sufficient
-        engine.add_image(
+        engine.insert_image(
             image.id,
             st::Image::new(
                 data,
@@ -196,7 +196,7 @@ pub(crate) fn instances<M>(
     }
 
     for instance in mem::take(&mut instances.changed) {
-        engine.add_instance(
+        engine.insert_instance(
             instance.id,
             st::Instance::new(
                 instance.mesh_id,
@@ -216,7 +216,7 @@ pub(crate) fn lights(
     }
 
     for light in mem::take(&mut lights.changed) {
-        engine.add_light(light.id, light.light);
+        engine.insert_light(light.id, light.light);
     }
 }
 

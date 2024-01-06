@@ -33,7 +33,7 @@ where
         }
     }
 
-    pub fn add(&mut self, light_handle: P::LightHandle, light: Light) {
+    pub fn insert(&mut self, light_handle: P::LightHandle, light: Light) {
         let light = light.serialize();
 
         match self.index.entry(light_handle) {

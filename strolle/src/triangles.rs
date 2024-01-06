@@ -34,7 +34,7 @@ where
         }
     }
 
-    pub fn add(
+    pub fn create(
         &mut self,
         bvh: &mut Bvh,
         instance_handle: P::InstanceHandle,
@@ -55,9 +55,9 @@ where
         let triangle_ids = if let Some(triangle_ids) =
             self.allocator.take(triangles.len())
         {
-            self.add_reusing_space(bvh, triangles, material_id, triangle_ids)
+            self.create_reusing_space(bvh, triangles, material_id, triangle_ids)
         } else {
-            self.add_allocating_space(bvh, triangles, material_id)
+            self.create_allocating_space(bvh, triangles, material_id)
         };
 
         self.index.insert(
@@ -71,7 +71,7 @@ where
         self.dirty = true;
     }
 
-    fn add_reusing_space(
+    fn create_reusing_space(
         &mut self,
         bvh: &mut Bvh,
         triangles: impl Iterator<Item = Triangle>,
@@ -101,7 +101,7 @@ where
         triangle_ids
     }
 
-    fn add_allocating_space(
+    fn create_allocating_space(
         &mut self,
         bvh: &mut Bvh,
         triangles: impl Iterator<Item = Triangle>,
