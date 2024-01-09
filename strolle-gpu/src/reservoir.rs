@@ -1,10 +1,10 @@
-mod direct;
+mod di;
 mod ephemeral;
-mod indirect;
+mod gi;
 
-pub use self::direct::*;
+pub use self::di::*;
 pub use self::ephemeral::*;
-pub use self::indirect::*;
+pub use self::gi::*;
 use crate::WhiteNoise;
 
 #[derive(Clone, Copy, Default, PartialEq)]

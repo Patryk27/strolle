@@ -16,6 +16,7 @@ pub struct Ray {
     origin: Vec3,
     direction: Vec3,
     inv_direction: Vec3,
+    length: f32,
 }
 
 impl Ray {
@@ -24,7 +25,13 @@ impl Ray {
             origin,
             direction,
             inv_direction: 1.0 / direction,
+            length: f32::MAX,
         }
+    }
+
+    pub fn with_length(mut self, length: f32) -> Self {
+        self.length = length;
+        self
     }
 
     pub fn origin(&self) -> Vec3 {
@@ -81,10 +88,9 @@ impl Ray {
         materials: MaterialsView,
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
-        distance: f32,
     ) -> bool {
         let mut hit = TriangleHit {
-            distance,
+            distance: self.length,
             ..TriangleHit::none()
         };
 
@@ -100,7 +106,7 @@ impl Ray {
             &mut hit,
         );
 
-        hit.distance < distance
+        hit.distance < self.length
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -273,7 +279,7 @@ impl Ray {
         }
 
         let mut tmin = 0.0;
-        let mut tmax = f32::INFINITY;
+        let mut tmax = f32::MAX;
 
         let t1 = (aabb_min - self.origin) * self.inv_direction;
         let t2 = (aabb_max - self.origin) * self.inv_direction;

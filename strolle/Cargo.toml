@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 # Workspace
 strolle-gpu = { path = "../strolle-gpu" }
-strolle-atmosphere-shader = { path = "../strolle-shaders/atmosphere" }
+strolle-shaders = { path = "../strolle-shaders" }
 
 # Crates.io
 blue-noise-sampler = "0.1.0"

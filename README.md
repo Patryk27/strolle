@@ -115,7 +115,6 @@ the future, though.
 
 ## Roadmap
 
-- better denoising for direct lighting
 - support for normal mapping
 - support for ReSTIR GI validation
 - support for importance sampling emissive materials
@@ -130,7 +129,6 @@ Notable algorithms implemented in Strolle include:
 
 - [ReSTIR DI](https://research.nvidia.com/sites/default/files/pubs/2020-07_Spatiotemporal-reservoir-resampling/ReSTIR.pdf)
 - [ReSTIR GI](https://d1qx31qr3h6wln.cloudfront.net/publications/ReSTIR%20GI.pdf)
-- [ReBLUR](https://link.springer.com/chapter/10.1007/978-1-4842-7185-8_49)
 - [A Scalable and Production Ready Sky and Atmosphere Rendering Technique](https://sebh.github.io/publications/egsr2020.pdf)
 - [SVGF](https://research.nvidia.com/publication/2017-07_spatiotemporal-variance-guided-filtering-real-time-reconstruction-path-traced)
 

@@ -3,12 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct BvhHeatmapPass {
-    pass: CameraComputePass<()>,
+pub struct GiDiffResolvingPass {
+    pass: CameraComputePass,
 }
 
-impl BvhHeatmapPass {
-    #[allow(clippy::too_many_arguments)]
+impl GiDiffResolvingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -18,18 +17,15 @@ impl BvhHeatmapPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("bvh_heatmap")
-            .bind([
-                &engine.triangles.bind_readable(),
-                &engine.bvh.bind_readable(),
-                &engine.materials.bind_readable(),
-                &engine.images.bind_atlas(),
-            ])
+        let pass = CameraComputePass::builder("gi_diff_resolving")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.gi_diff_curr_colors.bind_writable(),
+                &buffers.prim_gbuffer_d0.bind_readable(),
+                &buffers.prim_gbuffer_d1.bind_readable(),
+                &buffers.gi_diff_spatial_reservoirs_b.bind_readable(),
+                &buffers.gi_diff_samples.bind_writable(),
             ])
-            .build(device, &engine.shaders.bvh_heatmap);
+            .build(device, &engine.shaders.gi_diff_resolving);
 
         Self { pass }
     }
@@ -42,6 +38,6 @@ impl BvhHeatmapPass {
         // This pass uses 8x8 warps:
         let size = (camera.camera.viewport.size + 7) / 8;
 
-        self.pass.run(camera, encoder, size, ());
+        self.pass.run(camera, encoder, size, camera.pass_params());
     }
 }

@@ -1,13 +1,11 @@
+use core::f32::consts::PI;
+
 use bytemuck::{Pod, Zeroable};
-use glam::{vec4, Vec3, Vec4, Vec4Swizzles};
+use glam::{vec2, vec4, Vec2, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
-use spirv_std::Sampler;
 
-use crate::{
-    BvhStack, BvhView, DiffuseBrdf, F32Ext, Hit, MaterialsView, Normal, Ray,
-    Tex, TrianglesView, WhiteNoise,
-};
+use crate::{DiffuseBrdf, F32Ext, Hit, Normal, Ray, WhiteNoise};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -78,9 +76,6 @@ impl Light {
         self.d2.w
     }
 
-    /// Returns demodulated¹ radiance of this light on given hit.
-    ///
-    /// ¹ without taking into account the hit-material
     pub fn radiance(&self, hit: Hit) -> Vec3 {
         let l = self.center() - hit.point;
 
@@ -121,54 +116,40 @@ impl Light {
         self.color() * distance_factor * conical_factor * cosine_factor
     }
 
-    /// Returns contribution (i.e. "the surface color") of this light on given
-    /// hit.
     pub fn contribution(&self, hit: Hit) -> Vec3 {
         self.radiance(hit) * DiffuseBrdf::new(&hit.gbuffer).evaluate().radiance
     }
 
-    /// Casts a shadow ray and returns 0.0 if this light is occluded or 1.0 if
-    /// this light is visible from given hit point.
-    #[allow(clippy::too_many_arguments)]
-    pub fn visibility(
-        &self,
-        local_idx: u32,
-        stack: BvhStack,
-        triangles: TrianglesView,
-        bvh: BvhView,
-        materials: MaterialsView,
-        atlas_tex: Tex,
-        atlas_sampler: &Sampler,
-        wnoise: &mut WhiteNoise,
-        hit_point: Vec3,
-    ) -> f32 {
-        let (ray, distance) = self.ray(wnoise, hit_point);
+    pub fn ray_wnoise(&self, noise: &mut WhiteNoise, hit_point: Vec3) -> Ray {
+        let light_pos = self.center() + self.radius() * noise.sample_sphere();
+        let light_to_hit = hit_point - light_pos;
 
-        let is_occluded = ray.intersect(
-            local_idx,
-            stack,
-            triangles,
-            bvh,
-            materials,
-            atlas_tex,
-            atlas_sampler,
-            distance,
-        );
-
-        if is_occluded {
-            0.0
-        } else {
-            1.0
-        }
+        Ray::new(light_pos, light_to_hit.normalize())
+            .with_length(light_to_hit.length())
     }
 
-    pub fn ray(&self, wnoise: &mut WhiteNoise, hit_point: Vec3) -> (Ray, f32) {
-        let light_pos = self.center() + self.radius() * wnoise.sample_sphere();
-        let light_to_hit = hit_point - light_pos;
-        let ray = Ray::new(light_pos, light_to_hit.normalize());
-        let distance = light_to_hit.length();
+    pub fn ray_bnoise(&self, sample: Vec2, hit_point: Vec3) -> Ray {
+        let to_light = self.center() - hit_point;
+        let light_dir = to_light.normalize();
+        let light_distance = to_light.length();
+        let light_radius = self.radius() / light_distance;
+        let (light_tangent, light_bitangent) = light_dir.any_orthonormal_pair();
 
-        (ray, distance)
+        let disk_point = {
+            let angle = 2.0 * PI * sample.x;
+            let radius = sample.y.sqrt();
+
+            vec2(angle.sin(), angle.cos()) * radius * light_radius
+        };
+
+        let ray_dir = light_dir
+            + disk_point.x * light_tangent
+            + disk_point.y * light_bitangent;
+
+        let ray_dir = ray_dir.normalize();
+
+        Ray::new(hit_point + ray_dir * light_distance, -ray_dir)
+            .with_length(light_distance)
     }
 }
 

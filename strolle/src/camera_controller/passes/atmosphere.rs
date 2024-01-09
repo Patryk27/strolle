@@ -28,8 +28,10 @@ impl AtmospherePass {
         let generate_transmittance_lut_pass =
             CameraComputePass::builder("atmosphere_generate_transmittance_lut")
                 .bind([&buffers.atmosphere_transmittance_lut.bind_writable()])
-                .with_entry_point("main_generate_transmittance_lut")
-                .build(device, &engine.shaders.atmosphere);
+                .build(
+                    device,
+                    &engine.shaders.atmosphere_generate_transmittance_lut,
+                );
 
         let generate_scattering_lut_pass =
             CameraComputePass::builder("atmosphere_generate_scattering_lut")
@@ -37,8 +39,10 @@ impl AtmospherePass {
                     &buffers.atmosphere_transmittance_lut.bind_sampled(),
                     &buffers.atmosphere_scattering_lut.bind_writable(),
                 ])
-                .with_entry_point("main_generate_scattering_lut")
-                .build(device, &engine.shaders.atmosphere);
+                .build(
+                    device,
+                    &engine.shaders.atmosphere_generate_scattering_lut,
+                );
 
         let generate_sky_lut_pass =
             CameraComputePass::builder("atmosphere_generate_sky_lut")
@@ -48,8 +52,7 @@ impl AtmospherePass {
                     &buffers.atmosphere_scattering_lut.bind_sampled(),
                     &buffers.atmosphere_sky_lut.bind_writable(),
                 ])
-                .with_entry_point("main_generate_sky_lut")
-                .build(device, &engine.shaders.atmosphere);
+                .build(device, &engine.shaders.atmosphere_generate_sky_lut);
 
         Self {
             generate_transmittance_lut_pass,

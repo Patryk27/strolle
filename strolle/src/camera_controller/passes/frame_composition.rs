@@ -27,12 +27,12 @@ impl FrameCompositionPass {
 
         let bg0 = BindGroup::builder("frame_composition_bg0")
             .add(&buffers.camera.bind_readable())
-            .add(&buffers.direct_colors_b.bind_readable())
-            .add(&buffers.direct_gbuffer_d0.bind_readable())
-            .add(&buffers.direct_gbuffer_d1.bind_readable())
-            .add(&buffers.indirect_diffuse_colors.curr().bind_readable())
-            .add(&buffers.indirect_specular_colors.curr().bind_readable())
-            .add(&buffers.reference_colors.bind_readable())
+            .add(&buffers.prim_gbuffer_d0.bind_readable())
+            .add(&buffers.prim_gbuffer_d1.bind_readable())
+            .add(&buffers.di_diff_curr_colors.bind_readable())
+            .add(&buffers.gi_diff_curr_colors.bind_readable())
+            .add(&buffers.gi_spec_samples.bind_readable())
+            .add(&buffers.ref_colors.bind_readable())
             .build(device);
 
         let pipeline_layout =
@@ -54,16 +54,16 @@ impl FrameCompositionPass {
                 label: Some("strolle_frame_composition_pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &engine.shaders.frame_composition,
-                    entry_point: "main_vs",
+                    module: &engine.shaders.frame_composition_vs.0,
+                    entry_point: engine.shaders.frame_composition_vs.1,
                     buffers: &[],
                 },
                 primitive: wgpu::PrimitiveState::default(),
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(wgpu::FragmentState {
-                    module: &engine.shaders.frame_composition,
-                    entry_point: "main_fs",
+                    module: &engine.shaders.frame_composition_fs.0,
+                    entry_point: engine.shaders.frame_composition_fs.1,
                     targets: &[Some(wgpu::ColorTargetState {
                         format: camera.viewport.format,
                         blend: Some(wgpu::BlendState::REPLACE),

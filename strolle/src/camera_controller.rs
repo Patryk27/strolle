@@ -102,11 +102,11 @@ impl CameraController {
                 self.passes.atmosphere.run(engine, self, encoder);
 
                 for depth in 0..=depth {
-                    self.passes.reference_tracing.run(self, encoder, depth);
-                    self.passes.reference_shading.run(self, encoder, depth);
+                    self.passes.ref_tracing.run(self, encoder, depth);
+                    self.passes.ref_shading.run(self, encoder, depth);
                 }
 
-                self.passes.reference_shading.run(self, encoder, u8::MAX);
+                self.passes.ref_shading.run(self, encoder, u8::MAX);
                 self.passes.frame_composition.run(self, encoder, view);
             }
 
@@ -114,83 +114,60 @@ impl CameraController {
                 let has_any_objects = !engine.instances.is_empty();
 
                 self.passes.atmosphere.run(engine, self, encoder);
-                self.passes.direct_raster.run(engine, self, encoder);
+                self.passes.prim_raster.run(engine, self, encoder);
 
                 if has_any_objects {
                     self.passes.frame_reprojection.run(self, encoder);
 
-                    if self.camera.mode.needs_direct_lighting() {
-                        self.passes.direct_shading.run(self, encoder);
-
-                        self.passes
-                            .direct_temporal_resampling
-                            .run(self, encoder);
-
-                        self.passes
-                            .direct_spatial_resampling
-                            .run(self, encoder);
-
-                        self.passes.direct_resolving.run(self, encoder);
-                        self.passes.direct_denoising.run(self, encoder);
+                    if self.camera.mode.needs_di() {
+                        self.passes.di_shading.run(self, encoder);
+                        self.passes.di_temporal_resampling.run(self, encoder);
+                        self.passes.di_resolving.run(self, encoder);
                     }
 
-                    if self.camera.mode.needs_indirect_diffuse_lighting() {
-                        self.passes.indirect_tracing.run(
+                    if self.camera.mode.needs_gi_diff() {
+                        self.passes.gi_tracing.run(
                             self,
                             encoder,
-                            gpu::IndirectPassParams::MODE_DIFFUSE,
+                            gpu::GiPassParams::MODE_DIFFUSE,
                         );
 
-                        self.passes.indirect_shading.run(
+                        self.passes.gi_shading.run(
                             self,
                             encoder,
-                            gpu::IndirectPassParams::MODE_DIFFUSE,
+                            gpu::GiPassParams::MODE_DIFFUSE,
                         );
 
                         self.passes
-                            .indirect_diffuse_temporal_resampling
+                            .gi_diff_temporal_resampling
                             .run(self, encoder);
 
                         self.passes
-                            .indirect_diffuse_spatial_resampling
+                            .gi_diff_spatial_resampling
                             .run(self, encoder);
 
-                        self.passes
-                            .indirect_diffuse_resolving
-                            .run(self, encoder);
-
-                        self.passes
-                            .indirect_diffuse_denoising
-                            .run(self, encoder);
+                        self.passes.gi_diff_resolving.run(self, encoder);
                     }
 
-                    if self.camera.mode.needs_indirect_specular_lighting() {
-                        self.passes.indirect_tracing.run(
+                    if self.camera.mode.needs_gi_spec() {
+                        self.passes.gi_tracing.run(
                             self,
                             encoder,
-                            gpu::IndirectPassParams::MODE_SPECULAR,
+                            gpu::GiPassParams::MODE_SPECULAR,
                         );
 
-                        self.passes.indirect_shading.run(
+                        self.passes.gi_shading.run(
                             self,
                             encoder,
-                            gpu::IndirectPassParams::MODE_SPECULAR,
+                            gpu::GiPassParams::MODE_SPECULAR,
                         );
 
-                        self.passes
-                            .indirect_specular_resampling
-                            .run(self, encoder);
-
-                        self.passes
-                            .indirect_specular_resolving
-                            .run(self, encoder);
-
-                        self.passes
-                            .indirect_specular_denoising
-                            .run(self, encoder);
+                        self.passes.gi_spec_resampling.run(self, encoder);
+                        self.passes.gi_spec_resolving.run(self, encoder);
                     }
                 }
 
+                self.passes.frame_denoising.run(self, encoder);
                 self.passes.frame_composition.run(self, encoder, view);
             }
         }

@@ -3,12 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct BvhHeatmapPass {
+pub struct GiSpecResolvingPass {
     pass: CameraComputePass<()>,
 }
 
-impl BvhHeatmapPass {
-    #[allow(clippy::too_many_arguments)]
+impl GiSpecResolvingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -18,18 +17,15 @@ impl BvhHeatmapPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("bvh_heatmap")
-            .bind([
-                &engine.triangles.bind_readable(),
-                &engine.bvh.bind_readable(),
-                &engine.materials.bind_readable(),
-                &engine.images.bind_atlas(),
-            ])
+        let pass = CameraComputePass::builder("gi_spec_resolving")
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.gi_diff_curr_colors.bind_writable(),
+                &buffers.prim_gbuffer_d0.bind_readable(),
+                &buffers.prim_gbuffer_d1.bind_readable(),
+                &buffers.gi_spec_reservoirs.curr().bind_readable(),
+                &buffers.gi_spec_samples.bind_writable(),
             ])
-            .build(device, &engine.shaders.bvh_heatmap);
+            .build(device, &engine.shaders.gi_spec_resolving);
 
         Self { pass }
     }

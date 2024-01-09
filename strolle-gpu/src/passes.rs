@@ -12,7 +12,7 @@ pub struct PassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct DirectRasterPassParams {
+pub struct PrimRasterPassParams {
     pub payload: Vec4,
     pub curr_xform_inv_d0: Vec4,
     pub curr_xform_inv_d1: Vec4,
@@ -22,7 +22,7 @@ pub struct DirectRasterPassParams {
     pub prev_xform_d2: Vec4,
 }
 
-impl DirectRasterPassParams {
+impl PrimRasterPassParams {
     pub fn instance_uuid(&self) -> u32 {
         self.payload.x.to_bits()
     }
@@ -90,7 +90,8 @@ impl DirectRasterPassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct DirectDenoisingPassParams {
+pub struct FrameDenoisingPassParams {
+    pub frame: u32,
     pub stride: u32,
 }
 
@@ -104,7 +105,7 @@ pub struct FrameCompositionPassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct ReferencePassParams {
+pub struct RefPassParams {
     pub seed: u32,
     pub frame: u32,
     pub depth: u32,
@@ -113,13 +114,13 @@ pub struct ReferencePassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct IndirectPassParams {
+pub struct GiPassParams {
     pub seed: u32,
     pub frame: u32,
     pub mode: u32,
 }
 
-impl IndirectPassParams {
+impl GiPassParams {
     pub const MODE_DIFFUSE: u32 = 0;
     pub const MODE_SPECULAR: u32 = 1;
 
@@ -135,7 +136,7 @@ impl IndirectPassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct IndirectDiffuseSpatialResamplingPassParams {
+pub struct GiDiffSpatialResamplingPassParams {
     pub seed: u32,
     pub frame: u32,
     pub nth: u32,

@@ -118,15 +118,15 @@ impl CameraMode {
         }
     }
 
-    pub(crate) fn needs_direct_lighting(&self) -> bool {
+    pub(crate) fn needs_di(&self) -> bool {
         matches!(self, Self::Image | Self::DirectLighting)
     }
 
-    pub(crate) fn needs_indirect_diffuse_lighting(&self) -> bool {
+    pub(crate) fn needs_gi_diff(&self) -> bool {
         matches!(self, Self::Image | Self::IndirectDiffuseLighting)
     }
 
-    pub(crate) fn needs_indirect_specular_lighting(&self) -> bool {
+    pub(crate) fn needs_gi_spec(&self) -> bool {
         matches!(self, Self::Image | Self::IndirectSpecularLighting)
     }
 }

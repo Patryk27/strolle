@@ -68,7 +68,7 @@ where
 
     pub fn update_sun(&mut self, world: gpu::World) {
         let sun_color =
-            strolle_atmosphere_shader::generate_transmittance_lut::eval(
+            strolle_shaders::atmosphere::generate_transmittance_lut::eval(
                 gpu::Atmosphere::VIEW_POS,
                 world.sun_direction(),
             );

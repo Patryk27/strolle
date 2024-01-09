@@ -4,7 +4,7 @@ macro_rules! shaders {
     ([ $( $name:ident, )* ]) => {
         #[derive(Debug)]
         pub struct Shaders {
-            $( pub $name: wgpu::ShaderModule, )*
+            $( pub $name: (wgpu::ShaderModule, &'static str), )*
         }
 
         impl Shaders {
@@ -13,7 +13,7 @@ macro_rules! shaders {
                     info!("Initializing shader: {}", stringify!($name));
 
                     let module = wgpu::include_spirv!(
-                        env!(concat!("strolle_", stringify!($name), "_shader.spv"))
+                        env!(concat!("strolle_shaders::", stringify!($name), ".path"))
                     );
 
                     // Safety: fingers crossed™
@@ -21,9 +21,13 @@ macro_rules! shaders {
                     // We do our best, but our shaders are so array-intensive
                     // that adding the checks decreases performance by 33%, so
                     // it's pretty much a no-go.
-                    let $name = unsafe {
+                    let module = unsafe {
                         device.create_shader_module_unchecked(module)
                     };
+
+                    let entry_point = env!(concat!("strolle_shaders::", stringify!($name), ".entry_point"));
+
+                    let $name = (module, entry_point);
                 )*
 
                 Self {
@@ -35,25 +39,28 @@ macro_rules! shaders {
 }
 
 shaders!([
-    atmosphere,
+    atmosphere_generate_scattering_lut,
+    atmosphere_generate_sky_lut,
+    atmosphere_generate_transmittance_lut,
     bvh_heatmap,
-    direct_denoising,
-    direct_raster,
-    direct_resolving,
-    direct_shading,
-    direct_spatial_resampling,
-    direct_temporal_resampling,
-    frame_composition,
+    di_resolving,
+    di_shading,
+    di_temporal_resampling,
+    frame_composition_fs,
+    frame_composition_vs,
+    frame_denoising_estimate_variance,
+    frame_denoising_reproject,
+    frame_denoising_wavelet,
     frame_reprojection,
-    indirect_diffuse_denoising,
-    indirect_diffuse_resolving,
-    indirect_diffuse_spatial_resampling,
-    indirect_diffuse_temporal_resampling,
-    indirect_shading,
-    indirect_specular_denoising,
-    indirect_specular_resampling,
-    indirect_specular_resolving,
-    indirect_tracing,
-    reference_shading,
-    reference_tracing,
+    gi_diff_resolving,
+    gi_diff_spatial_resampling,
+    gi_diff_temporal_resampling,
+    gi_shading,
+    gi_spec_resampling,
+    gi_spec_resolving,
+    gi_tracing,
+    prim_raster_fs,
+    prim_raster_vs,
+    ref_shading,
+    ref_tracing,
 ]);

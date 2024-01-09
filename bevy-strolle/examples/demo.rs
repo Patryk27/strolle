@@ -162,8 +162,7 @@ fn setup_scene(
 
     let lights = vec![
         vec3(-3.0, 0.75, -23.0),
-        vec3(-17.5, 0.75, -31.0),
-        vec3(-23.75, 0.75, -24.0),
+        vec3(-23.5, 0.75, -31.0),
         vec3(1.25, 0.75, -10.5),
         vec3(-3.15, 0.75, 1.25),
         vec3(-3.25, 0.75, 20.25),
@@ -369,9 +368,12 @@ fn handle_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
 
 fn animate_sun(
     time: Res<Time>,
+    camera: Query<&Transform, With<StrolleCamera>>,
     mut st_sun: ResMut<StrolleSun>,
     mut sun: ResMut<Sun>,
 ) {
+    let camera = camera.single();
+
     if sun.initialized {
         st_sun.azimuth = st_sun.azimuth
             + (sun.azimuth - st_sun.azimuth) * time.delta_seconds();
@@ -382,6 +384,13 @@ fn animate_sun(
         sun.initialized = true;
         st_sun.azimuth = sun.azimuth;
         st_sun.altitude = sun.altitude;
+    }
+
+    // TODO HACK considering how bright the sun is, current denoiser has a hard
+    //           time with it - so unless the camera is close to the entrance,
+    //           let's disable the sun
+    if camera.translation.z <= 20.0 {
+        st_sun.altitude = -1.0;
     }
 }
 
