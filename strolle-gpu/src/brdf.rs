@@ -195,8 +195,8 @@ pub struct LayeredBrdf;
 
 impl LayeredBrdf {
     pub fn sample(wnoise: &mut WhiteNoise, hit: Hit) -> BrdfSample {
-        let (do_diffuse, inv_prob) = if hit.gbuffer.needs_diffuse() {
-            if hit.gbuffer.needs_specular() {
+        let (do_diffuse, inv_prob) = if hit.gbuffer.needs_diff() {
+            if hit.gbuffer.needs_spec() {
                 (wnoise.sample() <= 0.5, 2.0)
             } else {
                 (true, 1.0)

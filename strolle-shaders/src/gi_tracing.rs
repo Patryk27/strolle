@@ -26,13 +26,14 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 4)] gi_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 5)] gi_gbuffer_d1: TexRgba32,
 ) {
-    let screen_pos = global_id.xy();
+    let global_id = global_id.xy();
+    let screen_pos = checkerboard(global_id, params.frame);
     let mut bnoise = LdsBlueNoise::new(
         blue_noise_sobol,
         blue_noise_scrambling_tile,
         blue_noise_ranking_tile,
         screen_pos,
-        params.frame,
+        params.frame / 2,
         0,
     );
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
@@ -54,15 +55,15 @@ pub fn main(
         ]),
     );
 
-    let needs_shading = if params.is_diffuse() {
-        prim_hit.gbuffer.needs_diffuse()
+    let needs_shading = if params.is_diff() {
+        prim_hit.gbuffer.needs_diff()
     } else {
-        prim_hit.gbuffer.needs_specular()
+        prim_hit.gbuffer.needs_spec()
     };
 
     if prim_hit.is_none() || !needs_shading {
         unsafe {
-            gi_rays.write(screen_pos, Vec4::ZERO);
+            gi_rays.write(global_id, Vec4::ZERO);
         }
 
         return;
@@ -70,7 +71,7 @@ pub fn main(
 
     // ---
 
-    let gi_ray_direction = if params.is_diffuse() {
+    let gi_ray_direction = if params.is_diff() {
         bnoise.sample_hemisphere(prim_hit.gbuffer.normal)
     } else {
         let sample =
@@ -125,9 +126,8 @@ pub fn main(
     let [d0, d1] = gi_gbuffer.pack();
 
     unsafe {
-        gi_rays.write(screen_pos, gi_ray_direction.extend(Default::default()));
-
-        gi_gbuffer_d0.write(screen_pos, d0);
-        gi_gbuffer_d1.write(screen_pos, d1);
+        gi_rays.write(global_id, gi_ray_direction.extend(Default::default()));
+        gi_gbuffer_d0.write(global_id, d0);
+        gi_gbuffer_d1.write(global_id, d1);
     }
 }

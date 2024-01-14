@@ -18,6 +18,7 @@ where
     buffer: MappedStorageBuffer<Vec<gpu::Material>>,
     index: HashMap<P::MaterialHandle, gpu::MaterialId>,
     materials: Vec<Material<P>>,
+    has_specular: bool,
 }
 
 impl<P> Materials<P>
@@ -30,6 +31,7 @@ where
             buffer: MappedStorageBuffer::new_default(device, "materials"),
             index: Default::default(),
             materials: Default::default(),
+            has_specular: false,
         }
     }
 
@@ -38,6 +40,8 @@ where
         material_handle: P::MaterialHandle,
         material: Material<P>,
     ) {
+        self.has_specular |= material.metallic > 0.0;
+
         match self.index.entry(material_handle) {
             Entry::Occupied(entry) => {
                 let material_id = *entry.get();
@@ -61,6 +65,10 @@ where
 
     pub fn has(&self, material_handle: &P::MaterialHandle) -> bool {
         self.index.contains_key(material_handle)
+    }
+
+    pub fn has_specular(&self) -> bool {
+        self.has_specular
     }
 
     pub fn remove(&mut self, material_handle: &P::MaterialHandle) {

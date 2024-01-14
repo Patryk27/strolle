@@ -1,3 +1,4 @@
+use glam::uvec2;
 use rand::Rng;
 
 use crate::{
@@ -50,8 +51,8 @@ impl GiTracingPass {
         encoder: &mut wgpu::CommandEncoder,
         mode: u32,
     ) {
-        // This pass uses 8x8 warps:
-        let size = (camera.camera.viewport.size + 7) / 8;
+        // This pass uses 8x8 warps and 2x1 checkerboard:
+        let size = (camera.camera.viewport.size + 7) / 8 / uvec2(2, 1);
 
         let params = gpu::GiPassParams {
             seed: rand::thread_rng().gen(),

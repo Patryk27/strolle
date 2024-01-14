@@ -49,17 +49,17 @@ pub fn main(
     // ---
 
     let sample = GiReservoir::read(input_reservoirs, screen_idx);
-    let sample_pdf = sample.sample.diffuse_pdf(hit.point, hit.gbuffer.normal);
+    let sample_pdf = sample.sample.diff_pdf(hit.point, hit.gbuffer.normal);
 
     if main.merge(&mut wnoise, &sample, sample_pdf) {
         main_pdf = sample_pdf;
     }
 
-    let main_luma = sample.sample.radiance.luminance()
+    let main_luma = sample.sample.radiance.perp_luma()
         * sample.w
         * sample.sample.cosine(&hit);
 
-    let max_luma_diff = lerp(4.0, 0.25, main.m / 20.0);
+    let max_luma_diff = lerp(4.0, 0.1, main.m / 20.0);
 
     // ---
 
@@ -111,8 +111,7 @@ pub fn main(
 
         sample.clamp_m(lerp(64.0, 8.0, sample_dist.length() / max_radius));
 
-        let sample_pdf =
-            sample.sample.diffuse_pdf(hit.point, hit.gbuffer.normal);
+        let sample_pdf = sample.sample.diff_pdf(hit.point, hit.gbuffer.normal);
 
         if sample_pdf < 0.0 {
             continue;
@@ -128,13 +127,15 @@ pub fn main(
 
         let sample_jacobian = sample_jacobian.clamp(1.0 / 3.0, 3.0).sqrt();
 
-        let sample_luma = sample.sample.radiance.luminance()
+        let sample_luma = sample.sample.radiance.perp_luma()
             * sample.w
             * sample.sample.cosine(&hit);
 
-        if (sample_luma - main_luma).abs().sqrt() >= max_luma_diff {
-            continue;
-        }
+        sample.m *= lerp(
+            1.0,
+            0.1,
+            (sample_luma - main_luma).abs().sqrt() / max_luma_diff,
+        );
 
         if main.merge(&mut wnoise, &sample, sample_pdf * sample_jacobian) {
             main_pdf = sample_pdf;

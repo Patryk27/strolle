@@ -6,6 +6,7 @@ mod vec3_ext;
 
 use core::ops;
 
+use glam::{uvec2, UVec2};
 use spirv_std::Image;
 
 pub use self::bilinear_filter::*;
@@ -27,4 +28,12 @@ where
     T: Copy,
 {
     a + (b - a) * t.clamp(0.0, 1.0)
+}
+
+pub fn checkerboard(global_id: UVec2, frame: u32) -> UVec2 {
+    global_id * uvec2(2, 1) + uvec2((frame + global_id.y) % 2, 0)
+}
+
+pub fn is_checkerboard(screen_pos: UVec2, frame: u32) -> bool {
+    screen_pos == checkerboard(screen_pos / uvec2(2, 1), frame)
 }

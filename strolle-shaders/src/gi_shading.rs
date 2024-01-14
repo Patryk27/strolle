@@ -34,7 +34,8 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 10, storage_buffer)]
     gi_samples: &mut [Vec4],
 ) {
-    let screen_pos = global_id.xy();
+    let global_id = global_id.xy();
+    let screen_pos = checkerboard(global_id, params.frame);
     let screen_idx = camera.screen_to_idx(screen_pos);
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
     let triangles = TrianglesView::new(triangles);
@@ -62,7 +63,7 @@ pub fn main(
         ]),
     );
 
-    let gi_ray_direction = gi_rays.read(screen_pos);
+    let gi_ray_direction = gi_rays.read(global_id);
 
     // Empty ray direction means that we've either didn't hit anything or that
     // the surface we've hit is not compatible with our current pass kind (e.g.
@@ -81,8 +82,8 @@ pub fn main(
     let gi_hit = Hit::new(
         Ray::new(prim_hit.point, gi_ray_direction.xyz()),
         GBufferEntry::unpack([
-            gi_gbuffer_d0.read(screen_pos),
-            gi_gbuffer_d1.read(screen_pos),
+            gi_gbuffer_d0.read(global_id),
+            gi_gbuffer_d1.read(global_id),
         ]),
     );
 

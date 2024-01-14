@@ -6,9 +6,11 @@ use crate::{
 
 #[derive(Debug)]
 pub struct FrameDenoisingPass {
-    reproject_passes: [CameraComputePass; 2],
+    reproject_passes:
+        [CameraComputePass<gpu::FrameDenoisingReprojectPassParams>; 2],
     estimate_variance_pass: CameraComputePass,
-    wavelet_passes: [CameraComputePass<gpu::FrameDenoisingPassParams>; 5],
+    wavelet_passes:
+        [CameraComputePass<gpu::FrameDenoisingWaveletPassParams>; 5],
 }
 
 impl FrameDenoisingPass {
@@ -147,9 +149,23 @@ impl FrameDenoisingPass {
         // This pass uses 8x8 warps:
         let size = (camera.camera.viewport.size + 7) / 8;
 
-        for pass in &self.reproject_passes {
-            pass.run(camera, encoder, size, camera.pass_params());
-        }
+        self.reproject_passes[0].run(
+            camera,
+            encoder,
+            size,
+            gpu::FrameDenoisingReprojectPassParams {
+                mode: gpu::FrameDenoisingReprojectPassParams::MODE_DI_DIFF,
+            },
+        );
+
+        self.reproject_passes[1].run(
+            camera,
+            encoder,
+            size,
+            gpu::FrameDenoisingReprojectPassParams {
+                mode: gpu::FrameDenoisingReprojectPassParams::MODE_GI_DIFF,
+            },
+        );
 
         self.estimate_variance_pass.run(
             camera,
@@ -163,9 +179,10 @@ impl FrameDenoisingPass {
                 camera,
                 encoder,
                 size,
-                gpu::FrameDenoisingPassParams {
+                gpu::FrameDenoisingWaveletPassParams {
                     frame: camera.frame,
                     stride: 2u32.pow(nth as u32),
+                    strength: (1 + (nth as u32)),
                 },
             );
         }

@@ -38,24 +38,26 @@ pub fn main(
 
     // ---
 
-    let d0 = unsafe { *samples.index_unchecked(3 * screen_idx) };
-    let d1 = unsafe { *samples.index_unchecked(3 * screen_idx + 1) };
-    let d2 = unsafe { *samples.index_unchecked(3 * screen_idx + 2) };
-
-    let hit_point = d0.xyz();
+    let hit_point = camera.ray(screen_pos).at(surface.depth);
     let hit_normal = surface.normal;
 
-    if d0.w.to_bits() == 1 {
-        let sample = GiSample {
-            radiance: d1.xyz(),
-            v1_point: d0.xyz(),
-            v2_point: d2.xyz(),
-            v2_normal: Normal::decode(vec2(d1.w, d2.w)),
-            frame: params.frame,
-        };
+    if is_checkerboard(screen_pos, params.frame) {
+        let d0 = unsafe { *samples.index_unchecked(3 * screen_idx) };
+        let d1 = unsafe { *samples.index_unchecked(3 * screen_idx + 1) };
+        let d2 = unsafe { *samples.index_unchecked(3 * screen_idx + 2) };
 
-        main_pdf = sample.diffuse_pdf(hit_point, hit_normal);
-        main.update(&mut wnoise, sample, main_pdf);
+        if d0.w.to_bits() == 1 {
+            let sample = GiSample {
+                radiance: d1.xyz(),
+                v1_point: d0.xyz(),
+                v2_point: d2.xyz(),
+                v2_normal: Normal::decode(vec2(d1.w, d2.w)),
+                frame: params.frame,
+            };
+
+            main_pdf = sample.diff_pdf(hit_point, hit_normal);
+            main.update(&mut wnoise, sample, main_pdf);
+        }
     }
 
     // ---
@@ -68,10 +70,12 @@ pub fn main(
 
         sample.clamp_m(50.0);
 
-        let sample_pdf = sample.sample.diffuse_pdf(hit_point, hit_normal);
+        if !sample.is_empty() {
+            let sample_pdf = sample.sample.diff_pdf(hit_point, hit_normal);
 
-        if main.merge(&mut wnoise, &sample, sample_pdf) {
-            main_pdf = sample_pdf;
+            if main.merge(&mut wnoise, &sample, sample_pdf) {
+                main_pdf = sample_pdf;
+            }
         }
     }
 
@@ -109,9 +113,13 @@ pub fn main(
             camera.screen_to_idx(sample_pos),
         );
 
-        sample.clamp_m(1.0);
+        if sample.is_empty() {
+            continue;
+        }
 
-        let sample_pdf = sample.sample.diffuse_pdf(hit_point, hit_normal);
+        let sample_pdf = sample.sample.diff_pdf(hit_point, hit_normal);
+
+        sample.clamp_m(1.0);
 
         if main.merge(&mut wnoise, &sample, sample_pdf) {
             main_pdf = sample_pdf;

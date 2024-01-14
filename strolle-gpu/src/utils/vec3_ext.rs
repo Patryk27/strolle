@@ -1,4 +1,6 @@
 use glam::{vec3, Vec3};
+#[cfg(target_arch = "spirv")]
+use spirv_std::num_traits::Float;
 
 pub trait Vec3Ext
 where
@@ -14,10 +16,14 @@ where
     fn clip(self, aabb_min: Self, aabb_max: Self) -> Self;
 
     /// Returns luminance of this color-vector.
-    fn luminance(self) -> f32;
+    fn luma(self) -> f32;
 
-    /// Adjusts luminance of this color-vector.
-    fn with_luminance(self, l_out: f32) -> Self;
+    /// Returns perceptual luminance of this color-vector.
+    ///
+    /// As compared to the standard luminance, perceptual luminance gets a boost
+    /// for darker colors and attenuates the brigher colors, so that comparisons
+    /// between them behave more human-vision like.
+    fn perp_luma(self) -> f32;
 }
 
 impl Vec3Ext for Vec3 {
@@ -40,11 +46,11 @@ impl Vec3Ext for Vec3 {
         }
     }
 
-    fn luminance(self) -> f32 {
+    fn luma(self) -> f32 {
         self.dot(vec3(0.2126, 0.7152, 0.0722))
     }
 
-    fn with_luminance(self, l_out: f32) -> Self {
-        self * (l_out / self.luminance())
+    fn perp_luma(self) -> f32 {
+        self.luma().powf(1.0 / 3.0)
     }
 }

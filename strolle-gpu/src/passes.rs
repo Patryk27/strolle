@@ -90,9 +90,26 @@ impl PrimRasterPassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct FrameDenoisingPassParams {
+pub struct FrameDenoisingReprojectPassParams {
+    pub mode: u32,
+}
+
+impl FrameDenoisingReprojectPassParams {
+    pub const MODE_DI_DIFF: u32 = 0;
+    pub const MODE_GI_DIFF: u32 = 1;
+
+    pub fn is_di_diff(&self) -> bool {
+        self.mode == Self::MODE_DI_DIFF
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
+#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
+pub struct FrameDenoisingWaveletPassParams {
     pub frame: u32,
     pub stride: u32,
+    pub strength: u32,
 }
 
 #[repr(C)]
@@ -121,15 +138,15 @@ pub struct GiPassParams {
 }
 
 impl GiPassParams {
-    pub const MODE_DIFFUSE: u32 = 0;
-    pub const MODE_SPECULAR: u32 = 1;
+    pub const MODE_DIFF: u32 = 0;
+    pub const MODE_SPEC: u32 = 1;
 
-    pub fn is_diffuse(&self) -> bool {
-        self.mode == Self::MODE_DIFFUSE
+    pub fn is_diff(&self) -> bool {
+        self.mode == Self::MODE_DIFF
     }
 
-    pub fn is_specular(&self) -> bool {
-        self.mode == Self::MODE_SPECULAR
+    pub fn is_spec(&self) -> bool {
+        self.mode == Self::MODE_SPEC
     }
 }
 

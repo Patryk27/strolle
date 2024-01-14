@@ -91,7 +91,7 @@ impl DiSample {
     }
 
     pub fn pdf(&self, lights: LightsView, hit: Hit) -> f32 {
-        lights.get(self.light_id).radiance(hit).luminance()
+        lights.get(self.light_id).radiance(hit).perp_luma()
     }
 
     pub fn ray(&self, hit: Hit) -> Ray {

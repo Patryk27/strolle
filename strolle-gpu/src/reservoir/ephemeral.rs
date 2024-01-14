@@ -31,6 +31,6 @@ pub struct EphemeralSample {
 
 impl EphemeralSample {
     pub fn pdf(&self) -> f32 {
-        self.light_radiance.luminance()
+        self.light_radiance.perp_luma()
     }
 }

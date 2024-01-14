@@ -41,21 +41,23 @@ pub fn main(
     let mut main = GiReservoir::default();
     let mut main_pdf = 0.0;
 
-    let d0 = unsafe { *samples.index_unchecked(3 * screen_idx) };
-    let d1 = unsafe { *samples.index_unchecked(3 * screen_idx + 1) };
-    let d2 = unsafe { *samples.index_unchecked(3 * screen_idx + 2) };
+    if is_checkerboard(screen_pos, params.frame) {
+        let d0 = unsafe { *samples.index_unchecked(3 * screen_idx) };
+        let d1 = unsafe { *samples.index_unchecked(3 * screen_idx + 1) };
+        let d2 = unsafe { *samples.index_unchecked(3 * screen_idx + 2) };
 
-    if d0.w.to_bits() == 1 {
-        let sample = GiSample {
-            radiance: d1.xyz(),
-            v1_point: d0.xyz(),
-            v2_point: d2.xyz(),
-            v2_normal: Normal::decode(vec2(d1.w, d2.w)),
-            frame: params.frame,
-        };
+        if d0.w.to_bits() == 1 {
+            let sample = GiSample {
+                radiance: d1.xyz(),
+                v1_point: d0.xyz(),
+                v2_point: d2.xyz(),
+                v2_normal: Normal::decode(vec2(d1.w, d2.w)),
+                frame: params.frame,
+            };
 
-        main_pdf = sample.specular_pdf();
-        main.update(&mut wnoise, sample, main_pdf);
+            main_pdf = sample.spec_pdf();
+            main.update(&mut wnoise, sample, main_pdf);
+        }
     }
 
     // ---
@@ -68,8 +70,8 @@ pub fn main(
             camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
-        if sample.sample.is_within_specular_lobe_of(&hit) {
-            let sample_pdf = sample.sample.specular_pdf();
+        if sample.sample.is_within_spec_lobe_of(&hit) {
+            let sample_pdf = sample.sample.spec_pdf();
 
             if main.merge(&mut wnoise, &sample, sample_pdf) {
                 main_pdf = sample_pdf;

@@ -19,30 +19,28 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let hit = Hit::new(
-        camera.ray(screen_pos),
-        GBufferEntry::unpack([
-            prim_gbuffer_d0.read(screen_pos),
-            prim_gbuffer_d1.read(screen_pos),
-        ]),
-    );
-
-    let mut out = Vec4::ZERO;
-
     let res = GiReservoir::read(reservoirs, camera.screen_to_idx(screen_pos));
 
-    let radiance = res.sample.radiance * res.w;
-    let cosine = res.sample.cosine(&hit);
-    let brdf = res.sample.specular_brdf(&hit);
-
-    if brdf.probability > 0.0 {
-        out += (radiance * cosine * brdf.radiance).extend(brdf.probability);
-    }
-
-    let out = if out.w > 0.0 {
-        out.xyz() / out.w
-    } else {
+    let out = if res.is_empty() {
         Vec3::ZERO
+    } else {
+        let hit = Hit::new(
+            camera.ray(screen_pos),
+            GBufferEntry::unpack([
+                prim_gbuffer_d0.read(screen_pos),
+                prim_gbuffer_d1.read(screen_pos),
+            ]),
+        );
+
+        let radiance = res.sample.radiance * res.w;
+        let cosine = res.sample.cosine(&hit);
+        let brdf = res.sample.spec_brdf(&hit);
+
+        if brdf.probability > 0.0 {
+            (radiance * cosine * brdf.radiance) / brdf.probability
+        } else {
+            Vec3::ZERO
+        }
     };
 
     unsafe {

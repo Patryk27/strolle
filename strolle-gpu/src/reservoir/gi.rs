@@ -85,39 +85,38 @@ pub struct GiSample {
 }
 
 impl GiSample {
-    pub fn specular_pdf(&self) -> f32 {
-        self.radiance.luminance()
+    pub fn spec_pdf(&self) -> f32 {
+        self.radiance.luma()
     }
 
-    pub fn diffuse_pdf(&self, hit_point: Vec3, hit_normal: Vec3) -> f32 {
-        self.radiance.luminance()
-            * self.direction(hit_point).dot(hit_normal).max(0.0)
+    pub fn diff_pdf(&self, hit_point: Vec3, hit_normal: Vec3) -> f32 {
+        self.radiance.luma() * self.dir(hit_point).dot(hit_normal).max(0.0)
     }
 
-    pub fn direction(&self, point: Vec3) -> Vec3 {
+    pub fn dir(&self, point: Vec3) -> Vec3 {
         (self.v2_point - point).normalize()
     }
 
     pub fn cosine(&self, hit: &Hit) -> f32 {
-        self.direction(hit.point).dot(hit.gbuffer.normal).max(0.0)
+        self.dir(hit.point).dot(hit.gbuffer.normal).max(0.0)
     }
 
-    pub fn diffuse_brdf(&self, hit: &Hit) -> BrdfValue {
+    pub fn diff_brdf(&self, hit: &Hit) -> BrdfValue {
         BrdfValue {
             radiance: Vec3::ONE * (1.0 - hit.gbuffer.metallic),
             probability: PI,
         }
     }
 
-    pub fn specular_brdf(&self, hit: &Hit) -> BrdfValue {
-        let l = self.direction(hit.point);
+    pub fn spec_brdf(&self, hit: &Hit) -> BrdfValue {
+        let l = self.dir(hit.point);
         let v = -hit.direction;
 
         SpecularBrdf::new(&hit.gbuffer).evaluate(l, v)
     }
 
-    pub fn is_within_specular_lobe_of(&self, hit: &Hit) -> bool {
-        let l = self.direction(hit.point);
+    pub fn is_within_spec_lobe_of(&self, hit: &Hit) -> bool {
+        let l = self.dir(hit.point);
         let v = -hit.direction;
 
         SpecularBrdf::new(&hit.gbuffer).is_sample_within_lobe(l, v)

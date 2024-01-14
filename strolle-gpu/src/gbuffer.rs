@@ -117,13 +117,11 @@ impl GBufferEntry {
         self.roughness == 0.0
     }
 
-    /// Returns whether this pixel needs diffuse lighting.
-    pub fn needs_diffuse(&self) -> bool {
+    pub fn needs_diff(&self) -> bool {
         self.metallic < 1.0
     }
 
-    /// Returns whether this pixel needs specular lighting.
-    pub fn needs_specular(&self) -> bool {
+    pub fn needs_spec(&self) -> bool {
         self.metallic > 0.0
     }
 }

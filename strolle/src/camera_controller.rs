@@ -129,13 +129,13 @@ impl CameraController {
                         self.passes.gi_tracing.run(
                             self,
                             encoder,
-                            gpu::GiPassParams::MODE_DIFFUSE,
+                            gpu::GiPassParams::MODE_DIFF,
                         );
 
                         self.passes.gi_shading.run(
                             self,
                             encoder,
-                            gpu::GiPassParams::MODE_DIFFUSE,
+                            gpu::GiPassParams::MODE_DIFF,
                         );
 
                         self.passes
@@ -149,17 +149,19 @@ impl CameraController {
                         self.passes.gi_diff_resolving.run(self, encoder);
                     }
 
-                    if self.camera.mode.needs_gi_spec() {
+                    if self.camera.mode.needs_gi_spec()
+                        && engine.materials.has_specular()
+                    {
                         self.passes.gi_tracing.run(
                             self,
                             encoder,
-                            gpu::GiPassParams::MODE_SPECULAR,
+                            gpu::GiPassParams::MODE_SPEC,
                         );
 
                         self.passes.gi_shading.run(
                             self,
                             encoder,
-                            gpu::GiPassParams::MODE_SPECULAR,
+                            gpu::GiPassParams::MODE_SPEC,
                         );
 
                         self.passes.gi_spec_resampling.run(self, encoder);

@@ -27,7 +27,7 @@ impl BvhHeatmapPass {
             ])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.gi_diff_curr_colors.bind_writable(),
+                &buffers.di_diff_curr_colors.bind_writable(),
             ])
             .build(device, &engine.shaders.bvh_heatmap);
 
