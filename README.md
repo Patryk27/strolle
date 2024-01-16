@@ -9,13 +9,18 @@ global illumination:
 
 Our goal is to experiment with modern real-time lighting techniques such as
 ReSTIR and see how far we can go on consumer hardware (especially the one
-without dedicated ray-tracing cores).
+without ray-tracing cores).
 
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
 
 Status: Experimental, no official release yet (see the demo below, though!).    
-Platforms: Windows, Mac & Linux.
+Platforms: Windows, Mac, Linux & WebGPU.
+
+* [Gallery](#gallery)
+* [Examples](#examples)
+* [Usage](#usage)
+* [Roadmap](#roadmap)
 
 ## Gallery
 
@@ -68,9 +73,11 @@ https://sketchfab.com/3d-models/low-poly-game-level-82b7a937ae504cfa9f277d9bf687
 $ cargo run --release --example cornell
 ```
 
-## Using with Bevy
+## Usage
 
-(currently supported Bevy version: 0.12.1)
+### Bevy
+
+Currently supported Bevy version: 0.12.1.
 
 1. Add Strolle to your dependencies:
 
@@ -106,22 +113,36 @@ $ cargo run --release --example cornell
         });
     ```
 
-Note that at the moment Strolle is not optimized well towards higher
-resolutions - especially on non-high-end GPUs it's recommended to stick to
-~800x600 and upscale the camera (see the `demo.rs` here).
+Note that Strolle completely overrides Bevy's camera graph, so you can't use a
+Strolle camera together with Bevy's effects such as bloom or TAA (yet); you also
+can't use custom vertex or fragment shaders.
 
-There are some tricks that Strolle could employ to support higher resolutions in
-the future, though.
+Also, Strolle is not optimized well towards higher resolutions - on non-high-end
+GPUs, it's recommended to stick to ~800-600 and upscale the camera instead (see
+the `demo.rs` here).
+
+(that's mostly because Strolle uses ray-tracing not only to compute indirect
+lighting, but direct as well, which is too heavy for smaller GPUs - this is on
+our roadmap, though!)
 
 ## Roadmap
 
-- support for normal mapping
+Quality:
 - support for ReSTIR GI validation
-- support for importance sampling emissive materials
+- support for ReSTIR-sampling for emissive materials (not only for lights)
+- (better) support for specular materials (resampling & denoising)
+
+Features:
+- support for normal mapping
+- support for light transmission (e.g. glass)
+- support for skinning / skeletal animations
 - support for multi-bounce global illumination
-- (better) support for specular materials
+
+Performance:
+- support for (optional) shadow mapping
+- support for extracting just the GI information
 - (better) support for higher resolutions
-- (better) support for lots of lights
+- (better) support for hundreds+ of lights
 
 ## Algorithms
 
