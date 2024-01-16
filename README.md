@@ -7,20 +7,23 @@ global illumination:
   <img height="512" src="_readme/demo-v11.jpg" />
 </p>
 
-Our goal is to experiment with modern real-time lighting techniques such as
-ReSTIR and see how far we can go on consumer hardware (especially the one
-without ray-tracing cores).
+* [Introduction](#introduction)
+* [Gallery](#gallery)
+* [Examples](#examples)
+* [Usage](#usage)
+* [Roadmap](#roadmap)
+
+## Introduction
+
+Strolle's goal is to experiment with modern real-time lighting techniques such
+as ReSTIR and see how far we can go on consumer hardware (especially the one
+_without_ dedicated ray-tracing cores).
 
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
 
 Status: Experimental, no official release yet (see the demo below, though!).    
 Platforms: Windows, Mac, Linux & WebGPU.
-
-* [Gallery](#gallery)
-* [Examples](#examples)
-* [Usage](#usage)
-* [Roadmap](#roadmap)
 
 ## Gallery
 
