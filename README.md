@@ -127,22 +127,7 @@ our roadmap, though!)
 
 ## Roadmap
 
-Quality:
-- support for ReSTIR GI validation
-- support for ReSTIR-sampling for emissive materials (not only for lights)
-- (better) support for specular materials (resampling & denoising)
-
-Features:
-- support for normal mapping
-- support for light transmission (e.g. glass)
-- support for skinning / skeletal animations
-- support for multi-bounce global illumination
-
-Performance:
-- support for (optional) shadow mapping
-- support for extracting just the GI information
-- (better) support for higher resolutions
-- (better) support for hundreds+ of lights
+https://github.com/Patryk27/strolle/issues?q=is%3Aissue+is%3Aopen+label%3AC-bug%2CC-feature
 
 ## Algorithms
 
