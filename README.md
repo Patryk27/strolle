@@ -8,8 +8,8 @@ global illumination:
 </p>
 
 Strolle's goal is to experiment with modern real-time lighting techniques such
-as ReSTIR and see how far we can go on consumer hardware (especially the one
-_without_ dedicated ray-tracing cores).
+as ReSTIR and see how far we can go on consumer hardware, especially the one
+_without_ dedicated ray-tracing cores.
 
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
