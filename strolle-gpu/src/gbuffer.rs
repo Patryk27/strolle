@@ -88,7 +88,7 @@ impl GBufferEntry {
                     .base_color
                     .powf(1.0 / 2.2)
                     .clamp(Vec4::ZERO, Vec4::ONE);
-                
+
                 let base_color = (vec4(
                     base_color.x * 255.0,
                     base_color.y * 255.0,

@@ -121,7 +121,6 @@ pub fn main(
 
             while light_idx < world.light_count {
                 let light_id = LightId::new(light_idx);
-
                 let light_radiance = lights.get(light_id).contribution(gi_hit);
 
                 let sample = EphemeralSample {

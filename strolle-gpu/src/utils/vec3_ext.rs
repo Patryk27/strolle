@@ -23,7 +23,7 @@ where
     /// As compared to the standard luminance, perceptual luminance gets a boost
     /// for darker colors and attenuates the brigher colors, so that comparisons
     /// between them behave more human-vision like.
-    fn perp_luma(self) -> f32;
+    fn perc_luma(self) -> f32;
 }
 
 impl Vec3Ext for Vec3 {
@@ -50,7 +50,7 @@ impl Vec3Ext for Vec3 {
         self.dot(vec3(0.2126, 0.7152, 0.0722))
     }
 
-    fn perp_luma(self) -> f32 {
+    fn perc_luma(self) -> f32 {
         self.luma().powf(1.0 / 3.0)
     }
 }

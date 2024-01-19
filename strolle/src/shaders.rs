@@ -45,6 +45,7 @@ shaders!([
     bvh_heatmap,
     di_resolving,
     di_shading,
+    di_spatial_resampling,
     di_temporal_resampling,
     frame_composition_fs,
     frame_composition_vs,

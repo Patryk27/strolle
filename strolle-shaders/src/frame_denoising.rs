@@ -38,7 +38,7 @@ pub fn reproject(
     let sample = samples.read(screen_pos);
 
     let sample_luma = if params.is_di_diff() {
-        sample.xyz().perp_luma()
+        sample.xyz().perc_luma()
     } else {
         sample.xyz().luma()
     };
@@ -109,7 +109,7 @@ pub fn estimate_variance(
     let center_surface = prim_surface_map.get(screen_pos);
 
     let center_di_color = di_colors.read(screen_pos);
-    let center_di_luma_p = center_di_color.xyz().perp_luma();
+    let center_di_luma_p = center_di_color.xyz().perc_luma();
     let center_di_moment = di_moments.read(screen_pos);
     let center_di_var;
 
@@ -148,7 +148,7 @@ pub fn estimate_variance(
                 if !sample_surface.is_sky() {
                     let sample_di_color = di_colors.read(sample_pos);
 
-                    let sample_di_luma_p = sample_di_color.xyz().perp_luma();
+                    let sample_di_luma_p = sample_di_color.xyz().perc_luma();
 
                     let sample_di_weight = eval_sample_weight(
                         center_di_luma_p,
@@ -254,7 +254,7 @@ pub fn wavelet(
     let center_di = di_input.read(screen_pos);
     let center_di_color = center_di.xyz();
     let center_di_var = center_di.w;
-    let center_di_luma_p = center_di_color.perp_luma();
+    let center_di_luma_p = center_di_color.perc_luma();
 
     if center_surface.is_sky() {
         unsafe {
@@ -342,7 +342,7 @@ pub fn wavelet(
                 let sample_di = di_input.read(sample_pos);
                 let sample_di_color = sample_di.xyz();
                 let sample_di_var = sample_di.w;
-                let sample_di_luma_p = sample_di_color.perp_luma();
+                let sample_di_luma_p = sample_di_color.perc_luma();
 
                 let sample_di_weight = eval_sample_weight(
                     center_di_luma_p,

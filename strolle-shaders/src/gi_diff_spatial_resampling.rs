@@ -55,7 +55,7 @@ pub fn main(
         main_pdf = sample_pdf;
     }
 
-    let main_luma = sample.sample.radiance.perp_luma()
+    let main_luma = sample.sample.radiance.perc_luma()
         * sample.w
         * sample.sample.cosine(&hit);
 
@@ -112,11 +112,6 @@ pub fn main(
         sample.clamp_m(lerp(64.0, 8.0, sample_dist.length() / max_radius));
 
         let sample_pdf = sample.sample.diff_pdf(hit.point, hit.gbuffer.normal);
-
-        if sample_pdf < 0.0 {
-            continue;
-        }
-
         let sample_jacobian = sample.sample.jacobian(hit.point);
 
         // TODO rust-gpu seems to miscompile `.contains()`
@@ -127,7 +122,7 @@ pub fn main(
 
         let sample_jacobian = sample_jacobian.clamp(1.0 / 3.0, 3.0).sqrt();
 
-        let sample_luma = sample.sample.radiance.perp_luma()
+        let sample_luma = sample.sample.radiance.perc_luma()
             * sample.w
             * sample.sample.cosine(&hit);
 

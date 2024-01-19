@@ -4,6 +4,7 @@ pub mod atmosphere;
 pub mod bvh_heatmap;
 pub mod di_resolving;
 pub mod di_shading;
+pub mod di_spatial_resampling;
 pub mod di_temporal_resampling;
 pub mod frame_composition;
 pub mod frame_denoising;
