@@ -118,7 +118,7 @@ Strolle camera together with Bevy's effects such as bloom or TAA (yet); you also
 can't use custom vertex or fragment shaders.
 
 Also, Strolle is not optimized well towards higher resolutions - on non-high-end
-GPUs, it's recommended to stick to ~800-600 and upscale the camera instead (see
+GPUs, it's recommended to stick to ~800x600 and upscale the camera instead (see
 the `demo.rs` here).
 
 (that's mostly because Strolle uses ray-tracing not only to compute indirect
