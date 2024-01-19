@@ -100,7 +100,7 @@ pub fn main(
         light_pdf = 1.0;
 
         light_radiance =
-            atmosphere.sky(world.sun_direction(), gi_hit.direction);
+            atmosphere.sample(world.sun_direction(), gi_hit.direction, 32.0);
     } else {
         let atmosphere_pdf = if world.sun_altitude <= -1.0 {
             0.0
@@ -113,15 +113,16 @@ pub fn main(
             light_pdf = atmosphere_pdf;
             light_dir = wnoise.sample_hemisphere(gi_hit.gbuffer.normal);
 
-            light_radiance = atmosphere.sky(world.sun_direction(), light_dir)
-                * gi_hit.gbuffer.normal.dot(light_dir);
+            light_radiance =
+                atmosphere.sample(world.sun_direction(), light_dir, 32.0)
+                    * gi_hit.gbuffer.normal.dot(light_dir);
         } else {
             let mut res = EphemeralReservoir::default();
             let mut light_idx = 0;
 
             while light_idx < world.light_count {
                 let light_id = LightId::new(light_idx);
-                let light_radiance = lights.get(light_id).contribution(gi_hit);
+                let light_radiance = lights.get(light_id).radiance(gi_hit);
 
                 let sample = EphemeralSample {
                     light_id,
@@ -182,6 +183,10 @@ pub fn main(
         // the radiance is best we can do
         Vec3::ZERO
     };
+
+    if gi_hit.is_some() {
+        radiance *= DiffuseBrdf::new(&gi_hit.gbuffer).evaluate().radiance;
+    }
 
     radiance += gi_hit.gbuffer.emissive;
 

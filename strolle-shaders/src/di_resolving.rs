@@ -53,7 +53,7 @@ pub fn main(
     let color = if hit.is_some() {
         lights.get(res.sample.light_id).radiance(hit) * res.w
     } else {
-        atmosphere.sky(world.sun_direction(), hit.direction)
+        atmosphere.sample(world.sun_direction(), hit.direction, 1.0)
     };
 
     unsafe {

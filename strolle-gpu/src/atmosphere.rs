@@ -83,13 +83,7 @@ impl<'a> Atmosphere<'a> {
         }
     }
 
-    /// Returns color of the sun at given direction.
-    pub fn sun(&self, sun_dir: Vec3) -> Vec3 {
-        self.sample_transmittance_lut(Self::VIEW_POS, sun_dir) * Self::EXPOSURE
-    }
-
-    /// Returns color of the sky at given direction.
-    pub fn sky(&self, sun_dir: Vec3, ray_dir: Vec3) -> Vec3 {
+    pub fn sample(&self, sun_dir: Vec3, ray_dir: Vec3, sun_boost: f32) -> Vec3 {
         let mut lum = self.sample_sky_lut(ray_dir, sun_dir);
         let mut sun_lum = self.evaluate_bloom(ray_dir, sun_dir);
 
@@ -101,8 +95,9 @@ impl<'a> Atmosphere<'a> {
             if ray.intersect_sphere(Self::GROUND_RADIUS_MM) >= 0.0 {
                 sun_lum = Vec3::ZERO;
             } else {
-                sun_lum *=
-                    self.sample_transmittance_lut(Self::VIEW_POS, sun_dir);
+                sun_lum *= self
+                    .sample_transmittance_lut(Self::VIEW_POS, sun_dir)
+                    * sun_boost;
             }
         }
 
