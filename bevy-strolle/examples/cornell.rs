@@ -25,7 +25,7 @@ fn main() {
                 ..default()
             }),
             LogDiagnosticsPlugin::default(),
-            FrameTimeDiagnosticsPlugin::default(),
+            FrameTimeDiagnosticsPlugin,
             LookTransformPlugin,
             OrbitCameraPlugin::default(),
             StrollePlugin,
@@ -65,11 +65,12 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
         })
         .insert(OrbitCameraBundle::new(
             {
-                let mut controller = OrbitCameraController::default();
-
-                controller.mouse_rotate_sensitivity = Vec2::ONE * 0.2;
-                controller.mouse_translate_sensitivity = Vec2::ONE * 0.5;
-                controller
+                OrbitCameraController {
+                    enabled: true,
+                    mouse_rotate_sensitivity: Vec2::ONE * 0.2,
+                    mouse_translate_sensitivity: Vec2::ONE * 0.5,
+                    ..default()
+                }
             },
             vec3(0.0, 1.0, 3.2),
             vec3(0.0, 1.0, 0.0),

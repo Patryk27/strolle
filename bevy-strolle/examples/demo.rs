@@ -38,7 +38,7 @@ fn main() {
                 ..default()
             }),
             LogDiagnosticsPlugin::default(),
-            FrameTimeDiagnosticsPlugin::default(),
+            FrameTimeDiagnosticsPlugin,
             LookTransformPlugin,
             FpsCameraPlugin::default(),
             StrollePlugin,
@@ -137,11 +137,12 @@ fn setup_camera(
         .insert(StrolleCamera::default())
         .insert(FpsCameraBundle::new(
             {
-                let mut controller = FpsCameraController::default();
-
-                controller.mouse_rotate_sensitivity = Vec2::ONE * 0.35;
-                controller.translate_sensitivity = 8.0;
-                controller
+                FpsCameraController {
+                    enabled: true,
+                    mouse_rotate_sensitivity: Vec2::ONE * 0.35,
+                    translate_sensitivity: 8.0,
+                    ..default()
+                }
             },
             vec3(-5.75, 0.5, -16.8),
             vec3(-5.75, 0.5, -17.0),
