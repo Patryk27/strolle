@@ -36,7 +36,7 @@ fn main() {
                 ..default()
             }),
             LogDiagnosticsPlugin::default(),
-            FrameTimeDiagnosticsPlugin::default(),
+            FrameTimeDiagnosticsPlugin,
             LookTransformPlugin,
             FpsCameraPlugin::default(),
             StrollePlugin,
@@ -138,11 +138,12 @@ fn setup_camera(
         .insert(StrolleCamera::default())
         .insert(FpsCameraBundle::new(
             {
-                let mut controller = FpsCameraController::default();
-
-                controller.mouse_rotate_sensitivity = Vec2::ONE * 0.35;
-                controller.translate_sensitivity = 8.0;
-                controller
+                FpsCameraController {
+                    enabled: false,
+                    mouse_rotate_sensitivity: Vec2::ONE * 0.35,
+                    translate_sensitivity: 8.0,
+                    ..default()
+                }
             },
             vec3(2.0, 1.0, 2.0),
             vec3(0.0, 0.0, 0.0),
@@ -208,14 +209,14 @@ fn setup_state(
 
     commands.spawn(MaterialMesh2dBundle {
         mesh: crosshair_mesh.clone().into(),
-        material: crosshair_material.clone().into(),
+        material: crosshair_material.clone(),
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
         ..default()
     });
 
     commands.spawn(MaterialMesh2dBundle {
         mesh: crosshair_mesh.into(),
-        material: crosshair_material.clone().into(),
+        material: crosshair_material.clone(),
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0))
             .with_rotation(Quat::from_rotation_z(PI / 2.0)),
         ..default()
@@ -297,7 +298,7 @@ fn handle_camera(
         };
     }
 }
-
+#[allow(clippy::too_many_arguments)]
 fn process_input(
     mut raycast: Raycast,
     mut state: ResMut<State>,
