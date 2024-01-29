@@ -8,8 +8,10 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
-    reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 4)] output: TexRgba32,
+    reservoirs_t: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
+    reservoirs_s: &mut [Vec4],
+    #[spirv(descriptor_set = 0, binding = 5)] output: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
@@ -28,12 +30,19 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    let res = GiReservoir::read(reservoirs, screen_idx);
+    let res_t = GiReservoir::read(reservoirs_t, screen_idx);
+    let res_s = GiReservoir::read(reservoirs_s, screen_idx);
 
-    let out = (res.w * res.sample.cosine(&hit) * res.sample.radiance)
-        .extend(Default::default());
+    let out = (res_s.w.clamp(0.0, 10.0)
+        * res_s.sample.cosine(&hit)
+        * res_s.sample.radiance)
+        .extend(res_t.m);
 
     unsafe {
         output.write(screen_pos, out);
     }
+
+    // ---
+
+    res_t.write(reservoirs_s, screen_idx);
 }

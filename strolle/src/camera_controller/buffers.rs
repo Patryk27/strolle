@@ -36,14 +36,9 @@ pub struct CameraBuffers {
     pub gi_gbuffer_d1: Texture,
     pub gi_samples: StorageBuffer,
 
-    pub gi_diff_temporal_reservoirs: DoubleBuffered<StorageBuffer>,
-    pub gi_diff_spatial_reservoirs_a: StorageBuffer,
-    pub gi_diff_spatial_reservoirs_b: StorageBuffer,
+    pub gi_diff_reservoirs: [StorageBuffer; 4],
     pub gi_diff_samples: Texture,
-    pub gi_diff_prev_colors: Texture,
-    pub gi_diff_curr_colors: Texture,
-    pub gi_diff_moments: DoubleBuffered<Texture>,
-    pub gi_diff_stash: Texture,
+    pub gi_diff_colors: DoubleBuffered<Texture>,
 
     pub gi_spec_samples: Texture,
     pub gi_spec_reservoirs: DoubleBuffered<StorageBuffer>,
@@ -228,23 +223,13 @@ impl CameraBuffers {
 
         // ---
 
-        let gi_diff_temporal_reservoirs = DoubleBuffered::<StorageBuffer>::new(
-            device,
-            "gi_diff_temporal_reservoirs",
-            viewport_buffer_size(4 * 4 * 4),
-        );
-
-        let gi_diff_spatial_reservoirs_a = StorageBuffer::new(
-            device,
-            "gi_diff_spatial_reservoirs_a",
-            viewport_buffer_size(4 * 4 * 4),
-        );
-
-        let gi_diff_spatial_reservoirs_b = StorageBuffer::new(
-            device,
-            "gi_diff_spatial_reservoirs_b",
-            viewport_buffer_size(4 * 4 * 4),
-        );
+        let gi_diff_reservoirs = [0, 1, 2, 3].map(|idx| {
+            StorageBuffer::new(
+                device,
+                format!("gi_diff_reservoirs_{}", idx),
+                viewport_buffer_size(4 * 4 * 4),
+            )
+        });
 
         let gi_diff_samples = Texture::builder("gi_diff_samples")
             .with_size(camera.viewport.size)
@@ -252,31 +237,13 @@ impl CameraBuffers {
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
-        let gi_diff_prev_colors = Texture::builder("gi_diff_prev_colors")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
-        let gi_diff_curr_colors = Texture::builder("gi_diff_curr_colors")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
-        let gi_diff_moments = DoubleBuffered::<Texture>::new(
+        let gi_diff_colors = DoubleBuffered::<Texture>::new(
             device,
-            Texture::builder("gi_diff_moments")
+            Texture::builder("gi_diff_prev_colors")
                 .with_size(camera.viewport.size)
                 .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
-
-        let gi_diff_stash = Texture::builder("gi_diff_stash")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
 
         // ---
 
@@ -348,14 +315,9 @@ impl CameraBuffers {
             gi_gbuffer_d1,
             gi_samples,
 
-            gi_diff_temporal_reservoirs,
-            gi_diff_spatial_reservoirs_a,
-            gi_diff_spatial_reservoirs_b,
+            gi_diff_reservoirs,
             gi_diff_samples,
-            gi_diff_prev_colors,
-            gi_diff_curr_colors,
-            gi_diff_moments,
-            gi_diff_stash,
+            gi_diff_colors,
 
             gi_spec_samples,
             gi_spec_reservoirs,

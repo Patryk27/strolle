@@ -6,7 +6,9 @@ use spirv_std::arch::IndexUnchecked;
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{BrdfValue, F32Ext, Hit, Normal, Reservoir, SpecularBrdf, Vec3Ext};
+use crate::{
+    BrdfValue, F32Ext, Hit, Normal, Ray, Reservoir, SpecularBrdf, Vec3Ext,
+};
 
 #[derive(Clone, Copy, Default)]
 pub struct GiReservoir {
@@ -85,6 +87,11 @@ pub struct GiSample {
 }
 
 impl GiSample {
+    pub fn ray(&self, hit_point: Vec3) -> Ray {
+        Ray::new(hit_point, self.dir(hit_point))
+            .with_length(self.v2_point.distance(hit_point) - 0.01)
+    }
+
     pub fn spec_pdf(&self) -> f32 {
         self.radiance.luma()
     }
@@ -124,7 +131,6 @@ impl GiSample {
 
     pub fn jacobian(&self, new_hit_point: Vec3) -> f32 {
         let (new_distance, new_cosine) = self.partial_jacobian(new_hit_point);
-
         let (orig_distance, orig_cosine) = self.partial_jacobian(self.v1_point);
 
         let x = new_cosine * orig_distance * orig_distance;

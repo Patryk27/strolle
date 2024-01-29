@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiDiffResolvingPass {
+pub struct GiDiffDenoisingPass {
     pass: CameraComputePass,
 }
 
-impl GiDiffResolvingPass {
+impl GiDiffDenoisingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -17,16 +17,19 @@ impl GiDiffResolvingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("gi_diff_resolving")
+        let pass = CameraComputePass::builder("gi_diff_denoising")
+            .bind([&engine.noise.bind_blue_noise()])
             .bind([
                 &buffers.camera.bind_readable(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.gi_diff_reservoirs[2].bind_readable(),
-                &buffers.gi_diff_reservoirs[0].bind_writable(),
-                &buffers.gi_diff_samples.bind_writable(),
+                &buffers.prev_camera.bind_readable(),
+                &buffers.reprojection_map.bind_readable(),
+                &buffers.prim_surface_map.curr().bind_readable(),
+                &buffers.prim_surface_map.prev().bind_readable(),
+                &buffers.gi_diff_samples.bind_readable(),
+                &buffers.gi_diff_colors.curr().bind_writable(),
+                &buffers.gi_diff_colors.prev().bind_readable(),
             ])
-            .build(device, &engine.shaders.gi_diff_resolving);
+            .build(device, &engine.shaders.gi_diff_denoising);
 
         Self { pass }
     }

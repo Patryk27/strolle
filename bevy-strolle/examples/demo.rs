@@ -382,6 +382,8 @@ fn animate_sun(
         st_sun.azimuth = sun.azimuth;
         st_sun.altitude = sun.altitude;
     }
+
+    // st_sun.altitude = -1.0;
 }
 
 // -----------------------------------------------------------------------------

@@ -13,9 +13,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     samples: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
-    curr_reservoirs: &mut [Vec4],
-    #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
     prev_reservoirs: &[Vec4],
+    #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
+    curr_reservoirs: &mut [Vec4],
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
@@ -68,7 +68,7 @@ pub fn main(
             camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
-        sample.clamp_m(50.0);
+        sample.clamp_m(128.0);
 
         if !sample.is_empty() {
             let sample_pdf = sample.sample.diff_pdf(hit_point, hit_normal);
@@ -84,6 +84,8 @@ pub fn main(
     let mut sample_idx = 0;
 
     while main.m < 16.0 && sample_idx < 4 {
+        break;
+
         let mut sample_pos = if reprojection.is_some() {
             reprojection.prev_pos_round().as_ivec2()
         } else {
@@ -118,11 +120,21 @@ pub fn main(
         }
 
         let sample_pdf = sample.sample.diff_pdf(hit_point, hit_normal);
+        let sample_jacobian = sample.sample.jacobian(hit_point);
+
+        // TODO rust-gpu seems to miscompile `.contains()`
+        #[allow(clippy::manual_range_contains)]
+        if sample_jacobian < 1.0 / 10.0 || sample_jacobian > 10.0 {
+            continue;
+        }
+
+        let sample_jacobian = sample_jacobian.clamp(1.0 / 3.0, 3.0).sqrt();
 
         sample.clamp_m(1.0);
 
-        if main.merge(&mut wnoise, &sample, sample_pdf) {
+        if main.merge(&mut wnoise, &sample, sample_pdf * sample_jacobian) {
             main_pdf = sample_pdf;
+            main.sample.v1_point = hit_point;
         }
     }
 

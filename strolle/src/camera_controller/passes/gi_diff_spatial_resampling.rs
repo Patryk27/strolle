@@ -5,8 +5,8 @@ use crate::{
 
 #[derive(Debug)]
 pub struct GiDiffSpatialResamplingPass {
-    pass_a: CameraComputePass<gpu::GiDiffSpatialResamplingPassParams>,
-    pass_b: CameraComputePass<gpu::GiDiffSpatialResamplingPassParams>,
+    slow_pass: CameraComputePass<gpu::GiDiffSpatialResamplingPassParams>,
+    fast_passes: [CameraComputePass<gpu::GiDiffSpatialResamplingPassParams>; 2],
 }
 
 impl GiDiffSpatialResamplingPass {
@@ -20,29 +20,52 @@ impl GiDiffSpatialResamplingPass {
     where
         P: Params,
     {
-        let pass_a = CameraComputePass::builder("gi_diff_spatial_resampling_a")
-            .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.prim_surface_map.curr().bind_readable(),
-                &buffers.gi_diff_temporal_reservoirs.curr().bind_readable(),
-                &buffers.gi_diff_spatial_reservoirs_a.bind_writable(),
-            ])
-            .build(device, &engine.shaders.gi_diff_spatial_resampling);
+        let slow_pass =
+            CameraComputePass::builder("gi_diff_spatial_resampling_slow")
+                .bind([
+                    &engine.triangles.bind_readable(),
+                    &engine.bvh.bind_readable(),
+                    &engine.materials.bind_readable(),
+                    &engine.images.bind_atlas(),
+                ])
+                .bind([
+                    &buffers.camera.bind_readable(),
+                    &buffers.prim_gbuffer_d0.bind_readable(),
+                    &buffers.prim_gbuffer_d1.bind_readable(),
+                    &buffers.prim_surface_map.curr().bind_readable(),
+                    &buffers.gi_diff_reservoirs[1].bind_readable(),
+                    &buffers.gi_diff_reservoirs[2].bind_writable(),
+                ])
+                .build(device, &engine.shaders.gi_diff_spatial_resampling_slow);
 
-        let pass_b = CameraComputePass::builder("gi_diff_spatial_resampling_b")
-            .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.prim_surface_map.curr().bind_readable(),
-                &buffers.gi_diff_spatial_reservoirs_a.bind_readable(),
-                &buffers.gi_diff_spatial_reservoirs_b.bind_writable(),
-            ])
-            .build(device, &engine.shaders.gi_diff_spatial_resampling);
+        let fast_pass_1 =
+            CameraComputePass::builder("gi_diff_spatial_resampling_fast")
+                .bind([
+                    &buffers.camera.bind_readable(),
+                    &buffers.prim_gbuffer_d0.bind_readable(),
+                    &buffers.prim_gbuffer_d1.bind_readable(),
+                    &buffers.prim_surface_map.curr().bind_readable(),
+                    &buffers.gi_diff_reservoirs[2].bind_readable(),
+                    &buffers.gi_diff_reservoirs[3].bind_writable(),
+                ])
+                .build(device, &engine.shaders.gi_diff_spatial_resampling_fast);
 
-        Self { pass_a, pass_b }
+        let fast_pass_2 =
+            CameraComputePass::builder("gi_diff_spatial_resampling_fast")
+                .bind([
+                    &buffers.camera.bind_readable(),
+                    &buffers.prim_gbuffer_d0.bind_readable(),
+                    &buffers.prim_gbuffer_d1.bind_readable(),
+                    &buffers.prim_surface_map.curr().bind_readable(),
+                    &buffers.gi_diff_reservoirs[3].bind_readable(),
+                    &buffers.gi_diff_reservoirs[0].bind_writable(),
+                ])
+                .build(device, &engine.shaders.gi_diff_spatial_resampling_fast);
+
+        Self {
+            slow_pass,
+            fast_passes: [fast_pass_1, fast_pass_2],
+        }
     }
 
     pub fn run(
@@ -52,30 +75,30 @@ impl GiDiffSpatialResamplingPass {
     ) {
         // This pass uses 8x8 warps:
         let size = (camera.camera.viewport.size + 7) / 8;
+        let params = camera.pass_params();
 
-        let params_a = camera.pass_params();
-        let params_b = camera.pass_params();
-
-        self.pass_a.run(
+        self.slow_pass.run(
             camera,
             encoder,
             size,
             gpu::GiDiffSpatialResamplingPassParams {
-                seed: params_a.seed,
-                frame: params_a.frame,
+                seed: params.seed,
+                frame: params.frame,
                 nth: 1,
             },
         );
 
-        self.pass_b.run(
-            camera,
-            encoder,
-            size,
-            gpu::GiDiffSpatialResamplingPassParams {
-                seed: params_b.seed,
-                frame: params_b.frame,
-                nth: 2,
-            },
-        );
+        for (nth, pass) in self.fast_passes.iter().enumerate() {
+            pass.run(
+                camera,
+                encoder,
+                size,
+                gpu::GiDiffSpatialResamplingPassParams {
+                    seed: params.seed,
+                    frame: params.frame,
+                    nth: nth as u32,
+                },
+            );
+        }
     }
 }

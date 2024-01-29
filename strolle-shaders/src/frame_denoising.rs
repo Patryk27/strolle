@@ -93,9 +93,6 @@ pub fn estimate_variance(
     #[spirv(descriptor_set = 1, binding = 0)] di_colors: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 1)] di_moments: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 2)] di_output: TexRgba32,
-    #[spirv(descriptor_set = 2, binding = 0)] gi_colors: TexRgba32,
-    #[spirv(descriptor_set = 2, binding = 1)] gi_moments: TexRgba32,
-    #[spirv(descriptor_set = 2, binding = 2)] gi_output: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
     let prim_surface_map = SurfaceMap::new(prim_surface_map);
@@ -113,15 +110,9 @@ pub fn estimate_variance(
     let center_di_moment = di_moments.read(screen_pos);
     let center_di_var;
 
-    let center_gi_color = gi_colors.read(screen_pos);
-    let center_gi_luma = center_gi_color.xyz().luma();
-    let center_gi_moment = gi_moments.read(screen_pos);
-    let center_gi_var;
-
     if center_surface.is_sky() {
         unsafe {
             di_output.write(screen_pos, center_di_color);
-            gi_output.write(screen_pos, center_gi_color);
         }
 
         return;
@@ -130,12 +121,8 @@ pub fn estimate_variance(
     if center_di_moment.x >= 4.0 {
         center_di_var =
             center_di_moment.z - center_di_moment.y * center_di_moment.y;
-
-        center_gi_var =
-            center_gi_moment.z - center_gi_moment.y * center_gi_moment.y;
     } else {
         let mut sum_di = Vec3::ZERO;
-        let mut sum_gi = Vec3::ZERO;
         let mut sample_offset = ivec2(-3, -3);
 
         loop {
@@ -163,25 +150,6 @@ pub fn estimate_variance(
                         sample_di_luma_p * sample_di_luma_p,
                         1.0,
                     ) * Vec3::splat(sample_di_weight);
-
-                    // ---
-
-                    let sample_gi_color = gi_colors.read(sample_pos);
-                    let sample_gi_luma = sample_gi_color.xyz().luma();
-
-                    let sample_gi_weight = eval_sample_weight(
-                        center_gi_luma,
-                        center_surface,
-                        sample_gi_luma,
-                        sample_surface,
-                        1.0,
-                    );
-
-                    sum_gi += vec3(
-                        sample_gi_luma,
-                        sample_gi_luma * sample_gi_luma,
-                        1.0,
-                    ) * Vec3::splat(sample_gi_weight);
                 }
             }
 
@@ -205,24 +173,13 @@ pub fn estimate_variance(
 
             (m2 - m1 * m1).abs().sqrt() * 4.0
         };
-
-        center_gi_var = {
-            let m1 = sum_gi.x / sum_gi.z;
-            let m2 = sum_gi.y / sum_gi.z;
-
-            (m2 - m1 * m1).abs().sqrt() * 4.0
-        };
     };
 
     let center_di_var = center_di_var.max(0.0);
-    let center_gi_var = center_gi_var.max(0.0);
 
     unsafe {
         di_output
             .write(screen_pos, center_di_color.xyz().extend(center_di_var));
-
-        gi_output
-            .write(screen_pos, center_gi_color.xyz().extend(center_gi_var));
     }
 }
 
@@ -236,8 +193,6 @@ pub fn wavelet(
     #[spirv(descriptor_set = 0, binding = 2)] prim_surface_map: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 0)] di_input: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 1)] di_output: TexRgba32,
-    #[spirv(descriptor_set = 2, binding = 0)] gi_input: TexRgba32,
-    #[spirv(descriptor_set = 2, binding = 1)] gi_output: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
     let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
@@ -264,16 +219,11 @@ pub fn wavelet(
         return;
     }
 
-    let center_gi = gi_input.read(screen_pos);
-    let center_gi_color = center_gi.xyz();
-    let center_gi_var = center_gi.w;
-    let center_gi_luma = center_gi_color.luma();
-
     // ---
 
-    let (center_di_var_avg, center_gi_var_avg) = {
+    let center_di_var_avg = {
         let kernel = [1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0];
-        let mut sum = vec2(0.0, 0.0);
+        let mut sum = 0.0;
         let mut sample_offset = ivec2(-1, -1);
 
         loop {
@@ -284,9 +234,8 @@ pub fn wavelet(
                     [(sample_offset.x.abs() + sample_offset.y.abs()) as usize];
 
                 let sample_di_var = di_input.read(sample_pos.as_uvec2()).w;
-                let sample_gi_var = gi_input.read(sample_pos.as_uvec2()).w;
 
-                sum += vec2(sample_di_var, sample_gi_var) * sample_weight;
+                sum += sample_di_var * sample_weight;
             }
 
             // ---
@@ -303,14 +252,11 @@ pub fn wavelet(
             }
         }
 
-        (sum.x, sum.y)
+        sum
     };
 
     let luma_sigma_di =
         lerp(1.0, 0.1, center_di_var_avg.sqrt()) * (params.strength as f32);
-
-    let luma_sigma_gi =
-        lerp(0.33, 0.1, center_gi_var_avg.sqrt()) * (params.strength as f32);
 
     let jitter = if params.stride <= 1 {
         IVec2::ZERO
@@ -322,10 +268,6 @@ pub fn wavelet(
     let mut sum_di_weights = 1.0;
     let mut sum_di_color = center_di_color;
     let mut sum_di_var = center_di_var;
-
-    let mut sum_gi_weights = 1.0;
-    let mut sum_gi_color = center_gi_color;
-    let mut sum_gi_var = center_gi_var;
 
     let mut sample_offset = ivec2(-1, -1);
 
@@ -361,29 +303,6 @@ pub fn wavelet(
                     sum_di_var +=
                         sample_di_weight * sample_di_weight * sample_di_var;
                 }
-
-                // ---
-
-                let sample_gi = gi_input.read(sample_pos);
-                let sample_gi_color = sample_gi.xyz();
-                let sample_gi_var = sample_gi.w;
-                let sample_gi_luma = sample_gi_color.luma();
-
-                let sample_gi_weight = eval_sample_weight(
-                    center_gi_luma,
-                    center_surface,
-                    sample_gi_luma,
-                    sample_surface,
-                    luma_sigma_gi,
-                );
-
-                if sample_gi_weight > 0.0 {
-                    sum_gi_weights += sample_gi_weight;
-                    sum_gi_color += sample_gi_weight * sample_gi_color;
-
-                    sum_gi_var +=
-                        sample_gi_weight * sample_gi_weight * sample_gi_var;
-                }
             }
         }
 
@@ -404,12 +323,8 @@ pub fn wavelet(
     let out_di_color = sum_di_color / sum_di_weights;
     let out_di_var = sum_di_var / (sum_di_weights * sum_di_weights);
 
-    let out_gi_color = sum_gi_color / sum_gi_weights;
-    let out_gi_var = sum_gi_var / (sum_gi_weights * sum_gi_weights);
-
     unsafe {
         di_output.write(screen_pos, out_di_color.extend(out_di_var));
-        gi_output.write(screen_pos, out_gi_color.extend(out_gi_var));
     }
 }
 
