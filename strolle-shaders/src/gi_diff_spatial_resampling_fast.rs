@@ -56,19 +56,13 @@ pub fn main(
         }
     }
 
-    // let main_luma = sample.sample.radiance.perc_luma()
-    //     * sample.w
-    //     * sample.sample.cosine(&hit);
-
-    // let luma_sigma = lerp(0.0, 10.0, main.m / 32.0);
-
     // ---
 
     let max_samples;
     let max_radius;
 
     if params.nth == 1 {
-        max_samples = lerp(8.0, 0.0, main.m / 16.0) as u32;
+        max_samples = lerp(8.0, 0.0, main.m / 32.0) as u32;
         max_radius = 128.0;
     } else {
         max_samples = lerp(8.0, 0.0, main.m / 32.0) as u32;
@@ -101,7 +95,7 @@ pub fn main(
             continue;
         }
 
-        let mut sample = GiReservoir::read(
+        let sample = GiReservoir::read(
             input_reservoirs,
             camera.screen_to_idx(sample_pos),
         );
@@ -120,16 +114,6 @@ pub fn main(
         }
 
         let sample_jacobian = sample_jacobian.clamp(1.0 / 3.0, 3.0);
-
-        // let sample_luma = sample.sample.radiance.perc_luma()
-        //     * sample.w
-        //     * sample.sample.cosine(&hit);
-
-        // sample.m *= lerp(
-        //     1.0,
-        //     0.0,
-        //     (sample_luma - main_luma).abs().sqrt() * luma_sigma,
-        // );
 
         if main.merge(&mut wnoise, &sample, sample_pdf * sample_jacobian) {
             main_pdf = sample_pdf;

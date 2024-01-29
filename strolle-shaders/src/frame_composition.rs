@@ -57,6 +57,7 @@ pub fn fs(
 
         // CameraMode::DirectLighting
         1 => di_diff_colors.read(screen_pos).xyz(),
+        // 1 => vec3(di_diff_colors.read(screen_pos).w.sqrt(), 0.0, 0.0),
 
         // CameraMode::IndirectDiffuseLighting
         2 => gi_diff_colors.read(screen_pos).xyz(),

@@ -42,7 +42,6 @@ passes!([
     frame_composition => FrameCompositionPass,
     frame_denoising => FrameDenoisingPass,
     frame_reprojection => FrameReprojectionPass,
-    gi_diff_denoising => GiDiffDenoisingPass,
     gi_diff_resolving => GiDiffResolvingPass,
     gi_diff_spatial_resampling => GiDiffSpatialResamplingPass,
     gi_diff_temporal_resampling => GiDiffTemporalResamplingPass,

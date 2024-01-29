@@ -54,7 +54,7 @@ impl Vec3Ext for Vec3 {
     }
 
     fn perc_luma(self) -> f32 {
-        self.luma().powf(1.0 / 3.0)
+        self.luma().powf(1.0 / 2.0)
     }
 
     fn with_luma(self, luma: f32) -> Self {

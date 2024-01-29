@@ -53,7 +53,6 @@ shaders!([
     frame_denoising_reproject,
     frame_denoising_wavelet,
     frame_reprojection,
-    gi_diff_denoising,
     gi_diff_resolving,
     gi_diff_spatial_resampling_fast,
     gi_diff_spatial_resampling_slow,

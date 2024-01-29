@@ -90,22 +90,6 @@ impl PrimRasterPassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct FrameDenoisingReprojectPassParams {
-    pub mode: u32,
-}
-
-impl FrameDenoisingReprojectPassParams {
-    pub const MODE_DI_DIFF: u32 = 0;
-    pub const MODE_GI_DIFF: u32 = 1;
-
-    pub fn is_di_diff(&self) -> bool {
-        self.mode == Self::MODE_DI_DIFF
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct FrameDenoisingWaveletPassParams {
     pub frame: u32,
     pub stride: u32,

@@ -148,7 +148,6 @@ impl CameraController {
                             .run(self, encoder);
 
                         self.passes.gi_diff_resolving.run(self, encoder);
-                        self.passes.gi_diff_denoising.run(self, encoder);
                     }
 
                     if self.camera.mode.needs_gi_spec()

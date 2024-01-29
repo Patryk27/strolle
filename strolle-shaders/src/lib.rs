@@ -9,7 +9,6 @@ pub mod di_temporal_resampling;
 pub mod frame_composition;
 pub mod frame_denoising;
 pub mod frame_reprojection;
-pub mod gi_diff_denoising;
 pub mod gi_diff_resolving;
 pub mod gi_diff_spatial_resampling_fast;
 pub mod gi_diff_spatial_resampling_slow;
