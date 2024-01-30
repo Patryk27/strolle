@@ -170,14 +170,16 @@ impl FrameDenoisingPass {
         );
 
         for (nth, pass) in self.wavelet_passes.iter().enumerate() {
+            let nth = nth as u32;
+
             pass.run(
                 camera,
                 encoder,
                 size,
                 gpu::FrameDenoisingWaveletPassParams {
                     frame: camera.frame,
-                    stride: 2u32.pow(nth as u32),
-                    strength: (1 + (nth as u32)),
+                    stride: 2u32.pow(nth) + nth,
+                    strength: (1 + nth) as f32,
                 },
             );
         }

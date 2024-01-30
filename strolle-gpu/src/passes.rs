@@ -93,7 +93,7 @@ impl PrimRasterPassParams {
 pub struct FrameDenoisingWaveletPassParams {
     pub frame: u32,
     pub stride: u32,
-    pub strength: u32,
+    pub strength: f32,
 }
 
 #[repr(C)]

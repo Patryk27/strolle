@@ -35,7 +35,7 @@ pub fn reproject(
     let moment;
 
     let sample = samples.read(screen_pos);
-    let sample_luma = sample.xyz().luma();
+    let sample_luma = sample.xyz().luma().sqrt();
 
     let reprojection = reprojection_map.get(screen_pos);
 
@@ -143,12 +143,13 @@ pub fn estimate_variance(
                     let sample_di_color = di_colors.read(sample_pos);
                     let sample_di_luma = sample_di_color.xyz().luma();
 
-                    let sample_di_weight = eval_sample_weight(
+                    let sample_di_weight = sample_weight(
                         center_di_luma,
                         center_surface,
                         sample_di_luma,
                         sample_surface,
                         1.0,
+                        0.2,
                     );
 
                     sum_di += vec3(
@@ -162,12 +163,13 @@ pub fn estimate_variance(
                     let sample_gi_color = gi_colors.read(sample_pos);
                     let sample_gi_luma = sample_gi_color.xyz().luma();
 
-                    let sample_gi_weight = eval_sample_weight(
+                    let sample_gi_weight = sample_weight(
                         center_gi_luma,
                         center_surface,
                         sample_gi_luma,
                         sample_surface,
                         1.0,
+                        0.2,
                     );
 
                     sum_gi += vec3(
@@ -264,52 +266,16 @@ pub fn wavelet(
 
     // ---
 
-    let (center_di_var_avg, center_gi_var_avg) = {
-        let kernel = [1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0];
-        let mut sum = vec2(0.0, 0.0);
-        let mut sample_offset = ivec2(-1, -1);
+    let luma_sigma_di = {
+        let var_max = 1.0 / (6.0 + 2.0 * params.strength);
 
-        loop {
-            let sample_pos = screen_pos.as_ivec2() + sample_offset;
-
-            if camera.contains(sample_pos) {
-                let sample_weight = kernel
-                    [(sample_offset.x.abs() + sample_offset.y.abs()) as usize];
-
-                let sample_di_var = di_input.read(sample_pos.as_uvec2()).w;
-                let sample_gi_var = gi_input.read(sample_pos.as_uvec2()).w;
-
-                sum += vec2(sample_di_var, sample_gi_var) * sample_weight;
-            }
-
-            // ---
-
-            sample_offset.x += 1;
-
-            if sample_offset.x == 2 {
-                sample_offset.x = -1;
-                sample_offset.y += 1;
-
-                if sample_offset.y == 2 {
-                    break;
-                }
-            }
-        }
-
-        (sum.x, sum.y)
+        1.0 / (4.0 * center_di_var.sqrt().max(var_max))
     };
 
-    let luma_sigma_di = 1.0 / (2.0 * center_di_var_avg.sqrt().max(0.00001));
-    // lerp(2.0 * params.strength as f32, 0.01, center_di_var_avg.sqrt());
+    let depth_sigma_di = 0.05 / params.strength;
 
-    let luma_sigma_gi = 1.0 / (16.0 * center_gi_var_avg.sqrt().max(0.00001));
-    // lerp(params.strength as f32, 0.1, center_gi_var_avg.sqrt());
-
-    // let jitter = if params.stride == 1 {
-    //     IVec2::ZERO
-    // } else {
-    //     ((bnoise.second_sample() - 0.5) * (params.stride as f32)).as_ivec2()
-    // };
+    let luma_sigma_gi = 1.0 / (2.0 * center_gi_var.sqrt().max(0.33));
+    let depth_sigma_gi = 0.25 / params.strength;
 
     let jitter = ((bnoise.second_sample() - 0.5)
         * (params.stride as f32 - 1.0))
@@ -340,12 +306,13 @@ pub fn wavelet(
                 let sample_di_var = sample_di.w;
                 let sample_di_luma = sample_di_color.luma();
 
-                let sample_di_weight = eval_sample_weight(
+                let sample_di_weight = sample_weight(
                     center_di_luma,
                     center_surface,
                     sample_di_luma,
                     sample_surface,
                     luma_sigma_di,
+                    depth_sigma_di,
                 );
 
                 if sample_di_weight > 0.0 {
@@ -363,12 +330,13 @@ pub fn wavelet(
                 let sample_gi_var = sample_gi.w;
                 let sample_gi_luma = sample_gi_color.luma();
 
-                let sample_gi_weight = eval_sample_weight(
+                let sample_gi_weight = sample_weight(
                     center_gi_luma,
                     center_surface,
                     sample_gi_luma,
                     sample_surface,
                     luma_sigma_gi,
+                    depth_sigma_gi,
                 );
 
                 // TODO blend luma & chroma using different weights
@@ -408,17 +376,20 @@ pub fn wavelet(
     }
 }
 
-fn eval_sample_weight(
+fn sample_weight(
     center_luma: f32,
     center_surface: Surface,
     sample_luma: f32,
     sample_surface: Surface,
     luma_sigma: f32,
+    depth_sigma: f32,
 ) -> f32 {
-    let luma_weight = (center_luma - sample_luma).sqr() * luma_sigma;
+    let luma_weight =
+        (center_luma.sqrt() - sample_luma.sqrt()).abs().sqrt() * luma_sigma;
 
+    // TODO wrong metric (follow ReBLUR instead)
     let depth_weight = {
-        let leeway = center_surface.depth * 0.2;
+        let leeway = center_surface.depth * depth_sigma;
         let diff = (sample_surface.depth - center_surface.depth).abs();
 
         if diff >= leeway {

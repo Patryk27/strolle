@@ -31,8 +31,6 @@ impl FrameCompositionPass {
             .add(&buffers.prim_gbuffer_d1.bind_readable())
             .add(&buffers.di_diff_curr_colors.bind_readable())
             .add(&buffers.gi_diff_curr_colors.bind_readable())
-            // .add(&buffers.di_diff_samples.bind_readable())
-            // .add(&buffers.gi_diff_samples.bind_readable())
             .add(&buffers.gi_spec_samples.bind_readable())
             .add(&buffers.ref_colors.bind_readable())
             .build(device);
