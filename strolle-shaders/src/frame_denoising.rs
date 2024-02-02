@@ -35,7 +35,7 @@ pub fn reproject(
     let moment;
 
     let sample = samples.read(screen_pos);
-    let sample_luma = sample.xyz().luma().sqrt();
+    let sample_luma = sample.xyz().luma(); // .sqrt();
 
     let reprojection = reprojection_map.get(screen_pos);
 
@@ -272,14 +272,14 @@ pub fn wavelet(
         1.0 / (4.0 * center_di_var.sqrt().max(var_max))
     };
 
-    let depth_sigma_di = 0.05 / params.strength;
+    let depth_sigma_di = 0.1 / params.strength;
 
     let luma_sigma_gi = 1.0 / (2.0 * center_gi_var.sqrt().max(0.33));
     let depth_sigma_gi = 0.25 / params.strength;
 
-    let jitter = ((bnoise.second_sample() - 0.5)
-        * (params.stride as f32 - 1.0))
-        .as_ivec2();
+    let jitter =
+        ((bnoise.second_sample() - 0.5) * (params.stride as f32 - 1.0) * 0.66)
+            .as_ivec2();
 
     let mut sum_di_weights = 1.0;
     let mut sum_di_color = center_di_color;
@@ -339,7 +339,6 @@ pub fn wavelet(
                     depth_sigma_gi,
                 );
 
-                // TODO blend luma & chroma using different weights
                 if sample_gi_weight > 0.0 {
                     sum_gi_weights += sample_gi_weight;
                     sum_gi_color += sample_gi_weight * sample_gi_color;

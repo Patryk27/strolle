@@ -120,7 +120,7 @@ pub fn main(
             continue;
         }
 
-        sample.clamp_m(16.0);
+        sample.clamp_m(8.0);
 
         let mut sample_pdf =
             sample.sample.diff_pdf(hit.point, hit.gbuffer.normal);

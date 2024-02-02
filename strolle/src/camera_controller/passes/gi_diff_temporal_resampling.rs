@@ -22,7 +22,6 @@ impl GiDiffTemporalResamplingPass {
             .bind([
                 &buffers.camera.bind_readable(),
                 &buffers.prim_surface_map.curr().bind_readable(),
-                &buffers.prim_surface_map.prev().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.gi_samples.bind_readable(),
                 &buffers.gi_diff_reservoirs[0].bind_readable(),

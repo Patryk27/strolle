@@ -55,6 +55,10 @@ impl DiReservoir {
             *buffer.index_unchecked_mut(2 * id + 1) = d1;
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        !self.sample.exists
+    }
 }
 
 impl Deref for DiReservoir {

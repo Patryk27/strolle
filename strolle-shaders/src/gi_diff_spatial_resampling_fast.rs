@@ -62,10 +62,10 @@ pub fn main(
     let max_radius;
 
     if params.nth == 1 {
-        max_samples = lerp(8.0, 0.0, main.m / 32.0) as u32;
+        max_samples = lerp(8.0, 0.0, main.m / 24.0) as u32;
         max_radius = 128.0;
     } else {
-        max_samples = lerp(8.0, 0.0, main.m / 32.0) as u32;
+        max_samples = lerp(8.0, 0.0, main.m / 24.0) as u32;
         max_radius = 64.0;
     }
 

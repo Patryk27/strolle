@@ -8,20 +8,18 @@ pub fn main(
     #[spirv(push_constant)] params: &PassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)] prim_surface_map: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 2)] prev_prim_surface_map: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 3)] reprojection_map: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 2)] reprojection_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     samples: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     prev_reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
     curr_reservoirs: &mut [Vec4],
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
     let mut wnoise = WhiteNoise::new(params.seed, global_id.xy());
     let prim_surface_map = SurfaceMap::new(prim_surface_map);
-    let prev_prim_surface_map = SurfaceMap::new(prev_prim_surface_map);
     let reprojection_map = ReprojectionMap::new(reprojection_map);
 
     if !camera.contains(screen_pos) {
@@ -63,78 +61,41 @@ pub fn main(
     // ---
 
     if reprojection.is_some() {
-        let mut sample = GiReservoir::read(
+        let prev_pdf_w = BilinearFilter::reproject(reprojection, move |pos| {
+            let res =
+                GiReservoir::read(prev_reservoirs, camera.screen_to_idx(pos));
+
+            if res.is_empty() {
+                (Vec4::ZERO, 0.0)
+            } else {
+                let res_pdf = res.sample.diff_pdf(hit_point, hit_normal);
+
+                if res_pdf > 0.0 {
+                    (vec4(res.w * res_pdf, 0.0, 0.0, 0.0), 1.0)
+                } else {
+                    (Vec4::ZERO, 0.0)
+                }
+            }
+        })
+        .x;
+
+        let mut prev = GiReservoir::read(
             prev_reservoirs,
             camera.screen_to_idx(reprojection.prev_pos_round()),
         );
 
-        sample.clamp_m(128.0);
+        prev.clamp_m(64.0);
 
-        if !sample.is_empty() {
-            let sample_pdf = sample.sample.diff_pdf(hit_point, hit_normal);
+        if !prev.is_empty() {
+            let prev_pdf = prev.sample.diff_pdf(hit_point, hit_normal);
 
-            if main.merge(&mut wnoise, &sample, sample_pdf) {
-                main_pdf = sample_pdf;
+            if prev_pdf > 0.0 {
+                prev.w = (prev_pdf_w / prev_pdf).clamp(0.0, 10.0);
             }
-        }
-    }
 
-    // ---
-
-    let mut sample_idx = 0;
-
-    while main.m < 16.0 && sample_idx < 4 {
-        break;
-
-        let mut sample_pos = if reprojection.is_some() {
-            reprojection.prev_pos_round().as_ivec2()
-        } else {
-            screen_pos.as_ivec2()
-        };
-
-        sample_pos += (wnoise.sample_disk() * 32.0).as_ivec2();
-        sample_idx += 1;
-
-        let sample_pos = camera.contain(sample_pos);
-        let sample_surface = prev_prim_surface_map.get(sample_pos);
-
-        if sample_surface.is_sky() {
-            continue;
-        }
-
-        if (sample_surface.depth - surface.depth).abs() > 0.2 * surface.depth {
-            continue;
-        }
-
-        if sample_surface.normal.dot(surface.normal) < 0.8 {
-            continue;
-        }
-
-        let mut sample = GiReservoir::read(
-            prev_reservoirs,
-            camera.screen_to_idx(sample_pos),
-        );
-
-        if sample.is_empty() {
-            continue;
-        }
-
-        let sample_pdf = sample.sample.diff_pdf(hit_point, hit_normal);
-        let sample_jacobian = sample.sample.jacobian(hit_point);
-
-        // TODO rust-gpu seems to miscompile `.contains()`
-        #[allow(clippy::manual_range_contains)]
-        if sample_jacobian < 1.0 / 10.0 || sample_jacobian > 10.0 {
-            continue;
-        }
-
-        let sample_jacobian = sample_jacobian.clamp(1.0 / 3.0, 3.0).sqrt();
-
-        sample.clamp_m(1.0);
-
-        if main.merge(&mut wnoise, &sample, sample_pdf * sample_jacobian) {
-            main_pdf = sample_pdf;
-            main.sample.v1_point = hit_point;
+            if main.merge(&mut wnoise, &prev, prev_pdf) {
+                main_pdf = prev_pdf;
+            }
         }
     }
 

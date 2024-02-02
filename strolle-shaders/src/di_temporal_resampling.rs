@@ -82,6 +82,24 @@ pub fn main(
     let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
+        let prev_pdf_w = BilinearFilter::reproject(reprojection, move |pos| {
+            let res =
+                DiReservoir::read(prev_reservoirs, camera.screen_to_idx(pos));
+
+            if res.is_empty() {
+                (Vec4::ZERO, 0.0)
+            } else {
+                let res_pdf = res.sample.pdf(lights, hit);
+
+                if res_pdf > 0.0 {
+                    (vec4(res.w * res_pdf, 0.0, 0.0, 0.0), 1.0)
+                } else {
+                    (Vec4::ZERO, 0.0)
+                }
+            }
+        })
+        .x;
+
         let mut prev = DiReservoir::read(
             prev_reservoirs,
             camera.screen_to_idx(reprojection.prev_pos_round()),
@@ -94,6 +112,10 @@ pub fn main(
         } else {
             0.0
         };
+
+        if prev_pdf > 0.0 {
+            prev.w = (prev_pdf_w / prev_pdf).clamp(0.0, 10.0);
+        }
 
         if main.merge(&mut wnoise, &prev, prev_pdf) {
             main_pdf = prev_pdf;
@@ -112,17 +134,17 @@ pub fn main(
         let ray = main.sample.ray(hit);
         let mut is_occluded = false;
 
-        if !is_occluded & (selected == 2) {
-            is_occluded |= ray.intersect(
-                local_idx,
-                stack,
-                triangles,
-                bvh,
-                materials,
-                atlas_tex,
-                atlas_sampler,
-            );
-        }
+        // if !is_occluded & (selected == 2) {
+        //     is_occluded |= ray.intersect(
+        //         local_idx,
+        //         stack,
+        //         triangles,
+        //         bvh,
+        //         materials,
+        //         atlas_tex,
+        //         atlas_sampler,
+        //     );
+        // }
 
         let ps = if is_occluded {
             0.0
