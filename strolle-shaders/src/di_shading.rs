@@ -56,25 +56,32 @@ pub fn main(
     let mut res = EphemeralReservoir::default();
     let mut res_pdf = 0.0;
 
-    let light_pdf = 1.0 / (world.light_count as f32);
-    let mut light_idx = 0;
+    if world.light_count > 0 {
+        let sample_ipdf = world.light_count as f32;
+        let mut sample_idx = 0;
 
-    while light_idx < world.light_count {
-        let light_id = LightId::new(light_idx);
-        let light_radiance = lights.get(light_id).radiance(hit);
+        while sample_idx < 16 {
+            let light_id =
+                LightId::new(wnoise.sample_int() % world.light_count);
 
-        let sample = EphemeralSample {
-            light_id,
-            light_radiance,
-        };
+            let light_radiance =
+                lights.get(light_id).radiance(hit.point, hit.gbuffer.normal);
 
-        let sample_pdf = sample.pdf();
+            let sample = EphemeralSample {
+                light_id,
+                light_radiance,
+            };
 
-        if res.update(&mut wnoise, sample, sample_pdf / light_pdf) {
-            res_pdf = sample_pdf;
+            let sample_pdf = sample.pdf();
+
+            if sample_pdf > 0.0 {
+                if res.update(&mut wnoise, sample, sample_pdf * sample_ipdf) {
+                    res_pdf = sample_pdf;
+                }
+            }
+
+            sample_idx += 1;
         }
-
-        light_idx += 1;
     }
 
     res.normalize(res_pdf);
@@ -106,6 +113,7 @@ pub fn main(
                     light_id: res.sample.light_id,
                     light_point: ray.origin(),
                     exists: true,
+                    is_occluded,
                 },
                 m: res.m,
                 w: res.w,

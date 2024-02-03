@@ -6,7 +6,7 @@ use spirv_std::arch::IndexUnchecked;
 use spirv_std::num_traits::Float;
 
 use crate::utils::U32Ext;
-use crate::{Hit, LightId, LightsView, Ray, Reservoir, Vec3Ext};
+use crate::{LightId, LightsView, Ray, Reservoir, Vec3Ext};
 
 #[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
@@ -18,13 +18,15 @@ impl DiReservoir {
     pub fn read(buffer: &[Vec4], id: usize) -> Self {
         let d0 = unsafe { *buffer.index_unchecked(2 * id) };
         let d1 = unsafe { *buffer.index_unchecked(2 * id + 1) };
+        let [exists, is_occluded, ..] = d0.w.to_bits().to_bytes();
 
         Self {
             reservoir: Reservoir {
                 sample: DiSample {
                     light_id: LightId::new(d1.w.to_bits()),
                     light_point: d1.xyz(),
-                    exists: d0.w.to_bits() > 0,
+                    exists: exists > 0,
+                    is_occluded: is_occluded > 0,
                 },
                 m: d0.x,
                 w: d0.y,
@@ -39,7 +41,7 @@ impl DiReservoir {
             0.0,
             f32::from_bits(u32::from_bytes([
                 self.sample.exists as u32,
-                0,
+                self.sample.is_occluded as u32,
                 0,
                 0,
             ])),
@@ -81,6 +83,7 @@ pub struct DiSample {
     pub light_id: LightId,
     pub light_point: Vec3,
     pub exists: bool,
+    pub is_occluded: bool,
 }
 
 impl DiSample {
@@ -94,12 +97,20 @@ impl DiSample {
         light.center().distance(self.light_point) <= light.radius()
     }
 
-    pub fn pdf(&self, lights: LightsView, hit: Hit) -> f32 {
-        lights.get(self.light_id).radiance(hit).perc_luma()
+    pub fn pdf(
+        &self,
+        lights: LightsView,
+        hit_point: Vec3,
+        hit_normal: Vec3,
+    ) -> f32 {
+        lights
+            .get(self.light_id)
+            .radiance(hit_point, hit_normal)
+            .perc_luma()
     }
 
-    pub fn ray(&self, hit: Hit) -> Ray {
-        let dir = hit.point - self.light_point;
+    pub fn ray(&self, hit_point: Vec3) -> Ray {
+        let dir = hit_point - self.light_point;
 
         Ray::new(self.light_point, dir.normalize()).with_length(dir.length())
     }
@@ -120,6 +131,7 @@ mod tests {
                         light_id: LightId::new(3 * idx as u32),
                         light_point: vec3(1.0, 2.0, 3.0 + (idx as f32)),
                         exists: idx as u32 % 2 == 0,
+                        is_occluded: idx as u32 % 3 == 0,
                     },
                     m: 11.0,
                     w: 12.0 + (idx as f32),

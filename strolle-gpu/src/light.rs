@@ -76,15 +76,15 @@ impl Light {
         self.d2.w
     }
 
-    pub fn radiance(&self, hit: Hit) -> Vec3 {
-        let l = self.center() - hit.point;
+    pub fn radiance(&self, hit_point: Vec3, hit_normal: Vec3) -> Vec3 {
+        let l = self.center() - hit_point;
 
         let conical_factor = if self.is_point() {
             1.0
         } else {
             let angle = self
                 .spot_direction()
-                .angle_between(hit.point - self.center());
+                .angle_between(hit_point - self.center());
 
             (1.0 - (angle / self.spot_angle()).powf(3.0)).saturate()
         };
@@ -111,13 +111,14 @@ impl Light {
             }
         };
 
-        let cosine_factor = hit.gbuffer.normal.dot(l.normalize()).saturate();
+        let cosine_factor = hit_normal.dot(l.normalize()).saturate();
 
         self.color() * distance_factor * conical_factor * cosine_factor
     }
 
     pub fn contribution(&self, hit: Hit) -> Vec3 {
-        self.radiance(hit) * DiffuseBrdf::new(&hit.gbuffer).evaluate().radiance
+        self.radiance(hit.point, hit.gbuffer.normal)
+            * DiffuseBrdf::new(&hit.gbuffer).evaluate().radiance
     }
 
     pub fn ray_wnoise(&self, noise: &mut WhiteNoise, hit_point: Vec3) -> Ray {

@@ -19,7 +19,11 @@ impl DiResolvingPass {
     {
         let pass = CameraComputePass::builder("di_resolving")
             .bind([
+                &engine.triangles.bind_readable(),
+                &engine.bvh.bind_readable(),
+                &engine.materials.bind_readable(),
                 &engine.lights.bind_readable(),
+                &engine.images.bind_atlas(),
                 &engine.world.bind_readable(),
             ])
             .bind([

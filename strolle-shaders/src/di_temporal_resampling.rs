@@ -55,23 +55,22 @@ pub fn main(
     // ---
 
     let mut main = DiReservoir::default();
+    let mut main_nth = 0;
     let mut main_pdf = 0.0;
 
     let mut curr_m = 0.0;
     let mut prev_m = 0.0;
-
-    let mut selected = 0;
 
     // ---
 
     let curr = DiReservoir::read(curr_reservoirs, screen_idx);
 
     if curr.m > 0.0 {
-        let curr_pdf = curr.sample.pdf(lights, hit);
+        let curr_pdf = curr.sample.pdf(lights, hit.point, hit.gbuffer.normal);
 
         if main.merge(&mut wnoise, &curr, curr_pdf) {
+            main_nth = 1;
             main_pdf = curr_pdf;
-            selected = 1;
         }
 
         curr_m = curr.m;
@@ -82,23 +81,24 @@ pub fn main(
     let reprojection = reprojection_map.get(screen_pos);
 
     if reprojection.is_some() {
-        let prev_pdf_w = BilinearFilter::reproject(reprojection, move |pos| {
-            let res =
-                DiReservoir::read(prev_reservoirs, camera.screen_to_idx(pos));
+        // let prev_pdf_w = BilinearFilter::reproject(reprojection, move |pos| {
+        //     let res =
+        //         DiReservoir::read(prev_reservoirs, camera.screen_to_idx(pos));
 
-            if res.is_empty() {
-                (Vec4::ZERO, 0.0)
-            } else {
-                let res_pdf = res.sample.pdf(lights, hit);
+        //     if res.is_empty() {
+        //         (Vec4::ZERO, 0.0)
+        //     } else {
+        //         let res_pdf =
+        //             res.sample.pdf(lights, hit.point, hit.gbuffer.normal);
 
-                if res_pdf > 0.0 {
-                    (vec4(res.w * res_pdf, 0.0, 0.0, 0.0), 1.0)
-                } else {
-                    (Vec4::ZERO, 0.0)
-                }
-            }
-        })
-        .x;
+        //         if res_pdf > 0.0 {
+        //             (vec4(res.w * res_pdf, 0.0, 0.0, 0.0), 1.0)
+        //         } else {
+        //             (Vec4::ZERO, 0.0)
+        //         }
+        //     }
+        // })
+        // .x;
 
         let mut prev = DiReservoir::read(
             prev_reservoirs,
@@ -108,18 +108,18 @@ pub fn main(
         prev.clamp_m(20.0 * curr_m.max(1.0));
 
         let prev_pdf = if prev.sample.exists {
-            prev.sample.pdf(lights, hit)
+            prev.sample.pdf(lights, hit.point, hit.gbuffer.normal)
         } else {
             0.0
         };
 
-        if prev_pdf > 0.0 {
-            prev.w = (prev_pdf_w / prev_pdf).clamp(0.0, 10.0);
-        }
+        // if prev_pdf > 0.0 {
+        //     prev.w = (prev_pdf_w / prev_pdf).clamp(0.0, 10.0);
+        // }
 
         if main.merge(&mut wnoise, &prev, prev_pdf) {
+            main_nth = 2;
             main_pdf = prev_pdf;
-            selected = 2;
         }
 
         prev_m = prev.m;
@@ -127,35 +127,18 @@ pub fn main(
 
     // ---
 
-    let mut pi = main_pdf;
-    let mut pi_sum = main_pdf * curr_m;
+    // let mut pi = main_pdf;
+    // let mut pi_sum = main_pdf * curr_m;
 
-    if (prev_m > 0.0) & main.sample.exists {
-        let ray = main.sample.ray(hit);
-        let mut is_occluded = false;
+    // if (prev_m > 0.0) & main.sample.exists {
+    //     let ps = main.sample.pdf(lights, hit.point, hit.gbuffer.normal);
 
-        // if !is_occluded & (selected == 2) {
-        //     is_occluded |= ray.intersect(
-        //         local_idx,
-        //         stack,
-        //         triangles,
-        //         bvh,
-        //         materials,
-        //         atlas_tex,
-        //         atlas_sampler,
-        //     );
-        // }
+    //     pi = if main_nth == 2 { ps } else { pi };
+    //     pi_sum += ps * prev_m;
+    // }
 
-        let ps = if is_occluded {
-            0.0
-        } else {
-            main.sample.pdf(lights, hit)
-        };
+    // main.normalize_ex(main_pdf, pi, pi_sum);
 
-        pi = if selected == 2 { ps } else { pi };
-        pi_sum += ps * prev_m;
-    }
-
-    main.normalize_ex(main_pdf, pi, pi_sum);
+    main.normalize(main_pdf);
     main.write(curr_reservoirs, screen_idx);
 }

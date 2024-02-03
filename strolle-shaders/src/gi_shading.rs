@@ -108,7 +108,7 @@ pub fn main(
             0.25
         };
 
-        if wnoise.sample() < atmosphere_pdf {
+        if world.light_count == 0 || wnoise.sample() < atmosphere_pdf {
             light_id = LightId::sky();
             light_pdf = atmosphere_pdf;
             light_dir = wnoise.sample_hemisphere(gi_hit.gbuffer.normal);
@@ -118,24 +118,38 @@ pub fn main(
                     * gi_hit.gbuffer.normal.dot(light_dir);
         } else {
             let mut res = EphemeralReservoir::default();
-            let mut light_idx = 0;
+            let mut res_pdf = 0.0;
 
-            while light_idx < world.light_count {
-                let light_id = LightId::new(light_idx);
-                let light_radiance = lights.get(light_id).radiance(gi_hit);
+            let sample_ipdf = world.light_count as f32;
+            let mut sample_idx = 0;
+
+            while sample_idx < 16 {
+                let light_id =
+                    LightId::new(wnoise.sample_int() % world.light_count);
+
+                let light_radiance = lights
+                    .get(light_id)
+                    .radiance(gi_hit.point, gi_hit.gbuffer.normal);
 
                 let sample = EphemeralSample {
                     light_id,
                     light_radiance,
                 };
 
-                res.update(&mut wnoise, sample, sample.pdf());
-                light_idx += 1;
+                let sample_pdf = sample.pdf();
+
+                if res.update(&mut wnoise, sample, sample_pdf * sample_ipdf) {
+                    res_pdf = sample_pdf;
+                }
+
+                sample_idx += 1;
             }
+
+            res.normalize(res_pdf);
 
             if res.w > 0.0 {
                 light_id = res.sample.light_id;
-                light_pdf = (res.sample.pdf() / res.w) * (1.0 - atmosphere_pdf);
+                light_pdf = (1.0 / res.w) * (1.0 - atmosphere_pdf);
                 light_radiance = res.sample.light_radiance;
             } else {
                 light_id = LightId::new(0);

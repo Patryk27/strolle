@@ -383,7 +383,7 @@ fn animate_sun(
         st_sun.altitude = sun.altitude;
     }
 
-    st_sun.altitude = -1.0;
+    // st_sun.altitude = -1.0;
 }
 
 // -----------------------------------------------------------------------------

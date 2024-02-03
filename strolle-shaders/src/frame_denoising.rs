@@ -269,7 +269,9 @@ pub fn wavelet(
     let luma_sigma_di = {
         let var_max = 1.0 / (6.0 + 2.0 * params.strength);
 
-        1.0 / (4.0 * center_di_var.sqrt().max(var_max))
+        // 1.0 / (4.0 * center_di_var.sqrt().max(var_max))
+
+        1.0
     };
 
     let depth_sigma_di = 0.1 / params.strength;

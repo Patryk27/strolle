@@ -21,9 +21,9 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 2)] prim_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 3)] prim_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 4, storage_buffer)]
-    curr_reservoirs: &[Vec4],
+    input_reservoirs: &[Vec4],
     #[spirv(descriptor_set = 1, binding = 5, storage_buffer)]
-    next_reservoirs: &mut [Vec4],
+    output_reservoirs: &mut [Vec4],
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
@@ -56,69 +56,97 @@ pub fn main(
     // ---
 
     let mut main = DiReservoir::default();
+    let mut main_nth = 0;
     let mut main_pdf = 0.0;
 
     // ---
 
-    let lhs = DiReservoir::read(curr_reservoirs, screen_idx);
+    let lhs = DiReservoir::read(input_reservoirs, screen_idx);
 
-    if lhs.m > 0.0 {
-        let lhs_pdf = lhs.sample.pdf(lights, hit);
+    let lhs_pdf = if lhs.is_empty() {
+        0.0
+    } else {
+        lhs.sample.pdf(lights, hit.point, hit.gbuffer.normal)
+    };
 
-        if main.merge(&mut wnoise, &lhs, lhs_pdf) {
-            main_pdf = lhs_pdf;
-        }
+    if main.merge(&mut wnoise, &lhs, lhs_pdf) {
+        main_nth = 1;
+        main_pdf = lhs_pdf;
     }
 
     // ---
 
-    let mut rhs = {
-        let mut sample = DiReservoir::default();
-        let mut found = false;
+    let mut rhs = DiReservoir::default();
+    let mut rhs_hit_point = Vec3::ZERO;
+    let mut rhs_hit_normal = Vec3::ZERO;
 
-        let mut sample_idx = 0;
-        let max_samples = if params.frame % 2 == 0 { 5 } else { 0 };
-        let max_radius = 32.0;
+    let mut sample_idx = 0;
+    let max_samples = if params.frame % 3 == 0 { 8 } else { 0 };
+    let max_radius = 64.0;
 
-        while sample_idx < max_samples {
-            let sample_dist = wnoise.sample_disk() * max_radius;
+    while sample_idx < max_samples {
+        let sample_dist = wnoise.sample_disk() * max_radius;
 
-            let sample_pos =
-                camera.contain((screen_pos.as_vec2() + sample_dist).as_ivec2());
+        let sample_pos =
+            camera.contain((screen_pos.as_vec2() + sample_dist).as_ivec2());
 
-            sample_idx += 1;
+        sample_idx += 1;
 
-            let sample_surface = prim_surface_map.get(sample_pos);
+        let sample_surface = prim_surface_map.get(sample_pos);
 
-            if sample_surface.is_sky() {
-                continue;
-            }
-
-            if (sample_surface.depth - hit.gbuffer.depth).abs()
-                > 0.2 * hit.gbuffer.depth
-            {
-                continue;
-            }
-
-            if sample_surface.normal.dot(hit.gbuffer.normal) < 0.8 {
-                continue;
-            }
-
-            sample = DiReservoir::read(
-                curr_reservoirs,
-                camera.screen_to_idx(sample_pos),
-            );
-
-            if sample.w <= 0.01 {
-                continue;
-            }
-
-            found = true;
-            break;
+        if sample_surface.is_sky() {
+            continue;
         }
 
-        if found {
-            let is_occluded = sample.sample.ray(hit).intersect(
+        if (sample_surface.depth - hit.gbuffer.depth).abs()
+            > 0.2 * hit.gbuffer.depth
+        {
+            continue;
+        }
+
+        if sample_surface.normal.dot(hit.gbuffer.normal) < 0.8 {
+            continue;
+        }
+
+        rhs = DiReservoir::read(
+            input_reservoirs,
+            camera.screen_to_idx(sample_pos),
+        );
+
+        let rhs_pdf = if rhs.is_empty() {
+            0.0
+        } else {
+            rhs.sample.pdf(lights, hit.point, hit.gbuffer.normal)
+        };
+
+        if rhs_pdf <= 0.0 {
+            rhs.m = 0.0;
+            continue;
+        }
+
+        rhs_hit_point = camera.ray(sample_pos).at(sample_surface.depth)
+            + sample_surface.normal * Hit::NUDGE_OFFSET;
+
+        rhs_hit_normal = sample_surface.normal;
+
+        if main.merge(&mut wnoise, &rhs, rhs_pdf) {
+            main_nth = 2;
+            main_pdf = rhs_pdf;
+        }
+
+        break;
+    }
+
+    // ---
+
+    let mut pi = main_pdf;
+    let mut pi_sum = main_pdf * lhs.m;
+
+    if rhs.m > 0.0 {
+        let mut ps = main.sample.pdf(lights, rhs_hit_point, rhs_hit_normal);
+
+        if ps > 0.0 {
+            let is_occluded = main.sample.ray(rhs_hit_point).intersect(
                 local_idx,
                 stack,
                 triangles,
@@ -129,26 +157,17 @@ pub fn main(
             );
 
             if is_occluded {
-                sample.m = 0.0;
+                ps = 0.0;
             }
         }
 
-        sample
-    };
-
-    if rhs.m > 0.0 {
-        // TODO biased as hell
-        rhs.clamp_m((lhs.m * 0.2).max(1.0));
-
-        let rhs_pdf = rhs.sample.pdf(lights, hit);
-
-        if main.merge(&mut wnoise, &rhs, rhs_pdf) {
-            main_pdf = rhs_pdf;
-        }
+        pi = if main_nth == 2 { ps } else { pi };
+        pi_sum += ps * rhs.m;
     }
+
+    main.normalize_ex(main_pdf, pi, pi_sum);
 
     // ---
 
-    main.normalize(main_pdf);
-    main.write(next_reservoirs, screen_idx);
+    main.write(output_reservoirs, screen_idx);
 }
