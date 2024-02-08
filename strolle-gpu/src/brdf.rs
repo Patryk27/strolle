@@ -4,7 +4,7 @@ use glam::{vec3, Vec3, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{F32Ext, GBufferEntry, Hit, Vec3Ext, WhiteNoise};
+use crate::{BlueNoise, F32Ext, GBufferEntry, Hit, Vec3Ext, WhiteNoise};
 
 #[derive(Clone, Copy)]
 pub struct DiffuseBrdf<'a> {
@@ -29,6 +29,14 @@ impl<'a> DiffuseBrdf<'a> {
     pub fn sample(self, wnoise: &mut WhiteNoise) -> BrdfSample {
         BrdfSample {
             direction: wnoise.sample_hemisphere(self.gbuffer.normal),
+            throughput: self.gbuffer.base_color.xyz()
+                * (1.0 - self.gbuffer.metallic),
+        }
+    }
+
+    pub fn bsample(self, bnoise: &BlueNoise) -> BrdfSample {
+        BrdfSample {
+            direction: bnoise.sample_hemisphere(self.gbuffer.normal),
             throughput: self.gbuffer.base_color.xyz()
                 * (1.0 - self.gbuffer.metallic),
         }

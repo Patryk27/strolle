@@ -303,7 +303,7 @@ fn handle_camera(
 
     if keys.just_pressed(KeyCode::Key9) {
         camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 1 };
+        camera.mode = st::CameraMode::Reference { depth: 3 };
     }
 
     if keys.just_pressed(KeyCode::Key0) {

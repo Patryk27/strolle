@@ -68,11 +68,7 @@ pub fn fs(
         4 => di_diff_colors.read(screen_pos).xyz(),
 
         // CameraMode::Reference
-        5 => {
-            let color = ref_colors.read(screen_pos);
-
-            color.xyz() / color.w
-        }
+        5 => di_diff_colors.read(screen_pos).xyz(),
 
         _ => Default::default(),
     };

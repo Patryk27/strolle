@@ -27,6 +27,30 @@ impl<'a> BlueNoise<'a> {
     pub fn second_sample(&self) -> Vec2 {
         self.tex.read(self.uv).zw()
     }
+
+    pub fn sample_hemisphere(&self, normal: Vec3) -> Vec3 {
+        let sample = self.second_sample();
+
+        let matrix = {
+            let (t, b) = normal.any_orthonormal_pair();
+
+            Mat3 {
+                x_axis: t,
+                y_axis: b,
+                z_axis: normal,
+            }
+        };
+
+        let sample = {
+            let cos_theta = sample.x;
+            let sin_theta = (1.0f32 - cos_theta.sqr()).sqrt();
+            let phi = 2.0 * PI * sample.y;
+
+            vec3(phi.cos() * sin_theta, phi.sin() * sin_theta, cos_theta)
+        };
+
+        matrix * sample
+    }
 }
 
 pub struct LdsBlueNoise<'a> {

@@ -54,7 +54,7 @@ pub fn reproject(
         let prev_m2 = prev_moment.z;
 
         let curr_color = sample.xyz();
-        let curr_history = (prev_history + 1.0).min(8.0);
+        let curr_history = (prev_history + 1.0).min(24.0);
         let curr_m1 = sample_luma;
         let curr_m2 = sample_luma * sample_luma;
 
@@ -274,7 +274,7 @@ pub fn wavelet(
         1.0
     };
 
-    let depth_sigma_di = 0.1 / params.strength;
+    let depth_sigma_di = 0.25; // 0.1 / params.strength;
 
     let luma_sigma_gi = 1.0 / (2.0 * center_gi_var.sqrt().max(0.33));
     let depth_sigma_gi = 0.25 / params.strength;
@@ -385,8 +385,7 @@ fn sample_weight(
     luma_sigma: f32,
     depth_sigma: f32,
 ) -> f32 {
-    let luma_weight =
-        (center_luma.sqrt() - sample_luma.sqrt()).abs().sqrt() * luma_sigma;
+    let luma_weight = (center_luma - sample_luma).abs().sqrt() * luma_sigma;
 
     // TODO wrong metric (follow ReBLUR instead)
     let depth_weight = {

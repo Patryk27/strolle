@@ -23,6 +23,7 @@ impl RefShadingPass {
     {
         let pass = CameraComputePass::builder("reference_shading")
             .bind([
+                &engine.noise.bind_blue_noise(),
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
                 &engine.lights.bind_readable(),
@@ -37,7 +38,7 @@ impl RefShadingPass {
                 &buffers.atmosphere_sky_lut.bind_sampled(),
                 &buffers.ref_rays.bind_writable(),
                 &buffers.ref_hits.bind_readable(),
-                &buffers.ref_colors.bind_writable(),
+                &buffers.di_diff_samples.bind_writable(),
             ])
             .build(device, &engine.shaders.ref_shading);
 

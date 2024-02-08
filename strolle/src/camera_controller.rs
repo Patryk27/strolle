@@ -100,6 +100,8 @@ impl CameraController {
 
             CameraMode::Reference { depth } => {
                 self.passes.atmosphere.run(engine, self, encoder);
+                self.passes.prim_raster.run(engine, self, encoder);
+                self.passes.frame_reprojection.run(self, encoder);
 
                 for depth in 0..=depth {
                     self.passes.ref_tracing.run(self, encoder, depth);
@@ -107,6 +109,7 @@ impl CameraController {
                 }
 
                 self.passes.ref_shading.run(self, encoder, u8::MAX);
+                self.passes.frame_denoising.run(self, encoder);
                 self.passes.frame_composition.run(self, encoder, view);
             }
 
