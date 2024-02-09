@@ -36,12 +36,10 @@ impl Surface {
         let depth_score = {
             let t = (self.depth - other.depth).abs();
 
-            if self.depth < 1.0 {
-                (1.0 - t).max(0.0)
-            } else if t >= 0.1 * other.depth {
+            if t >= 0.1 * other.depth {
                 0.0
             } else {
-                1.0 - t / (0.1 * other.depth)
+                1.0
             }
         };
 

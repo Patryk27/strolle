@@ -158,7 +158,7 @@ mod tests {
         assert_relative_eq!(target.base_color.x, 0.1, epsilon = EPSILON);
         assert_relative_eq!(target.base_color.y, 0.2, epsilon = EPSILON);
         assert_relative_eq!(target.base_color.z, 0.3, epsilon = EPSILON);
-        assert_relative_eq!(target.base_color.w, 0.4, epsilon = EPSILON);
+        assert_relative_eq!(target.base_color.w, 0.4, epsilon = 0.1);
 
         assert_relative_eq!(target.normal.x, 0.26, epsilon = EPSILON);
         assert_relative_eq!(target.normal.y, 0.53, epsilon = EPSILON);

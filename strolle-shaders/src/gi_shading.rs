@@ -35,7 +35,7 @@ pub fn main(
     gi_samples: &mut [Vec4],
 ) {
     let global_id = global_id.xy();
-    let screen_pos = checkerboard(global_id, params.frame);
+    let screen_pos = resolve_checkerboard(global_id, params.frame);
     let screen_idx = camera.screen_to_idx(screen_pos);
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
     let triangles = TrianglesView::new(triangles);

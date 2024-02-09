@@ -39,7 +39,7 @@ pub fn main(
     let hit_point = camera.ray(screen_pos).at(surface.depth);
     let hit_normal = surface.normal;
 
-    if is_checkerboard(screen_pos, params.frame) {
+    if got_checkerboard_at(screen_pos, params.frame) {
         let d0 = unsafe { *samples.index_unchecked(3 * screen_idx) };
         let d1 = unsafe { *samples.index_unchecked(3 * screen_idx + 1) };
         let d2 = unsafe { *samples.index_unchecked(3 * screen_idx + 2) };
@@ -90,7 +90,7 @@ pub fn main(
             let prev_pdf = prev.sample.diff_pdf(hit_point, hit_normal);
 
             if prev_pdf > 0.0 {
-                prev.w = (prev_pdf_w / prev_pdf).clamp(0.0, 10.0);
+                prev.w = (prev_pdf_w / prev_pdf).clamp(0.0, 5.0);
             }
 
             if main.merge(&mut wnoise, &prev, prev_pdf) {

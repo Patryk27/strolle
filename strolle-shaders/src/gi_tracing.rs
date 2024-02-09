@@ -27,13 +27,13 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 5)] gi_gbuffer_d1: TexRgba32,
 ) {
     let global_id = global_id.xy();
-    let screen_pos = checkerboard(global_id, params.frame);
+    let screen_pos = resolve_checkerboard(global_id, params.frame);
     let mut bnoise = LdsBlueNoise::new(
         blue_noise_sobol,
         blue_noise_scrambling_tile,
         blue_noise_ranking_tile,
         screen_pos,
-        params.frame / 2,
+        params.frame / 4,
         0,
     );
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);

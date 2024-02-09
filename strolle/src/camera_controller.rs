@@ -127,17 +127,19 @@ impl CameraController {
                     }
 
                     if self.camera.mode.needs_gi_diff() {
-                        self.passes.gi_tracing.run(
-                            self,
-                            encoder,
-                            gpu::GiPassParams::MODE_DIFF,
-                        );
+                        if self.frame % 4 <= 1 {
+                            self.passes.gi_tracing.run(
+                                self,
+                                encoder,
+                                gpu::GiPassParams::MODE_DIFF,
+                            );
 
-                        self.passes.gi_shading.run(
-                            self,
-                            encoder,
-                            gpu::GiPassParams::MODE_DIFF,
-                        );
+                            self.passes.gi_shading.run(
+                                self,
+                                encoder,
+                                gpu::GiPassParams::MODE_DIFF,
+                            );
+                        }
 
                         self.passes
                             .gi_diff_temporal_resampling

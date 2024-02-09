@@ -74,7 +74,7 @@ pub fn main(
             prev_prim_surface_map
                 .get(sample_pos.as_uvec2())
                 .evaluate_similarity_to(&surface)
-                >= 0.5
+                >= 0.25
         };
 
         let [p00, p10, p01, p11] = BilinearFilter::reprojection_coords(

@@ -77,7 +77,17 @@ pub fn main(
     let mut rhs_hit_normal = Vec3::ZERO;
 
     let mut sample_idx = 0;
-    let max_samples = if params.frame % 3 == 0 { 8 } else { 0 };
+
+    let max_samples = if params.frame % 4 <= 1 {
+        0
+    } else {
+        if got_checkerboard_at(screen_pos, params.frame + 2) {
+            8
+        } else {
+            0
+        }
+    };
+
     let mut max_radius = 128.0;
 
     while sample_idx < max_samples {

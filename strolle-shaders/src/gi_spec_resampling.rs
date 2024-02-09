@@ -41,7 +41,7 @@ pub fn main(
     let mut main = GiReservoir::default();
     let mut main_pdf = 0.0;
 
-    if is_checkerboard(screen_pos, params.frame) {
+    if got_checkerboard_at(screen_pos, params.frame) {
         let d0 = unsafe { *samples.index_unchecked(3 * screen_idx) };
         let d1 = unsafe { *samples.index_unchecked(3 * screen_idx + 1) };
         let d2 = unsafe { *samples.index_unchecked(3 * screen_idx + 2) };
