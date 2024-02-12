@@ -3,11 +3,12 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiSpecResolvingPass {
+pub struct FrameReprojectPass {
     pass: CameraComputePass<()>,
 }
 
-impl GiSpecResolvingPass {
+impl FrameReprojectPass {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -17,15 +18,16 @@ impl GiSpecResolvingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("gi_spec_resolving")
+        let pass = CameraComputePass::builder("frame_reproject")
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.gi_spec_reservoirs.curr().bind_readable(),
-                &buffers.gi_spec_samples.bind_writable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.prev_camera.bind_readable(),
+                &buffers.prim_surface_map.curr().bind_readable(),
+                &buffers.prim_surface_map.prev().bind_readable(),
+                &buffers.velocity_map.bind_readable(),
+                &buffers.reprojection_map.bind_writable(),
             ])
-            .build(device, &engine.shaders.gi_spec_resolving);
+            .build(device, &engine.shaders.frame_reproject);
 
         Self { pass }
     }

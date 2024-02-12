@@ -1,4 +1,3 @@
-use glam::uvec2;
 use rand::Rng;
 
 use crate::{
@@ -7,11 +6,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiShadingPass {
-    pass: CameraComputePass<gpu::GiPassParams>,
+pub struct RefShadePass {
+    pass: CameraComputePass<gpu::RefPassParams>,
 }
 
-impl GiShadingPass {
+impl RefShadePass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -22,7 +21,7 @@ impl GiShadingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("gi_shading")
+        let pass = CameraComputePass::builder("ref_shading")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -32,17 +31,15 @@ impl GiShadingPass {
                 &engine.world.bind_readable(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.prev_camera.bind_readable(),
                 &buffers.atmosphere_transmittance_lut.bind_sampled(),
                 &buffers.atmosphere_sky_lut.bind_sampled(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.gi_rays.bind_readable(),
-                &buffers.gi_gbuffer_d0.bind_readable(),
-                &buffers.gi_gbuffer_d1.bind_readable(),
-                &buffers.gi_samples.bind_writable(),
+                &buffers.rt_rays.bind_writable(),
+                &buffers.rt_hits.bind_readable(),
+                &buffers.ref_colors.bind_writable(),
             ])
-            .build(device, &engine.shaders.gi_shading);
+            .build(device, &engine.shaders.ref_shade);
 
         Self { pass }
     }
@@ -51,15 +48,15 @@ impl GiShadingPass {
         &self,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
-        mode: u32,
+        depth: u8,
     ) {
-        // This pass uses 8x8 warps and 2x1 checkerboard:
-        let size = (camera.camera.viewport.size + 7) / 8 / uvec2(2, 1);
+        // This pass uses 8x8 warps:
+        let size = (camera.camera.viewport.size + 7) / 8;
 
-        let params = gpu::GiPassParams {
+        let params = gpu::RefPassParams {
             seed: rand::thread_rng().gen(),
             frame: camera.frame,
-            mode,
+            depth: depth as u32,
         };
 
         self.pass.run(camera, encoder, size, params);

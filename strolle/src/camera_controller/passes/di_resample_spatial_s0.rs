@@ -3,11 +3,12 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiDiffResolvingPass {
+pub struct DiResampleSpatialS0Pass {
     pass: CameraComputePass,
 }
 
-impl GiDiffResolvingPass {
+impl DiResampleSpatialS0Pass {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -17,16 +18,19 @@ impl GiDiffResolvingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("gi_diff_resolving")
+        let pass = CameraComputePass::builder("di_resample_spatial_s0")
+            .bind([&engine.lights.bind_readable()])
             .bind([
-                &buffers.camera.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.prim_surface_map.curr().bind_readable(),
                 &buffers.prim_gbuffer_d0.bind_readable(),
                 &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.gi_diff_reservoirs[2].bind_readable(),
-                &buffers.gi_diff_reservoirs[0].bind_writable(),
-                &buffers.gi_diff_samples.bind_writable(),
+                &buffers.di_curr_reservoirs.bind_readable(),
+                &buffers.di_next_reservoirs.bind_writable(),
+                &buffers.rt_rays.bind_writable(),
+                &buffers.rt_hits.bind_writable(),
             ])
-            .build(device, &engine.shaders.gi_diff_resolving);
+            .build(device, &engine.shaders.di_resample_spatial_s0);
 
         Self { pass }
     }

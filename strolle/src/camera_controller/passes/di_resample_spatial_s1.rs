@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DiSpatialResamplingPass {
+pub struct DiResampleSpatialS1Pass {
     pass: CameraComputePass,
 }
 
-impl DiSpatialResamplingPass {
+impl DiResampleSpatialS1Pass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -18,23 +18,16 @@ impl DiSpatialResamplingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("di_spatial_resampling")
+        let pass = CameraComputePass::builder("di_resample_spatial_s1")
             .bind([
-                &engine.triangles.bind_readable(),
-                &engine.bvh.bind_readable(),
-                &engine.materials.bind_readable(),
-                &engine.lights.bind_readable(),
-                &engine.images.bind_atlas(),
-            ])
-            .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_surface_map.curr().bind_readable(),
+                &buffers.curr_camera.bind_readable(),
                 &buffers.prim_gbuffer_d0.bind_readable(),
                 &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.di_curr_reservoirs.bind_readable(),
                 &buffers.di_next_reservoirs.bind_writable(),
+                &buffers.rt_rays.bind_writable(),
+                &buffers.rt_hits.bind_readable(),
             ])
-            .build(device, &engine.shaders.di_spatial_resampling);
+            .build(device, &engine.shaders.di_resample_spatial_s1);
 
         Self { pass }
     }

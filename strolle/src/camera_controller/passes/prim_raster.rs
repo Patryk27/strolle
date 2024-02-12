@@ -33,7 +33,7 @@ impl PrimRasterPass {
             .build(device);
 
         let bg1 = BindGroup::builder("prim_raster_bg1")
-            .add(&buffers.camera.bind_readable())
+            .add(&buffers.curr_camera.bind_readable())
             .add(&buffers.prev_camera.bind_readable())
             .build(device);
 

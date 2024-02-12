@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DiTemporalResamplingPass {
+pub struct DiSamplePass {
     pass: CameraComputePass,
 }
 
-impl DiTemporalResamplingPass {
+impl DiSamplePass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -18,23 +18,20 @@ impl DiTemporalResamplingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("di_temporal_resampling")
+        let pass = CameraComputePass::builder("di_sample")
             .bind([
-                &engine.triangles.bind_readable(),
-                &engine.bvh.bind_readable(),
-                &engine.materials.bind_readable(),
+                &engine.noise.bind_blue_noise(),
                 &engine.lights.bind_readable(),
-                &engine.images.bind_atlas(),
+                &engine.world.bind_readable(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.reprojection_map.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
                 &buffers.prim_gbuffer_d0.bind_readable(),
                 &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.di_prev_reservoirs.bind_readable(),
+                &buffers.rt_rays.bind_writable(),
                 &buffers.di_curr_reservoirs.bind_writable(),
             ])
-            .build(device, &engine.shaders.di_temporal_resampling);
+            .build(device, &engine.shaders.di_sample);
 
         Self { pass }
     }

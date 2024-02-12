@@ -42,6 +42,10 @@ impl Ray {
         self.direction
     }
 
+    pub fn length(&self) -> f32 {
+        self.length
+    }
+
     pub fn at(self, depth: f32) -> Vec3 {
         self.origin + self.direction * depth
     }

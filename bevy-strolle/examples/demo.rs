@@ -23,7 +23,7 @@ const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
 const WINDOW_SCALE: f32 = 1.5;
 
 fn main() {
-    common::unzip_assets();
+    // common::unzip_assets();
 
     App::new()
         .add_plugins((
@@ -156,7 +156,7 @@ fn setup_scene(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     commands.spawn(SceneBundle {
-        scene: assets.load("demo/level.glb#Scene0"),
+        scene: assets.load("/Users/PWY/Projects/strolle/bevy-strolle/assets/demo/level.glb#Scene0"),
         ..default()
     });
 

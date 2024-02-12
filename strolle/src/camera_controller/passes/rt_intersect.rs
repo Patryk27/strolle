@@ -1,16 +1,13 @@
-use rand::Rng;
-
 use crate::{
-    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
-    Params,
+    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
 
 #[derive(Debug)]
-pub struct RefTracingPass {
-    pass: CameraComputePass<gpu::RefPassParams>,
+pub struct RtIntersectPass {
+    pass: CameraComputePass<()>,
 }
 
-impl RefTracingPass {
+impl RtIntersectPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -21,7 +18,7 @@ impl RefTracingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("reference_tracing")
+        let pass = CameraComputePass::builder("rt_intersect")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -29,11 +26,11 @@ impl RefTracingPass {
                 &engine.images.bind_atlas(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.ref_rays.bind_readable(),
-                &buffers.ref_hits.bind_writable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.rt_rays.bind_readable(),
+                &buffers.rt_hits.bind_writable(),
             ])
-            .build(device, &engine.shaders.ref_tracing);
+            .build(device, &engine.shaders.rt_intersect);
 
         Self { pass }
     }
@@ -42,17 +39,10 @@ impl RefTracingPass {
         &self,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
-        depth: u8,
     ) {
         // This pass uses 8x8 warps:
         let size = (camera.camera.viewport.size + 7) / 8;
 
-        let params = gpu::RefPassParams {
-            seed: rand::thread_rng().gen(),
-            frame: camera.frame,
-            depth: depth as u32,
-        };
-
-        self.pass.run(camera, encoder, size, params);
+        self.pass.run(camera, encoder, size, ());
     }
 }

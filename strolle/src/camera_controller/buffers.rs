@@ -6,7 +6,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct CameraBuffers {
-    pub camera: MappedUniformBuffer<gpu::Camera>,
+    pub curr_camera: MappedUniformBuffer<gpu::Camera>,
     pub prev_camera: MappedUniformBuffer<gpu::Camera>,
 
     pub atmosphere_transmittance_lut: Texture,
@@ -21,6 +21,7 @@ pub struct CameraBuffers {
     pub reprojection_map: Texture,
     pub velocity_map: Texture,
 
+    // TODO di_reservoirs: [StorageBuffer; 3]
     pub di_prev_reservoirs: StorageBuffer,
     pub di_curr_reservoirs: StorageBuffer,
     pub di_next_reservoirs: StorageBuffer,
@@ -31,23 +32,18 @@ pub struct CameraBuffers {
     pub di_diff_moments: DoubleBuffered<Texture>,
     pub di_diff_stash: Texture,
 
-    pub gi_rays: Texture,
-    pub gi_gbuffer_d0: Texture,
-    pub gi_gbuffer_d1: Texture,
     pub gi_samples: StorageBuffer,
+    pub gi_reservoirs: [StorageBuffer; 4],
 
-    pub gi_diff_reservoirs: [StorageBuffer; 4],
     pub gi_diff_samples: Texture,
     pub gi_diff_prev_colors: Texture,
     pub gi_diff_curr_colors: Texture,
     pub gi_diff_moments: DoubleBuffered<Texture>,
     pub gi_diff_stash: Texture,
 
-    pub gi_spec_samples: Texture,
-    pub gi_spec_reservoirs: DoubleBuffered<StorageBuffer>,
+    pub rt_hits: StorageBuffer,
+    pub rt_rays: StorageBuffer,
 
-    pub ref_hits: StorageBuffer,
-    pub ref_rays: StorageBuffer,
     pub ref_colors: Texture,
 }
 
@@ -200,24 +196,6 @@ impl CameraBuffers {
 
         // ---------------------------------------------------------------------
 
-        let gi_rays = Texture::builder("gi_rays")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
-        let gi_gbuffer_d0 = Texture::builder("gi_gbuffer_d0")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
-        let gi_gbuffer_d1 = Texture::builder("gi_gbuffer_d1")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
         let gi_samples = StorageBuffer::new(
             device,
             "gi_samples",
@@ -252,10 +230,10 @@ impl CameraBuffers {
 
         // ---
 
-        let gi_diff_reservoirs = [0, 1, 2, 3].map(|idx| {
+        let gi_reservoirs = [0, 1, 2, 3].map(|idx| {
             StorageBuffer::new(
                 device,
-                format!("gi_diff_reservoirs_{}", idx),
+                format!("gi_reservoir_{}", idx),
                 viewport_buffer_size(4 * 4 * 4),
             )
         });
@@ -266,35 +244,21 @@ impl CameraBuffers {
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
-        // ---
-
-        let gi_spec_samples = Texture::builder("gi_spec_samples")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
-            .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-            .build(device);
-
-        let gi_spec_reservoirs = DoubleBuffered::<StorageBuffer>::new(
-            device,
-            "gi_spec_reservoirs",
-            viewport_buffer_size(4 * 4 * 4),
-        );
-
         // ---------------------------------------------------------------------
 
-        // TODO initialize lazily
-        let ref_rays = StorageBuffer::new(
+        let rt_rays = StorageBuffer::new(
             device,
             "ref_rays",
             viewport_buffer_size(3 * 4 * 4),
         );
 
-        // TODO initialize lazily
-        let ref_hits = StorageBuffer::new(
+        let rt_hits = StorageBuffer::new(
             device,
             "ref_hits",
             viewport_buffer_size(2 * 4 * 4),
         );
+
+        // ---------------------------------------------------------------------
 
         // TODO initialize lazily
         let ref_colors = Texture::builder("ref_colors")
@@ -306,7 +270,7 @@ impl CameraBuffers {
         // ---------------------------------------------------------------------
 
         Self {
-            camera: camera_uniform,
+            curr_camera: camera_uniform,
             prev_camera,
 
             atmosphere_transmittance_lut,
@@ -331,23 +295,17 @@ impl CameraBuffers {
             di_diff_moments,
             di_diff_stash,
 
-            gi_rays,
-            gi_gbuffer_d0,
-            gi_gbuffer_d1,
             gi_samples,
+            gi_reservoirs,
 
-            gi_diff_reservoirs,
             gi_diff_samples,
             gi_diff_prev_colors,
             gi_diff_curr_colors,
             gi_diff_moments,
             gi_diff_stash,
 
-            gi_spec_samples,
-            gi_spec_reservoirs,
-
-            ref_hits,
-            ref_rays,
+            rt_hits,
+            rt_rays,
             ref_colors,
         }
     }

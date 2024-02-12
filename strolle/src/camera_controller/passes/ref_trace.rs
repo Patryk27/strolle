@@ -1,13 +1,16 @@
+use rand::Rng;
+
 use crate::{
-    Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
+    gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
+    Params,
 };
 
 #[derive(Debug)]
-pub struct BvhHeatmapPass {
-    pass: CameraComputePass<()>,
+pub struct RefTracePass {
+    pass: CameraComputePass<gpu::RefPassParams>,
 }
 
-impl BvhHeatmapPass {
+impl RefTracePass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -18,7 +21,7 @@ impl BvhHeatmapPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("bvh_heatmap")
+        let pass = CameraComputePass::builder("ref_tracing")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -27,9 +30,10 @@ impl BvhHeatmapPass {
             ])
             .bind([
                 &buffers.curr_camera.bind_readable(),
-                &buffers.di_diff_curr_colors.bind_writable(),
+                &buffers.rt_rays.bind_readable(),
+                &buffers.rt_hits.bind_writable(),
             ])
-            .build(device, &engine.shaders.bvh_heatmap);
+            .build(device, &engine.shaders.ref_trace);
 
         Self { pass }
     }
@@ -38,10 +42,17 @@ impl BvhHeatmapPass {
         &self,
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
+        depth: u8,
     ) {
         // This pass uses 8x8 warps:
         let size = (camera.camera.viewport.size + 7) / 8;
 
-        self.pass.run(camera, encoder, size, ());
+        let params = gpu::RefPassParams {
+            seed: rand::thread_rng().gen(),
+            frame: camera.frame,
+            depth: depth as u32,
+        };
+
+        self.pass.run(camera, encoder, size, params);
     }
 }

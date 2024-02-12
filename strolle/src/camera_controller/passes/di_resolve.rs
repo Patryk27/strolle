@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DiResolvingPass {
+pub struct DiResolvePass {
     pass: CameraComputePass,
 }
 
-impl DiResolvingPass {
+impl DiResolvePass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -17,17 +17,13 @@ impl DiResolvingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("di_resolving")
+        let pass = CameraComputePass::builder("di_resolve")
             .bind([
-                &engine.triangles.bind_readable(),
-                &engine.bvh.bind_readable(),
-                &engine.materials.bind_readable(),
                 &engine.lights.bind_readable(),
-                &engine.images.bind_atlas(),
                 &engine.world.bind_readable(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
                 &buffers.atmosphere_transmittance_lut.bind_sampled(),
                 &buffers.atmosphere_sky_lut.bind_sampled(),
                 &buffers.prim_gbuffer_d0.bind_readable(),
@@ -35,8 +31,9 @@ impl DiResolvingPass {
                 &buffers.di_next_reservoirs.bind_readable(),
                 &buffers.di_prev_reservoirs.bind_writable(),
                 &buffers.di_diff_samples.bind_writable(),
+                &buffers.rt_hits.bind_readable(),
             ])
-            .build(device, &engine.shaders.di_resolving);
+            .build(device, &engine.shaders.di_resolve);
 
         Self { pass }
     }

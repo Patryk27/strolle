@@ -25,8 +25,7 @@ pub fn fs(
     #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 3)] di_diff_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 4)] gi_diff_colors: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 5)] gi_spec_colors: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 6)] ref_colors: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 5)] ref_colors: TexRgba32,
     frag_color: &mut Vec4,
 ) {
     let screen_pos = pos.xy().as_uvec2();
@@ -43,7 +42,7 @@ pub fn fs(
 
             if gbuffer.is_some() {
                 let gi_diff = gi_diff_colors.read(screen_pos).xyz();
-                let gi_spec = gi_spec_colors.read(screen_pos).xyz();
+                let gi_spec = Vec3::ZERO; // TODO
 
                 gbuffer.emissive
                     + gbuffer.base_color.xyz()
@@ -62,7 +61,7 @@ pub fn fs(
         2 => gi_diff_colors.read(screen_pos).xyz(),
 
         // CameraMode::IndirectSpecularLighting
-        3 => gi_spec_colors.read(screen_pos).xyz(),
+        3 => Vec3::ZERO, // TODO
 
         // CameraMode::BvhHeatmap
         4 => di_diff_colors.read(screen_pos).xyz(),

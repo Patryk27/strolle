@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiDiffTemporalResamplingPass {
+pub struct DiResampleTemporalPass {
     pass: CameraComputePass,
 }
 
-impl GiDiffTemporalResamplingPass {
+impl DiResampleTemporalPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -18,16 +18,18 @@ impl GiDiffTemporalResamplingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("gi_diff_temporal_resampling")
+        let pass = CameraComputePass::builder("di_resample_temporal")
+            .bind([&engine.lights.bind_readable()])
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_surface_map.curr().bind_readable(),
+                &buffers.curr_camera.bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
-                &buffers.gi_samples.bind_readable(),
-                &buffers.gi_diff_reservoirs[0].bind_readable(),
-                &buffers.gi_diff_reservoirs[1].bind_writable(),
+                &buffers.prim_gbuffer_d0.bind_readable(),
+                &buffers.prim_gbuffer_d1.bind_readable(),
+                &buffers.rt_hits.bind_readable(),
+                &buffers.di_prev_reservoirs.bind_readable(),
+                &buffers.di_curr_reservoirs.bind_writable(),
             ])
-            .build(device, &engine.shaders.gi_diff_temporal_resampling);
+            .build(device, &engine.shaders.di_resample_temporal);
 
         Self { pass }
     }

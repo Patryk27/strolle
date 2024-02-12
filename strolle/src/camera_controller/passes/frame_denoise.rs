@@ -5,14 +5,14 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct FrameDenoisingPass {
+pub struct FrameDenoisePass {
     reproject_passes: [CameraComputePass; 2],
     estimate_variance_pass: CameraComputePass,
     wavelet_passes:
         [CameraComputePass<gpu::FrameDenoisingWaveletPassParams>; 5],
 }
 
-impl FrameDenoisingPass {
+impl FrameDenoisePass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -23,9 +23,9 @@ impl FrameDenoisingPass {
         P: Params,
     {
         let reproject_di_pass =
-            CameraComputePass::builder("frame_denoising_reproject_di")
+            CameraComputePass::builder("frame_denoise_reproject_di")
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
                     &buffers.reprojection_map.bind_readable(),
                 ])
@@ -36,12 +36,12 @@ impl FrameDenoisingPass {
                     &buffers.di_diff_curr_colors.bind_writable(),
                     &buffers.di_diff_moments.curr().bind_writable(),
                 ])
-                .build(device, &engine.shaders.frame_denoising_reproject);
+                .build(device, &engine.shaders.frame_denoise_reproject);
 
         let reproject_gi_pass =
-            CameraComputePass::builder("frame_denoising_reproject_gi")
+            CameraComputePass::builder("frame_denoise_reproject_gi")
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
                     &buffers.reprojection_map.bind_readable(),
                 ])
@@ -52,12 +52,12 @@ impl FrameDenoisingPass {
                     &buffers.gi_diff_curr_colors.bind_writable(),
                     &buffers.gi_diff_moments.curr().bind_writable(),
                 ])
-                .build(device, &engine.shaders.frame_denoising_reproject);
+                .build(device, &engine.shaders.frame_denoise_reproject);
 
         let estimate_variance_pass =
-            CameraComputePass::builder("frame_denoising_estimate_variance")
+            CameraComputePass::builder("frame_denoise_estimate_variance")
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
                 ])
                 .bind([
@@ -72,7 +72,7 @@ impl FrameDenoisingPass {
                 ])
                 .build(
                     device,
-                    &engine.shaders.frame_denoising_estimate_variance,
+                    &engine.shaders.frame_denoise_estimate_variance,
                 );
 
         struct WaveletPass<'a> {
@@ -111,14 +111,14 @@ impl FrameDenoisingPass {
             let mut n = 0;
 
             wavelet_passes.map(|wavelet| {
-                let label = format!("frame_denoising_wavelet_{}", n);
+                let label = format!("frame_denoise_wavelet_{}", n);
 
                 n += 1;
 
                 CameraComputePass::builder(label)
                     .bind([
                         &engine.noise.bind_blue_noise(),
-                        &buffers.camera.bind_readable(),
+                        &buffers.curr_camera.bind_readable(),
                         &buffers.prim_surface_map.curr().bind_readable(),
                     ])
                     .bind([
@@ -129,7 +129,7 @@ impl FrameDenoisingPass {
                         &wavelet.gi.0.bind_readable(),
                         &wavelet.gi.1.bind_writable(),
                     ])
-                    .build(device, &engine.shaders.frame_denoising_wavelet)
+                    .build(device, &engine.shaders.frame_denoise_wavelet)
             })
         };
 

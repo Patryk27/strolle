@@ -5,32 +5,22 @@ use strolle_gpu::prelude::*;
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(push_constant)] params: &PassParams,
-    #[spirv(local_invocation_index)] local_idx: u32,
-    #[spirv(workgroup)] stack: BvhStack,
     #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8,
     #[spirv(descriptor_set = 0, binding = 1, storage_buffer)]
-    triangles: &[Triangle],
-    #[spirv(descriptor_set = 0, binding = 2, storage_buffer)] bvh: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
-    materials: &[Material],
-    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     lights: &[Light],
-    #[spirv(descriptor_set = 0, binding = 5)] atlas_tex: Tex,
-    #[spirv(descriptor_set = 0, binding = 6)] atlas_sampler: &Sampler,
-    #[spirv(descriptor_set = 0, binding = 7, uniform)] world: &World,
+    #[spirv(descriptor_set = 0, binding = 2, uniform)] world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)] prim_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 2)] prim_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 3, storage_buffer)]
-    curr_reservoirs: &mut [Vec4],
+    rt_rays: &mut [Vec4],
+    #[spirv(descriptor_set = 1, binding = 4, storage_buffer)]
+    reservoirs: &mut [Vec4],
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
     let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
     let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
-    let triangles = TrianglesView::new(triangles);
-    let bvh = BvhView::new(bvh);
-    let materials = MaterialsView::new(materials);
     let lights = LightsView::new(lights);
 
     if !camera.contains(screen_pos) {
@@ -48,6 +38,10 @@ pub fn main(
     );
 
     if hit.is_none() {
+        unsafe {
+            *rt_rays.index_unchecked_mut(2 * screen_idx) = Vec4::ZERO;
+        }
+
         return;
     }
 
@@ -61,6 +55,8 @@ pub fn main(
         let mut sample_idx = 0;
 
         while sample_idx < 16 {
+            // TODO we should generate the ray origin as well in here
+
             let light_id =
                 LightId::new(wnoise.sample_int() % world.light_count);
 
@@ -88,40 +84,38 @@ pub fn main(
 
     // ---
 
-    let res = if res.m > 0.0 {
-        let ray = lights
+    let ray = if res.m > 0.0 {
+        lights
             .get(res.sample.light_id)
-            .ray_bnoise(bnoise.first_sample(), hit.point);
-
-        let is_occluded = ray.intersect(
-            local_idx,
-            stack,
-            triangles,
-            bvh,
-            materials,
-            atlas_tex,
-            atlas_sampler,
-        );
-
-        if is_occluded {
-            res.w = 0.0;
-        }
-
-        DiReservoir {
-            reservoir: Reservoir {
-                sample: DiSample {
-                    light_id: res.sample.light_id,
-                    light_point: ray.origin(),
-                    exists: true,
-                    is_occluded,
-                },
-                m: res.m,
-                w: res.w,
-            },
-        }
+            .ray_bnoise(bnoise.first_sample(), hit.point)
     } else {
         Default::default()
     };
 
-    res.write(curr_reservoirs, screen_idx);
+    unsafe {
+        *rt_rays.index_unchecked_mut(2 * screen_idx) =
+            ray.origin().extend(ray.length());
+
+        *rt_rays.index_unchecked_mut(2 * screen_idx + 1) =
+            Normal::encode(ray.direction())
+                .extend(Default::default())
+                .extend(Default::default());
+    }
+
+    // ---
+
+    let res = DiReservoir {
+        reservoir: Reservoir {
+            sample: DiSample {
+                light_id: res.sample.light_id,
+                light_point: ray.origin(),
+                exists: res.m > 0.0,
+                is_occluded: false,
+            },
+            m: res.m,
+            w: res.w,
+        },
+    };
+
+    res.write(reservoirs, screen_idx);
 }

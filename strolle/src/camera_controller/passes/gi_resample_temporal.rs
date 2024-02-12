@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiSpecResamplingPass {
+pub struct GiResampleTemporalPass {
     pass: CameraComputePass,
 }
 
-impl GiSpecResamplingPass {
+impl GiResampleTemporalPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -18,17 +18,16 @@ impl GiSpecResamplingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("gi_spec_resampling")
+        let pass = CameraComputePass::builder("gi_resample_temporal")
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.prim_surface_map.curr().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
                 &buffers.gi_samples.bind_readable(),
-                &buffers.gi_spec_reservoirs.curr().bind_writable(),
-                &buffers.gi_spec_reservoirs.prev().bind_readable(),
+                &buffers.gi_reservoirs[0].bind_readable(),
+                &buffers.gi_reservoirs[1].bind_writable(),
             ])
-            .build(device, &engine.shaders.gi_spec_resampling);
+            .build(device, &engine.shaders.gi_resample_temporal);
 
         Self { pass }
     }

@@ -8,12 +8,12 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct FrameCompositionPass {
+pub struct FrameComposePass {
     bg0: BindGroup,
     pipeline: wgpu::RenderPipeline,
 }
 
-impl FrameCompositionPass {
+impl FrameComposePass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -23,23 +23,22 @@ impl FrameCompositionPass {
     where
         P: Params,
     {
-        debug!("Initializing pass: frame_composition");
+        debug!("Initializing pass: frame_compose");
 
-        let bg0 = BindGroup::builder("frame_composition_bg0")
-            .add(&buffers.camera.bind_readable())
+        let bg0 = BindGroup::builder("frame_compose_bg0")
+            .add(&buffers.curr_camera.bind_readable())
             .add(&buffers.prim_gbuffer_d0.bind_readable())
             .add(&buffers.prim_gbuffer_d1.bind_readable())
             .add(&buffers.di_diff_samples.bind_readable())
             // .add(&buffers.di_diff_curr_colors.bind_readable())
             .add(&buffers.gi_diff_samples.bind_readable())
             // .add(&buffers.gi_diff_curr_colors.bind_readable())
-            .add(&buffers.gi_spec_samples.bind_readable())
             .add(&buffers.ref_colors.bind_readable())
             .build(device);
 
         let pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("strolle_frame_composition_pipeline_layout"),
+                label: Some("strolle_frame_compose_pipeline_layout"),
                 bind_group_layouts: &[bg0.layout()],
                 push_constant_ranges: &[wgpu::PushConstantRange {
                     stages: wgpu::ShaderStages::FRAGMENT,
@@ -53,19 +52,19 @@ impl FrameCompositionPass {
 
         let pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("strolle_frame_composition_pipeline"),
+                label: Some("strolle_frame_compose_pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &engine.shaders.frame_composition_vs.0,
-                    entry_point: engine.shaders.frame_composition_vs.1,
+                    module: &engine.shaders.frame_compose_vs.0,
+                    entry_point: engine.shaders.frame_compose_vs.1,
                     buffers: &[],
                 },
                 primitive: wgpu::PrimitiveState::default(),
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(wgpu::FragmentState {
-                    module: &engine.shaders.frame_composition_fs.0,
-                    entry_point: engine.shaders.frame_composition_fs.1,
+                    module: &engine.shaders.frame_compose_fs.0,
+                    entry_point: engine.shaders.frame_compose_fs.1,
                     targets: &[Some(wgpu::ColorTargetState {
                         format: camera.viewport.format,
                         blend: Some(wgpu::BlendState::REPLACE),
@@ -87,7 +86,7 @@ impl FrameCompositionPass {
         let alternate = camera.is_alternate();
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("strolle_frame_composition"),
+            label: Some("strolle_frame_compose"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view,
                 resolve_target: None,

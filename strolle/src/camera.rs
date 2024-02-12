@@ -122,12 +122,13 @@ impl CameraMode {
         matches!(self, Self::Image | Self::DirectLighting)
     }
 
-    pub(crate) fn needs_gi_diff(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectDiffuseLighting)
-    }
-
-    pub(crate) fn needs_gi_spec(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectSpecularLighting)
+    pub(crate) fn needs_gi(&self) -> bool {
+        matches!(
+            self,
+            Self::Image
+                | Self::IndirectDiffuseLighting
+                | Self::IndirectSpecularLighting
+        )
     }
 }
 

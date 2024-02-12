@@ -51,6 +51,7 @@ pub use self::world::*;
 pub mod prelude {
     pub use core::f32::consts::PI;
 
+    pub use spirv_std::arch::IndexUnchecked;
     pub use spirv_std::glam::*;
     #[cfg(target_arch = "spirv")]
     pub use spirv_std::num_traits::Float;

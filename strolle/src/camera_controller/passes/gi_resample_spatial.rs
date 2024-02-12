@@ -4,12 +4,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiDiffSpatialResamplingPass {
-    slow_pass: CameraComputePass<gpu::GiDiffSpatialResamplingPassParams>,
-    fast_passes: [CameraComputePass<gpu::GiDiffSpatialResamplingPassParams>; 2],
+pub struct GiResampleSpatialPass {
+    exact_pass: CameraComputePass<gpu::GiDiffSpatialResamplingPassParams>,
+    approx_passes:
+        [CameraComputePass<gpu::GiDiffSpatialResamplingPassParams>; 2],
 }
 
-impl GiDiffSpatialResamplingPass {
+impl GiResampleSpatialPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
@@ -20,8 +21,8 @@ impl GiDiffSpatialResamplingPass {
     where
         P: Params,
     {
-        let slow_pass =
-            CameraComputePass::builder("gi_diff_spatial_resampling_slow")
+        let exact_pass =
+            CameraComputePass::builder("gi_spatial_resample_exact")
                 .bind([
                     &engine.triangles.bind_readable(),
                     &engine.bvh.bind_readable(),
@@ -29,42 +30,42 @@ impl GiDiffSpatialResamplingPass {
                     &engine.images.bind_atlas(),
                 ])
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_gbuffer_d0.bind_readable(),
                     &buffers.prim_gbuffer_d1.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
-                    &buffers.gi_diff_reservoirs[1].bind_readable(),
-                    &buffers.gi_diff_reservoirs[2].bind_writable(),
+                    &buffers.gi_reservoirs[1].bind_readable(),
+                    &buffers.gi_reservoirs[2].bind_writable(),
                 ])
-                .build(device, &engine.shaders.gi_diff_spatial_resampling_slow);
+                .build(device, &engine.shaders.gi_resample_spatial_exact);
 
-        let fast_pass_1 =
-            CameraComputePass::builder("gi_diff_spatial_resampling_fast")
+        let approx_pass_1 =
+            CameraComputePass::builder("gi_spatial_resample_approx")
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_gbuffer_d0.bind_readable(),
                     &buffers.prim_gbuffer_d1.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
-                    &buffers.gi_diff_reservoirs[2].bind_readable(),
-                    &buffers.gi_diff_reservoirs[3].bind_writable(),
+                    &buffers.gi_reservoirs[2].bind_readable(),
+                    &buffers.gi_reservoirs[3].bind_writable(),
                 ])
-                .build(device, &engine.shaders.gi_diff_spatial_resampling_fast);
+                .build(device, &engine.shaders.gi_resample_spatial_approx);
 
-        let fast_pass_2 =
-            CameraComputePass::builder("gi_diff_spatial_resampling_fast")
+        let approx_pass_2 =
+            CameraComputePass::builder("gi_spatial_resample_approx")
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_gbuffer_d0.bind_readable(),
                     &buffers.prim_gbuffer_d1.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
-                    &buffers.gi_diff_reservoirs[3].bind_readable(),
-                    &buffers.gi_diff_reservoirs[0].bind_writable(),
+                    &buffers.gi_reservoirs[3].bind_readable(),
+                    &buffers.gi_reservoirs[0].bind_writable(),
                 ])
-                .build(device, &engine.shaders.gi_diff_spatial_resampling_fast);
+                .build(device, &engine.shaders.gi_resample_spatial_approx);
 
         Self {
-            slow_pass,
-            fast_passes: [fast_pass_1, fast_pass_2],
+            exact_pass,
+            approx_passes: [approx_pass_1, approx_pass_2],
         }
     }
 
@@ -77,7 +78,7 @@ impl GiDiffSpatialResamplingPass {
         let size = (camera.camera.viewport.size + 7) / 8;
         let params = camera.pass_params();
 
-        self.slow_pass.run(
+        self.exact_pass.run(
             camera,
             encoder,
             size,
@@ -88,7 +89,7 @@ impl GiDiffSpatialResamplingPass {
             },
         );
 
-        for (nth, pass) in self.fast_passes.iter().enumerate() {
+        for (nth, pass) in self.approx_passes.iter().enumerate() {
             pass.run(
                 camera,
                 encoder,
