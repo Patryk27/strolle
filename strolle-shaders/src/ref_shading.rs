@@ -98,7 +98,11 @@ pub fn main(
             rays[3 * screen_idx + 1] = Default::default();
 
             color += throughput
-                * atmosphere.sky(world.sun_direction(), ray.direction());
+                * atmosphere.sample(
+                    world.sun_direction(),
+                    ray.direction(),
+                    1.0,
+                );
 
             rays[3 * screen_idx + 2] = color.extend(Default::default());
 

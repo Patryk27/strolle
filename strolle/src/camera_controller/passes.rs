@@ -37,6 +37,7 @@ passes!([
     bvh_heatmap => BvhHeatmapPass,
     di_resolving => DiResolvingPass,
     di_shading => DiShadingPass,
+    di_spatial_resampling => DiSpatialResamplingPass,
     di_temporal_resampling => DiTemporalResamplingPass,
     frame_composition => FrameCompositionPass,
     frame_denoising => FrameDenoisingPass,

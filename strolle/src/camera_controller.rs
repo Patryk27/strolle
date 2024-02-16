@@ -122,6 +122,7 @@ impl CameraController {
                     if self.camera.mode.needs_di() {
                         self.passes.di_shading.run(self, encoder);
                         self.passes.di_temporal_resampling.run(self, encoder);
+                        self.passes.di_spatial_resampling.run(self, encoder);
                         self.passes.di_resolving.run(self, encoder);
                     }
 

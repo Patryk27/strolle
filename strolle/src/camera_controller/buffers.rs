@@ -23,6 +23,7 @@ pub struct CameraBuffers {
 
     pub di_prev_reservoirs: StorageBuffer,
     pub di_curr_reservoirs: StorageBuffer,
+    pub di_next_reservoirs: StorageBuffer,
 
     pub di_diff_samples: Texture,
     pub di_diff_prev_colors: Texture,
@@ -156,6 +157,12 @@ impl CameraBuffers {
         let di_curr_reservoirs = StorageBuffer::new(
             device,
             "di_curr_reservoirs",
+            viewport_buffer_size(2 * 4 * 4),
+        );
+
+        let di_next_reservoirs = StorageBuffer::new(
+            device,
+            "di_next_reservoirs",
             viewport_buffer_size(2 * 4 * 4),
         );
 
@@ -328,6 +335,7 @@ impl CameraBuffers {
 
             di_prev_reservoirs,
             di_curr_reservoirs,
+            di_next_reservoirs,
 
             di_diff_samples,
             di_diff_prev_colors,
