@@ -44,9 +44,9 @@ pub fn fs(
             if gbuffer.is_some() {
                 let gi_diff = gi_diff_colors.read(screen_pos).xyz();
                 let gi_spec = gi_spec_colors.read(screen_pos).xyz();
-
+                // L_lambert = albedo / PI * (1 - metallic) * Li * cosine
                 gbuffer.emissive
-                    + gbuffer.base_color.xyz()
+                    + gbuffer.base_color.xyz() / PI
                         * (1.0 - gbuffer.metallic)
                         * (di_diff + gi_diff)
                     + gi_spec
