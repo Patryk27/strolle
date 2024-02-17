@@ -179,8 +179,6 @@ pub fn main(
     // -------------------------------------------------------------------------
 
     rays[3 * screen_idx] = reflected_ray.origin().extend(throughput.x);
-
     rays[3 * screen_idx + 1] = reflected_ray.direction().extend(throughput.y);
-
     rays[3 * screen_idx + 2] = color.extend(throughput.z);
 }

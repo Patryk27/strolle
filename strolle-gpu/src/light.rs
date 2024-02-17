@@ -117,7 +117,9 @@ impl Light {
     }
 
     pub fn contribution(&self, hit: Hit) -> Vec3 {
-        self.radiance(hit) * DiffuseBrdf::new(&hit.gbuffer).evaluate().radiance
+        let brdf = DiffuseBrdf::new(&hit.gbuffer).evaluate();
+
+        self.radiance(hit) * brdf.radiance / brdf.probability
     }
 
     pub fn ray_wnoise(&self, noise: &mut WhiteNoise, hit_point: Vec3) -> Ray {

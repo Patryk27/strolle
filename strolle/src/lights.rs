@@ -73,7 +73,8 @@ where
                 world.sun_direction(),
             );
 
-        let sun_color = sun_color * gpu::Atmosphere::EXPOSURE * 0.5;
+        // TODO feels hacky
+        let sun_color = sun_color * gpu::Atmosphere::EXPOSURE * 3.0;
 
         self.buffer[0] = gpu::Light::sun(world.sun_position(), sun_color);
     }

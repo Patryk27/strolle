@@ -176,7 +176,7 @@ fn setup_scene(
                 color: Color::WHITE,
                 range: 35.0,
                 radius: 0.15,
-                intensity: 1500.0,
+                intensity: 5000.0,
                 shadows_enabled: true,
                 ..default()
             },
@@ -198,7 +198,7 @@ fn setup_scene(
             mesh: meshes.add(Mesh::from(shape::Cube::new(0.33))),
             material: materials.add(StandardMaterial {
                 base_color: color,
-                emissive: color * 5.0,
+                emissive: color * 10.0,
                 ..default()
             }),
             transform: Transform::from_translation(cube),
