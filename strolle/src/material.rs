@@ -39,8 +39,8 @@ where
             roughness: self.perceptual_roughness.powf(2.0),
             metallic: self.metallic,
             metallic_roughness_texture: images
-            .lookup_opt(self.metallic_roughness_texture.as_ref())
-            .unwrap_or_default(),
+                .lookup_opt(self.metallic_roughness_texture.as_ref())
+                .unwrap_or_default(),
             reflectance: self.reflectance,
             ior: self.ior,
             normal_map_texture: images

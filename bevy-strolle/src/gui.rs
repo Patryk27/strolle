@@ -81,9 +81,10 @@ fn materials_ui(
             ui.collapsing(format!("matrial {}", num), |ui| {
                 if let Some(material) = materials.get_mut(material_handle) {
                     let rgba = material.base_color.as_rgba_f32();
-                    let mut rgb = [rgba[0],rgba[1],rgba[2]];
+                    let mut rgb = [rgba[0], rgba[1], rgba[2]];
                     ui.color_edit_button_rgb(&mut rgb);
-                    material.base_color = Color::rgba(rgb[0],rgb[1],rgb[2],rgba[3]);
+                    material.base_color =
+                        Color::rgba(rgb[0], rgb[1], rgb[2], rgba[3]);
                     ui.collapsing(format!("full info"), |ui| {
                         if let Some(material) = materials.get(material_handle) {
                             ui.label(format!("{:?}", material));

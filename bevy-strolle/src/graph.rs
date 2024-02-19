@@ -30,12 +30,14 @@ pub(crate) fn setup(render_app: &mut App) {
             NAME,
             node::UPSCALING,
         )
-        .add_render_graph_node::<ViewNodeRunner<FxaaNode>>(
-            NAME,
-            node::FXAA,
-        )
+        .add_render_graph_node::<ViewNodeRunner<FxaaNode>>(NAME, node::FXAA)
         .add_render_graph_edges(
             NAME,
-            &[node::RENDERING,node::FXAA, node::TONEMAPPING, node::UPSCALING],
+            &[
+                node::RENDERING,
+                node::FXAA,
+                node::TONEMAPPING,
+                node::UPSCALING,
+            ],
         );
 }
