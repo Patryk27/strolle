@@ -100,7 +100,7 @@ fn faxx_tonemapping_ui(
     ui: &mut egui::Ui,
     mut render_config: ResMut<GuiConfig>,
 ) {
-    ui.label("FAXX");
+    ui.label("Fxaa");
     render_config.fxaa_changed |=
         ui.checkbox(&mut render_config.fxaa, "").changed();
     ui.end_row();
