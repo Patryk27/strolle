@@ -6,7 +6,7 @@ mod stages;
 mod state;
 mod sun;
 mod utils;
-
+mod gui;
 pub mod prelude {
     pub use crate::*;
 }
@@ -21,6 +21,7 @@ pub use strolle as st;
 
 pub use self::camera::*;
 pub use self::event::*;
+pub use self::gui::*;
 pub(crate) use self::rendering_node::*;
 pub(crate) use self::state::*;
 pub use self::sun::*;
