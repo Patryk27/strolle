@@ -46,18 +46,14 @@ impl Material {
         atlas_sampler: &Sampler,
         hit_uv: Vec2,
     ) -> Vec2 {
-        if self.metallic_roughness_texture == Vec4::ZERO {
-            Vec4::new(1.0, self.roughness, self.metallic, 1.0).zy()
-        } else {
-            Self::sample_atlas(
-                atlas_tex,
-                atlas_sampler,
-                hit_uv,
-                Vec4::ONE,
-                self.metallic_roughness_texture,
-            )
-            .zy()
-        }
+        Self::sample_atlas(
+            atlas_tex,
+            atlas_sampler,
+            hit_uv,
+            Vec4::new(1.0, self.roughness, self.metallic, 1.0),
+            self.metallic_roughness_texture,
+        )
+        .zy()
     }
     pub fn emissive(
         &self,
