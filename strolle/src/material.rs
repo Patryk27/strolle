@@ -15,6 +15,7 @@ where
     pub emissive_texture: Option<P::ImageHandle>,
     pub perceptual_roughness: f32,
     pub metallic: f32,
+    pub metallic_roughness_texture: Option<P::ImageHandle>,
     pub reflectance: f32,
     pub ior: f32,
     pub normal_map_texture: Option<P::ImageHandle>,
@@ -37,6 +38,9 @@ where
                 .unwrap_or_default(),
             roughness: self.perceptual_roughness.powf(2.0),
             metallic: self.metallic,
+            metallic_roughness_texture: images
+            .lookup_opt(self.metallic_roughness_texture.as_ref())
+            .unwrap_or_default(),
             reflectance: self.reflectance,
             ior: self.ior,
             normal_map_texture: images
@@ -58,6 +62,7 @@ where
             emissive_texture: None,
             perceptual_roughness: 0.5,
             metallic: 0.0,
+            metallic_roughness_texture: None,
             reflectance: 0.5,
             ior: 1.0,
             normal_map_texture: None,

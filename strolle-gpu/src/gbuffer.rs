@@ -70,7 +70,7 @@ impl GBufferEntry {
                     metallic as u32,
                     roughness as u32,
                     reflectance as u32,
-                    Default::default(),
+                    1,
                 ]))
             };
 
