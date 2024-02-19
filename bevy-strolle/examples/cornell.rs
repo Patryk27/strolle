@@ -29,6 +29,7 @@ fn main() {
             LookTransformPlugin,
             OrbitCameraPlugin::default(),
             StrollePlugin,
+            SimpleGuiPlugin,
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, animate)
