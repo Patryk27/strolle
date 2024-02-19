@@ -24,24 +24,24 @@ fn gui(
     mut contexts: EguiContexts,
     render_config: ResMut<GuiConfig>,
     point_lights: Query<&mut PointLight>,
-    materials: Query<&mut Handle<StandardMaterial>>,
+    materials: ResMut<Assets<StandardMaterial>>,
+    query_material_handles: Query<&mut Handle<StandardMaterial>>,
     time: Res<Time>,
 ) {
     egui::Window::new("Gui")
         .resizable(true)
         .show(contexts.ctx_mut(), |ui| {
             pointlights_ui(ui, point_lights);
-            materials_ui(ui, materials);
-            
+            materials_ui(ui, materials, query_material_handles);
             ui.separator();
-            
-            egui::Grid::new("grid")
-            .num_columns(2)
-            .spacing([20.0, 4.0])
-            .striped(true)
-            .show(ui, |ui| {
-                faxx_tonemapping_ui(ui, render_config);
-            });
+
+            egui::Grid::new("my_grid")
+                .num_columns(2)
+                .spacing([20.0, 4.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    faxx_tonemapping_ui(ui, render_config);
+                });
 
             ui.separator();
 
@@ -72,15 +72,24 @@ fn pointlights_ui(ui: &mut egui::Ui, mut point_lights: Query<&mut PointLight>) {
 
 fn materials_ui(
     ui: &mut egui::Ui,
-    materials: Query<&mut Handle<StandardMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    query_material_handles: Query<&mut Handle<StandardMaterial>>,
 ) {
     ui.collapsing("Materials", |ui| {
         let mut num = 0;
-        for material in &mut materials.iter() {
+        for material_handle in query_material_handles.iter() {
             ui.collapsing(format!("matrial {}", num), |ui| {
-                ui.collapsing(format!("full info"), |ui| {
-                    ui.label(format!("{:?}", material));
-                });
+                if let Some(material) = materials.get_mut(material_handle) {
+                    let rgba = material.base_color.as_rgba_f32();
+                    let mut rgb = [rgba[0],rgba[1],rgba[2]];
+                    ui.color_edit_button_rgb(&mut rgb);
+                    material.base_color = Color::rgba(rgb[0],rgb[1],rgb[2],rgba[3]);
+                    ui.collapsing(format!("full info"), |ui| {
+                        if let Some(material) = materials.get(material_handle) {
+                            ui.label(format!("{:?}", material));
+                        }
+                    });
+                }
             });
             num += 1;
         }
@@ -141,7 +150,7 @@ fn faxx_tonemapping_ui(
                 "TonyMcMapface",
             );
         });
-        ui.end_row();
+    ui.end_row();
     if before != render_config.tonemapping {
         render_config.tonemapping_changed = true;
     }
