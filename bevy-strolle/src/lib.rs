@@ -1,12 +1,12 @@
 mod camera;
 mod event;
 pub mod graph;
+mod gui;
 mod rendering_node;
 mod stages;
 mod state;
 mod sun;
 mod utils;
-mod gui;
 pub mod prelude {
     pub use crate::*;
 }

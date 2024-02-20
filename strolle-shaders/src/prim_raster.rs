@@ -68,7 +68,8 @@ pub fn fs(
         .get(MaterialId::new(params.material_id()));
 
     let base_color = material.base_color(atlas_tex, atlas_sampler, uv);
-
+    let metallic_roughness =
+        material.metallic_roughness(atlas_tex, atlas_sampler, uv);
     // If our material is transparent and doesn't rely on refraction, kill the
     // current fragment to re-use GPU in finding the next triangle
     if base_color.w < 0.01 && material.ior == 1.0 {
@@ -92,9 +93,9 @@ pub fn fs(
     let gbuffer = GBufferEntry {
         base_color,
         normal,
-        metallic: material.metallic,
+        metallic: metallic_roughness.x,
         emissive: material.emissive(atlas_tex, atlas_sampler, uv),
-        roughness: material.roughness,
+        roughness: metallic_roughness.y,
         reflectance: material.reflectance,
         depth,
     };

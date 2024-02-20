@@ -161,6 +161,9 @@ pub(crate) fn materials(
             emissive_texture: mat.emissive_texture.map(|handle| handle.id()),
             perceptual_roughness: mat.perceptual_roughness,
             metallic: mat.metallic,
+            metallic_roughness_texture: mat
+                .metallic_roughness_texture
+                .map(|handle| handle.id()),
             reflectance: mat.reflectance,
             normal_map_texture: mat
                 .normal_map_texture

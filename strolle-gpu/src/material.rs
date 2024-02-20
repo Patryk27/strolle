@@ -16,6 +16,7 @@ pub struct Material {
     pub metallic: f32,
     pub reflectance: f32,
     pub ior: f32,
+    pub metallic_roughness_texture: Vec4,
     pub normal_map_texture: Vec4,
 }
 
@@ -39,7 +40,21 @@ impl Material {
             self.base_color_texture,
         )
     }
-
+    pub fn metallic_roughness(
+        &self,
+        atlas_tex: Tex,
+        atlas_sampler: &Sampler,
+        hit_uv: Vec2,
+    ) -> Vec2 {
+        Self::sample_atlas(
+            atlas_tex,
+            atlas_sampler,
+            hit_uv,
+            Vec4::new(1.0, self.roughness, self.metallic, 1.0),
+            self.metallic_roughness_texture,
+        )
+        .zy()
+    }
     pub fn emissive(
         &self,
         atlas_tex: Tex,
