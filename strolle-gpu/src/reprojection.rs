@@ -11,7 +11,7 @@ pub struct Reprojection {
 }
 
 impl Reprojection {
-    pub fn serialize(&self) -> Vec4 {
+    pub fn serialize(self) -> Vec4 {
         vec4(
             self.prev_x,
             self.prev_y,
@@ -29,27 +29,27 @@ impl Reprojection {
         }
     }
 
-    pub fn is_some(&self) -> bool {
+    pub fn is_some(self) -> bool {
         self.confidence > 0.0
     }
 
-    pub fn is_none(&self) -> bool {
+    pub fn is_none(self) -> bool {
         !self.is_some()
     }
 
-    pub fn prev_pos(&self) -> Vec2 {
+    pub fn prev_pos(self) -> Vec2 {
         vec2(self.prev_x, self.prev_y)
     }
 
-    pub fn prev_pos_round(&self) -> UVec2 {
+    pub fn prev_pos_round(self) -> UVec2 {
         self.prev_pos().round().as_uvec2()
     }
 
-    pub fn prev_pos_fract(&self) -> Vec2 {
+    pub fn prev_pos_fract(self) -> Vec2 {
         self.prev_pos().fract()
     }
 
-    pub fn is_exact(&self) -> bool {
+    pub fn is_exact(self) -> bool {
         self.prev_pos_fract().length_squared() == 0.0
     }
 }
@@ -63,11 +63,11 @@ impl<'a> ReprojectionMap<'a> {
         Self { tex }
     }
 
-    pub fn get(&self, screen_pos: UVec2) -> Reprojection {
+    pub fn get(self, screen_pos: UVec2) -> Reprojection {
         Reprojection::deserialize(self.tex.read(screen_pos))
     }
 
-    pub fn set(&self, screen_pos: UVec2, reprojection: &Reprojection) {
+    pub fn set(self, screen_pos: UVec2, reprojection: &Reprojection) {
         unsafe {
             self.tex.write(screen_pos, reprojection.serialize());
         }

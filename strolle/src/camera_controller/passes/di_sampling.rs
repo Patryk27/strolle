@@ -3,12 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DiShadingPass {
+pub struct DiSamplingPass {
     pass: CameraComputePass,
 }
 
-impl DiShadingPass {
-    #[allow(clippy::too_many_arguments)]
+impl DiSamplingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -18,7 +17,7 @@ impl DiShadingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("di_shading")
+        let pass = CameraComputePass::builder("di_sampling")
             .bind([
                 &engine.noise.bind_blue_noise(),
                 &engine.triangles.bind_readable(),
@@ -29,12 +28,12 @@ impl DiShadingPass {
                 &engine.world.bind_readable(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.di_curr_reservoirs.bind_writable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.prim_gbuffer_d0.curr().bind_readable(),
+                &buffers.prim_gbuffer_d1.curr().bind_readable(),
+                &buffers.di_reservoirs[1].bind_writable(),
             ])
-            .build(device, &engine.shaders.di_shading);
+            .build(device, &engine.shaders.di_sampling);
 
         Self { pass }
     }

@@ -16,14 +16,13 @@ pub fn vs(
 }
 
 #[spirv(fragment)]
-#[allow(clippy::too_many_arguments)]
 pub fn fs(
     #[spirv(frag_coord)] pos: Vec4,
     #[spirv(push_constant)] params: &FrameCompositionPassParams,
-    #[spirv(descriptor_set = 0, binding = 0, uniform)] _camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d1: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 3)] di_diff_colors: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 0)] prim_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 2)] di_diff_colors: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 3)] di_spec_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 4)] gi_diff_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 5)] gi_spec_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 6)] ref_colors: TexRgba32,
@@ -31,45 +30,46 @@ pub fn fs(
 ) {
     let screen_pos = pos.xy().as_uvec2();
 
+    let gbuffer = GBufferEntry::unpack([
+        prim_gbuffer_d0.read(screen_pos),
+        prim_gbuffer_d1.read(screen_pos),
+    ]);
+
     let color = match params.camera_mode {
         // CameraMode::Image
         0 => {
-            let gbuffer = GBufferEntry::unpack([
-                prim_gbuffer_d0.read(screen_pos),
-                prim_gbuffer_d1.read(screen_pos),
-            ]);
-
             let di_diff = di_diff_colors.read(screen_pos).xyz();
+            let di_spec = di_spec_colors.read(screen_pos).xyz();
+            let gi_diff = gi_diff_colors.read(screen_pos).xyz();
+            let gi_spec = gi_spec_colors.read(screen_pos).xyz();
 
             if gbuffer.is_some() {
-                let gi_diff = gi_diff_colors.read(screen_pos).xyz();
-                let gi_spec = gi_spec_colors.read(screen_pos).xyz();
-
                 gbuffer.emissive
-                    + gbuffer.base_color.xyz()
-                        * (1.0 - gbuffer.metallic)
-                        * (di_diff + gi_diff)
-                        / PI
+                    + (di_diff + gi_diff) * gbuffer.base_color.xyz()
+                    + di_spec
                     + gi_spec
             } else {
                 di_diff
             }
         }
 
-        // CameraMode::DirectLighting
+        // CameraMode::DiDiffuse
         1 => di_diff_colors.read(screen_pos).xyz(),
 
-        // CameraMode::IndirectDiffuseLighting
-        2 => gi_diff_colors.read(screen_pos).xyz(),
+        // CameraMode::DiSpecular
+        2 => di_spec_colors.read(screen_pos).xyz(),
 
-        // CameraMode::IndirectSpecularLighting
-        3 => gi_spec_colors.read(screen_pos).xyz(),
+        // CameraMode::GiDiffuse
+        3 => gi_diff_colors.read(screen_pos).xyz(),
+
+        // CameraMode::GiSpecular
+        4 => gi_spec_colors.read(screen_pos).xyz(),
 
         // CameraMode::BvhHeatmap
-        4 => di_diff_colors.read(screen_pos).xyz(),
+        5 => ref_colors.read(screen_pos).xyz(),
 
         // CameraMode::Reference
-        5 => {
+        6 => {
             let color = ref_colors.read(screen_pos);
 
             color.xyz() / color.w

@@ -6,8 +6,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct FrameDenoisingPass {
-    reproject_passes:
-        [CameraComputePass<gpu::FrameDenoisingReprojectPassParams>; 2],
+    reproject_passes: [CameraComputePass; 2],
     estimate_variance_pass: CameraComputePass,
     wavelet_passes:
         [CameraComputePass<gpu::FrameDenoisingWaveletPassParams>; 5],
@@ -26,7 +25,7 @@ impl FrameDenoisingPass {
         let reproject_di_pass =
             CameraComputePass::builder("frame_denoising_reproject_di")
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
                     &buffers.reprojection_map.bind_readable(),
                 ])
@@ -42,7 +41,7 @@ impl FrameDenoisingPass {
         let reproject_gi_pass =
             CameraComputePass::builder("frame_denoising_reproject_gi")
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
                     &buffers.reprojection_map.bind_readable(),
                 ])
@@ -58,7 +57,7 @@ impl FrameDenoisingPass {
         let estimate_variance_pass =
             CameraComputePass::builder("frame_denoising_estimate_variance")
                 .bind([
-                    &buffers.camera.bind_readable(),
+                    &buffers.curr_camera.bind_readable(),
                     &buffers.prim_surface_map.curr().bind_readable(),
                 ])
                 .bind([
@@ -119,7 +118,7 @@ impl FrameDenoisingPass {
                 CameraComputePass::builder(label)
                     .bind([
                         &engine.noise.bind_blue_noise(),
-                        &buffers.camera.bind_readable(),
+                        &buffers.curr_camera.bind_readable(),
                         &buffers.prim_surface_map.curr().bind_readable(),
                     ])
                     .bind([
@@ -146,6 +145,10 @@ impl FrameDenoisingPass {
         camera: &CameraController,
         encoder: &mut wgpu::CommandEncoder,
     ) {
+        if !camera.camera.mode.denoise() {
+            return;
+        }
+
         // This pass uses 8x8 warps:
         let size = (camera.camera.viewport.size + 7) / 8;
 
@@ -153,18 +156,14 @@ impl FrameDenoisingPass {
             camera,
             encoder,
             size,
-            gpu::FrameDenoisingReprojectPassParams {
-                mode: gpu::FrameDenoisingReprojectPassParams::MODE_DI_DIFF,
-            },
+            camera.pass_params(),
         );
 
         self.reproject_passes[1].run(
             camera,
             encoder,
             size,
-            gpu::FrameDenoisingReprojectPassParams {
-                mode: gpu::FrameDenoisingReprojectPassParams::MODE_GI_DIFF,
-            },
+            camera.pass_params(),
         );
 
         self.estimate_variance_pass.run(
@@ -175,14 +174,16 @@ impl FrameDenoisingPass {
         );
 
         for (nth, pass) in self.wavelet_passes.iter().enumerate() {
+            let nth = nth as u32;
+
             pass.run(
                 camera,
                 encoder,
                 size,
                 gpu::FrameDenoisingWaveletPassParams {
                     frame: camera.frame,
-                    stride: 2u32.pow(nth as u32),
-                    strength: (1 + (nth as u32)),
+                    stride: 2u32.pow(nth),
+                    strength: (1 + nth) as f32,
                 },
             );
         }

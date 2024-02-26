@@ -24,6 +24,9 @@ where
     /// for darker colors and attenuates the brigher colors, so that comparisons
     /// between them behave more human-vision like.
     fn perc_luma(self) -> f32;
+
+    /// Adjusts luminance of this color-vector.
+    fn with_luma(self, luma: f32) -> Self;
 }
 
 impl Vec3Ext for Vec3 {
@@ -51,6 +54,10 @@ impl Vec3Ext for Vec3 {
     }
 
     fn perc_luma(self) -> f32 {
-        self.luma().powf(1.0 / 3.0)
+        self.luma().sqrt()
+    }
+
+    fn with_luma(self, luma: f32) -> Self {
+        self * (luma / self.luma())
     }
 }

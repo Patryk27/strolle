@@ -1,67 +1,69 @@
 use core::f32::consts::PI;
 
-use glam::{vec3, Vec3, Vec4Swizzles};
+use glam::{Vec3, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{F32Ext, GBufferEntry, Hit, Vec3Ext, WhiteNoise};
+use crate::{F32Ext, GBufferEntry, WhiteNoise};
 
 #[derive(Clone, Copy)]
-pub struct DiffuseBrdf<'a> {
-    gbuffer: &'a GBufferEntry,
+pub struct DiffuseBrdf {
+    gbuffer: GBufferEntry,
 }
 
-impl<'a> DiffuseBrdf<'a> {
-    pub fn new(gbuffer: &'a GBufferEntry) -> Self {
+impl DiffuseBrdf {
+    pub fn new(gbuffer: GBufferEntry) -> Self {
         Self { gbuffer }
     }
 
-    pub fn evaluate(self) -> BrdfValue {
+    // TODO separate eval_luma()
+    pub fn eval(self) -> Vec3 {
         let Self { gbuffer } = self;
-        let radiance = gbuffer.base_color.xyz() * (1.0 - gbuffer.metallic);
 
-        BrdfValue {
-            radiance,
-            probability: PI,
-        }
+        gbuffer.base_color.xyz() * (1.0 - gbuffer.metallic) / PI
     }
 
     pub fn sample(self, wnoise: &mut WhiteNoise) -> BrdfSample {
         BrdfSample {
-            direction: wnoise.sample_hemisphere(self.gbuffer.normal),
-            throughput: self.gbuffer.base_color.xyz()
-                * (1.0 - self.gbuffer.metallic),
+            dir: wnoise.sample_hemisphere(self.gbuffer.normal),
+            pdf: 1.0 / PI,
+            radiance: self.eval(),
         }
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct SpecularBrdf<'a> {
-    gbuffer: &'a GBufferEntry,
+pub struct SpecularBrdf {
+    gbuffer: GBufferEntry,
 }
 
-impl<'a> SpecularBrdf<'a> {
-    pub fn new(gbuffer: &'a GBufferEntry) -> Self {
+impl SpecularBrdf {
+    pub fn new(gbuffer: GBufferEntry) -> Self {
         Self { gbuffer }
     }
 
-    pub fn evaluate(self, l: Vec3, v: Vec3) -> BrdfValue {
+    // TODO separate eval_luma()
+    pub fn eval(self, l: Vec3, v: Vec3) -> Vec3 {
         let Self { gbuffer } = self;
 
-        let roughness = gbuffer.clamped_roughness();
+        if gbuffer.metallic <= 0.0 {
+            return Vec3::ZERO;
+        }
+
+        let a = gbuffer.clamped_roughness();
         let n = gbuffer.normal;
-        let h = (v + l).normalize();
+        let h = (l + v).normalize();
         let n_dot_l = n.dot(l).saturate();
         let n_dot_h = n.dot(h).saturate();
         let l_dot_h = l.dot(h).saturate();
         let n_dot_v = n.dot(v).saturate();
 
         if n_dot_l <= 0.0 || n_dot_v <= 0.0 {
-            return BrdfValue::default();
+            return Vec3::ZERO;
         }
 
-        let d = ggx_distribution(n_dot_h, roughness);
-        let g = ggx_schlick_masking_term(n_dot_l, n_dot_v, roughness);
+        let d = ggx_distribution(n_dot_h, a);
+        let g = ggx_schlick_masking_term(n_dot_l, n_dot_v, a);
 
         let f = {
             let f0 = 0.16
@@ -73,171 +75,87 @@ impl<'a> SpecularBrdf<'a> {
             ggx_schlick_fresnel(f0, l_dot_h)
         };
 
-        let radiance = d * g * f / (4.0 * n_dot_l * n_dot_v);
-
-        let probability = {
-            let a2 = roughness.sqr();
-
-            let g1_mod = n_dot_v
-                + ((n_dot_v - a2 * n_dot_v) * n_dot_v + a2).saturate().sqrt();
-
-            let g1_mod = if g1_mod <= 0.0 { 0.0 } else { 1.0 / g1_mod };
-
-            d * g1_mod * 0.5
-        };
-
-        BrdfValue {
-            radiance,
-            probability,
-        }
+        d * g * f / (4.0 * n_dot_l * n_dot_v)
     }
 
-    pub fn sample(self, wnoise: &mut WhiteNoise, hit: Hit) -> BrdfSample {
-        fn to_world_coords(x: Vec3, y: Vec3, z: Vec3, v: Vec3) -> Vec3 {
-            v.x * x + v.y * y + v.z * z
-        }
-
-        fn to_local_coords(x: Vec3, y: Vec3, z: Vec3, v: Vec3) -> Vec3 {
-            vec3(v.dot(x), v.dot(y), v.dot(z))
-        }
-
-        fn ggx(
-            v_local: Vec3,
-            roughness: f32,
-            sample1: f32,
-            sample2: f32,
-        ) -> Vec3 {
-            let v_h =
-                vec3(roughness * v_local.x, roughness * v_local.y, v_local.z)
-                    .normalize();
-
-            let len = v_h.x * v_h.x + v_h.y * v_h.y;
-
-            let tt1 = if len > 0.0 {
-                vec3(-v_h.y, v_h.x, 0.0) * (1.0 / len.sqrt())
-            } else {
-                vec3(1.0, 0.0, 0.0)
-            };
-
-            let tt2 = v_h.cross(tt1);
-
-            let r = sample1.sqrt();
-            let phi = 2.0 * PI * sample2;
-            let t1 = r * phi.cos();
-            let t2 = r * phi.sin();
-            let s = 0.5 * (1.0 + v_h.z);
-            let t2 = (1.0 - s) * (1.0 - t1 * t1).sqrt() + s * t2;
-
-            let n_h = t1 * tt1
-                + t2 * tt2
-                + 0.0f32.max(1.0 - t1 * t1 - t2 * t2).sqrt() * v_h;
-
-            vec3(roughness * n_h.x, roughness * n_h.y, 0.0f32.max(n_h.z))
-                .normalize()
-        }
-
-        let n = hit.gbuffer.normal;
-        let v = -hit.direction;
-        let (t, b) = n.any_orthonormal_pair();
-
-        let mut sample_idx = 0;
-
-        loop {
-            sample_idx += 1;
-
-            let v_local = to_local_coords(t, b, n, v);
-
-            let mut h_local = ggx(
-                v_local,
-                self.gbuffer.roughness,
-                wnoise.sample(),
-                wnoise.sample(),
-            );
-
-            if h_local.z < 0.0 {
-                h_local = -h_local;
-            }
-
-            let h = to_world_coords(t, b, n, h_local);
-            let l = (-v).reflect(h);
-            let n_dot_l = n.dot(l);
-            let n_dot_v = n.dot(v);
-
-            if n_dot_l > 0.0 && n_dot_v > 0.0 {
-                let value = self.evaluate(l, v);
-
-                if value.probability > 0.01 {
-                    break BrdfSample {
-                        direction: l,
-                        throughput: value.radiance / value.probability,
-                    };
-                }
-            }
-
-            if sample_idx >= 16 {
-                return BrdfSample::invalid();
-            }
-        }
-    }
-
-    pub fn is_sample_within_lobe(&self, l: Vec3, v: Vec3) -> bool {
+    // TODO implement VNDF
+    pub fn sample(self, wnoise: &mut WhiteNoise, v: Vec3) -> BrdfSample {
         let Self { gbuffer } = self;
 
-        let roughness = gbuffer.clamped_roughness();
-        let n = gbuffer.normal;
-        let h = (l + v).normalize();
+        let r0 = wnoise.sample();
+        let r1 = wnoise.sample();
 
-        ggx_distribution(n.dot(h), roughness) > 0.1
+        let a = gbuffer.clamped_roughness();
+        let n = gbuffer.normal;
+        let a2 = a.sqr();
+        let (b, t) = n.any_orthonormal_pair();
+
+        let cos_theta = 0.0f32.max((1.0 - r0) / ((a2 - 1.0) * r0 + 1.0)).sqrt();
+        let sin_theta = 0.0f32.max(1.0 - cos_theta * cos_theta).sqrt();
+
+        let phi = r1 * PI * 2.0;
+
+        let h = t * (sin_theta * phi.cos())
+            + b * (sin_theta * phi.sin())
+            + n * cos_theta;
+
+        let n_dot_h = n.dot(h).saturate();
+        let h_dot_v = h.dot(v).saturate();
+
+        let dir = (2.0 * h_dot_v * h - v).normalize();
+        let pdf = ggx_distribution(n_dot_h, a) * n_dot_h / (4.0 * h_dot_v);
+
+        BrdfSample {
+            dir,
+            pdf,
+            radiance: self.eval(dir, v),
+        }
     }
 }
 
-pub struct LayeredBrdf;
+pub struct LayeredBrdf {
+    gbuffer: GBufferEntry,
+}
 
 impl LayeredBrdf {
-    pub fn sample(wnoise: &mut WhiteNoise, hit: Hit) -> BrdfSample {
-        let (do_diffuse, inv_prob) = if hit.gbuffer.needs_diff() {
-            if hit.gbuffer.needs_spec() {
-                (wnoise.sample() <= 0.5, 2.0)
-            } else {
-                (true, 1.0)
-            }
-        } else {
-            (false, 1.0)
-        };
+    pub fn new(gbuffer: GBufferEntry) -> Self {
+        Self { gbuffer }
+    }
 
-        let mut sample = if do_diffuse {
-            DiffuseBrdf::new(&hit.gbuffer).sample(wnoise)
-        } else {
-            SpecularBrdf::new(&hit.gbuffer).sample(wnoise, hit)
-        };
+    pub fn sample(self, wnoise: &mut WhiteNoise, l: Vec3) -> BrdfSample {
+        let Self { gbuffer } = self;
+        let mut sample;
 
-        sample.throughput *= inv_prob;
+        if wnoise.sample() < gbuffer.metallic {
+            sample = SpecularBrdf::new(gbuffer).sample(wnoise, l);
+            sample.pdf /= gbuffer.metallic;
+        } else {
+            sample = DiffuseBrdf::new(gbuffer).sample(wnoise);
+            sample.pdf /= 1.0 - gbuffer.metallic;
+        }
+
         sample
     }
 }
 
-#[derive(Clone, Copy, Default)]
-pub struct BrdfValue {
-    pub radiance: Vec3,
-    pub probability: f32,
-}
-
 #[derive(Clone, Copy)]
 pub struct BrdfSample {
-    pub direction: Vec3,
-    pub throughput: Vec3,
+    pub dir: Vec3,
+    pub pdf: f32,
+    pub radiance: Vec3,
 }
 
 impl BrdfSample {
     pub fn invalid() -> Self {
         Self {
-            direction: Default::default(),
-            throughput: Default::default(),
+            dir: Default::default(),
+            pdf: Default::default(),
+            radiance: Default::default(),
         }
     }
 
-    pub fn is_invalid(&self) -> bool {
-        self.direction == Default::default()
+    pub fn is_invalid(self) -> bool {
+        self.pdf == 0.0
     }
 }
 

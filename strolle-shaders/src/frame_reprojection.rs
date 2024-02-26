@@ -4,7 +4,6 @@
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
@@ -26,15 +25,6 @@ pub fn main(
     // -------------------------------------------------------------------------
 
     let mut reprojection = Reprojection::default();
-
-    // If camera's mode has changed, force the reprojection to be none in order
-    // to reset temporal algorithms (e.g. ReSTIR reservoirs) - this comes handy
-    // for debugging
-    if camera.mode() != prev_camera.mode() {
-        reprojection_map.set(screen_pos, &reprojection);
-        return;
-    }
-
     let surface = prim_surface_map.get(screen_pos);
 
     if surface.is_sky() {
@@ -51,7 +41,7 @@ pub fn main(
         let prev_surface =
             prev_prim_surface_map.get(prev_screen_pos.round().as_uvec2());
 
-        let confidence = prev_surface.evaluate_similarity_to(&surface);
+        let confidence = prev_surface.evaluate_similarity_to(surface);
 
         if confidence > 0.0 {
             reprojection = Reprojection {
@@ -73,8 +63,8 @@ pub fn main(
 
             prev_prim_surface_map
                 .get(sample_pos.as_uvec2())
-                .evaluate_similarity_to(&surface)
-                >= 0.5
+                .evaluate_similarity_to(surface)
+                >= 0.25
         };
 
         let [p00, p10, p01, p11] = BilinearFilter::reprojection_coords(

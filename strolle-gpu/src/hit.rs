@@ -7,39 +7,34 @@ use crate::{GBufferEntry, MaterialId, Normal, Ray, Surface, Vec3Ext};
 #[derive(Clone, Copy, Default)]
 pub struct Hit {
     pub origin: Vec3,
-    pub direction: Vec3,
+    pub dir: Vec3,
     pub point: Vec3,
     pub gbuffer: GBufferEntry,
 }
 
 impl Hit {
     /// How far to move a hit point away from its surface to avoid
-    /// self-intersection when casting shadow rays.
-    ///
-    /// This constant cannot be zero (because then every object would cast
-    /// shadows onto itself), but it cannot be too high either (because then
-    /// shadows would feel off, flying on surfaces instead of being attached to
-    /// them).
-    pub const NUDGE_OFFSET: f32 = 0.001;
+    /// self-intersection when casting shadow rays
+    pub const NUDGE_OFFSET: f32 = 0.01;
 
     pub fn new(ray: Ray, gbuffer: GBufferEntry) -> Self {
         Self {
             origin: ray.origin(),
-            direction: ray.direction(),
-            point: ray.at(gbuffer.depth) + gbuffer.normal * Self::NUDGE_OFFSET,
+            dir: ray.dir(),
+            point: ray.at(gbuffer.depth - Self::NUDGE_OFFSET),
             gbuffer,
         }
     }
 
-    pub fn is_some(&self) -> bool {
+    pub fn is_some(self) -> bool {
         self.gbuffer.is_some()
     }
 
-    pub fn is_none(&self) -> bool {
+    pub fn is_none(self) -> bool {
         !self.is_some()
     }
 
-    pub fn as_surface(&self) -> Surface {
+    pub fn as_surface(self) -> Surface {
         Surface {
             normal: self.gbuffer.normal,
             depth: self.gbuffer.depth,
@@ -114,7 +109,7 @@ impl TriangleHit {
         }
     }
 
-    pub fn pack(&self) -> [Vec4; 2] {
+    pub fn pack(self) -> [Vec4; 2] {
         let d0 = self.point.extend(f32::from_bits(self.material_id.get()));
 
         let d1 = Normal::encode(self.normal)
@@ -124,11 +119,11 @@ impl TriangleHit {
         [d0, d1]
     }
 
-    pub fn is_some(&self) -> bool {
+    pub fn is_some(self) -> bool {
         self.distance < f32::MAX
     }
 
-    pub fn is_none(&self) -> bool {
+    pub fn is_none(self) -> bool {
         !self.is_some()
     }
 }

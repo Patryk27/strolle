@@ -14,41 +14,44 @@ use crate::{
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct Ray {
     origin: Vec3,
-    direction: Vec3,
-    inv_direction: Vec3,
-    length: f32,
+    dir: Vec3,
+    inv_dir: Vec3,
+    len: f32,
 }
 
 impl Ray {
-    pub fn new(origin: Vec3, direction: Vec3) -> Self {
+    pub fn new(origin: Vec3, dir: Vec3) -> Self {
         Self {
             origin,
-            direction,
-            inv_direction: 1.0 / direction,
-            length: f32::MAX,
+            dir,
+            inv_dir: 1.0 / dir,
+            len: f32::MAX,
         }
     }
 
-    pub fn with_length(mut self, length: f32) -> Self {
-        self.length = length;
+    pub fn with_len(mut self, len: f32) -> Self {
+        self.len = len;
         self
     }
 
-    pub fn origin(&self) -> Vec3 {
+    pub fn origin(self) -> Vec3 {
         self.origin
     }
 
-    pub fn direction(&self) -> Vec3 {
-        self.direction
+    pub fn dir(self) -> Vec3 {
+        self.dir
+    }
+
+    pub fn len(self) -> f32 {
+        self.len
     }
 
     pub fn at(self, depth: f32) -> Vec3 {
-        self.origin + self.direction * depth
+        self.origin + self.dir * depth
     }
 
     /// Returns the closest opaque intersection of this ray with the world, if
     /// any.
-    #[allow(clippy::too_many_arguments)]
     pub fn trace(
         self,
         local_idx: u32,
@@ -78,7 +81,6 @@ impl Ray {
 
     /// Returns whether this ray intersects with anything in the world; used for
     /// shadow rays.
-    #[allow(clippy::too_many_arguments)]
     pub fn intersect(
         self,
         local_idx: u32,
@@ -90,7 +92,7 @@ impl Ray {
         atlas_sampler: &Sampler,
     ) -> bool {
         let mut hit = TriangleHit {
-            distance: self.length,
+            distance: self.len,
             ..TriangleHit::none()
         };
 
@@ -106,10 +108,9 @@ impl Ray {
             &mut hit,
         );
 
-        hit.distance < self.length
+        hit.distance < self.len
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn traverse(
         self,
         local_idx: u32,
@@ -281,8 +282,8 @@ impl Ray {
         let mut tmin = 0.0;
         let mut tmax = f32::MAX;
 
-        let t1 = (aabb_min - self.origin) * self.inv_direction;
-        let t2 = (aabb_max - self.origin) * self.inv_direction;
+        let t1 = (aabb_min - self.origin) * self.inv_dir;
+        let t2 = (aabb_max - self.origin) * self.inv_dir;
 
         tmin = max(tmin, min(t1.x, t2.x));
         tmax = min(tmax, max(t1.x, t2.x));
@@ -301,7 +302,7 @@ impl Ray {
     }
 
     pub fn intersect_sphere(self, radius: f32) -> f32 {
-        let b = self.origin.dot(self.direction);
+        let b = self.origin.dot(self.dir);
         let c = self.origin.dot(self.origin) - radius * radius;
 
         if c > 0.0 && b > 0.0 {

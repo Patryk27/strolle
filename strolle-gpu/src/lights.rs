@@ -12,11 +12,18 @@ impl<'a> LightsView<'a> {
         Self { items }
     }
 
-    pub fn get(&self, id: LightId) -> Light {
+    pub fn get(self, id: LightId) -> Light {
         unsafe { *self.items.index_unchecked(id.get() as usize) }
     }
 
-    pub fn len(&self) -> usize {
+    pub fn get_prev(self, id: LightId) -> Light {
+        let mut light = self.get(id);
+
+        light.rollback();
+        light
+    }
+
+    pub fn len(self) -> usize {
         self.items.len()
     }
 }

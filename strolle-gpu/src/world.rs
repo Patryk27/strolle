@@ -16,7 +16,7 @@ impl World {
     // TODO recalculate the distance factor using sun's solid angle
     pub const SUN_DISTANCE: f32 = 1000.0;
 
-    pub fn sun_direction(&self) -> Vec3 {
+    pub fn sun_dir(self) -> Vec3 {
         vec3(
             self.sun_altitude.cos() * self.sun_azimuth.sin(),
             self.sun_altitude.sin(),
@@ -24,7 +24,7 @@ impl World {
         )
     }
 
-    pub fn sun_position(&self) -> Vec3 {
-        self.sun_direction() * Self::SUN_DISTANCE
+    pub fn sun_pos(self) -> Vec3 {
+        self.sun_dir() * Self::SUN_DISTANCE
     }
 }

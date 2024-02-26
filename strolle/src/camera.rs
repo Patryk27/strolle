@@ -1,6 +1,5 @@
 use std::fmt;
 
-use glam::vec4;
 use log::info;
 use spirv_std::glam::{uvec2, Mat4, UVec2, Vec3};
 
@@ -16,10 +15,19 @@ pub struct Camera {
 
 impl Camera {
     pub(crate) fn is_invalidated_by(&self, older: &Self) -> bool {
+        if self.mode != older.mode {
+            info!(
+                "Camera `{}` invalidated: mode has been changed ({:?} -> {:?})",
+                older, older.mode, self.mode,
+            );
+
+            return true;
+        }
+
         if self.viewport.format != older.viewport.format {
             info!(
-                "Camera `{}` invalidated: viewport's texture format has been \
-                 changed  ({:?} -> {:?})",
+                "Camera `{}` invalidated: viewport.format has been changed \
+                 ({:?} -> {:?})",
                 older, older.viewport.format, self.viewport.format,
             );
 
@@ -28,7 +36,7 @@ impl Camera {
 
         if self.viewport.size != older.viewport.size {
             info!(
-                "Camera `{}` invalidated: texture format has been changed \
+                "Camera `{}` invalidated: viewport.size has been changed \
                  ({} -> {})",
                 older, older.viewport.size, self.viewport.size,
             );
@@ -40,12 +48,6 @@ impl Camera {
     }
 
     pub(crate) fn serialize(&self) -> gpu::Camera {
-        let t = if let CameraMode::Reference { depth } = self.mode {
-            f32::from_bits(depth as u32)
-        } else {
-            0.0
-        };
-
         gpu::Camera {
             projection_view: self.projection * self.transform.inverse(),
             ndc_to_world: self.transform * self.projection.inverse(),
@@ -60,12 +62,6 @@ impl Camera {
                 .as_vec2()
                 .extend(Default::default())
                 .extend(Default::default()),
-            data: vec4(
-                f32::from_bits(self.mode.serialize()),
-                t,
-                Default::default(),
-                Default::default(),
-            ),
         }
     }
 }
@@ -84,20 +80,22 @@ impl fmt::Display for Camera {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CameraMode {
-    /// Default mode - shows the final image
-    #[default]
-    Image,
+    /// Shows the final composed image, default
+    Image { denoise: bool },
 
-    /// Shows direct lighting
-    DirectLighting,
+    /// Shows direct diffuse lighting
+    DiDiffuse { denoise: bool },
+
+    /// Shows direct specular lighting
+    DiSpecular { denoise: bool },
 
     /// Shows indirect diffuse lighting
-    IndirectDiffuseLighting,
+    GiDiffuse { denoise: bool },
 
-    /// Shows indirect diffuse lighting
-    IndirectSpecularLighting,
+    /// Shows indirect specular lighting
+    GiSpecular { denoise: bool },
 
     /// Shows BVH tree's heatmap
     BvhHeatmap,
@@ -109,25 +107,63 @@ pub enum CameraMode {
 impl CameraMode {
     pub(crate) fn serialize(&self) -> u32 {
         match self {
-            CameraMode::Image => 0,
-            CameraMode::DirectLighting => 1,
-            CameraMode::IndirectDiffuseLighting => 2,
-            CameraMode::IndirectSpecularLighting => 3,
-            CameraMode::BvhHeatmap => 4,
-            CameraMode::Reference { .. } => 5,
+            CameraMode::Image { .. } => 0,
+            CameraMode::DiDiffuse { .. } => 1,
+            CameraMode::DiSpecular { .. } => 2,
+            CameraMode::GiDiffuse { .. } => 3,
+            CameraMode::GiSpecular { .. } => 4,
+            CameraMode::BvhHeatmap => 5,
+            CameraMode::Reference { .. } => 6,
         }
     }
 
     pub(crate) fn needs_di(&self) -> bool {
-        matches!(self, Self::Image | Self::DirectLighting)
+        matches!(
+            self,
+            Self::Image { .. }
+                | Self::DiDiffuse { .. }
+                | Self::DiSpecular { .. }
+        )
     }
 
-    pub(crate) fn needs_gi_diff(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectDiffuseLighting)
+    pub(crate) fn needs_gi(&self) -> bool {
+        matches!(
+            self,
+            Self::Image { .. }
+                | Self::GiDiffuse { .. }
+                | Self::GiSpecular { .. }
+        )
     }
 
-    pub(crate) fn needs_gi_spec(&self) -> bool {
-        matches!(self, Self::Image | Self::IndirectSpecularLighting)
+    pub(crate) fn denoise(&self) -> bool {
+        matches!(
+            self,
+            Self::Image { denoise: true }
+                | Self::DiDiffuse { denoise: true }
+                | Self::DiSpecular { denoise: true }
+                | Self::GiDiffuse { denoise: true }
+                | Self::GiSpecular { denoise: true }
+        )
+    }
+
+    pub(crate) fn denoise_di_diff(&self) -> bool {
+        matches!(
+            self,
+            Self::Image { denoise: true } | Self::DiDiffuse { denoise: true }
+        )
+    }
+
+    pub(crate) fn denoise_gi_diff(&self) -> bool {
+        matches!(
+            self,
+            Self::Image { denoise: true } | Self::GiDiffuse { denoise: true }
+        )
+    }
+}
+
+impl Default for CameraMode {
+    fn default() -> Self {
+        Self::Image { denoise: true }
     }
 }
 

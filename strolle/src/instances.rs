@@ -26,26 +26,22 @@ impl<P> Instances<P>
 where
     P: Params,
 {
-    pub fn insert(
-        &mut self,
-        instance_handle: P::InstanceHandle,
-        instance: Instance<P>,
-    ) {
-        match self.instances.entry(instance_handle) {
+    pub fn insert(&mut self, handle: P::InstanceHandle, item: Instance<P>) {
+        match self.instances.entry(handle) {
             Entry::Occupied(mut entry) => {
                 let entry = entry.get_mut();
 
                 entry.prev_transform = entry.instance.transform;
-                entry.instance = instance;
+                entry.instance = item;
                 entry.dirty = true;
             }
 
             Entry::Vacant(entry) => {
                 entry.insert(InstanceEntry {
-                    prev_transform: instance.transform,
+                    prev_transform: item.transform,
                     uuid: rand::thread_rng().gen(),
                     dirty: true,
-                    instance,
+                    instance: item,
                 });
             }
         }
@@ -55,17 +51,15 @@ where
 
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = (&P::InstanceHandle, &InstanceEntry<P>)> + Clone + '_
+    ) -> impl Iterator<Item = (P::InstanceHandle, &InstanceEntry<P>)> + Clone + '_
     {
         self.instances
             .iter()
-            .map(|(instance_handle, instance_entry)| {
-                (instance_handle, instance_entry)
-            })
+            .map(|(handle, entry)| (*handle, entry))
     }
 
-    pub fn remove(&mut self, instance_handle: &P::InstanceHandle) {
-        self.dirty |= self.instances.remove(instance_handle).is_some();
+    pub fn remove(&mut self, handle: P::InstanceHandle) {
+        self.dirty |= self.instances.remove(&handle).is_some();
     }
 
     pub fn is_empty(&self) -> bool {
@@ -83,12 +77,12 @@ where
             return false;
         }
 
-        for (instance_handle, entry) in &mut self.instances {
+        for (&instance_handle, entry) in &mut self.instances {
             if !mem::take(&mut entry.dirty) {
                 continue;
             }
 
-            let Some(mesh) = meshes.get(&entry.instance.mesh_handle) else {
+            let Some(mesh) = meshes.get(entry.instance.mesh_handle) else {
                 // If the mesh is not yet available, it might be still being
                 // loaded in the background - in that case let's try again next
                 // frame
@@ -98,7 +92,7 @@ where
             };
 
             let Some(material_id) =
-                materials.lookup(&entry.instance.material_handle)
+                materials.lookup(entry.instance.material_handle)
             else {
                 // Same for materials
                 entry.dirty = true;

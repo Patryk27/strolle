@@ -12,7 +12,7 @@ impl<'a> MaterialsView<'a> {
         Self { items }
     }
 
-    pub fn get(&self, id: MaterialId) -> Material {
+    pub fn get(self, id: MaterialId) -> Material {
         unsafe { *self.items.index_unchecked(id.get() as usize) }
     }
 }

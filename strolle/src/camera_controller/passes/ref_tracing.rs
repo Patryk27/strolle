@@ -11,7 +11,6 @@ pub struct RefTracingPass {
 }
 
 impl RefTracingPass {
-    #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -21,7 +20,7 @@ impl RefTracingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("reference_tracing")
+        let pass = CameraComputePass::builder("ref_tracing")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -29,7 +28,7 @@ impl RefTracingPass {
                 &engine.images.bind_atlas(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
                 &buffers.ref_rays.bind_readable(),
                 &buffers.ref_hits.bind_writable(),
             ])

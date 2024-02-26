@@ -5,13 +5,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DiSpatialResamplingPass {
+pub struct GiSpatialResamplingPass {
     pick_pass: CameraComputePass,
     trace_pass: CameraComputePass,
     sample_pass: CameraComputePass,
 }
 
-impl DiSpatialResamplingPass {
+impl GiSpatialResamplingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -21,27 +21,20 @@ impl DiSpatialResamplingPass {
     where
         P: Params,
     {
-        // We just need a couple of temporary buffers - instead of allocating
-        // new ones, let's reuse the ones we've got:
-        let buf_d0 = &buffers.di_diff_samples;
-        let buf_d1 = &buffers.di_diff_curr_colors;
-        let buf_d2 = &buffers.di_diff_stash;
-
         let pick_pass =
-            CameraComputePass::builder("di_spatial_resampling_pick")
-                .bind([&engine.lights.bind_readable()])
+            CameraComputePass::builder("gi_spatial_resampling_pick")
                 .bind([
                     &buffers.curr_camera.bind_readable(),
                     &buffers.prim_gbuffer_d0.curr().bind_readable(),
                     &buffers.prim_gbuffer_d1.curr().bind_readable(),
-                    &buffers.di_reservoirs[1].bind_readable(),
-                    &buf_d0.bind_writable(),
-                    &buf_d1.bind_writable(),
+                    &buffers.gi_reservoirs[1].bind_readable(),
+                    &buffers.gi_d0.bind_writable(),
+                    &buffers.gi_d1.bind_writable(),
                 ])
-                .build(device, &engine.shaders.di_spatial_resampling_pick);
+                .build(device, &engine.shaders.gi_spatial_resampling_pick);
 
         let trace_pass =
-            CameraComputePass::builder("di_spatial_resampling_trace")
+            CameraComputePass::builder("gi_spatial_resampling_trace")
                 .bind([
                     &engine.triangles.bind_readable(),
                     &engine.bvh.bind_readable(),
@@ -50,21 +43,21 @@ impl DiSpatialResamplingPass {
                 ])
                 .bind([
                     &buffers.curr_camera.bind_readable(),
-                    &buf_d0.bind_readable(),
-                    &buf_d1.bind_readable(),
-                    &buf_d2.bind_writable(),
+                    &buffers.gi_d0.bind_readable(),
+                    &buffers.gi_d1.bind_readable(),
+                    &buffers.gi_d2.bind_writable(),
                 ])
-                .build(device, &engine.shaders.di_spatial_resampling_trace);
+                .build(device, &engine.shaders.gi_spatial_resampling_trace);
 
         let sample_pass =
-            CameraComputePass::builder("di_spatial_resampling_sample")
+            CameraComputePass::builder("gi_spatial_resampling_sample")
                 .bind([
                     &buffers.curr_camera.bind_readable(),
-                    &buffers.di_reservoirs[1].bind_readable(),
-                    &buffers.di_reservoirs[2].bind_writable(),
-                    &buf_d2.bind_readable(),
+                    &buffers.gi_reservoirs[1].bind_readable(),
+                    &buffers.gi_reservoirs[2].bind_writable(),
+                    &buffers.gi_d2.bind_readable(),
                 ])
-                .build(device, &engine.shaders.di_spatial_resampling_sample);
+                .build(device, &engine.shaders.gi_spatial_resampling_sample);
 
         Self {
             pick_pass,

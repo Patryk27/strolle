@@ -128,12 +128,12 @@ where
     pub fn update(
         &mut self,
         bvh: &mut Bvh,
-        instance_handle: &P::InstanceHandle,
+        instance_handle: P::InstanceHandle,
         triangles: impl Iterator<Item = Triangle> + ExactSizeIterator,
         material_id: gpu::MaterialId,
     ) {
         let instance =
-            self.index.get_mut(instance_handle).unwrap_or_else(|| {
+            self.index.get_mut(&instance_handle).unwrap_or_else(|| {
                 panic!("instance not known: {instance_handle:?}")
             });
 
@@ -157,9 +157,9 @@ where
     pub fn remove(
         &mut self,
         bvh: &mut Bvh,
-        instance_handle: &P::InstanceHandle,
+        instance_handle: P::InstanceHandle,
     ) {
-        let Some(instance) = self.index.remove(instance_handle) else {
+        let Some(instance) = self.index.remove(&instance_handle) else {
             return;
         };
 
@@ -174,18 +174,18 @@ where
         self.buffer.len()
     }
 
-    pub fn count(&self, instance_handle: &P::InstanceHandle) -> Option<usize> {
+    pub fn count(&self, instance_handle: P::InstanceHandle) -> Option<usize> {
         self.index
-            .get(instance_handle)
+            .get(&instance_handle)
             .map(|instance| instance.triangle_ids.len())
     }
 
     pub fn as_vertex_buffer(
         &self,
-        instance_handle: &P::InstanceHandle,
+        instance_handle: P::InstanceHandle,
     ) -> Option<(usize, wgpu::BufferSlice<'_>)> {
         let IndexedInstance { triangle_ids, .. } =
-            self.index.get(instance_handle)?;
+            self.index.get(&instance_handle)?;
 
         let vertices = 3 * triangle_ids.len();
 

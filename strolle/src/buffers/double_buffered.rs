@@ -1,6 +1,4 @@
-use crate::{
-    Bindable, DoubleBufferedBindable, StorageBuffer, Texture, TextureBuilder,
-};
+use crate::{Bindable, DoubleBufferedBindable, Texture, TextureBuilder};
 
 #[derive(Debug)]
 pub struct DoubleBuffered<T> {
@@ -33,42 +31,6 @@ impl DoubleBuffered<&Texture> {
     }
 
     /// See: [`Texture::bind_writable()`].
-    pub fn bind_writable(&self) -> impl DoubleBufferedBindable + '_ {
-        DoubleBufferedBinder {
-            a: self.a.bind_writable(),
-            b: self.b.bind_writable(),
-        }
-    }
-}
-
-impl DoubleBuffered<StorageBuffer> {
-    /// Creates a double-buffered storage buffer.
-    ///
-    /// See: [`StorageBuffer::new()`].
-    pub fn new(
-        device: &wgpu::Device,
-        label: impl AsRef<str>,
-        size: usize,
-    ) -> Self {
-        let label = label.as_ref();
-
-        Self {
-            a: StorageBuffer::new(device, format!("{}_a", label), size),
-            b: StorageBuffer::new(device, format!("{}_b", label), size),
-        }
-    }
-}
-
-impl DoubleBuffered<&StorageBuffer> {
-    /// See: [`StorageBuffer::bind_readable()`].
-    pub fn bind_readable(&self) -> impl DoubleBufferedBindable + '_ {
-        DoubleBufferedBinder {
-            a: self.a.bind_readable(),
-            b: self.b.bind_readable(),
-        }
-    }
-
-    /// See: [`StorageBuffer::bind_writable()`].
     pub fn bind_writable(&self) -> impl DoubleBufferedBindable + '_ {
         DoubleBufferedBinder {
             a: self.a.bind_writable(),

@@ -3,11 +3,13 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 #![allow(clippy::len_without_is_empty)]
 #![allow(clippy::manual_range_contains)]
+#![allow(clippy::too_many_arguments)]
 
 mod atmosphere;
 mod brdf;
 mod bvh_view;
 mod camera;
+mod frame;
 mod gbuffer;
 mod hit;
 mod light;
@@ -30,6 +32,7 @@ pub use self::atmosphere::*;
 pub use self::brdf::*;
 pub use self::bvh_view::*;
 pub use self::camera::*;
+pub use self::frame::*;
 pub use self::gbuffer::*;
 pub use self::hit::*;
 pub use self::light::*;
@@ -51,6 +54,7 @@ pub use self::world::*;
 pub mod prelude {
     pub use core::f32::consts::PI;
 
+    pub use spirv_std::arch::IndexUnchecked;
     pub use spirv_std::glam::*;
     #[cfg(target_arch = "spirv")]
     pub use spirv_std::num_traits::Float;

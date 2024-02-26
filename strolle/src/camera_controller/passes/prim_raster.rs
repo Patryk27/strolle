@@ -33,7 +33,7 @@ impl PrimRasterPass {
             .build(device);
 
         let bg1 = BindGroup::builder("prim_raster_bg1")
-            .add(&buffers.camera.bind_readable())
+            .add(&buffers.curr_camera.bind_readable())
             .add(&buffers.prev_camera.bind_readable())
             .build(device);
 
@@ -145,7 +145,7 @@ impl PrimRasterPass {
             label: Some("strolle_prim_raster"),
             color_attachments: &[
                 Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.prim_gbuffer_d0.view(),
+                    view: camera.buffers.prim_gbuffer_d0.get(alternate).view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
@@ -153,7 +153,7 @@ impl PrimRasterPass {
                     },
                 }),
                 Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.prim_gbuffer_d1.view(),
+                    view: camera.buffers.prim_gbuffer_d1.get(alternate).view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
@@ -197,7 +197,7 @@ impl PrimRasterPass {
             let instance = &instance_entry.instance;
 
             let Some(material_id) =
-                engine.materials.lookup(&instance.material_handle)
+                engine.materials.lookup(instance.material_handle)
             else {
                 continue;
             };

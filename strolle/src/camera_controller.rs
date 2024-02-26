@@ -17,7 +17,7 @@ pub struct CameraController {
     camera: Camera,
     buffers: CameraBuffers,
     passes: CameraPasses,
-    frame: u32,
+    frame: gpu::Frame,
 }
 
 impl CameraController {
@@ -38,7 +38,7 @@ impl CameraController {
             camera,
             buffers,
             passes,
-            frame: 0,
+            frame: Default::default(),
         }
     }
 
@@ -53,8 +53,8 @@ impl CameraController {
         let is_invalidated = self.camera.is_invalidated_by(&camera);
 
         self.camera = camera;
-        *self.buffers.prev_camera.deref_mut() = *self.buffers.camera;
-        *self.buffers.camera.deref_mut() = self.camera.serialize();
+        *self.buffers.prev_camera.deref_mut() = *self.buffers.curr_camera;
+        *self.buffers.curr_camera.deref_mut() = self.camera.serialize();
 
         if is_invalidated {
             self.rebuild_buffers(device);
@@ -78,9 +78,9 @@ impl CameraController {
             CameraPasses::new(engine, device, &self.camera, &self.buffers);
     }
 
-    pub fn flush(&mut self, frame: u32, queue: &wgpu::Queue) {
+    pub fn flush(&mut self, frame: gpu::Frame, queue: &wgpu::Queue) {
         self.frame = frame;
-        self.buffers.camera.flush(queue);
+        self.buffers.curr_camera.flush(queue);
         self.buffers.prev_camera.flush(queue);
     }
 
@@ -120,53 +120,50 @@ impl CameraController {
                     self.passes.frame_reprojection.run(self, encoder);
 
                     if self.camera.mode.needs_di() {
-                        self.passes.di_shading.run(self, encoder);
+                        self.passes.di_sampling.run(self, encoder);
                         self.passes.di_temporal_resampling.run(self, encoder);
                         self.passes.di_spatial_resampling.run(self, encoder);
                         self.passes.di_resolving.run(self, encoder);
                     }
 
-                    if self.camera.mode.needs_gi_diff() {
-                        self.passes.gi_tracing.run(
-                            self,
-                            encoder,
-                            gpu::GiPassParams::MODE_DIFF,
-                        );
+                    if self.camera.mode.needs_gi() {
+                        let source;
 
-                        self.passes.gi_shading.run(
-                            self,
-                            encoder,
-                            gpu::GiPassParams::MODE_DIFF,
-                        );
+                        self.passes.gi_reprojection.run(self, encoder);
+
+                        if self.frame.is_gi_tracing() {
+                            if self.frame.get() % 2 == 0 {
+                                self.passes.gi_sampling.run(self, encoder);
+                            }
+
+                            self.passes
+                                .gi_temporal_resampling
+                                .run(self, encoder);
+
+                            if self.frame.get() % 2 == 1 {
+                                self.passes
+                                    .gi_spatial_resampling
+                                    .run(self, encoder);
+
+                                source = 1;
+                            } else {
+                                source = 0;
+                            }
+                        } else {
+                            self.passes.gi_sampling.run(self, encoder);
+
+                            self.passes
+                                .gi_temporal_resampling
+                                .run(self, encoder);
+
+                            source = 0;
+                        }
 
                         self.passes
-                            .gi_diff_temporal_resampling
-                            .run(self, encoder);
+                            .gi_preview_resampling
+                            .run(self, encoder, source);
 
-                        self.passes
-                            .gi_diff_spatial_resampling
-                            .run(self, encoder);
-
-                        self.passes.gi_diff_resolving.run(self, encoder);
-                    }
-
-                    if self.camera.mode.needs_gi_spec()
-                        && engine.materials.has_specular()
-                    {
-                        self.passes.gi_tracing.run(
-                            self,
-                            encoder,
-                            gpu::GiPassParams::MODE_SPEC,
-                        );
-
-                        self.passes.gi_shading.run(
-                            self,
-                            encoder,
-                            gpu::GiPassParams::MODE_SPEC,
-                        );
-
-                        self.passes.gi_spec_resampling.run(self, encoder);
-                        self.passes.gi_spec_resolving.run(self, encoder);
+                        self.passes.gi_resolving.run(self, encoder, source);
                     }
                 }
 
@@ -186,7 +183,7 @@ impl CameraController {
     /// Returns whether the current frame should use the first or the second
     /// resource when given resource is double-buffered.
     fn is_alternate(&self) -> bool {
-        self.frame % 2 == 1
+        self.frame.get() % 2 == 1
     }
 
     fn pass_params(&self) -> gpu::PassParams {

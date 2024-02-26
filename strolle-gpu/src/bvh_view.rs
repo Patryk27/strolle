@@ -11,7 +11,7 @@ impl<'a> BvhView<'a> {
         Self { buffer }
     }
 
-    pub fn get(&self, ptr: u32) -> Vec4 {
+    pub fn get(self, ptr: u32) -> Vec4 {
         unsafe { *self.buffer.index_unchecked(ptr as usize) }
     }
 }

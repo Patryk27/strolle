@@ -51,45 +51,45 @@ where
         }
     }
 
-    pub fn insert(&mut self, image_handle: P::ImageHandle, image: Image<P>) {
-        let image_size = size2(
-            image.texture_descriptor.size.width as i32,
-            image.texture_descriptor.size.height as i32,
+    pub fn insert(&mut self, handle: P::ImageHandle, item: Image<P>) {
+        let size = size2(
+            item.texture_descriptor.size.width as i32,
+            item.texture_descriptor.size.height as i32,
         );
 
-        let image_alloc =
-            if let Some(image_alloc) = self.images.get(&image_handle) {
-                if image_size == image_alloc.rectangle.size() {
-                    Some(*image_alloc)
-                } else {
-                    self.atlas.deallocate(image_alloc.id);
-                    self.atlas.allocate(image_size)
-                }
+        let alloc = if let Some(alloc) = self.images.get(&handle) {
+            if size == alloc.rectangle.size() {
+                Some(*alloc)
             } else {
-                self.atlas.allocate(image_size)
-            };
+                self.atlas.deallocate(alloc.id);
+                self.atlas.allocate(size)
+            }
+        } else {
+            self.atlas.allocate(size)
+        };
 
-        let Some(image_alloc) = image_alloc else {
+        let Some(alloc) = alloc else {
             // TODO allocate new atlas, up to 16 (Metal's limit)
             warn!(
                 "Cannot add image `{:?}` - no more space in the atlas",
-                image_handle
+                handle
             );
+
             return;
         };
 
-        self.images.insert(image_handle, image_alloc);
+        self.images.insert(handle, alloc);
 
-        match image.data {
+        match item.data {
             data @ (ImageData::Raw { .. }
             | ImageData::Texture {
                 is_dynamic: false, ..
             }) => {
                 self.atlas_changes.push(AtlasChange::Set {
-                    x: image_alloc.rectangle.min.x as u32,
-                    y: image_alloc.rectangle.min.y as u32,
-                    w: image_alloc.rectangle.width() as u32,
-                    h: image_alloc.rectangle.height() as u32,
+                    x: alloc.rectangle.min.x as u32,
+                    y: alloc.rectangle.min.y as u32,
+                    w: alloc.rectangle.width() as u32,
+                    h: alloc.rectangle.height() as u32,
                     data,
                 });
             }
@@ -98,21 +98,21 @@ where
                 texture,
                 is_dynamic: true,
             } => {
-                self.dynamic_textures.push((texture, image_alloc));
+                self.dynamic_textures.push((texture, alloc));
             }
         }
     }
 
-    pub fn remove(&mut self, image_handle: &P::ImageHandle) {
-        let Some(image_alloc) = self.images.remove(image_handle) else {
+    pub fn remove(&mut self, handle: P::ImageHandle) {
+        let Some(alloc) = self.images.remove(&handle) else {
             return;
         };
 
-        self.atlas.deallocate(image_alloc.id);
+        self.atlas.deallocate(alloc.id);
     }
 
-    pub fn lookup(&self, image_handle: &P::ImageHandle) -> Option<Vec4> {
-        self.images.get(image_handle).map(|alloc| {
+    pub fn lookup(&self, handle: P::ImageHandle) -> Option<Vec4> {
+        self.images.get(&handle).map(|alloc| {
             vec4(
                 alloc.rectangle.min.x as f32 / (Self::ATLAS_WIDTH as f32),
                 alloc.rectangle.min.y as f32 / (Self::ATLAS_HEIGHT as f32),
@@ -122,11 +122,8 @@ where
         })
     }
 
-    pub fn lookup_opt(
-        &self,
-        image_handle: Option<&P::ImageHandle>,
-    ) -> Option<Vec4> {
-        self.lookup(image_handle?)
+    pub fn lookup_opt(&self, handle: Option<P::ImageHandle>) -> Option<Vec4> {
+        self.lookup(handle?)
     }
 
     pub fn flush(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
@@ -189,7 +186,7 @@ where
             }
         }
 
-        for (texture, alloc) in &self.dynamic_textures {
+        for (tex, alloc) in &self.dynamic_textures {
             let encoder = encoder.get_or_insert_with(|| {
                 device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("strolle_atlas"),
@@ -197,7 +194,7 @@ where
             });
 
             encoder.copy_texture_to_texture(
-                texture.as_image_copy(),
+                tex.as_image_copy(),
                 wgpu::ImageCopyTexture {
                     texture: self.atlas_texture.tex(),
                     mip_level: 0,

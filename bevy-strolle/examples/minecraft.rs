@@ -1,3 +1,6 @@
+#[path = "_common.rs"]
+mod common;
+
 use std::f32::consts::PI;
 
 use bevy::core_pipeline::clear_color::ClearColorConfig;
@@ -18,6 +21,8 @@ use smooth_bevy_cameras::LookTransformPlugin;
 use wgpu::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
+
+use self::common::Sun;
 
 const VIEWPORT_SIZE: UVec2 = uvec2(800, 600);
 const WINDOW_SCALE: f32 = 1.0;
@@ -45,15 +50,16 @@ fn main() {
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup_state)
         .add_systems(Startup, setup_scene)
-        .add_systems(Update, handle_camera)
+        // ---
+        .add_systems(Update, common::handle_camera)
+        .add_systems(Update, common::handle_sun)
+        .add_systems(Update, common::animate_sun)
+        // ---
         .add_systems(Update, process_input)
         .add_systems(Update, process_blocks.after(process_input))
         .add_systems(Update, update_crosshair.after(process_input))
         // ---
-        .add_systems(Update, handle_sun)
-        .add_systems(Update, animate_sun)
         .insert_resource(Sun::default())
-        // ---
         .add_event::<Event>()
         .run();
 }
@@ -139,7 +145,6 @@ fn setup_camera(
         .insert(FpsCameraBundle::new(
             {
                 FpsCameraController {
-                    enabled: false,
                     mouse_rotate_sensitivity: Vec2::ONE * 0.35,
                     translate_sensitivity: 8.0,
                     ..default()
@@ -238,66 +243,6 @@ fn setup_scene(mut events: EventWriter<Event>) {
     });
 }
 
-fn handle_camera(
-    keys: Res<Input<KeyCode>>,
-    mut window: Query<&mut Window, With<PrimaryWindow>>,
-    mut camera: Query<(
-        &mut CameraRenderGraph,
-        &mut StrolleCamera,
-        &mut FpsCameraController,
-    )>,
-) {
-    let (mut camera_render_graph, mut camera, mut fps_camera_controller) =
-        camera.single_mut();
-
-    if keys.just_pressed(KeyCode::Key1) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Image;
-    }
-
-    if keys.just_pressed(KeyCode::Key2) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::DirectLighting;
-    }
-
-    if keys.just_pressed(KeyCode::Key3) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectDiffuseLighting;
-    }
-
-    if keys.just_pressed(KeyCode::Key4) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectSpecularLighting;
-    }
-
-    if keys.just_pressed(KeyCode::Key5) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::BvhHeatmap;
-    }
-
-    if keys.just_pressed(KeyCode::Key9) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 1 };
-    }
-
-    if keys.just_pressed(KeyCode::Key0) {
-        camera_render_graph.set("core_3d");
-    }
-
-    if keys.just_pressed(KeyCode::Semicolon) {
-        fps_camera_controller.enabled = !fps_camera_controller.enabled;
-
-        let mut window = window.single_mut();
-
-        window.cursor.visible = !fps_camera_controller.enabled;
-
-        window.cursor.grab_mode = if fps_camera_controller.enabled {
-            CursorGrabMode::Locked
-        } else {
-            CursorGrabMode::None
-        };
-    }
-}
 #[allow(clippy::too_many_arguments)]
 fn process_input(
     mut raycast: Raycast,
@@ -486,58 +431,3 @@ impl Item {
 
 #[derive(Component)]
 struct Object;
-
-// -----------------------------------------------------------------------------
-
-#[derive(Resource)]
-struct Sun {
-    azimuth: f32,
-    altitude: f32,
-    initialized: bool,
-}
-
-impl Default for Sun {
-    fn default() -> Self {
-        Self {
-            azimuth: 3.0,
-            altitude: StrolleSun::default().altitude,
-            initialized: false,
-        }
-    }
-}
-
-fn handle_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
-    if keys.just_pressed(KeyCode::H) {
-        sun.azimuth -= 0.05;
-    }
-
-    if keys.just_pressed(KeyCode::J) {
-        sun.altitude -= 0.05;
-    }
-
-    if keys.just_pressed(KeyCode::K) {
-        sun.altitude += 0.05;
-    }
-
-    if keys.just_pressed(KeyCode::L) {
-        sun.azimuth += 0.05;
-    }
-}
-
-fn animate_sun(
-    time: Res<Time>,
-    mut st_sun: ResMut<StrolleSun>,
-    mut sun: ResMut<Sun>,
-) {
-    if sun.initialized {
-        st_sun.azimuth = st_sun.azimuth
-            + (sun.azimuth - st_sun.azimuth) * time.delta_seconds();
-
-        st_sun.altitude = st_sun.altitude
-            + (sun.altitude - st_sun.altitude) * time.delta_seconds();
-    } else {
-        sun.initialized = true;
-        st_sun.azimuth = sun.azimuth;
-        st_sun.altitude = sun.altitude;
-    }
-}

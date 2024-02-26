@@ -25,20 +25,18 @@ Platforms: Windows, Mac, Linux & WebGPU.
 ## Gallery
 
 <p align="center">
+  <img height="512" src="_readme/demo-v9.jpg" />
+</p>
+
+<p align="center">
   <img height="512" src="_readme/demo-v16.jpg" />
 </p>
 
 <p align="center">
-  <img height="512" src="_readme/demo-v12.jpg" />
+  <img height="512" src="_readme/demo-v17.jpg" />
 </p>
 
-<p align="center">
-  <img height="512" src="_readme/demo-v15.jpg" />
-</p>
-
-<p align="center">
-  <img height="512" src="_readme/demo-v9.jpg" />
-</p>
+(note that currently there's no denoiser for specular lighting)
 
 ## Examples
 
@@ -50,19 +48,24 @@ $ cargo run --release --example demo
 
 Shows a dungeon tech demo, as in the example above.
 
-Use WASD to move and mouse to navigate the camera - extra controls include:
+Use WASD to move, mouse to navigate the camera, and:
 
-- F: Toggle flashlight,
 - H/L: Adjust sun's azimuth,
 - J/K: Adjust sun's altitude,
+- F: Toggle flashlight on/off,
+- M: Toggle diffuse/specular materials,
 - T: Remove textures,
-- 1: Switch camera back to the default mode,
-- 2: Show direct lighting only,
-- 3: Show indirect diffuse lighting only,
-- 4: Show indirect specular lighting only,
+- 1: Show the final, composed image¹ (default),
+- 2: Show direct-diffuse lighting only¹,
+- 3: Show direct-specular lighting only¹,
+- 4: Show indirect-diffuse lighting only¹,
+- 5: Show indirect-specular lighting only¹,
+- 8: Show BVH heatmap,
 - 9: Switch camera to a path-traced reference mode (slow),
 - 0: Switch camera to Bevy's renderer,
 - ;: Toggle camera's controls on/off - useful for taking screenshots.
+
+¹ press the same key again to toggle denoising on/off
 
 Model thanks to:    
 https://sketchfab.com/3d-models/low-poly-game-level-82b7a937ae504cfa9f277d9bf6874ad2
@@ -114,16 +117,12 @@ Currently supported Bevy version: 0.12.1.
     ```
 
 Note that Strolle completely overrides Bevy's camera graph, so you can't use a
-Strolle camera together with Bevy's effects such as bloom or TAA (yet); you also
-can't use custom vertex or fragment shaders.
+Strolle camera together with Bevy's effects such as bloom or TAA - fragment and
+vertex shaders won't work as well.
 
 Also, Strolle is not optimized well towards higher resolutions - on non-high-end
 GPUs, it's recommended to stick to ~800x600 and upscale the camera instead (see
 the `demo.rs` here).
-
-(that's mostly because Strolle uses ray-tracing not only to compute indirect
-lighting, but direct as well, which is too heavy for smaller GPUs - this is on
-our roadmap, though!)
 
 ## Roadmap
 
@@ -135,8 +134,8 @@ Notable algorithms implemented in Strolle include:
 
 - [ReSTIR DI](https://research.nvidia.com/sites/default/files/pubs/2020-07_Spatiotemporal-reservoir-resampling/ReSTIR.pdf)
 - [ReSTIR GI](https://d1qx31qr3h6wln.cloudfront.net/publications/ReSTIR%20GI.pdf)
-- [A Scalable and Production Ready Sky and Atmosphere Rendering Technique](https://sebh.github.io/publications/egsr2020.pdf)
 - [SVGF](https://research.nvidia.com/publication/2017-07_spatiotemporal-variance-guided-filtering-real-time-reconstruction-path-traced)
+- [A Scalable and Production Ready Sky and Atmosphere Rendering Technique](https://sebh.github.io/publications/egsr2020.pdf)
 
 ## License
 

@@ -17,16 +17,16 @@ impl<P> Meshes<P>
 where
     P: Params,
 {
-    pub fn insert(&mut self, mesh_handle: P::MeshHandle, mesh: Mesh) {
-        self.meshes.insert(mesh_handle, mesh);
+    pub fn insert(&mut self, handle: P::MeshHandle, item: Mesh) {
+        self.meshes.insert(handle, item);
     }
 
-    pub fn get(&self, mesh_handle: &P::MeshHandle) -> Option<&Mesh> {
-        self.meshes.get(mesh_handle)
+    pub fn get(&self, handle: P::MeshHandle) -> Option<&Mesh> {
+        self.meshes.get(&handle)
     }
 
-    pub fn remove(&mut self, mesh_handle: &P::MeshHandle) {
-        self.meshes.remove(mesh_handle);
+    pub fn remove(&mut self, handle: P::MeshHandle) {
+        self.meshes.remove(&handle);
     }
 
     pub fn len(&self) -> usize {

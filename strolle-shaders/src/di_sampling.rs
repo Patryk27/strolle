@@ -1,7 +1,6 @@
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(push_constant)] params: &PassParams,
@@ -22,7 +21,7 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 1)] prim_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 2)] prim_gbuffer_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 3, storage_buffer)]
-    curr_reservoirs: &mut [Vec4],
+    out_reservoirs: &mut [Vec4],
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);
@@ -53,33 +52,7 @@ pub fn main(
 
     // ---
 
-    let mut res = EphemeralReservoir::default();
-    let mut res_pdf = 0.0;
-
-    let light_pdf = 1.0 / (world.light_count as f32);
-    let mut light_idx = 0;
-
-    while light_idx < world.light_count {
-        let light_id = LightId::new(light_idx);
-        let light_radiance = lights.get(light_id).radiance(hit);
-
-        let sample = EphemeralSample {
-            light_id,
-            light_radiance,
-        };
-
-        let sample_pdf = sample.pdf();
-
-        if res.update(&mut wnoise, sample, sample_pdf / light_pdf) {
-            res_pdf = sample_pdf;
-        }
-
-        light_idx += 1;
-    }
-
-    res.normalize(res_pdf);
-
-    // ---
+    let mut res = EphemeralReservoir::build(&mut wnoise, lights, *world, hit);
 
     let res = if res.m > 0.0 {
         let ray = lights
@@ -103,11 +76,13 @@ pub fn main(
         DiReservoir {
             reservoir: Reservoir {
                 sample: DiSample {
+                    pdf: 0.0,
+                    confidence: 0.0,
                     light_id: res.sample.light_id,
                     light_point: ray.origin(),
-                    exists: true,
+                    is_occluded,
                 },
-                m: res.m,
+                m: 1.0,
                 w: res.w,
             },
         }
@@ -115,5 +90,5 @@ pub fn main(
         Default::default()
     };
 
-    res.write(curr_reservoirs, screen_idx);
+    res.write(out_reservoirs, screen_idx);
 }

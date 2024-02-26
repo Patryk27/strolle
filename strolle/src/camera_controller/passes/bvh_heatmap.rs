@@ -8,7 +8,6 @@ pub struct BvhHeatmapPass {
 }
 
 impl BvhHeatmapPass {
-    #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -26,8 +25,8 @@ impl BvhHeatmapPass {
                 &engine.images.bind_atlas(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.di_diff_curr_colors.bind_writable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.ref_colors.bind_writable(),
             ])
             .build(device, &engine.shaders.bvh_heatmap);
 

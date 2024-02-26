@@ -11,7 +11,6 @@ pub struct RefShadingPass {
 }
 
 impl RefShadingPass {
-    #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -21,7 +20,7 @@ impl RefShadingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("reference_shading")
+        let pass = CameraComputePass::builder("ref_shading")
             .bind([
                 &engine.triangles.bind_readable(),
                 &engine.bvh.bind_readable(),
@@ -31,7 +30,7 @@ impl RefShadingPass {
                 &engine.world.bind_readable(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
                 &buffers.prev_camera.bind_readable(),
                 &buffers.atmosphere_transmittance_lut.bind_sampled(),
                 &buffers.atmosphere_sky_lut.bind_sampled(),

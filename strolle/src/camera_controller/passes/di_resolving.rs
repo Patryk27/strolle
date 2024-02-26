@@ -19,18 +19,23 @@ impl DiResolvingPass {
     {
         let pass = CameraComputePass::builder("di_resolving")
             .bind([
+                &engine.triangles.bind_readable(),
+                &engine.bvh.bind_readable(),
+                &engine.materials.bind_readable(),
                 &engine.lights.bind_readable(),
+                &engine.images.bind_atlas(),
                 &engine.world.bind_readable(),
             ])
             .bind([
-                &buffers.camera.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
                 &buffers.atmosphere_transmittance_lut.bind_sampled(),
                 &buffers.atmosphere_sky_lut.bind_sampled(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.di_next_reservoirs.bind_readable(),
-                &buffers.di_prev_reservoirs.bind_writable(),
+                &buffers.prim_gbuffer_d0.curr().bind_readable(),
+                &buffers.prim_gbuffer_d1.curr().bind_readable(),
+                &buffers.di_reservoirs[2].bind_readable(),
+                &buffers.di_reservoirs[0].bind_writable(),
                 &buffers.di_diff_samples.bind_writable(),
+                &buffers.di_spec_samples.bind_writable(),
             ])
             .build(device, &engine.shaders.di_resolving);
 
