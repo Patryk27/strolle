@@ -1273,12 +1273,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blue-noise-sampler"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af927b0484dfa38eea63f00b86bd446ddff6352f70f9708eaf036e27ae45ad21"
-
-[[package]]
 name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3779,7 +3773,6 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "strolle"
 version = "0.1.0"
 dependencies = [
- "blue-noise-sampler",
  "bytemuck",
  "derivative",
  "fxhash",

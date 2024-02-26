@@ -1,10 +1,8 @@
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn reproject(
     #[spirv(global_invocation_id)] global_id: UVec3,
-    #[spirv(push_constant)] params: &FrameDenoisingReprojectPassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)] prim_surface_map: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 2)] reprojection_map: TexRgba32,
@@ -36,16 +34,11 @@ pub fn reproject(
     let moment;
 
     let sample = samples.read(screen_pos);
-
-    let sample_luma = if params.is_di_diff() {
-        sample.xyz().perc_luma()
-    } else {
-        sample.xyz().luma()
-    };
+    let sample_luma = sample.xyz().luma();
 
     let reprojection = reprojection_map.get(screen_pos);
 
-    if reprojection.is_some() {
+    if reprojection.is_some() && sample.w > 0.0 {
         let prev_color = BilinearFilter::reproject(reprojection, move |pos| {
             (prev_colors.read(pos), 1.0)
         });
@@ -60,7 +53,7 @@ pub fn reproject(
         let prev_m2 = prev_moment.z;
 
         let curr_color = sample.xyz();
-        let curr_history = (prev_history + 1.0).min(5.0);
+        let curr_history = (prev_history + 1.0).min(16.0);
         let curr_m1 = sample_luma;
         let curr_m2 = sample_luma * sample_luma;
 
@@ -85,7 +78,6 @@ pub fn reproject(
 }
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn estimate_variance(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
@@ -109,7 +101,7 @@ pub fn estimate_variance(
     let center_surface = prim_surface_map.get(screen_pos);
 
     let center_di_color = di_colors.read(screen_pos);
-    let center_di_luma_p = center_di_color.xyz().perc_luma();
+    let center_di_luma = center_di_color.xyz().luma();
     let center_di_moment = di_moments.read(screen_pos);
     let center_di_var;
 
@@ -128,15 +120,12 @@ pub fn estimate_variance(
     }
 
     if center_di_moment.x >= 4.0 {
-        center_di_var =
-            center_di_moment.z - center_di_moment.y * center_di_moment.y;
-
-        center_gi_var =
-            center_gi_moment.z - center_gi_moment.y * center_gi_moment.y;
+        center_di_var = center_di_moment.z - center_di_moment.y.sqr();
+        center_gi_var = center_gi_moment.z - center_gi_moment.y.sqr();
     } else {
         let mut sum_di = Vec3::ZERO;
         let mut sum_gi = Vec3::ZERO;
-        let mut sample_offset = ivec2(-3, -3);
+        let mut sample_offset = ivec2(-2, -2);
 
         loop {
             let sample_pos = screen_pos.as_ivec2() + sample_offset;
@@ -147,20 +136,20 @@ pub fn estimate_variance(
 
                 if !sample_surface.is_sky() {
                     let sample_di_color = di_colors.read(sample_pos);
+                    let sample_di_luma = sample_di_color.xyz().luma();
 
-                    let sample_di_luma_p = sample_di_color.xyz().perc_luma();
-
-                    let sample_di_weight = eval_sample_weight(
-                        center_di_luma_p,
+                    let sample_di_weight = sample_weight(
+                        center_di_luma,
                         center_surface,
-                        sample_di_luma_p,
+                        sample_di_luma,
                         sample_surface,
                         1.0,
+                        0.2,
                     );
 
                     sum_di += vec3(
-                        sample_di_luma_p,
-                        sample_di_luma_p * sample_di_luma_p,
+                        sample_di_luma,
+                        sample_di_luma * sample_di_luma,
                         1.0,
                     ) * Vec3::splat(sample_di_weight);
 
@@ -169,12 +158,13 @@ pub fn estimate_variance(
                     let sample_gi_color = gi_colors.read(sample_pos);
                     let sample_gi_luma = sample_gi_color.xyz().luma();
 
-                    let sample_gi_weight = eval_sample_weight(
+                    let sample_gi_weight = sample_weight(
                         center_gi_luma,
                         center_surface,
                         sample_gi_luma,
                         sample_surface,
                         1.0,
+                        0.2,
                     );
 
                     sum_gi += vec3(
@@ -189,11 +179,11 @@ pub fn estimate_variance(
 
             sample_offset.x += 1;
 
-            if sample_offset.x == 4 {
+            if sample_offset.x == 3 {
                 sample_offset.x = -3;
                 sample_offset.y += 1;
 
-                if sample_offset.y == 4 {
+                if sample_offset.y == 3 {
                     break;
                 }
             }
@@ -203,14 +193,14 @@ pub fn estimate_variance(
             let m1 = sum_di.x / sum_di.z;
             let m2 = sum_di.y / sum_di.z;
 
-            (m2 - m1 * m1).abs().sqrt() * 4.0
+            (m2 - m1 * m1).abs() * 4.0
         };
 
         center_gi_var = {
             let m1 = sum_gi.x / sum_gi.z;
             let m2 = sum_gi.y / sum_gi.z;
 
-            (m2 - m1 * m1).abs().sqrt() * 4.0
+            (m2 - m1 * m1).abs() * 4.0
         };
     };
 
@@ -227,7 +217,6 @@ pub fn estimate_variance(
 }
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn wavelet(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(push_constant)] params: &FrameDenoisingWaveletPassParams,
@@ -254,7 +243,7 @@ pub fn wavelet(
     let center_di = di_input.read(screen_pos);
     let center_di_color = center_di.xyz();
     let center_di_var = center_di.w;
-    let center_di_luma_p = center_di_color.perc_luma();
+    let center_di_luma = center_di_color.luma();
 
     if center_surface.is_sky() {
         unsafe {
@@ -271,53 +260,15 @@ pub fn wavelet(
 
     // ---
 
-    let (center_di_var_avg, center_gi_var_avg) = {
-        let kernel = [1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0];
-        let mut sum = vec2(0.0, 0.0);
-        let mut sample_offset = ivec2(-1, -1);
+    let luma_sigma_di = lerp(2.5, 0.5, center_di_var.sqrt());
+    let depth_sigma_di = 0.33 / params.strength;
 
-        loop {
-            let sample_pos = screen_pos.as_ivec2() + sample_offset;
+    let luma_sigma_gi = lerp(1.0, 0.0, center_gi_var.sqrt());
+    let depth_sigma_gi = 0.33 / params.strength;
 
-            if camera.contains(sample_pos) {
-                let sample_weight = kernel
-                    [(sample_offset.x.abs() + sample_offset.y.abs()) as usize];
-
-                let sample_di_var = di_input.read(sample_pos.as_uvec2()).w;
-                let sample_gi_var = gi_input.read(sample_pos.as_uvec2()).w;
-
-                sum += vec2(sample_di_var, sample_gi_var) * sample_weight;
-            }
-
-            // ---
-
-            sample_offset.x += 1;
-
-            if sample_offset.x == 2 {
-                sample_offset.x = -1;
-                sample_offset.y += 1;
-
-                if sample_offset.y == 2 {
-                    break;
-                }
-            }
-        }
-
-        (sum.x, sum.y)
-    };
-
-    let luma_sigma_di =
-        lerp(1.0, 0.1, center_di_var_avg.sqrt()) * (params.strength as f32);
-
-    let luma_sigma_gi =
-        lerp(0.33, 0.1, center_gi_var_avg.sqrt()) * (params.strength as f32);
-
-    let jitter = if params.stride <= 1 {
-        IVec2::ZERO
-    } else {
-        ((bnoise.second_sample() - 0.5) * (params.stride as f32) * 0.5)
-            .as_ivec2()
-    };
+    let jitter =
+        ((bnoise.second_sample() - 0.5) * (params.stride as f32 - 1.0) * 0.5)
+            .as_ivec2();
 
     let mut sum_di_weights = 1.0;
     let mut sum_di_color = center_di_color;
@@ -331,8 +282,8 @@ pub fn wavelet(
 
     loop {
         let sample_pos = screen_pos.as_ivec2()
-            + sample_offset * (params.stride as i32)
-            + jitter;
+            + jitter
+            + sample_offset * (params.stride as i32);
 
         if camera.contains(sample_pos) && sample_offset != ivec2(0, 0) {
             let sample_pos = sample_pos.as_uvec2();
@@ -342,24 +293,21 @@ pub fn wavelet(
                 let sample_di = di_input.read(sample_pos);
                 let sample_di_color = sample_di.xyz();
                 let sample_di_var = sample_di.w;
-                let sample_di_luma_p = sample_di_color.perc_luma();
+                let sample_di_luma = sample_di_color.luma();
 
-                let sample_di_weight = eval_sample_weight(
-                    center_di_luma_p,
+                let sample_di_weight = sample_weight(
+                    center_di_luma,
                     center_surface,
-                    sample_di_luma_p,
+                    sample_di_luma,
                     sample_surface,
                     luma_sigma_di,
+                    depth_sigma_di,
                 );
-
-                let sample_di_weight = sample_di_weight.min(0.1);
 
                 if sample_di_weight > 0.0 {
                     sum_di_weights += sample_di_weight;
                     sum_di_color += sample_di_weight * sample_di_color;
-
-                    sum_di_var +=
-                        sample_di_weight * sample_di_weight * sample_di_var;
+                    sum_di_var += sample_di_weight.sqr() * sample_di_var;
                 }
 
                 // ---
@@ -369,20 +317,19 @@ pub fn wavelet(
                 let sample_gi_var = sample_gi.w;
                 let sample_gi_luma = sample_gi_color.luma();
 
-                let sample_gi_weight = eval_sample_weight(
+                let sample_gi_weight = sample_weight(
                     center_gi_luma,
                     center_surface,
                     sample_gi_luma,
                     sample_surface,
                     luma_sigma_gi,
+                    depth_sigma_gi,
                 );
 
                 if sample_gi_weight > 0.0 {
                     sum_gi_weights += sample_gi_weight;
                     sum_gi_color += sample_gi_weight * sample_gi_color;
-
-                    sum_gi_var +=
-                        sample_gi_weight * sample_gi_weight * sample_gi_var;
+                    sum_gi_var += sample_gi_weight.sqr() * sample_gi_var;
                 }
             }
         }
@@ -413,17 +360,19 @@ pub fn wavelet(
     }
 }
 
-fn eval_sample_weight(
+fn sample_weight(
     center_luma: f32,
     center_surface: Surface,
     sample_luma: f32,
     sample_surface: Surface,
     luma_sigma: f32,
+    depth_sigma: f32,
 ) -> f32 {
-    let luma_weight = (center_luma - sample_luma).abs().sqrt() * luma_sigma;
+    let luma_weight =
+        (center_luma.sqrt() - sample_luma.sqrt()).abs() * luma_sigma;
 
     let depth_weight = {
-        let leeway = center_surface.depth * 0.2;
+        let leeway = center_surface.depth * depth_sigma;
         let diff = (sample_surface.depth - center_surface.depth).abs();
 
         if diff >= leeway {
@@ -437,7 +386,7 @@ fn eval_sample_weight(
         .normal
         .dot(center_surface.normal)
         .max(0.0)
-        .powf(32.0);
+        .powf(64.0);
 
     (-luma_weight).exp() * depth_weight * normal_weight
 }

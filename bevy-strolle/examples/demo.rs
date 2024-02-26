@@ -19,11 +19,13 @@ use wgpu::{
     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 
+use self::common::Sun;
+
 const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
 const WINDOW_SCALE: f32 = 1.5;
 
 fn main() {
-    common::unzip_assets();
+    common::extract_assets();
 
     App::new()
         .add_plugins((
@@ -48,11 +50,12 @@ fn main() {
         .add_systems(Startup, setup_scene)
         .add_systems(Update, adjust_materials)
         .add_systems(Update, handle_materials)
-        .add_systems(Update, handle_camera)
-        .add_systems(Update, handle_sun)
-        .add_systems(Update, animate_sun)
+        .add_systems(Update, common::handle_camera)
+        .add_systems(Update, common::handle_sun)
+        .add_systems(Update, common::animate_sun)
         .add_systems(Update, handle_flashlight)
         .add_systems(Update, animate_flashlight)
+        .add_systems(Update, animate_toruses)
         .insert_resource(Sun::default())
         .run();
 }
@@ -161,6 +164,8 @@ fn setup_scene(
         ..default()
     });
 
+    // ---
+
     let lights = vec![
         vec3(-3.0, 0.75, -23.0),
         vec3(-23.5, 0.75, -31.0),
@@ -185,26 +190,34 @@ fn setup_scene(
         });
     }
 
-    let cubes = [
+    // ---
+
+    let toruses = [
         vec3(-0.5, 0.33, -5.5),
         vec3(-11.0, 0.33, 28.0),
         vec3(-11.5, 0.33, 13.5),
     ];
 
-    for cube in cubes {
-        let color = Color::rgba(0.85, 0.05, 0.25, 1.0);
+    for torus in toruses {
+        let color = Color::rgba(0.9, 0.6, 0.3, 1.0);
 
-        commands.spawn(MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(0.33))),
-            material: materials.add(StandardMaterial {
-                base_color: color,
-                emissive: color * 10.0,
+        commands
+            .spawn(MaterialMeshBundle {
+                mesh: meshes.add(Mesh::from(shape::Torus::default())),
+                material: materials.add(StandardMaterial {
+                    base_color: color,
+                    emissive: color * 10.0,
+                    ..default()
+                }),
+                transform: Transform::from_translation(torus)
+                    .with_rotation(Quat::from_rotation_z(1.0))
+                    .with_scale(Vec3::splat(0.5)),
                 ..default()
-            }),
-            transform: Transform::from_translation(cube),
-            ..default()
-        });
+            })
+            .insert(Torus);
     }
+
+    // ---
 
     commands
         .spawn(SpotLightBundle {
@@ -256,132 +269,17 @@ fn handle_materials(
             material.base_color_texture = None;
         }
     }
-}
 
-// -----------------------------------------------------------------------------
-
-fn handle_camera(
-    keys: Res<Input<KeyCode>>,
-    mut window: Query<&mut Window, With<PrimaryWindow>>,
-    mut camera: Query<(
-        &Transform,
-        &mut CameraRenderGraph,
-        &mut StrolleCamera,
-        &mut FpsCameraController,
-    )>,
-) {
-    let (
-        camera_xform,
-        mut camera_render_graph,
-        mut camera,
-        mut fps_camera_controller,
-    ) = camera.single_mut();
-
-    if keys.just_pressed(KeyCode::Key1) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Image;
-    }
-
-    if keys.just_pressed(KeyCode::Key2) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::DirectLighting;
-    }
-
-    if keys.just_pressed(KeyCode::Key3) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectDiffuseLighting;
-    }
-
-    if keys.just_pressed(KeyCode::Key4) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::IndirectSpecularLighting;
-    }
-
-    if keys.just_pressed(KeyCode::Key5) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::BvhHeatmap;
-    }
-
-    if keys.just_pressed(KeyCode::Key9) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
-        camera.mode = st::CameraMode::Reference { depth: 1 };
-    }
-
-    if keys.just_pressed(KeyCode::Key0) {
-        camera_render_graph.set("core_3d");
-    }
-
-    if keys.just_pressed(KeyCode::Semicolon) {
-        fps_camera_controller.enabled = !fps_camera_controller.enabled;
-
-        let mut window = window.single_mut();
-
-        window.cursor.visible = !fps_camera_controller.enabled;
-
-        window.cursor.grab_mode = if fps_camera_controller.enabled {
-            CursorGrabMode::Locked
-        } else {
-            CursorGrabMode::None
-        };
-    }
-
-    if keys.just_pressed(KeyCode::X) {
-        println!("{:?}", camera_xform.translation);
-    }
-}
-
-// -----------------------------------------------------------------------------
-
-#[derive(Resource)]
-struct Sun {
-    azimuth: f32,
-    altitude: f32,
-    initialized: bool,
-}
-
-impl Default for Sun {
-    fn default() -> Self {
-        Self {
-            azimuth: 3.0,
-            altitude: StrolleSun::default().altitude,
-            initialized: false,
+    if keys.just_pressed(KeyCode::M) {
+        for (_, material) in materials.iter_mut() {
+            if material.metallic == 0.0 {
+                material.metallic = 1.0;
+                material.perceptual_roughness = 0.15;
+            } else {
+                material.metallic = 0.0;
+                material.perceptual_roughness = 1.0;
+            }
         }
-    }
-}
-
-fn handle_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
-    if keys.just_pressed(KeyCode::H) {
-        sun.azimuth -= 0.05;
-    }
-
-    if keys.just_pressed(KeyCode::J) {
-        sun.altitude -= 0.05;
-    }
-
-    if keys.just_pressed(KeyCode::K) {
-        sun.altitude += 0.05;
-    }
-
-    if keys.just_pressed(KeyCode::L) {
-        sun.azimuth += 0.05;
-    }
-}
-
-fn animate_sun(
-    time: Res<Time>,
-    mut st_sun: ResMut<StrolleSun>,
-    mut sun: ResMut<Sun>,
-) {
-    if sun.initialized {
-        st_sun.azimuth = st_sun.azimuth
-            + (sun.azimuth - st_sun.azimuth) * time.delta_seconds();
-
-        st_sun.altitude = st_sun.altitude
-            + (sun.altitude - st_sun.altitude) * time.delta_seconds();
-    } else {
-        sun.initialized = true;
-        st_sun.azimuth = sun.azimuth;
-        st_sun.altitude = sun.altitude;
     }
 }
 
@@ -427,4 +325,19 @@ fn animate_flashlight(
     *flashlight =
         Transform::from_translation(camera.translation - vec3(0.0, 0.25, 0.0))
             .with_rotation(camera.rotation);
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Component)]
+struct Torus;
+
+fn animate_toruses(
+    time: Res<Time>,
+    mut toruses: Query<&mut Transform, (With<Torus>, Without<Flashlight>)>,
+) {
+    for mut xform in toruses.iter_mut() {
+        xform.rotation = Quat::from_rotation_z(time.elapsed_seconds())
+            * Quat::from_rotation_x(time.elapsed_seconds() + 1.0);
+    }
 }

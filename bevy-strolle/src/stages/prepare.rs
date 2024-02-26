@@ -26,7 +26,8 @@ pub(crate) fn meshes(
     for handle in meshes
         .removed
         .iter()
-        .chain(meshes.changed.iter().map(|mesh| &mesh.handle))
+        .copied()
+        .chain(meshes.changed.iter().map(|mesh| mesh.handle))
     {
         engine.remove_mesh(handle);
     }
@@ -124,8 +125,8 @@ pub(crate) fn materials(
     mut engine: ResMut<EngineResource>,
     mut materials: ResMut<ExtractedMaterials>,
 ) {
-    for handle in materials.removed.iter() {
-        engine.remove_material(handle);
+    for handle in &materials.removed {
+        engine.remove_material(*handle);
     }
 
     let map = |mat: StandardMaterial| {
@@ -184,7 +185,7 @@ pub(crate) fn images(
     mut images: ResMut<ExtractedImages>,
 ) {
     for handle in &images.removed {
-        engine.remove_image(handle);
+        engine.remove_image(*handle);
     }
 
     for entry in mem::take(&mut images.changed) {
@@ -233,8 +234,8 @@ pub(crate) fn instances(
     mut engine: ResMut<EngineResource>,
     mut instances: ResMut<ExtractedInstances>,
 ) {
-    for handle in mem::take(&mut instances.removed) {
-        engine.remove_instance(&handle);
+    for handle in &instances.removed {
+        engine.remove_instance(*handle);
     }
 
     for entry in mem::take(&mut instances.changed) {
@@ -254,7 +255,7 @@ pub(crate) fn lights(
     mut lights: ResMut<ExtractedLights>,
 ) {
     for handle in &lights.removed {
-        engine.remove_light(handle);
+        engine.remove_light(*handle);
     }
 
     for entry in mem::take(&mut lights.changed) {

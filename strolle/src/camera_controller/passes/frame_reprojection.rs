@@ -8,7 +8,6 @@ pub struct FrameReprojectionPass {
 }
 
 impl FrameReprojectionPass {
-    #[allow(clippy::too_many_arguments)]
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -20,7 +19,7 @@ impl FrameReprojectionPass {
     {
         let pass = CameraComputePass::builder("frame_reprojection")
             .bind([
-                &buffers.camera.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
                 &buffers.prev_camera.bind_readable(),
                 &buffers.prim_surface_map.curr().bind_readable(),
                 &buffers.prim_surface_map.prev().bind_readable(),

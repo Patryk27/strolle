@@ -21,8 +21,8 @@
 //!
 //! ## Material
 //!
-//! Material determines how an object should look like, i.e. whether it should
-//! be transparent etc.
+//! Material determines how an object should look like - its color, whether it
+//! should be transparent or not etc.
 //!
 //! Materials together with meshes create instances.
 //!
@@ -119,7 +119,7 @@ where
     world: MappedUniformBuffer<gpu::World>,
     cameras: CameraControllers,
     sun: Sun,
-    frame: u32,
+    frame: gpu::Frame,
     has_dirty_materials: bool,
     has_dirty_images: bool,
     has_dirty_sun: bool,
@@ -150,7 +150,7 @@ where
             ),
             cameras: Default::default(),
             sun: Default::default(),
-            frame: 0,
+            frame: gpu::Frame::new(1),
             has_dirty_materials: false,
             has_dirty_images: false,
             has_dirty_sun: true,
@@ -159,39 +159,39 @@ where
     }
 
     /// Creates or updates a mesh.
-    pub fn insert_mesh(&mut self, mesh_handle: P::MeshHandle, mesh: Mesh) {
-        self.meshes.insert(mesh_handle, mesh);
+    pub fn insert_mesh(&mut self, handle: P::MeshHandle, item: Mesh) {
+        self.meshes.insert(handle, item);
     }
 
     /// Removes a mesh.
     ///
     /// Note that removing a mesh doesn't automatically remove instances that
     /// refer to this mesh.
-    pub fn remove_mesh(&mut self, mesh_handle: &P::MeshHandle) {
-        self.meshes.remove(mesh_handle);
+    pub fn remove_mesh(&mut self, handle: P::MeshHandle) {
+        self.meshes.remove(handle);
     }
 
     /// Creates or updates a material.
     pub fn insert_material(
         &mut self,
-        material_handle: P::MaterialHandle,
-        material: Material<P>,
+        handle: P::MaterialHandle,
+        item: Material<P>,
     ) {
-        self.materials.insert(material_handle, material);
+        self.materials.insert(handle, item);
         self.has_dirty_materials = true;
     }
 
     /// Returns whether given material exists.
-    pub fn has_material(&self, material_handle: &P::MaterialHandle) -> bool {
-        self.materials.has(material_handle)
+    pub fn has_material(&self, handle: P::MaterialHandle) -> bool {
+        self.materials.has(handle)
     }
 
     /// Removes a material.
     ///
     /// Note that removing a material doesn't automatically remove instances
     /// that refer to this material.
-    pub fn remove_material(&mut self, material_handle: &P::MaterialHandle) {
-        self.materials.remove(material_handle);
+    pub fn remove_material(&mut self, handle: P::MaterialHandle) {
+        self.materials.remove(handle);
         self.has_dirty_materials = true;
     }
 
@@ -209,8 +209,8 @@ where
     ///
     /// Note that removing an image doesn't automatically remove materials that
     /// refer to this image.
-    pub fn remove_image(&mut self, image_handle: &P::ImageHandle) {
-        self.images.remove(image_handle);
+    pub fn remove_image(&mut self, handle: P::ImageHandle) {
+        self.images.remove(handle);
         self.has_dirty_images = true;
     }
 
@@ -224,19 +224,19 @@ where
     }
 
     /// Removes an instance.
-    pub fn remove_instance(&mut self, instance_handle: &P::InstanceHandle) {
-        self.instances.remove(instance_handle);
-        self.triangles.remove(&mut self.bvh, instance_handle);
+    pub fn remove_instance(&mut self, handle: P::InstanceHandle) {
+        self.instances.remove(handle);
+        self.triangles.remove(&mut self.bvh, handle);
     }
 
     /// Creates or updates a light.
-    pub fn insert_light(&mut self, light_handle: P::LightHandle, light: Light) {
-        self.lights.insert(light_handle, light);
+    pub fn insert_light(&mut self, handle: P::LightHandle, item: Light) {
+        self.lights.insert(handle, item);
     }
 
     /// Removes a light.
-    pub fn remove_light(&mut self, light_handle: &P::LightHandle) {
-        self.lights.remove(light_handle);
+    pub fn remove_light(&mut self, handle: P::LightHandle) {
+        self.lights.remove(handle);
     }
 
     /// Updates sun's parameters.
@@ -305,7 +305,7 @@ where
         let any_image_modified = mem::take(&mut self.has_dirty_images);
 
         utils::measure("tick.noise", || {
-            self.noise.flush(device, queue);
+            self.noise.flush(queue);
         });
 
         utils::measure("tick.images", || {
@@ -377,7 +377,7 @@ where
             }
         });
 
-        self.frame += 1;
+        self.frame = gpu::Frame::new(self.frame.get() + 1);
 
         // ---
 
@@ -401,10 +401,10 @@ where
 /// This exists to faciliate integrations with existing systems, such as Bevy,
 /// that already have their own newtypes for images, instances and so on.
 pub trait Params {
-    type ImageHandle: Clone + Debug + Eq + Hash;
+    type ImageHandle: Clone + Copy + Debug + Eq + Hash;
     type ImageTexture: Debug + Deref<Target = wgpu::Texture>;
-    type InstanceHandle: Clone + Debug + Eq + Hash;
-    type LightHandle: Clone + Debug + Eq + Hash;
-    type MaterialHandle: Clone + Debug + Eq + Hash;
-    type MeshHandle: Clone + Debug + Eq + Hash;
+    type InstanceHandle: Clone + Copy + Debug + Eq + Hash;
+    type LightHandle: Clone + Copy + Debug + Eq + Hash;
+    type MaterialHandle: Clone + Copy + Debug + Eq + Hash;
+    type MeshHandle: Clone + Copy + Debug + Eq + Hash;
 }

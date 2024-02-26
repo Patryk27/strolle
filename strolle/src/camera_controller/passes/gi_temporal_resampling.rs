@@ -3,12 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiSpecResamplingPass {
+pub struct GiTemporalResamplingPass {
     pass: CameraComputePass,
 }
 
-impl GiSpecResamplingPass {
-    #[allow(clippy::too_many_arguments)]
+impl GiTemporalResamplingPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -18,17 +17,19 @@ impl GiSpecResamplingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("gi_spec_resampling")
+        let pass = CameraComputePass::builder("gi_temporal_resampling")
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.prev_camera.bind_readable(),
+                &buffers.prim_gbuffer_d0.curr().bind_readable(),
+                &buffers.prim_gbuffer_d1.curr().bind_readable(),
+                &buffers.prim_gbuffer_d0.prev().bind_readable(),
+                &buffers.prim_gbuffer_d1.prev().bind_readable(),
                 &buffers.reprojection_map.bind_readable(),
-                &buffers.gi_samples.bind_readable(),
-                &buffers.gi_spec_reservoirs.curr().bind_writable(),
-                &buffers.gi_spec_reservoirs.prev().bind_readable(),
+                &buffers.gi_reservoirs[2].bind_readable(),
+                &buffers.gi_reservoirs[1].bind_writable(),
             ])
-            .build(device, &engine.shaders.gi_spec_resampling);
+            .build(device, &engine.shaders.gi_temporal_resampling);
 
         Self { pass }
     }

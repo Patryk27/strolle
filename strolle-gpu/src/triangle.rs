@@ -21,53 +21,53 @@ pub struct Triangle {
 }
 
 impl Triangle {
-    pub fn position0(&self) -> Vec3 {
+    pub fn position0(self) -> Vec3 {
         self.d0.xyz()
     }
 
-    pub fn normal0(&self) -> Vec3 {
+    pub fn normal0(self) -> Vec3 {
         self.d1.xyz()
     }
 
-    pub fn uv0(&self) -> Vec2 {
+    pub fn uv0(self) -> Vec2 {
         vec2(self.d0.w, self.d1.w)
     }
 
-    pub fn position1(&self) -> Vec3 {
+    pub fn position1(self) -> Vec3 {
         self.d3.xyz()
     }
 
-    pub fn normal1(&self) -> Vec3 {
+    pub fn normal1(self) -> Vec3 {
         self.d4.xyz()
     }
 
-    pub fn uv1(&self) -> Vec2 {
+    pub fn uv1(self) -> Vec2 {
         vec2(self.d3.w, self.d4.w)
     }
 
-    pub fn position2(&self) -> Vec3 {
+    pub fn position2(self) -> Vec3 {
         self.d6.xyz()
     }
 
-    pub fn normal2(&self) -> Vec3 {
+    pub fn normal2(self) -> Vec3 {
         self.d7.xyz()
     }
 
-    pub fn uv2(&self) -> Vec2 {
+    pub fn uv2(self) -> Vec2 {
         vec2(self.d6.w, self.d7.w)
     }
 
-    pub fn positions(&self) -> [Vec3; 3] {
+    pub fn positions(self) -> [Vec3; 3] {
         [self.position0(), self.position1(), self.position2()]
     }
 
-    pub fn hit(&self, ray: Ray, hit: &mut TriangleHit) -> bool {
+    pub fn hit(self, ray: Ray, hit: &mut TriangleHit) -> bool {
         let v0v1 = self.position1() - self.position0();
         let v0v2 = self.position2() - self.position0();
 
         // ---
 
-        let pvec = ray.direction().cross(v0v2);
+        let pvec = ray.dir().cross(v0v2);
         let det = v0v1.dot(pvec);
 
         if det.abs() < f32::EPSILON {
@@ -80,7 +80,7 @@ impl Triangle {
         let tvec = ray.origin() - self.position0();
         let u = tvec.dot(pvec) * inv_det;
         let qvec = tvec.cross(v0v1);
-        let v = ray.direction().dot(qvec) * inv_det;
+        let v = ray.dir().dot(qvec) * inv_det;
         let distance = v0v2.dot(qvec) * inv_det;
 
         if (u < 0.0)

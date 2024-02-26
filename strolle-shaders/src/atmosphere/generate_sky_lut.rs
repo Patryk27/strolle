@@ -91,7 +91,6 @@ pub fn main(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn eval(
     transmittance_lut_tex: Tex,
     transmittance_lut_sampler: &Sampler,

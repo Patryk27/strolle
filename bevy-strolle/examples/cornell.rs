@@ -13,7 +13,7 @@ use smooth_bevy_cameras::controllers::orbit::{
 use smooth_bevy_cameras::LookTransformPlugin;
 
 fn main() {
-    common::unzip_assets();
+    common::extract_assets();
 
     App::new()
         .add_plugins((
@@ -29,7 +29,7 @@ fn main() {
             LookTransformPlugin,
             OrbitCameraPlugin::default(),
             StrollePlugin,
-            SimpleGuiPlugin,
+            StrolleDebugPlugin,
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, animate)

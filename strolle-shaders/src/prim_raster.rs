@@ -1,7 +1,6 @@
 use spirv_std::arch;
 use strolle_gpu::prelude::*;
 
-#[allow(clippy::too_many_arguments)]
 #[spirv(vertex)]
 pub fn vs(
     // Params
@@ -38,7 +37,6 @@ pub fn vs(
     *out_uv = uv;
 }
 
-#[allow(clippy::too_many_arguments)]
 #[spirv(fragment)]
 pub fn fs(
     // Params

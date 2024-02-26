@@ -18,7 +18,6 @@ where
     buffer: MappedStorageBuffer<Vec<gpu::Material>>,
     index: HashMap<P::MaterialHandle, gpu::MaterialId>,
     materials: Vec<Material<P>>,
-    has_specular: bool,
 }
 
 impl<P> Materials<P>
@@ -31,48 +30,36 @@ where
             buffer: MappedStorageBuffer::new_default(device, "materials"),
             index: Default::default(),
             materials: Default::default(),
-            has_specular: false,
         }
     }
 
-    pub fn insert(
-        &mut self,
-        material_handle: P::MaterialHandle,
-        material: Material<P>,
-    ) {
-        self.has_specular |= material.metallic > 0.0;
-
-        match self.index.entry(material_handle) {
+    pub fn insert(&mut self, handle: P::MaterialHandle, item: Material<P>) {
+        match self.index.entry(handle) {
             Entry::Occupied(entry) => {
-                let material_id = *entry.get();
+                let id = *entry.get();
 
-                self.materials[material_id.get() as usize] = material;
+                self.materials[id.get() as usize] = item;
             }
 
             Entry::Vacant(entry) => {
-                let material_id =
-                    if let Some(material_id) = self.allocator.take(1) {
-                        material_id.start
-                    } else {
-                        self.materials.push(material);
-                        self.materials.len() - 1
-                    };
+                let id = if let Some(alloc) = self.allocator.take(1) {
+                    alloc.start
+                } else {
+                    self.materials.push(item);
+                    self.materials.len() - 1
+                };
 
-                entry.insert(gpu::MaterialId::new(material_id as u32));
+                entry.insert(gpu::MaterialId::new(id as u32));
             }
         }
     }
 
-    pub fn has(&self, material_handle: &P::MaterialHandle) -> bool {
-        self.index.contains_key(material_handle)
+    pub fn has(&self, handle: P::MaterialHandle) -> bool {
+        self.index.contains_key(&handle)
     }
 
-    pub fn has_specular(&self) -> bool {
-        self.has_specular
-    }
-
-    pub fn remove(&mut self, material_handle: &P::MaterialHandle) {
-        let Some(id) = self.index.remove(material_handle) else {
+    pub fn remove(&mut self, handle: P::MaterialHandle) {
+        let Some(id) = self.index.remove(&handle) else {
             return;
         };
 
@@ -85,11 +72,8 @@ where
         self.buffer.len()
     }
 
-    pub fn lookup(
-        &self,
-        material_handle: &P::MaterialHandle,
-    ) -> Option<gpu::MaterialId> {
-        self.index.get(material_handle).copied()
+    pub fn lookup(&self, handle: P::MaterialHandle) -> Option<gpu::MaterialId> {
+        self.index.get(&handle).copied()
     }
 
     pub fn refresh(&mut self, images: &Images<P>) {

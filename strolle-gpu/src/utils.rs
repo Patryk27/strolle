@@ -30,10 +30,14 @@ where
     a + (b - a) * t.clamp(0.0, 1.0)
 }
 
-pub fn checkerboard(global_id: UVec2, frame: u32) -> UVec2 {
+pub fn resolve_checkerboard(global_id: UVec2, frame: u32) -> UVec2 {
     global_id * uvec2(2, 1) + uvec2((frame + global_id.y) % 2, 0)
 }
 
-pub fn is_checkerboard(screen_pos: UVec2, frame: u32) -> bool {
-    screen_pos == checkerboard(screen_pos / uvec2(2, 1), frame)
+pub fn resolve_checkerboard_alt(global_id: UVec2, frame: u32) -> UVec2 {
+    resolve_checkerboard(global_id, frame + 1)
+}
+
+pub fn got_checkerboard_at(screen_pos: UVec2, frame: u32) -> bool {
+    screen_pos == resolve_checkerboard(screen_pos / uvec2(2, 1), frame)
 }

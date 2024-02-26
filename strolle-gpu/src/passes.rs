@@ -1,12 +1,14 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{vec3a, vec4, Affine3A, Mat3A, Vec4};
 
+use crate::Frame;
+
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct PassParams {
     pub seed: u32,
-    pub frame: u32,
+    pub frame: Frame,
 }
 
 #[repr(C)]
@@ -23,15 +25,15 @@ pub struct PrimRasterPassParams {
 }
 
 impl PrimRasterPassParams {
-    pub fn instance_uuid(&self) -> u32 {
+    pub fn instance_uuid(self) -> u32 {
         self.payload.x.to_bits()
     }
 
-    pub fn material_id(&self) -> u32 {
+    pub fn material_id(self) -> u32 {
         self.payload.y.to_bits()
     }
 
-    pub fn curr_xform_inv(&self) -> Affine3A {
+    pub fn curr_xform_inv(self) -> Affine3A {
         Self::decode_affine([
             self.curr_xform_inv_d0,
             self.curr_xform_inv_d1,
@@ -39,7 +41,7 @@ impl PrimRasterPassParams {
         ])
     }
 
-    pub fn prev_xform(&self) -> Affine3A {
+    pub fn prev_xform(self) -> Affine3A {
         Self::decode_affine([
             self.prev_xform_d0,
             self.prev_xform_d1,
@@ -90,26 +92,10 @@ impl PrimRasterPassParams {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct FrameDenoisingReprojectPassParams {
-    pub mode: u32,
-}
-
-impl FrameDenoisingReprojectPassParams {
-    pub const MODE_DI_DIFF: u32 = 0;
-    pub const MODE_GI_DIFF: u32 = 1;
-
-    pub fn is_di_diff(&self) -> bool {
-        self.mode == Self::MODE_DI_DIFF
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
-#[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct FrameDenoisingWaveletPassParams {
-    pub frame: u32,
+    pub frame: Frame,
     pub stride: u32,
-    pub strength: u32,
+    pub strength: f32,
 }
 
 #[repr(C)]
@@ -124,37 +110,24 @@ pub struct FrameCompositionPassParams {
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct RefPassParams {
     pub seed: u32,
-    pub frame: u32,
+    pub frame: Frame,
     pub depth: u32,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct GiPassParams {
+pub struct GiPreviewResamplingPass {
     pub seed: u32,
-    pub frame: u32,
-    pub mode: u32,
-}
-
-impl GiPassParams {
-    pub const MODE_DIFF: u32 = 0;
-    pub const MODE_SPEC: u32 = 1;
-
-    pub fn is_diff(&self) -> bool {
-        self.mode == Self::MODE_DIFF
-    }
-
-    pub fn is_spec(&self) -> bool {
-        self.mode == Self::MODE_SPEC
-    }
+    pub frame: Frame,
+    pub source: u32,
+    pub nth: u32,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
-pub struct GiDiffSpatialResamplingPassParams {
-    pub seed: u32,
-    pub frame: u32,
-    pub nth: u32,
+pub struct GiResolvingPassParams {
+    pub frame: Frame,
+    pub source: u32,
 }

@@ -4,7 +4,8 @@ use std::ops::Range;
 use log::debug;
 
 use crate::{
-    gpu, BindGroup, Camera, CameraBuffers, CameraController, Engine, Params,
+    gpu, BindGroup, Bindable, Camera, CameraBuffers, CameraController, Engine,
+    Params, Texture,
 };
 
 #[derive(Debug)]
@@ -25,12 +26,32 @@ impl FrameCompositionPass {
     {
         debug!("Initializing pass: frame_composition");
 
+        fn a_or_b<'a>(
+            a: &'a Texture,
+            b: &'a Texture,
+            select_a: bool,
+        ) -> impl Bindable + 'a {
+            if select_a {
+                a.bind_readable()
+            } else {
+                b.bind_readable()
+            }
+        }
+
         let bg0 = BindGroup::builder("frame_composition_bg0")
-            .add(&buffers.camera.bind_readable())
-            .add(&buffers.prim_gbuffer_d0.bind_readable())
-            .add(&buffers.prim_gbuffer_d1.bind_readable())
-            .add(&buffers.di_diff_curr_colors.bind_readable())
-            .add(&buffers.gi_diff_curr_colors.bind_readable())
+            .add(&buffers.prim_gbuffer_d0.curr().bind_readable())
+            .add(&buffers.prim_gbuffer_d1.curr().bind_readable())
+            .add(&a_or_b(
+                &buffers.di_diff_curr_colors,
+                &buffers.di_diff_samples,
+                camera.mode.denoise_di_diff(),
+            ))
+            .add(&buffers.di_spec_samples.bind_readable())
+            .add(&a_or_b(
+                &buffers.gi_diff_curr_colors,
+                &buffers.gi_diff_samples,
+                camera.mode.denoise_gi_diff(),
+            ))
             .add(&buffers.gi_spec_samples.bind_readable())
             .add(&buffers.ref_colors.bind_readable())
             .build(device);

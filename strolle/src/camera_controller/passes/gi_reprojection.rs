@@ -3,11 +3,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct GiDiffResolvingPass {
+pub struct GiReprojectionPass {
     pass: CameraComputePass,
 }
 
-impl GiDiffResolvingPass {
+impl GiReprojectionPass {
     pub fn new<P>(
         engine: &Engine<P>,
         device: &wgpu::Device,
@@ -17,15 +17,16 @@ impl GiDiffResolvingPass {
     where
         P: Params,
     {
-        let pass = CameraComputePass::builder("gi_diff_resolving")
+        let pass = CameraComputePass::builder("gi_reprojection")
             .bind([
-                &buffers.camera.bind_readable(),
-                &buffers.prim_gbuffer_d0.bind_readable(),
-                &buffers.prim_gbuffer_d1.bind_readable(),
-                &buffers.gi_diff_spatial_reservoirs_b.bind_readable(),
-                &buffers.gi_diff_samples.bind_writable(),
+                &buffers.curr_camera.bind_readable(),
+                &buffers.prim_gbuffer_d0.curr().bind_readable(),
+                &buffers.prim_gbuffer_d1.curr().bind_readable(),
+                &buffers.reprojection_map.bind_readable(),
+                &buffers.gi_reservoirs[0].bind_readable(),
+                &buffers.gi_reservoirs[2].bind_writable(),
             ])
-            .build(device, &engine.shaders.gi_diff_resolving);
+            .build(device, &engine.shaders.gi_reprojection);
 
         Self { pass }
     }

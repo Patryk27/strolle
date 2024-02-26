@@ -12,13 +12,13 @@ pub struct Surface {
 }
 
 impl Surface {
-    pub fn is_sky(&self) -> bool {
+    pub fn is_sky(self) -> bool {
         self.depth == 0.0
     }
 
     /// Returns a score `<0.0, 1.0>` that determines the similarity of two given
     /// surfaces.
-    pub fn evaluate_similarity_to(&self, other: &Self) -> f32 {
+    pub fn evaluate_similarity_to(self, other: Self) -> f32 {
         if self.is_sky() || other.is_sky() {
             return 0.0;
         }
@@ -36,12 +36,10 @@ impl Surface {
         let depth_score = {
             let t = (self.depth - other.depth).abs();
 
-            if self.depth < 1.0 {
-                (1.0 - t).max(0.0)
-            } else if t >= 0.1 * other.depth {
+            if t >= 0.1 * other.depth {
                 0.0
             } else {
-                1.0 - t / (0.1 * other.depth)
+                1.0
             }
         };
 
@@ -59,7 +57,7 @@ impl<'a> SurfaceMap<'a> {
         Self { tex }
     }
 
-    pub fn get(&self, screen_pos: UVec2) -> Surface {
+    pub fn get(self, screen_pos: UVec2) -> Surface {
         let d0 = self.tex.read(screen_pos);
 
         Surface {

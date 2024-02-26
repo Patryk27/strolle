@@ -1,16 +1,12 @@
 use std::io::Cursor;
 
-use blue_noise_sampler::spp2 as bn;
 use image::io::Reader as ImageReader;
 
-use crate::{gpu, Bindable, MappedStorageBuffer, Texture};
+use crate::{gpu, Bindable, Texture};
 
 #[derive(Debug)]
 pub struct Noise {
     blue_noise: Texture,
-    blue_noise_sobol: MappedStorageBuffer<Vec<i32>>,
-    blue_noise_scrambling_tile: MappedStorageBuffer<Vec<i32>>,
-    blue_noise_ranking_tile: MappedStorageBuffer<Vec<i32>>,
     flushed: bool,
 }
 
@@ -23,21 +19,6 @@ impl Noise {
                 .with_usage(wgpu::TextureUsages::COPY_DST)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .build(device),
-            blue_noise_sobol: MappedStorageBuffer::new(
-                device,
-                "blue_noise_sobol",
-                bn::SOBOL.to_vec(),
-            ),
-            blue_noise_scrambling_tile: MappedStorageBuffer::new(
-                device,
-                "blue_noise_scrambling_tile",
-                bn::SCRAMBLING_TILE.to_vec(),
-            ),
-            blue_noise_ranking_tile: MappedStorageBuffer::new(
-                device,
-                "blue_noise_ranking_tile",
-                bn::RANKING_TILE.to_vec(),
-            ),
             flushed: false,
         }
     }
@@ -46,19 +27,7 @@ impl Noise {
         self.blue_noise.bind_readable()
     }
 
-    pub fn bind_blue_noise_sobol(&self) -> impl Bindable + '_ {
-        self.blue_noise_sobol.bind_readable()
-    }
-
-    pub fn bind_blue_noise_scrambling_tile(&self) -> impl Bindable + '_ {
-        self.blue_noise_scrambling_tile.bind_readable()
-    }
-
-    pub fn bind_blue_noise_ranking_tile(&self) -> impl Bindable + '_ {
-        self.blue_noise_ranking_tile.bind_readable()
-    }
-
-    pub fn flush(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+    pub fn flush(&mut self, queue: &wgpu::Queue) {
         if self.flushed {
             return;
         }
@@ -92,14 +61,6 @@ impl Noise {
                 depth_or_array_layers: 1,
             },
         );
-
-        // ---
-
-        _ = self.blue_noise_sobol.flush(device, queue);
-        _ = self.blue_noise_scrambling_tile.flush(device, queue);
-        _ = self.blue_noise_ranking_tile.flush(device, queue);
-
-        // ---
 
         self.flushed = true;
     }

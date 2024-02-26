@@ -23,6 +23,7 @@ pub struct BilinearFilter {
 }
 
 impl BilinearFilter {
+    // TODO make it generic over `Vec4`
     pub fn reproject(
         reprojection: Reprojection,
         sample: impl Fn(UVec2) -> (Vec4, f32),
@@ -84,7 +85,7 @@ impl BilinearFilter {
         [p00, p10, p01, p11]
     }
 
-    pub fn eval(&self, uv: Vec2) -> Vec4 {
+    pub fn eval(self, uv: Vec2) -> Vec4 {
         let weights = self.weights
             * vec4(
                 (1.0 - uv.x) * (1.0 - uv.y),

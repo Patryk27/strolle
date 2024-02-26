@@ -1,7 +1,6 @@
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn main(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(local_invocation_index)] local_idx: u32,
@@ -52,7 +51,7 @@ pub fn main(
     // -------------------------------------------------------------------------
 
     if params.depth == u8::MAX as u32 {
-        let prev_color = if camera.is_eq(prev_camera) {
+        let prev_color = if camera.is_eq(*prev_camera) {
             colors.read(screen_pos)
         } else {
             Default::default()
@@ -94,16 +93,10 @@ pub fn main(
         ]);
 
         if t_hit.is_none() {
+            color += throughput * atmosphere.sample(world.sun_dir(), ray.dir());
+
             rays[3 * screen_idx] = Default::default();
             rays[3 * screen_idx + 1] = Default::default();
-
-            color += throughput
-                * atmosphere.sample(
-                    world.sun_direction(),
-                    ray.direction(),
-                    1.0,
-                );
-
             rays[3 * screen_idx + 2] = color.extend(Default::default());
 
             return;
@@ -118,7 +111,7 @@ pub fn main(
         Hit {
             point: t_hit.point + t_hit.normal * Hit::NUDGE_OFFSET,
             origin: ray.origin(),
-            direction: ray.direction(),
+            dir: ray.dir(),
             gbuffer: GBufferEntry {
                 base_color: material.base_color(
                     atlas_tex,
@@ -142,7 +135,6 @@ pub fn main(
     if world.light_count > 0 {
         let light_id = wnoise.sample_int() % world.light_count;
         let light_pdf = 1.0 / (world.light_count as f32);
-
         let light = lights.get(LightId::new(light_id));
 
         let is_light_occluded =
@@ -157,13 +149,14 @@ pub fn main(
             );
 
         if !is_light_occluded {
-            color += throughput * light.contribution(hit) / light_pdf;
+            color += throughput * light.radiance(hit).sum() / light_pdf;
         }
     }
 
     // -------------------------------------------------------------------------
 
-    let reflected_sample = LayeredBrdf::sample(&mut wnoise, hit);
+    let reflected_sample =
+        LayeredBrdf::new(hit.gbuffer).sample(&mut wnoise, -hit.dir);
 
     if reflected_sample.is_invalid() {
         rays[3 * screen_idx] = Default::default();
@@ -171,14 +164,14 @@ pub fn main(
         return;
     }
 
-    let reflected_ray = Ray::new(hit.point, reflected_sample.direction);
+    let reflected_ray = Ray::new(hit.point, reflected_sample.dir);
 
-    throughput *= reflected_sample.direction.dot(hit.gbuffer.normal);
-    throughput *= reflected_sample.throughput;
+    throughput *= reflected_sample.dir.dot(hit.gbuffer.normal);
+    throughput *= reflected_sample.radiance / reflected_sample.pdf;
 
     // -------------------------------------------------------------------------
 
     rays[3 * screen_idx] = reflected_ray.origin().extend(throughput.x);
-    rays[3 * screen_idx + 1] = reflected_ray.direction().extend(throughput.y);
+    rays[3 * screen_idx + 1] = reflected_ray.dir().extend(throughput.y);
     rays[3 * screen_idx + 2] = color.extend(throughput.z);
 }

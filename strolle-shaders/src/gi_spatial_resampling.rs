@@ -4,21 +4,18 @@ use strolle_gpu::prelude::*;
 pub fn pick(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(push_constant)] params: &PassParams,
-    #[spirv(descriptor_set = 0, binding = 0, storage_buffer)]
-    lights: &[Light],
-    #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 1, binding = 1)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 2)] prim_gbuffer_d1: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 3, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
+    #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d0: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     reservoirs: &[Vec4],
-    #[spirv(descriptor_set = 1, binding = 4)] buf_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 5)] buf_d1: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 4)] buf_d0: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 5)] buf_d1: TexRgba32,
 ) {
     let global_id = global_id.xy();
     let lhs_pos = resolve_checkerboard_alt(global_id, params.frame.get() / 2);
     let lhs_idx = camera.screen_to_idx(lhs_pos);
     let mut wnoise = WhiteNoise::new(params.seed, lhs_pos);
-    let lights = LightsView::new(lights);
 
     let buf_pos_a = global_id * uvec2(2, 1);
     let buf_pos_b = buf_pos_a + uvec2(1, 0);
@@ -37,20 +34,24 @@ pub fn pick(
         ]),
     );
 
-    if lhs_hit.is_none() {
+    let lhs = GiReservoir::read(reservoirs, lhs_idx);
+
+    if lhs_hit.is_none() || lhs.is_empty() {
+        unsafe {
+            buf_d1.write(buf_pos_a, Vec4::ZERO);
+            buf_d1.write(buf_pos_b, Vec4::ZERO);
+        }
+
         return;
     }
 
     // ---
 
-    let lhs = DiReservoir::read(reservoirs, lhs_idx);
-
-    // ---
-
-    let mut rhs = DiReservoir::default();
+    let mut rhs = GiReservoir::default();
     let mut rhs_nth = 0;
     let mut rhs_idx = 0;
     let mut rhs_hit = Hit::default();
+    let mut rhs_jacobian = 0.0;
 
     let max_samples = 8;
     let mut max_radius = 128.0;
@@ -92,16 +93,28 @@ pub fn pick(
         }
 
         rhs_idx = camera.screen_to_idx(rhs_pos);
-        rhs = DiReservoir::read(reservoirs, rhs_idx);
+        rhs = GiReservoir::read(reservoirs, rhs_idx);
 
-        if !rhs.is_empty() {
-            break;
+        if rhs.is_empty() {
+            continue;
         }
+
+        rhs_jacobian = rhs.sample.jacobian(lhs_hit.point);
+
+        // TODO rust-gpu seems to miscompile `.contains()`
+        #[allow(clippy::manual_range_contains)]
+        if rhs_jacobian < 1.0 / 10.0 || rhs_jacobian > 10.0 {
+            rhs.m = 0.0;
+            continue;
+        }
+
+        rhs_jacobian = rhs_jacobian.clamp(1.0 / 3.0, 3.0);
+        break;
     }
 
     // ---
 
-    if rhs.is_empty() {
+    if rhs.is_empty() || rhs_hit.is_none() {
         unsafe {
             buf_d1.write(buf_pos_a, Vec4::ZERO);
             buf_d1.write(buf_pos_b, Vec4::ZERO);
@@ -110,8 +123,8 @@ pub fn pick(
         return;
     }
 
-    let lhs_rhs_pdf = lhs.sample.pdf(lights, rhs_hit);
-    let rhs_lhs_pdf = rhs.sample.pdf(lights, lhs_hit);
+    let lhs_rhs_pdf = lhs.sample.pdf(rhs_hit);
+    let rhs_lhs_pdf = rhs.sample.pdf(lhs_hit);
 
     let ray_a = if lhs_rhs_pdf > 0.0 {
         lhs.sample.ray(rhs_hit.point)
@@ -132,7 +145,7 @@ pub fn pick(
             buf_pos_a,
             Normal::encode(ray_a.dir())
                 .extend(f32::from_bits(rhs_idx as u32 + 1))
-                .extend(Default::default()),
+                .extend(rhs_jacobian),
         );
 
         buf_d0.write(buf_pos_b, ray_b.origin().extend(ray_b.len()));
@@ -220,14 +233,15 @@ pub fn sample(
     #[spirv(descriptor_set = 0, binding = 3)] buf_d2: TexRgba32,
 ) {
     let global_id = global_id.xy();
-    let lhs_pos = resolve_checkerboard_alt(global_id, params.frame.get() / 2);
-    let lhs_idx = camera.screen_to_idx(lhs_pos);
-    let mut wnoise = WhiteNoise::new(params.seed, lhs_pos);
+    let screen_pos =
+        resolve_checkerboard_alt(global_id, params.frame.get() / 2);
+    let screen_idx = camera.screen_to_idx(screen_pos);
+    let mut wnoise = WhiteNoise::new(params.seed, screen_pos);
 
     let buf_pos_a = global_id * uvec2(2, 1);
     let buf_pos_b = buf_pos_a + uvec2(1, 0);
 
-    if !camera.contains(lhs_pos) {
+    if !camera.contains(screen_pos) {
         return;
     }
 
@@ -238,6 +252,7 @@ pub fn sample(
 
     let lhs_rhs_vis = d0.x;
     let rhs_idx = d0.y.to_bits();
+    let rhs_jacobian = d0.z;
 
     let rhs_lhs_vis = d1.x;
     let lhs_rhs_pdf = d1.y;
@@ -245,17 +260,17 @@ pub fn sample(
 
     // ---
 
-    let lhs = DiReservoir::read(in_reservoirs, lhs_idx);
+    let lhs = GiReservoir::read(in_reservoirs, screen_idx);
 
     if rhs_idx > 0 {
-        let rhs = DiReservoir::read(in_reservoirs, rhs_idx as usize - 1);
-        let mut main = DiReservoir::default();
+        let rhs = GiReservoir::read(in_reservoirs, rhs_idx as usize - 1);
+        let mut main = GiReservoir::default();
         let mut main_pdf = 0.0;
 
         let mis = Mis {
             lhs_m: lhs.m,
             rhs_m: rhs.m,
-            rhs_jacobian: 1.0,
+            rhs_jacobian,
             lhs_lhs_pdf: lhs.sample.pdf,
             lhs_rhs_pdf: lhs_rhs_pdf * lhs_rhs_vis,
             rhs_lhs_pdf: rhs_lhs_pdf * rhs_lhs_vis,
@@ -274,18 +289,20 @@ pub fn sample(
         if main.update(
             &mut wnoise,
             rhs.sample,
-            mis.rhs_mis * mis.rhs_pdf * rhs.w,
+            mis.rhs_mis * mis.rhs_pdf * rhs.w * rhs_jacobian,
         ) {
             main_pdf = mis.rhs_pdf;
-            main.sample.is_occluded = lhs_rhs_vis == 0.0;
         }
 
         main.m = lhs.m + mis.m;
+        main.confidence = 1.0;
         main.sample.pdf = main_pdf;
+        main.sample.v1_point = lhs.sample.v1_point;
         main.norm_mis(main_pdf);
-        main.write(out_reservoirs, lhs_idx);
+        main.clamp_w(5.0);
+        main.write(out_reservoirs, screen_idx);
     } else {
-        lhs.write(out_reservoirs, lhs_idx);
+        lhs.write(out_reservoirs, screen_idx);
     }
 
     // ---
@@ -293,5 +310,5 @@ pub fn sample(
     let other_idx = camera
         .screen_to_idx(resolve_checkerboard(global_id, params.frame.get() / 2));
 
-    DiReservoir::copy(in_reservoirs, out_reservoirs, other_idx);
+    GiReservoir::copy(in_reservoirs, out_reservoirs, other_idx);
 }

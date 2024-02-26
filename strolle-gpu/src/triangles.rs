@@ -12,7 +12,7 @@ impl<'a> TrianglesView<'a> {
         Self { buffer }
     }
 
-    pub fn get(&self, id: TriangleId) -> Triangle {
+    pub fn get(self, id: TriangleId) -> Triangle {
         unsafe { *self.buffer.index_unchecked(id.get() as usize) }
     }
 }

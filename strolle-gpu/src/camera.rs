@@ -13,22 +13,21 @@ pub struct Camera {
     pub ndc_to_world: Mat4,
     pub origin: Vec4,
     pub screen: Vec4,
-    pub data: Vec4,
 }
 
 impl Camera {
     /// Given a point in world-coordinates, returns it in clip-coordinates.
-    pub fn world_to_clip(&self, pos: Vec3) -> Vec4 {
+    pub fn world_to_clip(self, pos: Vec3) -> Vec4 {
         self.projection_view * pos.extend(1.0)
     }
 
     /// Given a point in world-coordinates, returns it in screen-coordinates.
-    pub fn world_to_screen(&self, pos: Vec3) -> Vec2 {
+    pub fn world_to_screen(self, pos: Vec3) -> Vec2 {
         self.clip_to_screen(self.world_to_clip(pos))
     }
 
     /// Given a point in clip-coordinates, returns it in screen-coordinates.
-    pub fn clip_to_screen(&self, pos: Vec4) -> Vec2 {
+    pub fn clip_to_screen(self, pos: Vec4) -> Vec2 {
         let ndc = pos.xy() / pos.w;
         let ndc = vec2(ndc.x, -ndc.y);
 
@@ -37,7 +36,7 @@ impl Camera {
 
     /// Given a point in screen-coordinates, returns a unique index for it; used
     /// to index screen-space structures.
-    pub fn screen_to_idx(&self, pos: UVec2) -> usize {
+    pub fn screen_to_idx(self, pos: UVec2) -> usize {
         (pos.y * (self.screen.x as u32) + pos.x) as usize
     }
 
@@ -47,7 +46,7 @@ impl Camera {
     /// window's size (e.g. user is free to create two separate cameras, each
     /// occupying half a screen - in that case this function will return that
     /// half-size).
-    pub fn screen_size(&self) -> UVec2 {
+    pub fn screen_size(self) -> UVec2 {
         self.screen.xy().as_uvec2()
     }
 
@@ -55,7 +54,7 @@ impl Camera {
     /// wraps them.
     ///
     /// See also: [`Self::contains()`].
-    pub fn contain(&self, mut pos: IVec2) -> UVec2 {
+    pub fn contain(self, mut pos: IVec2) -> UVec2 {
         let screen_size = self.screen.xy().as_ivec2();
 
         if pos.x < 0 {
@@ -78,7 +77,7 @@ impl Camera {
     }
 
     /// Casts a ray from camera's center to given screen-coordinates.
-    pub fn ray(&self, screen_pos: UVec2) -> Ray {
+    pub fn ray(self, screen_pos: UVec2) -> Ray {
         let screen_size = self.screen.xy();
         let screen_pos = screen_pos.as_vec2() + vec2(0.5, 0.5);
 
@@ -97,27 +96,13 @@ impl Camera {
     /// near-plane.
     ///
     /// Faster than `self.ray(...).origin()`, but somewhat less accurate.
-    pub fn approx_origin(&self) -> Vec3 {
+    pub fn approx_origin(self) -> Vec3 {
         self.origin.xyz()
     }
 
-    pub fn mode(&self) -> u32 {
-        self.data.x.to_bits() + self.data.y.to_bits()
-    }
-
-    pub fn is_eq(&self, rhs: &Self) -> bool {
-        if !self
-            .projection_view
+    pub fn is_eq(self, rhs: Self) -> bool {
+        self.projection_view
             .abs_diff_eq(rhs.projection_view, 0.0025)
-        {
-            return false;
-        }
-
-        if self.mode() != rhs.mode() {
-            return false;
-        }
-
-        true
     }
 }
 
@@ -125,11 +110,11 @@ pub trait CameraContains<Rhs> {
     /// Returns whether given point lays inside the screen.
     ///
     /// See also: [`Camera::contain()`].
-    fn contains(&self, rhs: Rhs) -> bool;
+    fn contains(self, rhs: Rhs) -> bool;
 }
 
 impl CameraContains<UVec2> for Camera {
-    fn contains(&self, rhs: UVec2) -> bool {
+    fn contains(self, rhs: UVec2) -> bool {
         let screen_size = self.screen.xy().as_uvec2();
 
         rhs.x < screen_size.x && rhs.y < screen_size.y
@@ -137,7 +122,7 @@ impl CameraContains<UVec2> for Camera {
 }
 
 impl CameraContains<IVec2> for Camera {
-    fn contains(&self, rhs: IVec2) -> bool {
+    fn contains(self, rhs: IVec2) -> bool {
         let screen_size = self.screen.xy().as_ivec2();
 
         rhs.x >= 0
@@ -148,7 +133,7 @@ impl CameraContains<IVec2> for Camera {
 }
 
 impl CameraContains<Vec2> for Camera {
-    fn contains(&self, rhs: Vec2) -> bool {
+    fn contains(self, rhs: Vec2) -> bool {
         let screen_size = self.screen.xy();
 
         rhs.x >= 0.0
@@ -171,7 +156,6 @@ mod tests {
             ndc_to_world: Default::default(),
             origin: Default::default(),
             screen: vec4(1024.0, 768.0, 0.0, 0.0),
-            data: Default::default(),
         };
 
         // Case: minimum point inside the screen

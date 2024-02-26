@@ -41,7 +41,6 @@ mod utils;
 use strolle_gpu::prelude::*;
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn generate_scattering_lut(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0)] transmittance_lut_tex: Tex,
@@ -58,7 +57,6 @@ pub fn generate_scattering_lut(
 }
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn generate_sky_lut(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] world: &World,
@@ -81,7 +79,6 @@ pub fn generate_sky_lut(
 }
 
 #[spirv(compute(threads(8, 8)))]
-#[allow(clippy::too_many_arguments)]
 pub fn generate_transmittance_lut(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0)] out: TexRgba16,

@@ -83,7 +83,7 @@ impl<'a> Atmosphere<'a> {
         }
     }
 
-    pub fn sample(&self, sun_dir: Vec3, ray_dir: Vec3, sun_boost: f32) -> Vec3 {
+    pub fn sample(self, sun_dir: Vec3, ray_dir: Vec3) -> Vec3 {
         let mut lum = self.sample_sky_lut(ray_dir, sun_dir);
         let mut sun_lum = self.evaluate_bloom(ray_dir, sun_dir);
 
@@ -95,9 +95,8 @@ impl<'a> Atmosphere<'a> {
             if ray.intersect_sphere(Self::GROUND_RADIUS_MM) >= 0.0 {
                 sun_lum = Vec3::ZERO;
             } else {
-                sun_lum *= self
-                    .sample_transmittance_lut(Self::VIEW_POS, sun_dir)
-                    * sun_boost;
+                sun_lum *=
+                    self.sample_transmittance_lut(Self::VIEW_POS, sun_dir);
             }
         }
 
@@ -106,7 +105,7 @@ impl<'a> Atmosphere<'a> {
         lum
     }
 
-    fn sample_sky_lut(&self, ray_dir: Vec3, sun_dir: Vec3) -> Vec3 {
+    fn sample_sky_lut(self, ray_dir: Vec3, sun_dir: Vec3) -> Vec3 {
         let height = Self::VIEW_POS.length();
         let up = Self::VIEW_POS / height;
 
@@ -146,7 +145,7 @@ impl<'a> Atmosphere<'a> {
             .xyz()
     }
 
-    fn evaluate_bloom(&self, ray_dir: Vec3, sun_dir: Vec3) -> Vec3 {
+    fn evaluate_bloom(self, ray_dir: Vec3, sun_dir: Vec3) -> Vec3 {
         const SUN_SOLID_ANGLE: f32 = 0.53 * PI / 180.0;
 
         let min_sun_cos_theta = SUN_SOLID_ANGLE.cos();
@@ -163,7 +162,7 @@ impl<'a> Atmosphere<'a> {
         Vec3::splat(gaussian_bloom + inv_bloom)
     }
 
-    fn interpolate_bloom(&self, bloom: Vec3) -> Vec3 {
+    fn interpolate_bloom(self, bloom: Vec3) -> Vec3 {
         const MIN: Vec3 = Vec3::splat(0.002);
         const MAX: Vec3 = Vec3::splat(1.0);
 
@@ -172,7 +171,7 @@ impl<'a> Atmosphere<'a> {
         t * t * (3.0 - 2.0 * t)
     }
 
-    fn sample_transmittance_lut(&self, pos: Vec3, sun_dir: Vec3) -> Vec3 {
+    fn sample_transmittance_lut(self, pos: Vec3, sun_dir: Vec3) -> Vec3 {
         Self::sample_lut(
             self.transmittance_lut_tex,
             self.transmittance_lut_sampler,

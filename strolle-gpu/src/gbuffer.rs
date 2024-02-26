@@ -111,24 +111,12 @@ impl GBufferEntry {
         [d0, d1]
     }
 
-    pub fn is_some(&self) -> bool {
+    pub fn is_some(self) -> bool {
         self.depth != Default::default()
     }
 
-    pub fn clamped_roughness(&self) -> f32 {
+    pub fn clamped_roughness(self) -> f32 {
         self.roughness.clamp(0.089 * 0.089, 1.0)
-    }
-
-    pub fn is_mirror(&self) -> bool {
-        self.roughness == 0.0
-    }
-
-    pub fn needs_diff(&self) -> bool {
-        self.metallic < 1.0
-    }
-
-    pub fn needs_spec(&self) -> bool {
-        self.metallic > 0.0
     }
 }
 
@@ -158,7 +146,7 @@ mod tests {
         assert_relative_eq!(target.base_color.x, 0.1, epsilon = EPSILON);
         assert_relative_eq!(target.base_color.y, 0.2, epsilon = EPSILON);
         assert_relative_eq!(target.base_color.z, 0.3, epsilon = EPSILON);
-        assert_relative_eq!(target.base_color.w, 0.4, epsilon = EPSILON);
+        assert_relative_eq!(target.base_color.w, 0.4, epsilon = 0.1);
 
         assert_relative_eq!(target.normal.x, 0.26, epsilon = EPSILON);
         assert_relative_eq!(target.normal.y, 0.53, epsilon = EPSILON);

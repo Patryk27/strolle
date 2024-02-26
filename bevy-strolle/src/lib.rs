@@ -1,12 +1,13 @@
 mod camera;
+mod debug;
 mod event;
 pub mod graph;
-mod gui;
 mod rendering_node;
 mod stages;
 mod state;
 mod sun;
 mod utils;
+
 pub mod prelude {
     pub use crate::*;
 }
@@ -20,8 +21,8 @@ use bevy::render::RenderApp;
 pub use strolle as st;
 
 pub use self::camera::*;
+pub use self::debug::*;
 pub use self::event::*;
-pub use self::gui::*;
 pub(crate) use self::rendering_node::*;
 pub(crate) use self::state::*;
 pub use self::sun::*;

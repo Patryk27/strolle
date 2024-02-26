@@ -27,7 +27,7 @@ impl Material {
     }
 
     pub fn base_color(
-        &self,
+        self,
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
         hit_uv: Vec2,
@@ -40,8 +40,9 @@ impl Material {
             self.base_color_texture,
         )
     }
+
     pub fn metallic_roughness(
-        &self,
+        self,
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
         hit_uv: Vec2,
@@ -55,8 +56,9 @@ impl Material {
         )
         .zy()
     }
+
     pub fn emissive(
-        &self,
+        self,
         atlas_tex: Tex,
         atlas_sampler: &Sampler,
         hit_uv: Vec2,

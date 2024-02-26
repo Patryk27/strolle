@@ -18,6 +18,14 @@ impl WhiteNoise {
         }
     }
 
+    pub fn from_state(state: u32) -> Self {
+        Self { state }
+    }
+
+    pub fn state(self) -> u32 {
+        self.state
+    }
+
     /// Generates a uniform sample in range `<0.0, 1.0>`.
     pub fn sample(&mut self) -> f32 {
         (self.sample_int() as f32) / (u32::MAX as f32)
@@ -68,10 +76,8 @@ impl WhiteNoise {
         let cos_theta = self.sample();
         let sin_theta = (1.0f32 - cos_theta.sqr()).sqrt();
         let phi = 2.0 * PI * self.sample();
-
         let (t, b) = normal.any_orthonormal_pair();
 
-        // TODO uh, is this correct?
         (t * phi.cos() + b * phi.sin()) * sin_theta + normal * cos_theta
     }
 }

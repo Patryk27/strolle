@@ -30,21 +30,21 @@ where
         gpu::Material {
             base_color: self.base_color,
             base_color_texture: images
-                .lookup_opt(self.base_color_texture.as_ref())
+                .lookup_opt(self.base_color_texture)
                 .unwrap_or_default(),
             emissive: self.emissive,
             emissive_texture: images
-                .lookup_opt(self.emissive_texture.as_ref())
+                .lookup_opt(self.emissive_texture)
                 .unwrap_or_default(),
             roughness: self.perceptual_roughness.powf(2.0),
             metallic: self.metallic,
             metallic_roughness_texture: images
-                .lookup_opt(self.metallic_roughness_texture.as_ref())
+                .lookup_opt(self.metallic_roughness_texture)
                 .unwrap_or_default(),
             reflectance: self.reflectance,
             ior: self.ior,
             normal_map_texture: images
-                .lookup_opt(self.normal_map_texture.as_ref())
+                .lookup_opt(self.normal_map_texture)
                 .unwrap_or_default(),
         }
     }
