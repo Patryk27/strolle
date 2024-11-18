@@ -9,3 +9,37 @@ members = [
     "strolle-shaders",
 ]
 
+[patch."crates-io"]
+bevy = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_render = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_ptr = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_utils = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_tasks = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_reflect = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_mikktspace = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_ecs = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_math = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_app = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_color = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_core = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_asset = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_a11y = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_time = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_hierarchy = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_window = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_diagnostic = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_gilrs = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_transform = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_state = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_winit = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_audio = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_core_pipeline = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_animation = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_scene = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_sprite = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_pbr = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_gizmos = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_text = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_gltf = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_ui = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
+bevy_internal = { git = "https://github.com/glasspangolin/bevy", branch = "v0.14.2-strolle" }
