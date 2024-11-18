@@ -4,7 +4,7 @@ mod prepare;
 use bevy::prelude::*;
 use bevy::render::{Render, RenderSet};
 
-pub(crate) fn setup(render_app: &mut App) {
+pub fn setup(render_app: &mut SubApp) {
     render_app.add_systems(
         ExtractSchedule,
         extract::meshes.in_set(RenderSet::ExtractCommands),
@@ -58,6 +58,5 @@ pub(crate) fn setup(render_app: &mut App) {
     render_app.add_systems(Render, prepare::sun.in_set(RenderSet::Prepare));
     render_app.add_systems(Render, prepare::cameras.in_set(RenderSet::Prepare));
 
-    render_app
-        .add_systems(Render, prepare::flush.in_set(RenderSet::PrepareFlush));
+    render_app.add_systems(Render, prepare::flush.in_set(RenderSet::PrepareResourcesFlush));
 }

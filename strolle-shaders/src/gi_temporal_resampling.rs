@@ -7,9 +7,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 0, uniform)] curr_camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] prev_camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 2)] curr_prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 3)] curr_prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 3)] curr_prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 0, binding = 4)] prev_prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 5)] prev_prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 5)] prev_prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 0, binding = 6)] reprojection_map: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 7, storage_buffer)]
     prev_reservoirs: &[Vec4],

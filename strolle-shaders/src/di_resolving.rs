@@ -24,11 +24,11 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 4)]
     atmosphere_sky_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 5)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 6)] prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 6)] prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
-    next_reservoirs: &[Vec4],
+    next_reservoirs: &[DiReservoirData],
     #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
-    prev_reservoirs: &mut [Vec4],
+    prev_reservoirs: &mut [DiReservoirData],
     #[spirv(descriptor_set = 1, binding = 9)] diff_output: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 10)] spec_output: TexRgba32,
 ) {
@@ -62,8 +62,9 @@ pub fn main(
     let mut res =
         DiReservoir::read(next_reservoirs, camera.screen_to_idx(screen_pos));
 
-    let confidence;
+    let confidence: f32;
     let radiance;
+    let metallic;
 
     if hit.is_some() {
         let is_occluded = res.sample.ray(hit.point).intersect(
@@ -79,7 +80,7 @@ pub fn main(
         confidence = if res.sample.is_occluded == is_occluded {
             res.sample.confidence
         } else {
-            0.0
+            0.01
         };
 
         res.sample.confidence = 1.0;
@@ -90,18 +91,24 @@ pub fn main(
         } else {
             lights.get(res.sample.light_id).radiance(hit) * res.w
         };
+
+        metallic = hit.gbuffer.metallic;
     } else {
         confidence = 1.0;
 
+        let dir = camera.ray(screen_pos).dir();
+
         radiance = LightRadiance {
-            radiance: atmosphere.sample(world.sun_dir(), hit.dir),
+            radiance: atmosphere.sample(world.sun_dir(), dir),
             diff_brdf: Vec3::ONE,
             spec_brdf: Vec3::ZERO,
         };
+
+        metallic = 0.0;
     };
 
     unsafe {
-        let diff_brdf = (1.0 - hit.gbuffer.metallic) / PI;
+        let diff_brdf = (1.0 - metallic) * (1.0 / PI);
         let spec_brdf = radiance.spec_brdf;
 
         diff_output.write(

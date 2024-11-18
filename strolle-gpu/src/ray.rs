@@ -21,12 +21,22 @@ pub struct Ray {
 
 impl Ray {
     pub fn new(origin: Vec3, dir: Vec3) -> Self {
-        Self {
-            origin,
-            dir,
-            inv_dir: 1.0 / dir,
-            len: f32::MAX,
+        if dir.length() > 0.01 {
+            Self {
+                origin,
+                dir,
+                inv_dir: 1.0 / dir,
+                len: 1000_000f32,
+            }
+        } else {
+            Self {
+                origin,
+                dir,
+                inv_dir: Vec3::ZERO,
+                len: 1000_000f32,
+            }
         }
+
     }
 
     pub fn with_len(mut self, len: f32) -> Self {
@@ -280,7 +290,7 @@ impl Ray {
         }
 
         let mut tmin = 0.0;
-        let mut tmax = f32::MAX;
+        let mut tmax = 1000_000f32;
 
         let t1 = (aabb_min - self.origin) * self.inv_dir;
         let t2 = (aabb_max - self.origin) * self.inv_dir;
@@ -297,7 +307,7 @@ impl Ray {
         if tmin <= tmax {
             tmin
         } else {
-            f32::MAX
+            1000_000f32
         }
     }
 

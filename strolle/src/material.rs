@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use spirv_std::glam::{vec4, Vec4};
 
 use crate::{gpu, Images, Params};
+use crate::utils::ToGpu;
 
 #[derive(Clone, Debug)]
 pub struct Material<P>
@@ -31,21 +32,21 @@ where
             base_color: self.base_color,
             base_color_texture: images
                 .lookup_opt(self.base_color_texture)
-                .unwrap_or_default(),
+                .unwrap_or_default().to_gpu(),
             emissive: self.emissive,
             emissive_texture: images
                 .lookup_opt(self.emissive_texture)
-                .unwrap_or_default(),
+                .unwrap_or_default().to_gpu(),
             roughness: self.perceptual_roughness.powf(2.0),
             metallic: self.metallic,
             metallic_roughness_texture: images
                 .lookup_opt(self.metallic_roughness_texture)
-                .unwrap_or_default(),
+                .unwrap_or_default().to_gpu(),
             reflectance: self.reflectance,
             ior: self.ior,
             normal_map_texture: images
                 .lookup_opt(self.normal_map_texture)
-                .unwrap_or_default(),
+                .unwrap_or_default().to_gpu(),
         }
     }
 }

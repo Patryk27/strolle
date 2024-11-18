@@ -1,4 +1,4 @@
-use glam::{UVec2, Vec3, Vec4Swizzles};
+use glam::{UVec2, Vec2, Vec3, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
@@ -60,10 +60,19 @@ impl<'a> SurfaceMap<'a> {
     pub fn get(self, screen_pos: UVec2) -> Surface {
         let d0 = self.tex.read(screen_pos);
 
+        let depth = d0.x;
+        let normal = Normal::decode(Vec2::new(d0.y, d0.z));
+
+        let packed = d0.w.to_bits();
+        let roughness_u = (packed >> 16) & 0xFF;
+        let roughness = roughness_u as f32 / 255.0;
+
         Surface {
-            normal: Normal::decode(d0.xy()),
-            depth: d0.z,
-            roughness: d0.w,
+            normal: normal,
+            depth: depth,
+            roughness: roughness,
         }
     }
 }
+
+

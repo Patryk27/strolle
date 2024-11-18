@@ -2,6 +2,7 @@ use crate::{
     gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
     Params,
 };
+use crate::utils::ToGpu;
 
 #[derive(Debug)]
 pub struct GiResolvingPass {
@@ -46,7 +47,7 @@ impl GiResolvingPass {
         self.pass.run(
             camera,
             encoder,
-            size,
+            size.to_gpu(),
             gpu::GiResolvingPassParams {
                 frame: camera.frame,
                 source,

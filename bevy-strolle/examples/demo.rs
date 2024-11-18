@@ -2,12 +2,14 @@
 mod common;
 
 use std::f32::consts::PI;
-
-use bevy::core_pipeline::clear_color::ClearColorConfig;
+use bevy::asset::AssetContainer;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::math::{uvec2, vec3};
 use bevy::prelude::*;
 use bevy::render::camera::{CameraRenderGraph, RenderTarget};
+use bevy::render::renderer::RenderDevice;
+use bevy::render::RenderPlugin;
+use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::render::texture::ImageSampler;
 use bevy::window::{CursorGrabMode, PrimaryWindow, WindowResolution};
 use bevy_strolle::prelude::*;
@@ -15,10 +17,8 @@ use smooth_bevy_cameras::controllers::fps::{
     FpsCameraBundle, FpsCameraController, FpsCameraPlugin,
 };
 use smooth_bevy_cameras::LookTransformPlugin;
-use wgpu::{
-    Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-};
-
+use wgpu::{Extent3d, Limits, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+use bevy_strolle::graph::StrolleGraph;
 use self::common::Sun;
 
 const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
@@ -48,6 +48,7 @@ fn main() {
         .add_systems(Startup, setup_window)
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup_scene)
+        .add_systems(Startup, check_gpu_limits)
         .add_systems(Update, adjust_materials)
         .add_systems(Update, handle_materials)
         .add_systems(Update, common::handle_camera)
@@ -58,6 +59,21 @@ fn main() {
         .add_systems(Update, animate_toruses)
         .insert_resource(Sun::default())
         .run();
+}
+
+fn check_gpu_limits(render_device: Res<RenderDevice>) {
+    let limits = render_device.limits();
+    info!("GPU Limits:");
+    info!("  max_color_attachment_bytes_per_sample: {}",
+          limits.max_color_attachment_bytes_per_sample);
+    info!("  max_texture_dimension_2d: {}",
+          limits.max_texture_dimension_2d);
+    info!("  max_storage_buffer_binding_size: {}",
+          limits.max_storage_buffer_binding_size);
+    info!("  max_bind_groups: {}",
+          limits.max_bind_groups);
+    info!("  max_bindings_per_bind_group: {}",
+          limits.max_bindings_per_bind_group);
 }
 
 fn setup_window(mut window: Query<&mut Window, With<PrimaryWindow>>) {
@@ -118,16 +134,13 @@ fn setup_camera(
             order: 1,
             ..default()
         },
-        camera_2d: Camera2d {
-            clear_color: ClearColorConfig::None,
-        },
+        camera_2d: Camera2d {},
         ..default()
     });
 
-    commands
-        .spawn(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
             camera_render_graph: CameraRenderGraph::new(
-                bevy_strolle::graph::NAME,
+                StrolleGraph,
             ),
             camera: Camera {
                 order: 0,
@@ -136,8 +149,7 @@ fn setup_camera(
                 ..default()
             },
             ..default()
-        })
-        .insert(StrolleCamera::default())
+        }).insert(StrolleCamera::default())
         .insert(FpsCameraBundle::new(
             {
                 FpsCameraController {
@@ -181,7 +193,7 @@ fn setup_scene(
                 color: Color::WHITE,
                 range: 35.0,
                 radius: 0.15,
-                intensity: 5000.0,
+                intensity: 1000.0,
                 shadows_enabled: true,
                 ..default()
             },
@@ -203,10 +215,10 @@ fn setup_scene(
 
         commands
             .spawn(MaterialMeshBundle {
-                mesh: meshes.add(Mesh::from(shape::Torus::default())),
+                mesh: meshes.add(Mesh::from(Torus::default())),
                 material: materials.add(StandardMaterial {
                     base_color: color,
-                    emissive: color * 10.0,
+                    emissive: color.to_linear(),
                     ..default()
                 }),
                 transform: Transform::from_translation(torus)
@@ -214,7 +226,7 @@ fn setup_scene(
                     .with_scale(Vec3::splat(0.5)),
                 ..default()
             })
-            .insert(Torus);
+            .insert(StrTorus);
     }
 
     // ---
@@ -261,16 +273,16 @@ fn adjust_materials(
 }
 
 fn handle_materials(
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if keys.just_pressed(KeyCode::T) {
+    if keys.just_pressed(KeyCode::KeyT) {
         for (_, material) in materials.iter_mut() {
             material.base_color_texture = None;
         }
     }
 
-    if keys.just_pressed(KeyCode::M) {
+    if keys.just_pressed(KeyCode::KeyM) {
         for (_, material) in materials.iter_mut() {
             if material.metallic == 0.0 {
                 material.metallic = 1.0;
@@ -291,13 +303,13 @@ struct Flashlight {
 }
 
 fn handle_flashlight(
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     mut flashlight: Query<(&mut Flashlight, &mut SpotLight)>,
     mut lights: Query<&mut PointLight>,
 ) {
     let (mut flashlight, mut flashlight_spot) = flashlight.single_mut();
 
-    if keys.just_pressed(KeyCode::F) {
+    if keys.just_pressed(KeyCode::KeyF) {
         flashlight.enabled = !flashlight.enabled;
 
         if flashlight.enabled {
@@ -330,11 +342,11 @@ fn animate_flashlight(
 // -----------------------------------------------------------------------------
 
 #[derive(Component)]
-struct Torus;
+struct StrTorus;
 
 fn animate_toruses(
     time: Res<Time>,
-    mut toruses: Query<&mut Transform, (With<Torus>, Without<Flashlight>)>,
+    mut toruses: Query<&mut Transform, (With<StrTorus>, Without<Flashlight>)>,
 ) {
     for mut xform in toruses.iter_mut() {
         xform.rotation = Quat::from_rotation_z(time.elapsed_seconds())

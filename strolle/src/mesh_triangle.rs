@@ -1,6 +1,5 @@
-use glam::Affine3A;
-use spirv_std::glam::{Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
 
+use glam::{Vec2, Vec3, Vec4, Mat4, Affine3A, Vec4Swizzles};
 use crate::Triangle;
 
 #[derive(Clone, Debug, Default)]
@@ -17,17 +16,17 @@ impl MeshTriangle {
         self
     }
 
-    pub fn with_normals(mut self, normals: [impl Into<Vec3>; 3]) -> Self {
-        self.normals = normals.map(Into::into);
+    pub fn with_normals(mut self, normals: [Vec3; 3]) -> Self {
+        self.normals = normals;
         self
     }
 
-    pub fn with_uvs(mut self, uvs: [impl Into<Vec2>; 3]) -> Self {
-        self.uvs = uvs.map(Into::into);
+    pub fn with_uvs(mut self, uvs: [Vec2; 3]) -> Self {
+        self.uvs = uvs;
         self
     }
 
-    pub fn with_tangents(mut self, tangents: [impl Into<Vec4>; 3]) -> Self {
+    pub fn with_tangents(mut self, tangents: [Vec4; 3]) -> Self {
         self.tangents = tangents.map(Into::into);
         self
     }
@@ -49,8 +48,8 @@ impl MeshTriangle {
         xform: Affine3A,
         xform_inv: Affine3A,
     ) -> Triangle {
-        let positions =
-            self.positions.map(|vertex| xform.transform_point3(vertex));
+        let positions: [Vec3; 3] =
+            self.positions.map(|vertex: Vec3| -> Vec3 {xform.transform_point3(vertex)});
 
         let normals = {
             // Transforming normals requires inversing and transposing the
@@ -77,10 +76,12 @@ impl MeshTriangle {
             })
         };
 
+        let uvs = self.uvs.map(|uv| {uv});
+
         Triangle {
             positions,
             normals,
-            uvs: self.uvs,
+            uvs,
             tangents,
         }
     }

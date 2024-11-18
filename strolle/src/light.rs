@@ -1,6 +1,7 @@
 use glam::{vec4, Vec3};
 
 use crate::gpu;
+use crate::utils::ToGpu;
 
 #[derive(Clone, Debug)]
 pub enum Light {
@@ -53,7 +54,7 @@ impl Light {
                 direction,
                 angle,
             } => {
-                let direction = gpu::Normal::encode(*direction);
+                let direction = gpu::Normal::encode((*direction).to_gpu());
 
                 d0 = position.extend(*radius);
                 d1 = color.extend(*range);
@@ -68,9 +69,9 @@ impl Light {
         }
 
         gpu::Light {
-            d0,
-            d1,
-            d2,
+            d0: d0.to_gpu(),
+            d1: d1.to_gpu(),
+            d2: d2.to_gpu(),
             d3: Default::default(),
             prev_d0: Default::default(),
             prev_d1: Default::default(),

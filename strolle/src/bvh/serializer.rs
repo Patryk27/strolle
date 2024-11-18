@@ -8,7 +8,7 @@ pub fn run<P>(
     materials: &Materials<P>,
     nodes: &BvhNodes,
     primitives: &BvhPrimitives,
-    buffer: &mut Vec<Vec4>,
+    buffer: &mut Vec<spirv_std::glam::Vec4>,
 ) where
     P: Params,
 {
@@ -21,7 +21,7 @@ fn serialize<P>(
     materials: &Materials<P>,
     nodes: &BvhNodes,
     primitives: &BvhPrimitives,
-    buffer: &mut Vec<Vec4>,
+    buffer: &mut Vec<spirv_std::glam::Vec4>,
     id: BvhNodeId,
 ) -> u32
 where

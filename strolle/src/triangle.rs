@@ -1,8 +1,8 @@
 use glam::Vec3Swizzles;
-use spirv_std::glam::{Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3, Vec4};
 
 use crate::gpu;
-use crate::utils::BoundingBox;
+use crate::utils::{BoundingBox, ToGpu};
 
 #[derive(Clone, Debug)]
 pub struct Triangle {
@@ -23,17 +23,17 @@ impl Triangle {
 
     pub fn serialize(&self) -> gpu::Triangle {
         gpu::Triangle {
-            d0: self.positions[0].xyz().extend(self.uvs[0].x),
-            d1: self.normals[0].xyz().extend(self.uvs[0].y),
-            d2: self.tangents[0],
+            d0: self.positions[0].xyz().extend(self.uvs[0].x).to_gpu(),
+            d1: self.normals[0].xyz().extend(self.uvs[0].y).to_gpu(),
+            d2: self.tangents[0].to_gpu(),
 
-            d3: self.positions[1].xyz().extend(self.uvs[1].x),
-            d4: self.normals[1].xyz().extend(self.uvs[1].y),
-            d5: self.tangents[1],
+            d3: self.positions[1].xyz().extend(self.uvs[1].x).to_gpu(),
+            d4: self.normals[1].xyz().extend(self.uvs[1].y).to_gpu(),
+            d5: self.tangents[1].to_gpu(),
 
-            d6: self.positions[2].xyz().extend(self.uvs[2].x),
-            d7: self.normals[2].xyz().extend(self.uvs[2].y),
-            d8: self.tangents[2],
+            d6: self.positions[2].xyz().extend(self.uvs[2].x).to_gpu(),
+            d7: self.normals[2].xyz().extend(self.uvs[2].y).to_gpu(),
+            d8: self.tangents[2].to_gpu(),
         }
     }
 }

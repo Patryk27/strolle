@@ -77,6 +77,7 @@ impl FrameCompositionPass {
                 vertex: wgpu::VertexState {
                     module: &engine.shaders.frame_composition_vs.0,
                     entry_point: engine.shaders.frame_composition_vs.1,
+                    compilation_options: Default::default(),
                     buffers: &[],
                 },
                 primitive: wgpu::PrimitiveState::default(),
@@ -85,6 +86,7 @@ impl FrameCompositionPass {
                 fragment: Some(wgpu::FragmentState {
                     module: &engine.shaders.frame_composition_fs.0,
                     entry_point: engine.shaders.frame_composition_fs.1,
+                    compilation_options: Default::default(),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: camera.viewport.format,
                         blend: Some(wgpu::BlendState::REPLACE),
@@ -112,10 +114,12 @@ impl FrameCompositionPass {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Load,
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
 
         let params = gpu::FrameCompositionPassParams {

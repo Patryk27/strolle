@@ -4,6 +4,7 @@ use crate::{
     gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
     Params,
 };
+use crate::utils::ToGpu;
 
 #[derive(Debug)]
 pub struct RefShadingPass {
@@ -58,6 +59,6 @@ impl RefShadingPass {
             depth: depth as u32,
         };
 
-        self.pass.run(camera, encoder, size, params);
+        self.pass.run(camera, encoder, size.to_gpu(), params);
     }
 }

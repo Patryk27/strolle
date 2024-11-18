@@ -42,6 +42,7 @@ where
         let mut pass =
             encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some(&label),
+                timestamp_writes: None,
             });
 
         pass.set_pipeline(&self.pipeline);
@@ -136,7 +137,8 @@ where
                 label: Some(&pipeline_label),
                 layout: Some(&pipeline_layout),
                 module,
-                entry_point,
+                entry_point: entry_point,
+                compilation_options: Default::default(),
             });
 
         CameraComputePass {

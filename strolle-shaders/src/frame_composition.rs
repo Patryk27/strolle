@@ -20,7 +20,7 @@ pub fn fs(
     #[spirv(frag_coord)] pos: Vec4,
     #[spirv(push_constant)] params: &FrameCompositionPassParams,
     #[spirv(descriptor_set = 0, binding = 0)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 0, binding = 2)] di_diff_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 3)] di_spec_colors: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 4)] gi_diff_colors: TexRgba32,

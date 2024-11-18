@@ -10,13 +10,13 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 1, uniform)] prev_camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 2)] reprojection_map: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 3)] curr_prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 4)] curr_prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 4)] curr_prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 1, binding = 5)] prev_prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 6)] prev_prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 6)] prev_prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 1, binding = 7, storage_buffer)]
-    prev_reservoirs: &[Vec4],
+    prev_reservoirs: &[DiReservoirData],
     #[spirv(descriptor_set = 1, binding = 8, storage_buffer)]
-    curr_reservoirs: &mut [Vec4],
+    curr_reservoirs: &mut [DiReservoirData],
 ) {
     let lhs_pos = global_id.xy();
     let lhs_idx = curr_camera.screen_to_idx(lhs_pos);

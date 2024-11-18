@@ -6,19 +6,18 @@ pub fn main(
     #[spirv(push_constant)] params: &GiPreviewResamplingPass,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d1: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 3)] prim_surface_map: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d1: TexRgba16,
+    #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     in_reservoirs_a: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]
     in_reservoirs_b: &[Vec4],
-    #[spirv(descriptor_set = 0, binding = 6, storage_buffer)]
+    #[spirv(descriptor_set = 0, binding = 5, storage_buffer)]
     out_reservoirs: &mut [Vec4],
 ) {
     let center_pos = global_id.xy();
     let center_idx = camera.screen_to_idx(center_pos);
     let mut wnoise = WhiteNoise::new(params.seed, center_pos);
-    let prim_surface_map = SurfaceMap::new(prim_surface_map);
+    let prim_surface_map = SurfaceMap::new(prim_gbuffer_d0);
 
     if !camera.contains(center_pos) {
         return;

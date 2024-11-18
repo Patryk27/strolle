@@ -75,9 +75,11 @@ use std::ops::Deref;
 use std::time::Instant;
 use std::{env, mem};
 
-pub use glam;
+use glam;
 use log::{info, trace};
 use strolle_gpu as gpu;
+
+pub use crate::utils::interface::ToGpu;
 
 pub(crate) use self::buffers::*;
 pub(crate) use self::bvh::*;

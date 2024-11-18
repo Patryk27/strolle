@@ -9,6 +9,3 @@ members = [
     "strolle-shaders",
 ]
 
-[patch."crates-io"]
-# TODO https://github.com/gfx-rs/naga/issues/2373
-naga = { git = "https://github.com/Patryk27/naga", branch = "v0.13.0-strolle" }

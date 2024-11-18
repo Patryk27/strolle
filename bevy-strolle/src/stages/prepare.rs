@@ -3,13 +3,16 @@ use std::mem;
 use bevy::prelude::*;
 use bevy::render::camera::ExtractedCamera as BevyExtractedCamera;
 use bevy::render::mesh::VertexAttributeValues;
-use bevy::render::render_asset::RenderAssets;
+use bevy::render::render_asset::{RenderAssetUsages, RenderAssets};
 use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::texture::GpuImage;
 use bevy::render::view::ViewTarget;
 use bevy::utils::hashbrown::hash_map::Entry;
 use bevy::utils::HashSet;
 use strolle as st;
+
+use strolle::{ImageData, ToGpu};
 
 use crate::state::{
     ExtractedCamera, ExtractedImageData, ExtractedImages, ExtractedInstances,
@@ -17,9 +20,9 @@ use crate::state::{
     SyncedCamera, SyncedState,
 };
 use crate::utils::color_to_vec4;
-use crate::EngineResource;
+use crate::{EngineParams, EngineResource};
 
-pub(crate) fn meshes(
+pub fn meshes(
     mut engine: ResMut<EngineResource>,
     mut meshes: ResMut<ExtractedMeshes>,
 ) {
@@ -110,10 +113,10 @@ pub(crate) fn meshes(
                 let tan2 = mesh_tans.get(vs[2]).copied().unwrap_or_default();
 
                 st::MeshTriangle::default()
-                    .with_positions([position0, position1, position2])
-                    .with_normals([normal0, normal1, normal2])
-                    .with_uvs([uv0, uv1, uv2])
-                    .with_tangents([tan0, tan1, tan2])
+                    .with_positions([Vec3::from(position0), Vec3::from(position1), Vec3::from(position2)])
+                    .with_normals([Vec3::from(normal0), Vec3::from(normal1), Vec3::from(normal2)])
+                    .with_uvs([Vec2::from(uv0), Vec2::from(uv1), Vec2::from(uv2)])
+                    .with_tangents([Vec4::from(tan0), Vec4::from(tan1), Vec4::from(tan2)])
             })
             .collect();
 
@@ -121,7 +124,7 @@ pub(crate) fn meshes(
     }
 }
 
-pub(crate) fn materials(
+pub fn materials(
     mut engine: ResMut<EngineResource>,
     mut materials: ResMut<ExtractedMaterials>,
 ) {
@@ -154,11 +157,11 @@ pub(crate) fn materials(
         };
 
         st::Material {
-            base_color,
+            base_color: base_color.to_gpu(),
             base_color_texture: mat
                 .base_color_texture
                 .map(|handle| handle.id()),
-            emissive: color_to_vec4(mat.emissive),
+            emissive: color_to_vec4(Color::LinearRgba(mat.emissive)).to_gpu(),
             emissive_texture: mat.emissive_texture.map(|handle| handle.id()),
             perceptual_roughness: mat.perceptual_roughness,
             metallic: mat.metallic,
@@ -179,9 +182,9 @@ pub(crate) fn materials(
     }
 }
 
-pub(crate) fn images(
+pub fn images(
     mut engine: ResMut<EngineResource>,
-    textures: Res<RenderAssets<Image>>,
+    textures: Res<RenderAssets<GpuImage>>,
     mut images: ResMut<ExtractedImages>,
 ) {
     for handle in &images.removed {
@@ -197,12 +200,13 @@ pub(crate) fn images(
             ExtractedImageData::Raw { data } => st::ImageData::Raw { data },
 
             ExtractedImageData::Texture { is_dynamic } => {
+                let Some(gpu_image) = textures.get(entry.handle) else {
+                    warn!("Missing GPU image for handle {:?}", entry.handle);
+                    continue;
+                };
+
                 st::ImageData::Texture {
-                    texture: textures
-                        .get(entry.handle)
-                        .unwrap()
-                        .texture
-                        .clone(),
+                    texture: gpu_image.texture.clone(),
                     is_dynamic,
                 }
             }
@@ -230,7 +234,7 @@ pub(crate) fn images(
     }
 }
 
-pub(crate) fn instances(
+pub fn instances(
     mut engine: ResMut<EngineResource>,
     mut instances: ResMut<ExtractedInstances>,
 ) {
@@ -250,7 +254,7 @@ pub(crate) fn instances(
     }
 }
 
-pub(crate) fn lights(
+pub fn lights(
     mut engine: ResMut<EngineResource>,
     mut lights: ResMut<ExtractedLights>,
 ) {
@@ -263,7 +267,7 @@ pub(crate) fn lights(
     }
 }
 
-pub(crate) fn sun(
+pub fn sun(
     mut engine: ResMut<EngineResource>,
     mut sun: ResMut<ExtractedSun>,
 ) {
@@ -272,7 +276,7 @@ pub(crate) fn sun(
     }
 }
 
-pub(crate) fn cameras(
+pub fn cameras(
     device: Res<RenderDevice>,
     mut state: ResMut<SyncedState>,
     mut engine: ResMut<EngineResource>,
@@ -290,31 +294,36 @@ pub(crate) fn cameras(
 
     for (entity, view_target, bevy_ext_camera, ext_camera) in cameras.iter_mut()
     {
+        let format = view_target.main_texture_format();
+
+        let Some(size) = bevy_ext_camera.physical_viewport_size else {
+            continue;
+        };
+
+        let position = bevy_ext_camera
+            .viewport
+            .as_ref()
+            .map(|v| v.physical_position)
+            .unwrap_or_default();
+
+        let fov_y = std::f32::consts::FRAC_PI_4;
+        let aspect_ratio = size.x as f32 / size.y as f32;
+        let near_plane = 0.3;
+        let far_plane = 100.0;
+
+        let projection = Mat4::perspective_rh(fov_y, aspect_ratio, far_plane, near_plane);
+
         let camera = st::Camera {
             mode: ext_camera.mode.unwrap_or_default(),
-
             viewport: {
-                let format = view_target.main_texture_format();
-
-                let Some(size) = bevy_ext_camera.physical_viewport_size else {
-                    continue;
-                };
-
-                let position = bevy_ext_camera
-                    .viewport
-                    .as_ref()
-                    .map(|v| v.physical_position)
-                    .unwrap_or_default();
-
                 st::CameraViewport {
                     format,
                     size,
                     position,
                 }
             },
-
             transform: ext_camera.transform,
-            projection: ext_camera.projection,
+            projection: projection,
         };
 
         match state.cameras.entry(entity) {

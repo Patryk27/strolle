@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign};
 
-use spirv_std::glam::Vec3;
+use glam::Vec3;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BoundingBox {

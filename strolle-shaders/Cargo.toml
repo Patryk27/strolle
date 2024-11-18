@@ -11,4 +11,4 @@ crate-type = ["dylib"]
 strolle-gpu = { path = "../strolle-gpu" }
 
 # Crates.io
-spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu" }
+spirv-std = { git = "https://github.com/glasspangolin/rust-gpu.git" }

@@ -6,7 +6,7 @@ mod vec3_ext;
 
 use core::ops;
 
-use glam::{uvec2, UVec2};
+use glam::{uvec2, UVec2, Vec3};
 use spirv_std::Image;
 
 pub use self::bilinear_filter::*;
@@ -41,3 +41,26 @@ pub fn resolve_checkerboard_alt(global_id: UVec2, frame: u32) -> UVec2 {
 pub fn got_checkerboard_at(screen_pos: UVec2, frame: u32) -> bool {
     screen_pos == resolve_checkerboard(screen_pos / uvec2(2, 1), frame)
 }
+
+pub fn safe_normalize(v: Vec3) -> Vec3 {
+    let len = v.length();
+    if len > 0.0 && len < 1_000_000.0 {
+        v / len
+    } else {
+        Vec3::ZERO
+    }
+}
+
+pub fn safe_any_orthonormal_pair(normal: Vec3) -> (Vec3, Vec3) {
+    // Choose a helper vector that is not parallel to the normal
+    let helper = if normal.x * normal.x > normal.z * normal.z {
+        Vec3::new(normal.y, -normal.x, 0.0)
+    } else {
+        Vec3::new(0.0, -normal.z, normal.y)
+    };
+    let tangent = safe_normalize(normal.cross(helper));
+    let bitangent = normal.cross(tangent);
+    (tangent, bitangent)
+}
+
+pub const STROLLE_EPSILON: f32 = 0.000_0001;

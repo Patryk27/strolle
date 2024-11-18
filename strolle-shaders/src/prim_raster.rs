@@ -59,7 +59,6 @@ pub fn fs(
     // Outputs
     out_prim_gbuffer_d0: &mut Vec4,
     out_prim_gbuffer_d1: &mut Vec4,
-    out_surface: &mut Vec4,
     out_velocity: &mut Vec4,
 ) {
     let material = MaterialsView::new(materials)
@@ -102,12 +101,6 @@ pub fn fs(
 
     *out_prim_gbuffer_d0 = gbuffer_d0;
     *out_prim_gbuffer_d1 = gbuffer_d1;
-
-    // -------------------------------------------------------------------------
-
-    *out_surface = Normal::encode(normal)
-        .extend(depth)
-        .extend(material.roughness);
 
     // -------------------------------------------------------------------------
 
