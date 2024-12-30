@@ -2,6 +2,7 @@ use crate::{
     gpu, Camera, CameraBuffers, CameraComputePass, CameraController, Engine,
     Params,
 };
+use crate::utils::ToGpu;
 
 #[derive(Debug)]
 pub struct GiPreviewResamplingPass {
@@ -23,7 +24,6 @@ impl GiPreviewResamplingPass {
                 &buffers.curr_camera.bind_readable(),
                 &buffers.prim_gbuffer_d0.curr().bind_readable(),
                 &buffers.prim_gbuffer_d1.curr().bind_readable(),
-                &buffers.prim_surface_map.curr().bind_readable(),
                 &buffers.gi_reservoirs[1].bind_readable(),
                 &buffers.gi_reservoirs[2].bind_readable(),
                 &buffers.gi_reservoirs[3].bind_writable(),
@@ -35,7 +35,6 @@ impl GiPreviewResamplingPass {
                 &buffers.curr_camera.bind_readable(),
                 &buffers.prim_gbuffer_d0.curr().bind_readable(),
                 &buffers.prim_gbuffer_d1.curr().bind_readable(),
-                &buffers.prim_surface_map.curr().bind_readable(),
                 &buffers.gi_reservoirs[1].bind_readable(),
                 &buffers.gi_reservoirs[3].bind_readable(),
                 &buffers.gi_reservoirs[0].bind_writable(),
@@ -63,7 +62,7 @@ impl GiPreviewResamplingPass {
             pass.run(
                 camera,
                 encoder,
-                size,
+                size.to_gpu(),
                 gpu::GiPreviewResamplingPass {
                     seed: params.seed,
                     frame: params.frame,

@@ -19,9 +19,9 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 7, uniform)] world: &World,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 2)] prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 2)] prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 1, binding = 3, storage_buffer)]
-    out_reservoirs: &mut [Vec4],
+    out_reservoirs: &mut [DiReservoirData],
 ) {
     let screen_pos = global_id.xy();
     let screen_idx = camera.screen_to_idx(screen_pos);

@@ -20,30 +20,27 @@ impl GBufferEntry {
         let depth = d0.x;
         let normal = Normal::decode(d0.yz());
 
-        let (metallic, roughness, reflectance) = {
-            let [metallic, roughness, reflectance, ..] =
-                d0.w.to_bits().to_bytes();
+        let packed = d0.w.to_bits();
+        let metallic_u = (packed >> 24) & 0xFF;
+        let roughness_u = (packed >> 16) & 0xFF;
+        let reflectance_u = (packed >> 8) & 0xFF;
+        let emissive_r_u = packed & 0xFF;
 
-            let metallic = metallic as f32 / 255.0;
-            let roughness = (roughness as f32 / 255.0).sqr();
-            let reflectance = reflectance as f32 / 255.0;
+        let metallic = metallic_u as f32 / 255.0;
+        let roughness = roughness_u as f32 / 255.0;
+        let reflectance = reflectance_u as f32 / 255.0;
+        let emissive_r = emissive_r_u as f32 / 255.0;
 
-            (metallic, roughness, reflectance)
-        };
+        let w_scaled = d1.w as u32;
+        let emissive_g_u = (w_scaled >> 8) & 0xFF;
+        let emissive_b_u = w_scaled & 0xFF;
 
-        let emissive = d1.xyz();
+        let emissive_g = emissive_g_u as f32 / 255.0;
+        let emissive_b = emissive_b_u as f32 / 255.0;
 
-        let base_color = {
-            let [x, y, z, w] = d1.w.to_bits().to_bytes();
+        let emissive = Vec3::new(emissive_r, emissive_g, emissive_b);
 
-            vec4(
-                x as f32 / 255.0,
-                y as f32 / 255.0,
-                z as f32 / 255.0,
-                w as f32 / 63.0,
-            )
-            .powf(2.2)
-        };
+        let base_color = vec4(d1.x, d1.y, d1.z, 1.0); // Assuming alpha is 1.0
 
         Self {
             base_color,
@@ -57,55 +54,49 @@ impl GBufferEntry {
     }
 
     pub fn pack(self) -> [Vec4; 2] {
+        // d0: Rgba32Float
         let d0 = {
-            let x = self.depth;
-            let Vec2 { x: y, y: z } = Normal::encode(self.normal);
+            let x = self.depth; // f32
+            let Vec2 { x: y, y: z } = Normal::encode(self.normal); // Encoded normal components
 
-            let w = {
-                let metallic = self.metallic.clamp(0.0, 1.0) * 255.0;
-                let roughness = self.roughness.sqrt().clamp(0.0, 1.0) * 255.0;
-                let reflectance = self.reflectance.clamp(0.0, 1.0) * 255.0;
+            // Pack metallic, roughness, reflectance, and emissive_r into a u32
+            let metallic_u =
+                (self.metallic.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let roughness_u =
+                (self.roughness.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let reflectance_u =
+                (self.reflectance.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let emissive_r_u =
+                (self.emissive.x.clamp(0.0, 1.0) * 255.0).round() as u32;
 
-                f32::from_bits(u32::from_bytes([
-                    metallic as u32,
-                    roughness as u32,
-                    reflectance as u32,
-                    1,
-                ]))
-            };
+            let packed = (metallic_u << 24)
+                | (roughness_u << 16)
+                | (reflectance_u << 8)
+                | emissive_r_u;
+
+            let w = f32::from_bits(packed);
 
             vec4(x, y, z, w)
         };
 
+        // d1: Rgba16Float
         let d1 = {
-            // TODO doesn't need to use as much space
-            let x = self.emissive.x;
-            let y = self.emissive.y;
-            let z = self.emissive.z;
+            let base_color = self.base_color.clamp(Vec4::ZERO, Vec4::ONE);
 
-            let w = {
-                let base_color = self
-                    .base_color
-                    .powf(1.0 / 2.2)
-                    .clamp(Vec4::ZERO, Vec4::ONE);
+            let emissive_g_u =
+                (self.emissive.y.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let emissive_b_u =
+                (self.emissive.z.clamp(0.0, 1.0) * 255.0).round() as u32;
 
-                let base_color = (vec4(
-                    base_color.x * 255.0,
-                    base_color.y * 255.0,
-                    base_color.z * 255.0,
-                    base_color.w * 63.0,
-                ))
-                .as_uvec4();
+            let emissive_packed = (emissive_g_u << 8) | emissive_b_u;
+            let w = emissive_packed as f32;
 
-                f32::from_bits(u32::from_bytes([
-                    base_color.x,
-                    base_color.y,
-                    base_color.z,
-                    base_color.w,
-                ]))
-            };
-
-            vec4(x, y, z, w)
+            vec4(
+                base_color.x,
+                base_color.y,
+                base_color.z,
+                w, // Store packed emissive_g and emissive_b
+            )
         };
 
         [d0, d1]

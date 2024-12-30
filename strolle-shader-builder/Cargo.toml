@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu" }
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu.git", rev = "1932353935338c0ac5b7b150fae0551ddeaa1dad" }

@@ -33,9 +33,8 @@ pub(crate) fn meshes(
             AssetEvent::Removed { id } => {
                 removed.push(*id);
             }
-            AssetEvent::LoadedWithDependencies { .. } => {
-                //
-            }
+            AssetEvent::Unused { .. } => {}
+            AssetEvent::LoadedWithDependencies { .. } => {}
         }
     }
 
@@ -76,6 +75,7 @@ pub(crate) fn materials(
             AssetEvent::LoadedWithDependencies { .. } => {
                 //
             }
+            AssetEvent::Unused { .. } => {}
         }
     }
 
@@ -130,6 +130,7 @@ pub(crate) fn images(
             AssetEvent::LoadedWithDependencies { .. } => {
                 //
             }
+            AssetEvent::Unused { .. } => {}
         }
     }
 
@@ -235,7 +236,7 @@ pub(crate) fn instances(
                 //      should probably propagate the layers up to the BVH
                 //      leaves and adjust the raytracer to read those
                 if let Some(layers) = layers {
-                    if *layers != RenderLayers::all() {
+                    if *layers != RenderLayers::layer(0) {
                         // TODO inefficient; we should push only if the object
                         //      was visible before
                         removed.push(handle);
@@ -338,36 +339,28 @@ pub(crate) fn lights(
 pub(crate) fn cameras(
     mut commands: Commands,
     cameras: Extract<
-        Query<(
-            Entity,
-            &Camera,
-            &CameraRenderGraph,
-            &Projection,
-            &GlobalTransform,
-            Option<&StrolleCamera>,
-        )>,
+        Query<(Entity, &Camera, &Projection, &GlobalTransform, &StrolleCamera)>,
     >,
 ) {
-    for (
-        entity,
-        camera,
-        camera_render_graph,
-        projection,
-        transform,
-        strolle_camera,
-    ) in cameras.iter()
-    {
-        if !camera.is_active || **camera_render_graph != crate::graph::NAME {
-            continue;
-        }
-
+    for (entity, camera, projection, transform, strolle_camera) in cameras.iter() {
         assert!(camera.hdr, "Strolle requires an HDR camera");
+        if let Projection::Perspective(p_projection) = projection {
+            let fov_y = p_projection.fov;
+            let aspect_ratio = p_projection.aspect_ratio;
+            let near_plane = p_projection.near;
+            let far_plane = p_projection.far;
 
-        commands.get_or_spawn(entity).insert(ExtractedCamera {
-            transform: transform.compute_matrix(),
-            projection: projection.get_projection_matrix(),
-            mode: strolle_camera.map(|camera| camera.mode),
-        });
+            let p_mat =
+                Mat4::perspective_rh(fov_y, aspect_ratio, far_plane, near_plane);
+
+            commands.get_or_spawn(entity).insert(ExtractedCamera {
+                transform: transform.compute_matrix(),
+                projection: p_mat,
+                mode: Some(strolle_camera.mode),
+            });
+        } else {
+            println!("Strolle requires a perspective camera");
+        }
     }
 }
 

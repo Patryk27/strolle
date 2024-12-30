@@ -2,6 +2,7 @@ use bevy::core_pipeline::fxaa;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use crate::utils::color_to_vec4;
 
 pub struct StrolleDebugPlugin;
 
@@ -89,7 +90,7 @@ fn draw_materials(
                     return;
                 };
 
-                let rgba = material.base_color.as_rgba_f32();
+                let rgba = color_to_vec4(material.base_color);
                 let mut rgb = [rgba[0], rgba[1], rgba[2]];
 
                 ui.color_edit_button_rgb(&mut rgb);

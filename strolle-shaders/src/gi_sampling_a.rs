@@ -15,7 +15,7 @@ pub fn main(
     #[spirv(descriptor_set = 0, binding = 4)] atlas_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 1, binding = 1)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 2)] prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 2)] prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 1, binding = 3)] gi_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 4)] gi_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 5)] gi_d2: TexRgba32,

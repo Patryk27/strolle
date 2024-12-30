@@ -1,9 +1,10 @@
 use std::fmt;
 
 use log::info;
-use spirv_std::glam::{uvec2, Mat4, UVec2, Vec3};
+use glam::{uvec2, Mat4, UVec2, Vec3};
 
 use crate::gpu;
+use crate::utils::ToGpu;
 
 #[derive(Clone, Debug, Default)]
 pub struct Camera {
@@ -49,19 +50,22 @@ impl Camera {
 
     pub(crate) fn serialize(&self) -> gpu::Camera {
         gpu::Camera {
-            projection_view: self.projection * self.transform.inverse(),
-            ndc_to_world: self.transform * self.projection.inverse(),
-            origin: self
+            projection_view: (self.projection * self.transform.inverse())
+                .to_gpu(),
+            ndc_to_world: (self.transform * self.projection.inverse()).to_gpu(),
+            origin: (self
                 .transform
                 .to_scale_rotation_translation()
                 .2
-                .extend(Default::default()),
-            screen: self
+                .extend(Default::default()))
+            .to_gpu(),
+            screen: (self
                 .viewport
                 .size
                 .as_vec2()
                 .extend(Default::default())
-                .extend(Default::default()),
+                .extend(Default::default()))
+            .to_gpu(),
         }
     }
 }

@@ -7,6 +7,7 @@ use log::debug;
 use crate::{
     gpu, BindGroup, Camera, CameraBuffers, CameraController, Engine, Params,
 };
+use crate::utils::ToGpu;
 
 #[derive(Debug)]
 pub struct PrimRasterPass {
@@ -57,6 +58,7 @@ impl PrimRasterPass {
                 vertex: wgpu::VertexState {
                     module: &engine.shaders.prim_raster_vs.0,
                     entry_point: engine.shaders.prim_raster_vs.1,
+                    compilation_options: Default::default(),
                     buffers: &[wgpu::VertexBufferLayout {
                         array_stride: (3 * 4 * mem::size_of::<f32>()) as _,
                         step_mode: wgpu::VertexStepMode::Vertex,
@@ -102,6 +104,7 @@ impl PrimRasterPass {
                 fragment: Some(wgpu::FragmentState {
                     module: &engine.shaders.prim_raster_fs.0,
                     entry_point: engine.shaders.prim_raster_fs.1,
+                    compilation_options: Default::default(),
                     targets: &[
                         Some(wgpu::ColorTargetState {
                             format: wgpu::TextureFormat::Rgba32Float,
@@ -109,17 +112,12 @@ impl PrimRasterPass {
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
                         Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba32Float,
+                            format: wgpu::TextureFormat::Rgba16Float,
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
                         Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba32Float,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }),
-                        Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba32Float,
+                            format: wgpu::TextureFormat::Rgba16Float,
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
@@ -149,7 +147,7 @@ impl PrimRasterPass {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 }),
                 Some(wgpu::RenderPassColorAttachment {
@@ -157,15 +155,7 @@ impl PrimRasterPass {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: true,
-                    },
-                }),
-                Some(wgpu::RenderPassColorAttachment {
-                    view: camera.buffers.prim_surface_map.get(alternate).view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 }),
                 Some(wgpu::RenderPassColorAttachment {
@@ -173,7 +163,7 @@ impl PrimRasterPass {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 }),
             ],
@@ -182,11 +172,13 @@ impl PrimRasterPass {
                     view: camera.buffers.prim_depth.view(),
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(0.0),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
                 },
             ),
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
 
         pass.set_pipeline(&self.pipeline);
@@ -204,11 +196,11 @@ impl PrimRasterPass {
 
             let params = {
                 let curr_xform_inv = gpu::PrimRasterPassParams::encode_affine(
-                    instance.transform_inverse,
+                    instance.transform_inverse.to_gpu(),
                 );
 
                 let prev_xform = gpu::PrimRasterPassParams::encode_affine(
-                    instance_entry.prev_transform,
+                    instance_entry.prev_transform.to_gpu(),
                 );
 
                 gpu::PrimRasterPassParams {
@@ -217,7 +209,7 @@ impl PrimRasterPass {
                         f32::from_bits(material_id.get()),
                         Default::default(),
                         Default::default(),
-                    ),
+                    ).to_gpu(),
                     curr_xform_inv_d0: curr_xform_inv[0],
                     curr_xform_inv_d1: curr_xform_inv[1],
                     curr_xform_inv_d2: curr_xform_inv[2],

@@ -6,7 +6,7 @@ pub fn main(
     #[spirv(push_constant)] params: &GiResolvingPassParams,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
     #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 0, binding = 3, storage_buffer)]
     in_reservoirs_a: &[Vec4],
     #[spirv(descriptor_set = 0, binding = 4, storage_buffer)]

@@ -7,11 +7,12 @@ use glam::{vec2, vec4, Vec2, Vec3, Vec4, Vec4Swizzles};
 use spirv_std::num_traits::Float;
 
 use crate::{
-    DiffuseBrdf, F32Ext, Hit, Normal, Ray, SpecularBrdf, Vec3Ext, WhiteNoise,
+    Vec3StrolleExt, DiffuseBrdf, F32Ext, Hit,
+    Normal, Ray, SpecularBrdf, Vec3Ext, WhiteNoise,
 };
 
 #[repr(C)]
-#[derive(Clone, Copy, Default, Pod, Zeroable)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 #[cfg_attr(not(target_arch = "spirv"), derive(Debug))]
 pub struct Light {
     /// x - position x
@@ -41,6 +42,20 @@ pub struct Light {
     pub prev_d2: Vec4,
 }
 
+impl Default for Light {
+    fn default() -> Self {
+        Self {
+            d0: Vec4::new(0.0, 0.0, 0.0, 1.0), // Non-zero radius
+            d1: Vec4::new(0.0, 0.0, 0.0, 1.0), // Non-zero range
+            d2: Vec4::ZERO,
+            d3: Vec4::ZERO,
+            prev_d0: Vec4::ZERO,
+            prev_d1: Vec4::ZERO,
+            prev_d2: Vec4::ZERO,
+        }
+    }
+}
+
 impl Light {
     pub const TYPE_NONE: u32 = 0;
     pub const TYPE_POINT: u32 = 1;
@@ -50,7 +65,7 @@ impl Light {
         Self {
             // TODO incorrect
             d0: position.extend(25.0),
-            d1: color.extend(f32::INFINITY),
+            d1: color.extend(1000_000f32),
             d2: vec4(
                 f32::from_bits(Self::TYPE_POINT),
                 Default::default(),
@@ -152,7 +167,7 @@ impl Light {
             (1.0 - (angle / self.spot_angle()).powf(3.0)).saturate()
         };
 
-        let f_dist = if self.range() == f32::INFINITY {
+        let f_dist = if self.range() == 1000_000f32 {
             1.0
         } else {
             let l2 = l.length_squared();
@@ -216,23 +231,28 @@ impl Light {
 
     pub fn ray_bnoise(self, sample: Vec2, hit_point: Vec3) -> Ray {
         let to_light = self.center() - hit_point;
-        let light_dir = to_light.normalize();
         let light_distance = to_light.length();
-        let light_radius = self.radius() / light_distance;
-        let (light_tangent, light_bitangent) = light_dir.any_orthonormal_pair();
+
+        let safe_distance = light_distance.max(0.001);
+        let light_dir = to_light / safe_distance;
+
+        let safe_radius = self.radius().max(crate::STROLLE_EPSILON);
+        let light_radius = safe_radius / safe_distance;
+
+        let (light_tangent, light_bitangent) =
+            light_dir.safe_any_orthonormal_pair();
 
         let disk_point = {
             let angle = 2.0 * PI * sample.x;
-            let radius = sample.y.sqrt();
-
+            let radius = sample.y.max(crate::STROLLE_EPSILON).sqrt();
             vec2(angle.sin(), angle.cos()) * radius * light_radius
         };
 
-        let ray_dir = light_dir
-            + disk_point.x * light_tangent
-            + disk_point.y * light_bitangent;
-
-        let ray_dir = ray_dir.normalize();
+        let ray_dir = (
+            light_dir
+                + disk_point.x * light_tangent
+                + disk_point.y * light_bitangent
+        ).normalize();
 
         Ray::new(hit_point + ray_dir * light_distance, -ray_dir)
             .with_len(light_distance)

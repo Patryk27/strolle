@@ -4,16 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.12.1" # TODO use default-features = false
-bevy_egui = "0.24"
+bevy = { version = "0.14.2", default-features = false, features = ["default"] }
+bevy_egui = "0.29.0"
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu.git", rev = "1932353935338c0ac5b7b150fae0551ddeaa1dad" }
 log = "0.4.18"
 strolle = { path = "../strolle", features = ["metrics"] }
-wgpu = "0.17.2"
+wgpu = "0.20.1"
 
 [dev-dependencies]
-bevy = { version = "0.12.1", features = ["jpeg"] }
-bevy_mod_raycast = "0.16.0"
-bevy_rapier3d = "0.23.0"
-lazy_static = "1.4.0"
-smooth-bevy-cameras = "0.10.0"
-zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
+bevy = { version = "0.14.2", default-features = false, features = ["default", "jpeg"] }
+bevy_mod_raycast = "0.18.0"
+smooth-bevy-cameras = { version = "0.12.0"}
+lazy_static = "1.5.0"
+zip = { version = "2.2.0", default-features = false, features = ["deflate"] }

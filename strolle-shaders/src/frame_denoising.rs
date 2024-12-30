@@ -4,7 +4,7 @@ use strolle_gpu::prelude::*;
 pub fn reproject(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] prim_surface_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 0, binding = 2)] reprojection_map: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 0)] prev_colors: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 1)] prev_moments: TexRgba32,
@@ -13,7 +13,7 @@ pub fn reproject(
     #[spirv(descriptor_set = 1, binding = 4)] moments: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
-    let prim_surface_map = SurfaceMap::new(prim_surface_map);
+    let prim_surface_map = SurfaceMap::new(prim_gbuffer_d0);
     let reprojection_map = ReprojectionMap::new(reprojection_map);
 
     if !camera.contains(screen_pos) {
@@ -81,7 +81,7 @@ pub fn reproject(
 pub fn estimate_variance(
     #[spirv(global_invocation_id)] global_id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 1)] prim_surface_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 1)] prim_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 0)] di_colors: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 1)] di_moments: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 2)] di_output: TexRgba32,
@@ -90,7 +90,7 @@ pub fn estimate_variance(
     #[spirv(descriptor_set = 2, binding = 2)] gi_output: TexRgba32,
 ) {
     let screen_pos = global_id.xy();
-    let prim_surface_map = SurfaceMap::new(prim_surface_map);
+    let prim_surface_map = SurfaceMap::new(prim_gbuffer_d0);
 
     if !camera.contains(screen_pos) {
         return;
@@ -222,7 +222,7 @@ pub fn wavelet(
     #[spirv(push_constant)] params: &FrameDenoisingWaveletPassParams,
     #[spirv(descriptor_set = 0, binding = 0)] blue_noise_tex: TexRgba8,
     #[spirv(descriptor_set = 0, binding = 1, uniform)] camera: &Camera,
-    #[spirv(descriptor_set = 0, binding = 2)] prim_surface_map: TexRgba32,
+    #[spirv(descriptor_set = 0, binding = 2)] prim_gbuffer_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 0)] di_input: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 1)] di_output: TexRgba32,
     #[spirv(descriptor_set = 2, binding = 0)] gi_input: TexRgba32,
@@ -230,7 +230,7 @@ pub fn wavelet(
 ) {
     let screen_pos = global_id.xy();
     let bnoise = BlueNoise::new(blue_noise_tex, screen_pos, params.frame);
-    let prim_surface_map = SurfaceMap::new(prim_surface_map);
+    let prim_surface_map = SurfaceMap::new(prim_gbuffer_d0);
 
     if !camera.contains(screen_pos) {
         return;

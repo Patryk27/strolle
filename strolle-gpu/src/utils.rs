@@ -6,7 +6,7 @@ mod vec3_ext;
 
 use core::ops;
 
-use glam::{uvec2, UVec2};
+use glam::{uvec2, UVec2, Vec3};
 use spirv_std::Image;
 
 pub use self::bilinear_filter::*;
@@ -41,3 +41,28 @@ pub fn resolve_checkerboard_alt(global_id: UVec2, frame: u32) -> UVec2 {
 pub fn got_checkerboard_at(screen_pos: UVec2, frame: u32) -> bool {
     screen_pos == resolve_checkerboard(screen_pos / uvec2(2, 1), frame)
 }
+
+use spirv_std::num_traits::Float;
+
+pub trait Vec3StrolleExt {
+    fn safe_any_orthonormal_pair(&self) -> (Vec3, Vec3);
+}
+
+impl Vec3StrolleExt for Vec3 {
+    fn safe_any_orthonormal_pair(&self) -> (Vec3, Vec3) {
+        let sign = 1.0f32.copysign(self.z);
+        let a = -1.0 / (sign + self.z);
+        let b = self.x * self.y * a;
+
+        (
+            Vec3::new(
+                1.0 + sign * self.x * self.x * a,
+                sign * b,
+                -sign * self.x,
+            ),
+            Vec3::new(b, sign + self.y * self.y * a, -self.y),
+        )
+    }
+}
+
+pub const STROLLE_EPSILON: f32 = 0.000_0001;

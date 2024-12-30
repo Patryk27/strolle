@@ -1,8 +1,9 @@
 use log::debug;
-
+use strolle_gpu::DiReservoirData;
 use crate::{
     gpu, Camera, DoubleBuffered, MappedUniformBuffer, StorageBuffer, Texture,
 };
+use crate::utils::ToGpu;
 
 #[derive(Debug)]
 pub struct CameraBuffers {
@@ -16,7 +17,6 @@ pub struct CameraBuffers {
     pub prim_depth: Texture,
     pub prim_gbuffer_d0: DoubleBuffered<Texture>,
     pub prim_gbuffer_d1: DoubleBuffered<Texture>,
-    pub prim_surface_map: DoubleBuffered<Texture>,
 
     pub reprojection_map: Texture,
     pub velocity_map: Texture,
@@ -99,7 +99,7 @@ impl CameraBuffers {
         // ---------------------------------------------------------------------
 
         let prim_depth = Texture::builder("prim_depth")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Depth32Float)
             .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
@@ -107,7 +107,7 @@ impl CameraBuffers {
         let prim_gbuffer_d0 = DoubleBuffered::<Texture>::new(
             device,
             Texture::builder("prim_gbuffer_d0")
-                .with_size(camera.viewport.size)
+                .with_size(camera.viewport.size.to_gpu())
                 .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT),
@@ -116,17 +116,8 @@ impl CameraBuffers {
         let prim_gbuffer_d1 = DoubleBuffered::<Texture>::new(
             device,
             Texture::builder("prim_gbuffer_d1")
-                .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba32Float)
-                .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
-                .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT),
-        );
-
-        let prim_surface_map = DoubleBuffered::<Texture>::new(
-            device,
-            Texture::builder("prim_surface_map")
-                .with_size(camera.viewport.size)
-                .with_format(wgpu::TextureFormat::Rgba32Float)
+                .with_size(camera.viewport.size.to_gpu())
+                .with_format(wgpu::TextureFormat::Rgba16Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
                 .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT),
         );
@@ -134,44 +125,47 @@ impl CameraBuffers {
         // ---------------------------------------------------------------------
 
         let reprojection_map = Texture::builder("reprojection_map")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
         let velocity_map = Texture::builder("velocity_map")
-            .with_size(camera.viewport.size)
-            .with_format(wgpu::TextureFormat::Rgba32Float)
+            .with_size(camera.viewport.size.to_gpu())
+            .with_format(wgpu::TextureFormat::Rgba16Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .with_usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
             .build(device);
 
         // ---------------------------------------------------------------------
 
+        let element_size = std::mem::size_of::<DiReservoirData>();
+        let element_size_round =
+            (element_size as f32 / 32.0).ceil() as usize * 32;
         let di_reservoirs = [0, 1, 2].map(|idx| {
             StorageBuffer::new(
                 device,
                 format!("di_reservoir_{}", idx),
-                viewport_buffer_size(2 * 4 * 4),
+                viewport_buffer_size(element_size_round),
             )
         });
 
         // ---
 
         let di_diff_samples = Texture::builder("di_diff_samples")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
         let di_diff_prev_colors = Texture::builder("di_diff_prev_colors")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
         let di_diff_curr_colors = Texture::builder("di_diff_curr_colors")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -179,13 +173,13 @@ impl CameraBuffers {
         let di_diff_moments = DoubleBuffered::<Texture>::new(
             device,
             Texture::builder("di_diff_moments")
-                .with_size(camera.viewport.size)
+                .with_size(camera.viewport.size.to_gpu())
                 .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
 
         let di_diff_stash = Texture::builder("di_diff_stash")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -193,7 +187,7 @@ impl CameraBuffers {
         // ---
 
         let di_spec_samples = Texture::builder("di_spec_samples")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -201,19 +195,19 @@ impl CameraBuffers {
         // ---------------------------------------------------------------------
 
         let gi_d0 = Texture::builder("gi_d0")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
         let gi_d1 = Texture::builder("gi_d1")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
         let gi_d2 = Texture::builder("gi_d2")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -229,19 +223,19 @@ impl CameraBuffers {
         // ---
 
         let gi_diff_samples = Texture::builder("gi_diff_samples")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
         let gi_diff_prev_colors = Texture::builder("gi_diff_prev_colors")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
 
         let gi_diff_curr_colors = Texture::builder("gi_diff_curr_colors")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -249,13 +243,13 @@ impl CameraBuffers {
         let gi_diff_moments = DoubleBuffered::<Texture>::new(
             device,
             Texture::builder("gi_diff_moments")
-                .with_size(camera.viewport.size)
+                .with_size(camera.viewport.size.to_gpu())
                 .with_format(wgpu::TextureFormat::Rgba32Float)
                 .with_usage(wgpu::TextureUsages::STORAGE_BINDING),
         );
 
         let gi_diff_stash = Texture::builder("gi_diff_stash")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -263,7 +257,7 @@ impl CameraBuffers {
         // ---
 
         let gi_spec_samples = Texture::builder("gi_spec_samples")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -286,7 +280,7 @@ impl CameraBuffers {
 
         // TODO initialize lazily
         let ref_colors = Texture::builder("ref_colors")
-            .with_size(camera.viewport.size)
+            .with_size(camera.viewport.size.to_gpu())
             .with_format(wgpu::TextureFormat::Rgba32Float)
             .with_usage(wgpu::TextureUsages::STORAGE_BINDING)
             .build(device);
@@ -304,7 +298,6 @@ impl CameraBuffers {
             prim_depth,
             prim_gbuffer_d0,
             prim_gbuffer_d1,
-            prim_surface_map,
 
             reprojection_map,
             velocity_map,

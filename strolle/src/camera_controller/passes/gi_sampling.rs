@@ -3,6 +3,7 @@ use glam::uvec2;
 use crate::{
     Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
+use crate::utils::ToGpu;
 
 #[derive(Debug)]
 pub struct GiSamplingPass {
@@ -72,7 +73,7 @@ impl GiSamplingPass {
         // These passes use 8x8 warps and 2x1 checkerboard:
         let size = (camera.camera.viewport.size + 7) / 8 / uvec2(2, 1);
 
-        self.pass_a.run(camera, encoder, size, camera.pass_params());
-        self.pass_b.run(camera, encoder, size, camera.pass_params());
+        self.pass_a.run(camera, encoder, size.to_gpu(), camera.pass_params());
+        self.pass_b.run(camera, encoder, size.to_gpu(), camera.pass_params());
     }
 }

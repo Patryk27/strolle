@@ -70,7 +70,7 @@ impl Triangle {
         let pvec = ray.dir().cross(v0v2);
         let det = v0v1.dot(pvec);
 
-        if det.abs() < f32::EPSILON {
+        if det.abs() < crate::STROLLE_EPSILON {
             return false;
         }
 

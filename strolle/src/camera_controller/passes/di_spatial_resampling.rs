@@ -3,6 +3,7 @@ use glam::uvec2;
 use crate::{
     Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
+use crate::utils::ToGpu;
 
 #[derive(Debug)]
 pub struct DiSpatialResamplingPass {
@@ -81,21 +82,21 @@ impl DiSpatialResamplingPass {
         self.pick_pass.run(
             camera,
             encoder,
-            (camera.camera.viewport.size + 7) / 8 / uvec2(2, 1),
+            ((camera.camera.viewport.size + 7) / 8 / uvec2(2, 1)).to_gpu(),
             camera.pass_params(),
         );
 
         self.trace_pass.run(
             camera,
             encoder,
-            (camera.camera.viewport.size + 7) / 8,
+            ((camera.camera.viewport.size + 7) / 8).to_gpu(),
             camera.pass_params(),
         );
 
         self.sample_pass.run(
             camera,
             encoder,
-            (camera.camera.viewport.size + 7) / 8 / uvec2(2, 1),
+            ((camera.camera.viewport.size + 7) / 8 / uvec2(2, 1)).to_gpu(),
             camera.pass_params(),
         );
     }

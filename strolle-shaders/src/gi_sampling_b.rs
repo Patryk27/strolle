@@ -25,7 +25,7 @@ pub fn main(
     #[spirv(descriptor_set = 1, binding = 4)]
     atmosphere_sky_lut_sampler: &Sampler,
     #[spirv(descriptor_set = 1, binding = 5)] prim_gbuffer_d0: TexRgba32,
-    #[spirv(descriptor_set = 1, binding = 6)] prim_gbuffer_d1: TexRgba32,
+    #[spirv(descriptor_set = 1, binding = 6)] prim_gbuffer_d1: TexRgba16,
     #[spirv(descriptor_set = 1, binding = 7)] gi_d0: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 8)] gi_d1: TexRgba32,
     #[spirv(descriptor_set = 1, binding = 9)] gi_d2: TexRgba32,
@@ -197,7 +197,7 @@ pub fn main(
 
     if gi_hit.is_some() {
         radiance *= gi_hit.gbuffer.base_color.xyz() / PI;
-        radiance += gi_hit.gbuffer.emissive;
+        radiance += gi_hit.gbuffer.emissive * 60.0; //Emissive strength should be parameterised somehow.
     }
 
     // -------------------------------------------------------------------------

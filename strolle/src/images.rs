@@ -5,7 +5,9 @@ use derivative::Derivative;
 use glam::{uvec2, vec4, Vec4};
 use guillotiere::{size2, Allocation, AtlasAllocator};
 use log::warn;
+use wgpu::TextureFormat;
 
+use crate::utils::ToGpu;
 use crate::{Bindable, Image, ImageData, Params, Texture};
 
 #[derive(Derivative)]
@@ -22,6 +24,39 @@ where
     dynamic_textures: Vec<(P::ImageTexture, Allocation)>,
 }
 
+fn convert_to_rgba8unorm_srgb(
+    data: &[u8],
+    src_format: wgpu::TextureFormat,
+    width: u32,
+    height: u32,
+) -> Vec<u8> {
+    let pixel_count = (width * height) as usize;
+    let mut converted_data = Vec::with_capacity(pixel_count * 4);
+
+    match src_format {
+        wgpu::TextureFormat::R8Unorm => {
+            for &r in data {
+                converted_data.extend_from_slice(&[r, 0, 0, 255]);
+            }
+        }
+        wgpu::TextureFormat::Rg8Unorm => {
+            for chunk in data.chunks_exact(2) {
+                let r = chunk[0];
+                let g = chunk[1];
+                converted_data.extend_from_slice(&[r, g, 0, 255]);
+            }
+        }
+        wgpu::TextureFormat::Rgba8UnormSrgb => {
+            converted_data.extend_from_slice(data);
+        }
+        _ => {
+            println!("Unhandled texture format: {:?}", src_format);
+        }
+    }
+
+    converted_data
+}
+
 impl<P> Images<P>
 where
     P: Params,
@@ -36,7 +71,7 @@ where
         ));
 
         let atlas_texture = Texture::builder("atlas")
-            .with_size(uvec2(Self::ATLAS_WIDTH, Self::ATLAS_HEIGHT))
+            .with_size(uvec2(Self::ATLAS_WIDTH, Self::ATLAS_HEIGHT).to_gpu())
             .with_format(wgpu::TextureFormat::Rgba8UnormSrgb)
             .with_usage(wgpu::TextureUsages::TEXTURE_BINDING)
             .with_usage(wgpu::TextureUsages::COPY_DST)
@@ -85,13 +120,61 @@ where
             | ImageData::Texture {
                 is_dynamic: false, ..
             }) => {
-                self.atlas_changes.push(AtlasChange::Set {
-                    x: alloc.rectangle.min.x as u32,
-                    y: alloc.rectangle.min.y as u32,
-                    w: alloc.rectangle.width() as u32,
-                    h: alloc.rectangle.height() as u32,
-                    data,
-                });
+                match &data {
+                    ImageData::Raw { data } => {
+                        // Convert data to atlas format (Rgba8UnormSrgb)
+                        let converted_data = convert_to_rgba8unorm_srgb(
+                            data,
+                            item.texture_descriptor.format,
+                            item.texture_descriptor.size.width,
+                            item.texture_descriptor.size.height,
+                        );
+
+                        // Use atlas texture's format for calculations
+                        let block_size = 4; // Rgba8UnormSrgb has 4 bytes per pixel
+                        let unpadded_bytes_per_row =
+                            item.texture_descriptor.size.width * block_size;
+                        let padding =
+                            (256 - (unpadded_bytes_per_row % 256)) % 256;
+                        let padded_bytes_per_row =
+                            unpadded_bytes_per_row + padding;
+
+                        // Pad the converted data if necessary
+                        let mut padded_data = Vec::with_capacity(
+                            (padded_bytes_per_row
+                                * item.texture_descriptor.size.height)
+                                as usize,
+                        );
+                        if padding == 0 {
+                            padded_data = converted_data;
+                        } else {
+                            let row_length = (unpadded_bytes_per_row) as usize;
+                            for row in converted_data.chunks_exact(row_length) {
+                                padded_data.extend_from_slice(row);
+                                padded_data.extend(
+                                    std::iter::repeat(0).take(padding as usize),
+                                );
+                            }
+                        }
+
+                        self.atlas_changes.push(AtlasChange::Set {
+                            x: alloc.rectangle.min.x as u32,
+                            y: alloc.rectangle.min.y as u32,
+                            w: alloc.rectangle.width() as u32,
+                            h: alloc.rectangle.height() as u32,
+                            data: ImageData::Raw { data: padded_data },
+                        });
+                    }
+                    ImageData::Texture { texture, .. } => {
+                        self.atlas_changes.push(AtlasChange::Set {
+                            x: alloc.rectangle.min.x as u32,
+                            y: alloc.rectangle.min.y as u32,
+                            w: alloc.rectangle.width() as u32,
+                            h: alloc.rectangle.height() as u32,
+                            data: data,
+                        });
+                    }
+                };
             }
 
             ImageData::Texture {
@@ -140,6 +223,25 @@ where
 
                     match data {
                         ImageData::Raw { data } => {
+                            // Use atlas texture's format for calculations
+                            let block_size = 4; // Rgba8UnormSrgb has 4 bytes per pixel
+                            let unpadded_bytes_per_row = w * block_size;
+                            let padding =
+                                (256 - (unpadded_bytes_per_row % 256)) % 256;
+                            let padded_bytes_per_row =
+                                unpadded_bytes_per_row + padding;
+
+                            println!(
+                                "Writing texture: pos={}x{}, size={}x{}, data_len={}, bytes_per_row={}, padded_bytes_per_row={}",
+                                x,
+                                y,
+                                w,
+                                h,
+                                data.len(),
+                                unpadded_bytes_per_row,
+                                padded_bytes_per_row
+                            );
+
                             queue.write_texture(
                                 wgpu::ImageCopyTexture {
                                     texture: self.atlas_texture.tex(),
@@ -150,14 +252,10 @@ where
                                 &data,
                                 wgpu::ImageDataLayout {
                                     offset: 0,
-                                    bytes_per_row: Some(w * 4),
+                                    bytes_per_row: Some(padded_bytes_per_row),
                                     rows_per_image: None,
                                 },
-                                wgpu::Extent3d {
-                                    width: w,
-                                    height: h,
-                                    depth_or_array_layers: 1,
-                                },
+                                size,
                             );
                         }
 

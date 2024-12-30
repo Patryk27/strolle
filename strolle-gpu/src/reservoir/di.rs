@@ -13,52 +13,59 @@ pub struct DiReservoir {
     pub reservoir: Reservoir<DiSample>,
 }
 
-impl DiReservoir {
-    pub fn read(buffer: &[Vec4], id: usize) -> Self {
-        let d0 = unsafe { *buffer.index_unchecked(2 * id) };
-        let d1 = unsafe { *buffer.index_unchecked(2 * id + 1) };
-        let [is_occluded, confidence, ..] = d0.w.to_bits().to_bytes();
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct DiReservoirData {
+    pub m: f32,
+    pub w: f32,
+    pub pdf: f32,
+    pub confidence: f32,
+    pub is_occluded: u32,
+    pub light_id: u32,
+    // Add padding to align `light_point` to 16 bytes
+    _padding0: [u32; 2],
+    pub light_point: Vec3,
+}
 
+impl DiReservoir {
+    pub fn read(buffer: &[DiReservoirData], id: usize) -> Self {
+        let data = unsafe { *buffer.index_unchecked(id) };
         Self {
             reservoir: Reservoir {
                 sample: DiSample {
-                    pdf: d0.z,
-                    confidence: confidence as f32,
-                    light_id: LightId::new(d1.w.to_bits()),
-                    light_point: d1.xyz(),
-                    is_occluded: is_occluded > 0,
+                    pdf: data.pdf,
+                    confidence: data.confidence,
+                    light_id: LightId::new(data.light_id),
+                    light_point: data.light_point,
+                    is_occluded: data.is_occluded != 0,
                 },
-                m: d0.x,
-                w: d0.y,
+                m: data.m,
+                w: data.w,
             },
         }
     }
 
-    pub fn write(self, buffer: &mut [Vec4], id: usize) {
-        let d0 = vec4(
-            self.reservoir.m,
-            self.reservoir.w,
-            self.sample.pdf,
-            f32::from_bits(u32::from_bytes([
-                self.sample.is_occluded as u32,
-                self.sample.confidence as u32,
-                0,
-                0,
-            ])),
-        );
-
-        let d1 = self
-            .sample
-            .light_point
-            .extend(f32::from_bits(self.sample.light_id.get()));
-
+    pub fn write(self, buffer: &mut [DiReservoirData], id: usize) {
+        let data = DiReservoirData {
+            m: self.reservoir.m,
+            w: self.reservoir.w,
+            pdf: self.sample.pdf,
+            confidence: self.sample.confidence,
+            is_occluded: self.sample.is_occluded as u32,
+            light_id: self.sample.light_id.get(),
+            _padding0: [0u32; 2],
+            light_point: self.sample.light_point,
+        };
         unsafe {
-            *buffer.index_unchecked_mut(2 * id) = d0;
-            *buffer.index_unchecked_mut(2 * id + 1) = d1;
+            *buffer.index_unchecked_mut(id) = data;
         }
     }
 
-    pub fn copy(input: &[Vec4], output: &mut [Vec4], id: usize) {
+    pub fn copy(
+        input: &[DiReservoirData],
+        output: &mut [DiReservoirData],
+        id: usize,
+    ) {
         // TODO optimize
         Self::read(input, id).write(output, id);
     }
@@ -119,7 +126,8 @@ impl DiSample {
     pub fn ray(self, hit_point: Vec3) -> Ray {
         let dir = hit_point - self.light_point;
 
-        Ray::new(self.light_point, dir.normalize()).with_len(dir.length())
+        Ray::new(self.light_point, dir.normalize())
+            .with_len(dir.length())
     }
 }
 
@@ -147,7 +155,8 @@ mod tests {
             }
         }
 
-        let mut buffer = [Vec4::ZERO; 2 * 10];
+        let mut buffer =
+            [DiReservoirData::default(), DiReservoirData::default()];
 
         for idx in 0..10 {
             target(idx).write(&mut buffer, idx);

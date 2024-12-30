@@ -4,7 +4,7 @@ use glam::{vec2, vec3, UVec2, Vec2, Vec3};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::F32Ext;
+use crate::{Vec3StrolleExt, F32Ext};
 
 #[derive(Clone, Copy)]
 pub struct WhiteNoise {
@@ -74,9 +74,9 @@ impl WhiteNoise {
     /// Generates a uniform sample on a hemisphere around given normal.
     pub fn sample_hemisphere(&mut self, normal: Vec3) -> Vec3 {
         let cos_theta = self.sample();
-        let sin_theta = (1.0f32 - cos_theta.sqr()).sqrt();
+        let sin_theta = (1.0f32 - cos_theta.sqr()).max(0.0).sqrt();
         let phi = 2.0 * PI * self.sample();
-        let (t, b) = normal.any_orthonormal_pair();
+        let (t, b) = normal.safe_any_orthonormal_pair();
 
         (t * phi.cos() + b * phi.sin()) * sin_theta + normal * cos_theta
     }

@@ -7,13 +7,14 @@ use std::env;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-
+use bevy::core_pipeline::core_3d::graph::Core3d;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::fps::FpsCameraController;
 use zip::ZipArchive;
+use bevy_strolle::graph::StrolleGraph;
 
 pub fn extract_assets() {
     extract_asset("cornell");
@@ -48,7 +49,7 @@ fn extract_asset(name: &str) {
 // -----------------------------------------------------------------------------
 
 pub fn handle_camera(
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     mut window: Query<&mut Window, With<PrimaryWindow>>,
     mut camera: Query<(
         &Transform,
@@ -64,8 +65,8 @@ pub fn handle_camera(
         mut fps_camera_controller,
     ) = camera.single_mut();
 
-    if keys.just_pressed(KeyCode::Key1) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
+    if keys.just_pressed(KeyCode::Digit1) {
+        camera_render_graph.set(StrolleGraph);
 
         camera.mode = match camera.mode {
             st::CameraMode::Image { denoise } => {
@@ -75,8 +76,8 @@ pub fn handle_camera(
         };
     }
 
-    if keys.just_pressed(KeyCode::Key2) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
+    if keys.just_pressed(KeyCode::Digit2) {
+        camera_render_graph.set(StrolleGraph);
 
         camera.mode = match camera.mode {
             st::CameraMode::DiDiffuse { denoise } => {
@@ -86,8 +87,8 @@ pub fn handle_camera(
         };
     }
 
-    if keys.just_pressed(KeyCode::Key3) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
+    if keys.just_pressed(KeyCode::Digit3) {
+        camera_render_graph.set(StrolleGraph);
 
         camera.mode = match camera.mode {
             st::CameraMode::DiSpecular { denoise } => {
@@ -97,8 +98,8 @@ pub fn handle_camera(
         };
     }
 
-    if keys.just_pressed(KeyCode::Key4) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
+    if keys.just_pressed(KeyCode::Digit4) {
+        camera_render_graph.set(StrolleGraph);
 
         camera.mode = match camera.mode {
             st::CameraMode::GiDiffuse { denoise } => {
@@ -108,8 +109,8 @@ pub fn handle_camera(
         };
     }
 
-    if keys.just_pressed(KeyCode::Key5) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
+    if keys.just_pressed(KeyCode::Digit5) {
+        camera_render_graph.set(StrolleGraph);
 
         camera.mode = match camera.mode {
             st::CameraMode::GiSpecular { denoise } => {
@@ -119,20 +120,20 @@ pub fn handle_camera(
         };
     }
 
-    if keys.just_pressed(KeyCode::Key8) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
+    if keys.just_pressed(KeyCode::Digit8) {
+        camera_render_graph.set(StrolleGraph);
 
         camera.mode = st::CameraMode::BvhHeatmap;
     }
 
-    if keys.just_pressed(KeyCode::Key9) {
-        camera_render_graph.set(bevy_strolle::graph::NAME);
+    if keys.just_pressed(KeyCode::Digit9) {
+        camera_render_graph.set(StrolleGraph);
 
         camera.mode = st::CameraMode::Reference { depth: 1 };
     }
 
-    if keys.just_pressed(KeyCode::Key0) {
-        camera_render_graph.set("core_3d");
+    if keys.just_pressed(KeyCode::Digit0) {
+        camera_render_graph.set(Core3d);
     }
 
     if keys.just_pressed(KeyCode::Semicolon) {
@@ -149,7 +150,7 @@ pub fn handle_camera(
         };
     }
 
-    if keys.just_pressed(KeyCode::X) {
+    if keys.just_pressed(KeyCode::KeyX) {
         println!("{:?}", camera_xform.translation);
     }
 }
@@ -173,20 +174,20 @@ impl Default for Sun {
     }
 }
 
-pub fn handle_sun(keys: Res<Input<KeyCode>>, mut sun: ResMut<Sun>) {
-    if keys.just_pressed(KeyCode::H) {
+pub fn handle_sun(keys: Res<ButtonInput<KeyCode>>, mut sun: ResMut<Sun>) {
+    if keys.just_pressed(KeyCode::KeyH) {
         sun.azimuth -= 0.05;
     }
 
-    if keys.just_pressed(KeyCode::J) {
+    if keys.just_pressed(KeyCode::KeyJ) {
         sun.altitude -= 0.05;
     }
 
-    if keys.just_pressed(KeyCode::K) {
+    if keys.just_pressed(KeyCode::KeyK) {
         sun.altitude += 0.05;
     }
 
-    if keys.just_pressed(KeyCode::L) {
+    if keys.just_pressed(KeyCode::KeyL) {
         sun.azimuth += 0.05;
     }
 }

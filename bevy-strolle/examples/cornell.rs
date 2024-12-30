@@ -6,6 +6,7 @@ use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy::render::camera::CameraRenderGraph;
 use bevy::window::WindowResolution;
+use bevy_strolle::graph::StrolleGraph;
 use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::orbit::{
     OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
@@ -55,15 +56,14 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
     commands
         .spawn(Camera3dBundle {
-            camera_render_graph: CameraRenderGraph::new(
-                bevy_strolle::graph::NAME,
-            ),
+            camera_render_graph: CameraRenderGraph::new(StrolleGraph),
             camera: Camera {
                 hdr: true,
                 ..default()
             },
             ..default()
         })
+        .insert(StrolleCamera::default())
         .insert(OrbitCameraBundle::new(
             {
                 OrbitCameraController {

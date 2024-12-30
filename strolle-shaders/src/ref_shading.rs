@@ -50,7 +50,7 @@ pub fn main(
 
     // -------------------------------------------------------------------------
 
-    if params.depth == u8::MAX as u32 {
+    if params.depth == 255u32 {
         let prev_color = if camera.is_eq(*prev_camera) {
             colors.read(screen_pos)
         } else {

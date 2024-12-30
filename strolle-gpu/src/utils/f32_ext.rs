@@ -21,7 +21,7 @@ impl F32Ext for f32 {
     }
 
     fn inverse_sqrt(self) -> Self {
-        1.0 / self.sqrt()
+        1.0 / self.max(crate::STROLLE_EPSILON).sqrt()
     }
 
     fn acos_approx(self) -> Self {

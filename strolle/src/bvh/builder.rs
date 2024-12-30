@@ -4,7 +4,6 @@ use std::hash::{Hash, Hasher};
 use std::thread;
 
 use fxhash::FxHasher;
-use glam::UVec3;
 
 use super::{
     BvhNode, BvhNodeHash, BvhNodeId, BvhNodes, BvhPrimitiveId, BvhPrimitives,
@@ -86,7 +85,7 @@ fn find_splitting_plane(
 
     let centroid_bb: BoundingBox = primitives
         .iter()
-        .map(|primitive| primitive.center)
+        .map(|primitive| { primitive.center })
         .collect();
 
     let mut bins = [[Bin::default(); BINS]; 3];
@@ -94,7 +93,8 @@ fn find_splitting_plane(
 
     for primitive in primitives {
         let bin_id = scale * (primitive.center - centroid_bb.min());
-        let bin_id = bin_id.as_uvec3().min(UVec3::splat((BINS as u32) - 1));
+        let bin_id =
+            bin_id.as_uvec3().min(glam::UVec3::splat((BINS as u32) - 1));
         let bin_idx = bin_id.x as usize;
         let bin_idy = bin_id.y as usize;
         let bin_idz = bin_id.z as usize;
@@ -165,8 +165,8 @@ fn find_splitting_plane(
             if is_current_bin_better {
                 let split_by = Axis::from(axis);
 
-                let split_at = centroid_bb.min()[split_by]
-                    + scale[split_by] * ((i + 1) as f32);
+                let split_at = centroid_bb.min()[split_by as usize]
+                    + scale[split_by as usize] * ((i + 1) as f32);
 
                 best = Some(SplittingPlane {
                     split_by,
@@ -211,7 +211,7 @@ fn split(
     while left_prim_idx <= right_prim_idx {
         let primitive = primitives_data[left_prim_idx as usize];
 
-        if primitive.center[plane.split_by] < plane.split_at {
+        if primitive.center[plane.split_by as usize] < plane.split_at {
             left_prim_idx += 1;
             left_bounds += primitive.bounds;
 

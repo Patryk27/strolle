@@ -84,7 +84,7 @@ pub struct TriangleHit {
 impl TriangleHit {
     pub fn none() -> Self {
         Self {
-            distance: f32::MAX,
+            distance: 1000_000f32,
             point: Default::default(),
             normal: Default::default(),
             uv: Default::default(),
@@ -120,7 +120,7 @@ impl TriangleHit {
     }
 
     pub fn is_some(self) -> bool {
-        self.distance < f32::MAX
+        self.distance < 1000_000f32
     }
 
     pub fn is_none(self) -> bool {

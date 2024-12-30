@@ -1,6 +1,7 @@
 use crate::{
     Camera, CameraBuffers, CameraComputePass, CameraController, Engine, Params,
 };
+use crate::utils::ToGpu;
 
 #[derive(Debug)]
 pub struct DiSamplingPass {
@@ -46,6 +47,6 @@ impl DiSamplingPass {
         // This pass uses 8x8 warps:
         let size = (camera.camera.viewport.size + 7) / 8;
 
-        self.pass.run(camera, encoder, size, camera.pass_params());
+        self.pass.run(camera, encoder, size.to_gpu(), camera.pass_params());
     }
 }
