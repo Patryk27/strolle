@@ -24,7 +24,7 @@ pub struct DiReservoirData {
     pub light_id: u32,
     // Add padding to align `light_point` to 16 bytes
     _padding0: [u32; 2],
-    pub light_point: Vec3
+    pub light_point: Vec3,
 }
 
 impl DiReservoir {
@@ -54,14 +54,18 @@ impl DiReservoir {
             is_occluded: self.sample.is_occluded as u32,
             light_id: self.sample.light_id.get(),
             _padding0: [0u32; 2],
-            light_point: self.sample.light_point
+            light_point: self.sample.light_point,
         };
         unsafe {
             *buffer.index_unchecked_mut(id) = data;
         }
     }
 
-    pub fn copy(input: &[DiReservoirData], output: &mut [DiReservoirData], id: usize) {
+    pub fn copy(
+        input: &[DiReservoirData],
+        output: &mut [DiReservoirData],
+        id: usize,
+    ) {
         // TODO optimize
         Self::read(input, id).write(output, id);
     }
@@ -122,7 +126,8 @@ impl DiSample {
     pub fn ray(self, hit_point: Vec3) -> Ray {
         let dir = hit_point - self.light_point;
 
-        Ray::new(self.light_point, crate::safe_normalize(dir)).with_len(dir.length())
+        Ray::new(self.light_point, dir.normalize())
+            .with_len(dir.length())
     }
 }
 
@@ -150,7 +155,8 @@ mod tests {
             }
         }
 
-        let mut buffer = [DiReservoirData::default(), DiReservoirData::default()];
+        let mut buffer =
+            [DiReservoirData::default(), DiReservoirData::default()];
 
         for idx in 0..10 {
             target(idx).write(&mut buffer, idx);

@@ -4,7 +4,9 @@ use glam::{Vec3, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{safe_any_orthonormal_pair, safe_normalize, F32Ext, GBufferEntry, WhiteNoise};
+use crate::{
+    Vec3StrolleExt, F32Ext, GBufferEntry, WhiteNoise,
+};
 
 #[derive(Clone, Copy)]
 pub struct DiffuseBrdf {
@@ -52,7 +54,7 @@ impl SpecularBrdf {
 
         let a = gbuffer.clamped_roughness();
         let n = gbuffer.normal;
-        let h = safe_normalize(l + v);
+        let h = (l + v).normalize();
         let n_dot_l = n.dot(l).saturate();
         let n_dot_h = n.dot(h).saturate();
         let l_dot_h = l.dot(h).saturate();
@@ -88,10 +90,16 @@ impl SpecularBrdf {
         let a = gbuffer.clamped_roughness();
         let n = gbuffer.normal;
         let a2 = a.sqr();
-        let (b, t) = safe_any_orthonormal_pair(n);
+        let (b, t) = n.safe_any_orthonormal_pair();
 
-        let cos_theta = 0.0f32.max((1.0 - r0) / ((a2 - 1.0) * r0 + 1.0)).max(crate::STROLLE_EPSILON).sqrt();
-        let sin_theta = 0.0f32.max(1.0 - cos_theta * cos_theta).max(crate::STROLLE_EPSILON).sqrt();
+        let cos_theta = 0.0f32
+            .max((1.0 - r0) / ((a2 - 1.0) * r0 + 1.0))
+            .max(crate::STROLLE_EPSILON)
+            .sqrt();
+        let sin_theta = 0.0f32
+            .max(1.0 - cos_theta * cos_theta)
+            .max(crate::STROLLE_EPSILON)
+            .sqrt();
 
         let phi = r1 * PI * 2.0;
 
@@ -102,7 +110,7 @@ impl SpecularBrdf {
         let n_dot_h = n.dot(h).saturate();
         let h_dot_v = h.dot(v).saturate();
 
-        let dir = safe_normalize(2.0 * h_dot_v * h - v);
+        let dir = (2.0 * h_dot_v * h - v).normalize();
         let pdf = ggx_distribution(n_dot_h, a) * n_dot_h / (4.0 * h_dot_v);
 
         BrdfSample {

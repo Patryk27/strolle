@@ -75,11 +75,8 @@ use std::ops::Deref;
 use std::time::Instant;
 use std::{env, mem};
 
-use glam;
 use log::{info, trace};
-use strolle_gpu as gpu;
-
-pub use crate::utils::interface::ToGpu;
+use {glam, strolle_gpu as gpu};
 
 pub(crate) use self::buffers::*;
 pub(crate) use self::bvh::*;
@@ -103,6 +100,7 @@ pub use self::sun::*;
 pub(crate) use self::triangle::*;
 pub(crate) use self::triangles::*;
 pub(crate) use self::utils::*;
+pub use crate::utils::interface::ToGpu;
 
 #[derive(Debug)]
 pub struct Engine<P>

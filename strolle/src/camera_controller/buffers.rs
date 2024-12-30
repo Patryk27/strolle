@@ -140,7 +140,8 @@ impl CameraBuffers {
         // ---------------------------------------------------------------------
 
         let element_size = std::mem::size_of::<DiReservoirData>();
-        let element_size_round = (element_size as f32 / 32.0).ceil() as usize * 32;
+        let element_size_round =
+            (element_size as f32 / 32.0).ceil() as usize * 32;
         let di_reservoirs = [0, 1, 2].map(|idx| {
             StorageBuffer::new(
                 device,

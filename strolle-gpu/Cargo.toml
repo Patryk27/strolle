@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 bytemuck = { version = "1.19.0", features = ["derive", "min_const_generics"] }
 glam = { version = "0.29.1", default-features = false, features = ["bytemuck"] }
-spirv-std = { git = "https://github.com/glasspangolin/rust-gpu.git" }
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu.git", rev = "1932353935338c0ac5b7b150fae0551ddeaa1dad" }
 
 [dev-dependencies]
 approx = "0.5.1"

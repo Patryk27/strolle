@@ -23,11 +23,8 @@ impl ViewNode for RenderingNode {
         let state = world.resource::<SyncedState>();
 
         let Some(camera) = state.cameras.get(&entity) else {
-            println!("No camera");
             return Ok(());
         };
-
-        //println!("Starting render for camera {:?}", entity);
 
         engine.render_camera(
             camera.handle,

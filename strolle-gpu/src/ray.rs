@@ -36,7 +36,6 @@ impl Ray {
                 len: 1000_000f32,
             }
         }
-
     }
 
     pub fn with_len(mut self, len: f32) -> Self {

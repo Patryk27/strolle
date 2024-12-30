@@ -11,7 +11,6 @@ use bevy::render::view::ViewTarget;
 use bevy::utils::hashbrown::hash_map::Entry;
 use bevy::utils::HashSet;
 use strolle as st;
-
 use strolle::{ImageData, ToGpu};
 
 use crate::state::{
@@ -113,10 +112,26 @@ pub fn meshes(
                 let tan2 = mesh_tans.get(vs[2]).copied().unwrap_or_default();
 
                 st::MeshTriangle::default()
-                    .with_positions([Vec3::from(position0), Vec3::from(position1), Vec3::from(position2)])
-                    .with_normals([Vec3::from(normal0), Vec3::from(normal1), Vec3::from(normal2)])
-                    .with_uvs([Vec2::from(uv0), Vec2::from(uv1), Vec2::from(uv2)])
-                    .with_tangents([Vec4::from(tan0), Vec4::from(tan1), Vec4::from(tan2)])
+                    .with_positions([
+                        Vec3::from(position0),
+                        Vec3::from(position1),
+                        Vec3::from(position2),
+                    ])
+                    .with_normals([
+                        Vec3::from(normal0),
+                        Vec3::from(normal1),
+                        Vec3::from(normal2),
+                    ])
+                    .with_uvs([
+                        Vec2::from(uv0),
+                        Vec2::from(uv1),
+                        Vec2::from(uv2),
+                    ])
+                    .with_tangents([
+                        Vec4::from(tan0),
+                        Vec4::from(tan1),
+                        Vec4::from(tan2),
+                    ])
             })
             .collect();
 
@@ -267,10 +282,7 @@ pub fn lights(
     }
 }
 
-pub fn sun(
-    mut engine: ResMut<EngineResource>,
-    mut sun: ResMut<ExtractedSun>,
-) {
+pub fn sun(mut engine: ResMut<EngineResource>, mut sun: ResMut<ExtractedSun>) {
     if let Some(sun) = sun.sun.take() {
         engine.update_sun(sun);
     }
@@ -306,13 +318,6 @@ pub fn cameras(
             .map(|v| v.physical_position)
             .unwrap_or_default();
 
-        let fov_y = std::f32::consts::FRAC_PI_4;
-        let aspect_ratio = size.x as f32 / size.y as f32;
-        let near_plane = 0.3;
-        let far_plane = 100.0;
-
-        let projection = Mat4::perspective_rh(fov_y, aspect_ratio, far_plane, near_plane);
-
         let camera = st::Camera {
             mode: ext_camera.mode.unwrap_or_default(),
             viewport: {
@@ -323,7 +328,7 @@ pub fn cameras(
                 }
             },
             transform: ext_camera.transform,
-            projection: projection,
+            projection: ext_camera.projection,
         };
 
         match state.cameras.entry(entity) {

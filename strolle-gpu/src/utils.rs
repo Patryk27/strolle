@@ -42,25 +42,27 @@ pub fn got_checkerboard_at(screen_pos: UVec2, frame: u32) -> bool {
     screen_pos == resolve_checkerboard(screen_pos / uvec2(2, 1), frame)
 }
 
-pub fn safe_normalize(v: Vec3) -> Vec3 {
-    let len = v.length();
-    if len > 0.0 && len < 1_000_000.0 {
-        v / len
-    } else {
-        Vec3::ZERO
-    }
+use spirv_std::num_traits::Float;
+
+pub trait Vec3StrolleExt {
+    fn safe_any_orthonormal_pair(&self) -> (Vec3, Vec3);
 }
 
-pub fn safe_any_orthonormal_pair(normal: Vec3) -> (Vec3, Vec3) {
-    // Choose a helper vector that is not parallel to the normal
-    let helper = if normal.x * normal.x > normal.z * normal.z {
-        Vec3::new(normal.y, -normal.x, 0.0)
-    } else {
-        Vec3::new(0.0, -normal.z, normal.y)
-    };
-    let tangent = safe_normalize(normal.cross(helper));
-    let bitangent = normal.cross(tangent);
-    (tangent, bitangent)
+impl Vec3StrolleExt for Vec3 {
+    fn safe_any_orthonormal_pair(&self) -> (Vec3, Vec3) {
+        let sign = 1.0f32.copysign(self.z);
+        let a = -1.0 / (sign + self.z);
+        let b = self.x * self.y * a;
+
+        (
+            Vec3::new(
+                1.0 + sign * self.x * self.x * a,
+                sign * b,
+                -sign * self.x,
+            ),
+            Vec3::new(b, sign + self.y * self.y * a, -self.y),
+        )
+    }
 }
 
 pub const STROLLE_EPSILON: f32 = 0.000_0001;

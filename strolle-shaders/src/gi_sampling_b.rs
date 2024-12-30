@@ -197,7 +197,7 @@ pub fn main(
 
     if gi_hit.is_some() {
         radiance *= gi_hit.gbuffer.base_color.xyz() / PI;
-        radiance += gi_hit.gbuffer.emissive * 60.0;//Emissive strength should be parameterised somehow.
+        radiance += gi_hit.gbuffer.emissive * 60.0; //Emissive strength should be parameterised somehow.
     }
 
     // -------------------------------------------------------------------------

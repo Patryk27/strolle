@@ -7,7 +7,6 @@ pub trait ToGpu<T> {
     fn to_gpu(&self) -> T;
 }
 
-
 impl ToGpu<gpu::Affine3A> for cpu::Affine3A {
     fn to_gpu(&self) -> gpu::Affine3A {
         gpu::Affine3A::from_cols_array(&self.to_cols_array())
@@ -37,7 +36,6 @@ impl ToGpu<gpu::Vec2> for cpu::Vec2 {
         gpu::Vec2::new(self.x, self.y)
     }
 }
-
 
 impl ToGpu<gpu::UVec2> for cpu::UVec2 {
     fn to_gpu(&self) -> gpu::UVec2 {

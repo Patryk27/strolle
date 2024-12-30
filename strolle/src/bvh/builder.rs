@@ -85,7 +85,7 @@ fn find_splitting_plane(
 
     let centroid_bb: BoundingBox = primitives
         .iter()
-        .map(|primitive| -> glam::Vec3 {primitive.center})
+        .map(|primitive| { primitive.center })
         .collect();
 
     let mut bins = [[Bin::default(); BINS]; 3];
@@ -93,7 +93,8 @@ fn find_splitting_plane(
 
     for primitive in primitives {
         let bin_id = scale * (primitive.center - centroid_bb.min());
-        let bin_id = bin_id.as_uvec3().min(glam::UVec3::splat((BINS as u32) - 1));
+        let bin_id =
+            bin_id.as_uvec3().min(glam::UVec3::splat((BINS as u32) - 1));
         let bin_idx = bin_id.x as usize;
         let bin_idy = bin_id.y as usize;
         let bin_idz = bin_id.z as usize;

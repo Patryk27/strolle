@@ -58,5 +58,8 @@ pub fn setup(render_app: &mut SubApp) {
     render_app.add_systems(Render, prepare::sun.in_set(RenderSet::Prepare));
     render_app.add_systems(Render, prepare::cameras.in_set(RenderSet::Prepare));
 
-    render_app.add_systems(Render, prepare::flush.in_set(RenderSet::PrepareResourcesFlush));
+    render_app.add_systems(
+        Render,
+        prepare::flush.in_set(RenderSet::PrepareResourcesFlush),
+    );
 }

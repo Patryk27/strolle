@@ -62,7 +62,7 @@ pub fn main(
     let mut res =
         DiReservoir::read(next_reservoirs, camera.screen_to_idx(screen_pos));
 
-    let confidence: f32;
+    let confidence;
     let radiance;
     let metallic;
 
@@ -96,7 +96,7 @@ pub fn main(
     } else {
         confidence = 1.0;
 
-        let dir = camera.ray(screen_pos).dir();
+        let dir = hit.dir;
 
         radiance = LightRadiance {
             radiance: atmosphere.sample(world.sun_dir(), dir),

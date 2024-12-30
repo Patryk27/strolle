@@ -1,5 +1,5 @@
+use glam::{Affine3A, Mat4, Vec2, Vec3, Vec4, Vec4Swizzles};
 
-use glam::{Vec2, Vec3, Vec4, Mat4, Affine3A, Vec4Swizzles};
 use crate::Triangle;
 
 #[derive(Clone, Debug, Default)]
@@ -48,8 +48,9 @@ impl MeshTriangle {
         xform: Affine3A,
         xform_inv: Affine3A,
     ) -> Triangle {
-        let positions: [Vec3; 3] =
-            self.positions.map(|vertex: Vec3| -> Vec3 {xform.transform_point3(vertex)});
+        let positions: [Vec3; 3] = self
+            .positions
+            .map(|vertex: Vec3| -> Vec3 { xform.transform_point3(vertex) });
 
         let normals = {
             // Transforming normals requires inversing and transposing the
@@ -76,7 +77,7 @@ impl MeshTriangle {
             })
         };
 
-        let uvs = self.uvs.map(|uv| {uv});
+        let uvs = self.uvs.map(|uv| uv);
 
         Triangle {
             positions,

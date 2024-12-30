@@ -81,14 +81,16 @@ impl Camera {
         let screen_size = self.screen.xy();
         let screen_pos = screen_pos.as_vec2() + vec2(0.5, 0.5);
 
-        let ndc = screen_pos * 2.0 / Vec2::new((screen_size.x).max(crate::STROLLE_EPSILON), (screen_size.y).max(crate::STROLLE_EPSILON)) - Vec2::ONE;
+        let ndc = screen_pos * 2.0 / screen_size - Vec2::ONE;
         let ndc = vec2(ndc.x, -ndc.y);
 
-        let far_plane = self.ndc_to_world.project_point3(ndc.extend(crate::STROLLE_EPSILON));
+        let far_plane = self
+            .ndc_to_world
+            .project_point3(ndc.extend(crate::STROLLE_EPSILON));
 
         let near_plane = self.ndc_to_world.project_point3(ndc.extend(1.0));
 
-        Ray::new(near_plane, crate::safe_normalize(far_plane - near_plane))
+        Ray::new(near_plane, (far_plane - near_plane).normalize())
     }
 
     /// Returns camera's approximate origin, without taking into account the

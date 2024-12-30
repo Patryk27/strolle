@@ -6,8 +6,9 @@ use glam::{uvec2, vec4, Vec4};
 use guillotiere::{size2, Allocation, AtlasAllocator};
 use log::warn;
 use wgpu::TextureFormat;
-use crate::{Bindable, Image, ImageData, Params, Texture};
+
 use crate::utils::ToGpu;
+use crate::{Bindable, Image, ImageData, Params, Texture};
 
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -55,7 +56,6 @@ fn convert_to_rgba8unorm_srgb(
 
     converted_data
 }
-
 
 impl<P> Images<P>
 where
@@ -134,12 +134,16 @@ where
                         let block_size = 4; // Rgba8UnormSrgb has 4 bytes per pixel
                         let unpadded_bytes_per_row =
                             item.texture_descriptor.size.width * block_size;
-                        let padding = (256 - (unpadded_bytes_per_row % 256)) % 256;
-                        let padded_bytes_per_row = unpadded_bytes_per_row + padding;
+                        let padding =
+                            (256 - (unpadded_bytes_per_row % 256)) % 256;
+                        let padded_bytes_per_row =
+                            unpadded_bytes_per_row + padding;
 
                         // Pad the converted data if necessary
                         let mut padded_data = Vec::with_capacity(
-                            (padded_bytes_per_row * item.texture_descriptor.size.height) as usize,
+                            (padded_bytes_per_row
+                                * item.texture_descriptor.size.height)
+                                as usize,
                         );
                         if padding == 0 {
                             padded_data = converted_data;
@@ -147,7 +151,9 @@ where
                             let row_length = (unpadded_bytes_per_row) as usize;
                             for row in converted_data.chunks_exact(row_length) {
                                 padded_data.extend_from_slice(row);
-                                padded_data.extend(std::iter::repeat(0).take(padding as usize));
+                                padded_data.extend(
+                                    std::iter::repeat(0).take(padding as usize),
+                                );
                             }
                         }
 
@@ -220,8 +226,10 @@ where
                             // Use atlas texture's format for calculations
                             let block_size = 4; // Rgba8UnormSrgb has 4 bytes per pixel
                             let unpadded_bytes_per_row = w * block_size;
-                            let padding = (256 - (unpadded_bytes_per_row % 256)) % 256;
-                            let padded_bytes_per_row = unpadded_bytes_per_row + padding;
+                            let padding =
+                                (256 - (unpadded_bytes_per_row % 256)) % 256;
+                            let padded_bytes_per_row =
+                                unpadded_bytes_per_row + padding;
 
                             println!(
                                 "Writing texture: pos={}x{}, size={}x{}, data_len={}, bytes_per_row={}, padded_bytes_per_row={}",

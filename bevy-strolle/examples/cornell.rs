@@ -56,15 +56,14 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
     commands
         .spawn(Camera3dBundle {
-            camera_render_graph: CameraRenderGraph::new(
-                StrolleGraph,
-            ),
+            camera_render_graph: CameraRenderGraph::new(StrolleGraph),
             camera: Camera {
                 hdr: true,
                 ..default()
             },
             ..default()
-        }).insert(StrolleCamera::default())
+        })
+        .insert(StrolleCamera::default())
         .insert(OrbitCameraBundle::new(
             {
                 OrbitCameraController {

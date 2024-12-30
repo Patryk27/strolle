@@ -74,5 +74,3 @@ impl<'a> SurfaceMap<'a> {
         }
     }
 }
-
-

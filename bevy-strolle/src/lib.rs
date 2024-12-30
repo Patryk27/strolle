@@ -30,8 +30,6 @@ pub use self::sun::*;
 
 pub struct StrollePlugin;
 
-
-
 impl Plugin for StrollePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<StrolleEvent>();

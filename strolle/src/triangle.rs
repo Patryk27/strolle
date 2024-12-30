@@ -1,5 +1,4 @@
-use glam::Vec3Swizzles;
-use glam::{Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3, Vec3Swizzles, Vec4};
 
 use crate::gpu;
 use crate::utils::{BoundingBox, ToGpu};

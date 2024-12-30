@@ -50,19 +50,22 @@ impl Camera {
 
     pub(crate) fn serialize(&self) -> gpu::Camera {
         gpu::Camera {
-            projection_view: (self.projection * self.transform.inverse()).to_gpu(),
+            projection_view: (self.projection * self.transform.inverse())
+                .to_gpu(),
             ndc_to_world: (self.transform * self.projection.inverse()).to_gpu(),
             origin: (self
                 .transform
                 .to_scale_rotation_translation()
                 .2
-                .extend(Default::default())).to_gpu(),
+                .extend(Default::default()))
+            .to_gpu(),
             screen: (self
                 .viewport
                 .size
                 .as_vec2()
                 .extend(Default::default())
-                .extend(Default::default())).to_gpu(),
+                .extend(Default::default()))
+            .to_gpu(),
         }
     }
 }

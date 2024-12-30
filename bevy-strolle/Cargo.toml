@@ -5,19 +5,15 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.14.2", default-features = false, features = ["default"] }
-bevy_egui = { version = "0.29.0" }
-spirv-std = { git = "https://github.com/glasspangolin/rust-gpu.git" }
+bevy_egui = "0.29.0"
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu.git", rev = "1932353935338c0ac5b7b150fae0551ddeaa1dad" }
 log = "0.4.18"
 strolle = { path = "../strolle", features = ["metrics"] }
 wgpu = "0.20.1"
 
 [dev-dependencies]
 bevy = { version = "0.14.2", default-features = false, features = ["default", "jpeg"] }
-bevy_mod_raycast = { version = "0.18.0" }
+bevy_mod_raycast = "0.18.0"
 smooth-bevy-cameras = { version = "0.12.0"}
 lazy_static = "1.5.0"
 zip = { version = "2.2.0", default-features = false, features = ["deflate"] }
-
-[patch.crates-io]
-bevy = { version = "0.14.2" }
-bevy_render = {version = "0.14.2"}

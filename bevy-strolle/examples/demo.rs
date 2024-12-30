@@ -12,13 +12,17 @@ use bevy::render::RenderPlugin;
 use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::render::texture::ImageSampler;
 use bevy::window::{CursorGrabMode, PrimaryWindow, WindowResolution};
+use bevy_strolle::graph::StrolleGraph;
 use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::fps::{
     FpsCameraBundle, FpsCameraController, FpsCameraPlugin,
 };
 use smooth_bevy_cameras::LookTransformPlugin;
-use wgpu::{Extent3d, Limits, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
-use bevy_strolle::graph::StrolleGraph;
+use wgpu::{
+    Extent3d, Limits, TextureDescriptor, TextureDimension, TextureFormat,
+    TextureUsages,
+};
+
 use self::common::Sun;
 
 const VIEWPORT_SIZE: UVec2 = uvec2(640, 480);
@@ -64,16 +68,23 @@ fn main() {
 fn check_gpu_limits(render_device: Res<RenderDevice>) {
     let limits = render_device.limits();
     info!("GPU Limits:");
-    info!("  max_color_attachment_bytes_per_sample: {}",
-          limits.max_color_attachment_bytes_per_sample);
-    info!("  max_texture_dimension_2d: {}",
-          limits.max_texture_dimension_2d);
-    info!("  max_storage_buffer_binding_size: {}",
-          limits.max_storage_buffer_binding_size);
-    info!("  max_bind_groups: {}",
-          limits.max_bind_groups);
-    info!("  max_bindings_per_bind_group: {}",
-          limits.max_bindings_per_bind_group);
+    info!(
+        "  max_color_attachment_bytes_per_sample: {}",
+        limits.max_color_attachment_bytes_per_sample
+    );
+    info!(
+        "  max_texture_dimension_2d: {}",
+        limits.max_texture_dimension_2d
+    );
+    info!(
+        "  max_storage_buffer_binding_size: {}",
+        limits.max_storage_buffer_binding_size
+    );
+    info!("  max_bind_groups: {}", limits.max_bind_groups);
+    info!(
+        "  max_bindings_per_bind_group: {}",
+        limits.max_bindings_per_bind_group
+    );
 }
 
 fn setup_window(mut window: Query<&mut Window, With<PrimaryWindow>>) {
@@ -138,10 +149,9 @@ fn setup_camera(
         ..default()
     });
 
-    commands.spawn(Camera3dBundle {
-            camera_render_graph: CameraRenderGraph::new(
-                StrolleGraph,
-            ),
+    commands
+        .spawn(Camera3dBundle {
+            camera_render_graph: CameraRenderGraph::new(StrolleGraph),
             camera: Camera {
                 order: 0,
                 target: RenderTarget::Image(viewport),
@@ -149,7 +159,8 @@ fn setup_camera(
                 ..default()
             },
             ..default()
-        }).insert(StrolleCamera::default())
+        })
+        .insert(StrolleCamera::default())
         .insert(FpsCameraBundle::new(
             {
                 FpsCameraController {

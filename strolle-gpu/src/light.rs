@@ -1,13 +1,14 @@
 use core::f32::consts::PI;
 use core::ops::Mul;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{vec2, vec4, Vec2, Vec3, Vec4, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
 use crate::{
-    safe_any_orthonormal_pair, safe_normalize,
-    DiffuseBrdf, F32Ext, Hit, Normal, Ray, SpecularBrdf, Vec3Ext, WhiteNoise
+    Vec3StrolleExt, DiffuseBrdf, F32Ext, Hit,
+    Normal, Ray, SpecularBrdf, Vec3Ext, WhiteNoise,
 };
 
 #[repr(C)]
@@ -44,8 +45,8 @@ pub struct Light {
 impl Default for Light {
     fn default() -> Self {
         Self {
-            d0: Vec4::new(0.0, 0.0, 0.0, 1.0),  // Non-zero radius
-            d1: Vec4::new(0.0, 0.0, 0.0, 1.0),  // Non-zero range
+            d0: Vec4::new(0.0, 0.0, 0.0, 1.0), // Non-zero radius
+            d1: Vec4::new(0.0, 0.0, 0.0, 1.0), // Non-zero range
             d2: Vec4::ZERO,
             d3: Vec4::ZERO,
             prev_d0: Vec4::ZERO,
@@ -54,7 +55,6 @@ impl Default for Light {
         }
     }
 }
-
 
 impl Light {
     pub const TYPE_NONE: u32 = 0;
@@ -140,7 +140,7 @@ impl Light {
     }
 
     pub fn clear_slot(&mut self) {
-        self.d3.x = f32::from_bits(1);
+        self.d3.x = f32::from_bits(0);
     }
 
     pub fn commit(&mut self) {
@@ -233,15 +233,14 @@ impl Light {
         let to_light = self.center() - hit_point;
         let light_distance = to_light.length();
 
-        // Avoid potential division by zero or very small numbers
-        let safe_distance = light_distance.max(1.0);
+        let safe_distance = light_distance.max(0.001);
         let light_dir = to_light / safe_distance;
 
-        // Use clamped values for radius calculations
         let safe_radius = self.radius().max(crate::STROLLE_EPSILON);
-        let light_radius = (safe_radius / safe_distance).min(10.0);
+        let light_radius = safe_radius / safe_distance;
 
-        let (light_tangent, light_bitangent) = safe_any_orthonormal_pair(light_dir);
+        let (light_tangent, light_bitangent) =
+            light_dir.safe_any_orthonormal_pair();
 
         let disk_point = {
             let angle = 2.0 * PI * sample.x;
@@ -249,9 +248,11 @@ impl Light {
             vec2(angle.sin(), angle.cos()) * radius * light_radius
         };
 
-        let ray_dir = safe_normalize(light_dir
-            + disk_point.x * light_tangent
-            + disk_point.y * light_bitangent);
+        let ray_dir = (
+            light_dir
+                + disk_point.x * light_tangent
+                + disk_point.y * light_bitangent
+        ).normalize();
 
         Ray::new(hit_point + ray_dir * light_distance, -ray_dir)
             .with_len(light_distance)

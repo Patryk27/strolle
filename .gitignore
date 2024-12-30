@@ -3,6 +3,4 @@ target
 /bevy-strolle/assets/demo
 /bevy-strolle/examples/bench-*
 /bevy-strolle/examples/scene*
-/Cargo.lock
-Cargo.lock
-*.lock
+

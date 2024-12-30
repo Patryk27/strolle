@@ -60,10 +60,14 @@ impl GBufferEntry {
             let Vec2 { x: y, y: z } = Normal::encode(self.normal); // Encoded normal components
 
             // Pack metallic, roughness, reflectance, and emissive_r into a u32
-            let metallic_u = (self.metallic.clamp(0.0, 1.0) * 255.0).round() as u32;
-            let roughness_u = (self.roughness.clamp(0.0, 1.0) * 255.0).round() as u32;
-            let reflectance_u = (self.reflectance.clamp(0.0, 1.0) * 255.0).round() as u32;
-            let emissive_r_u = (self.emissive.x.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let metallic_u =
+                (self.metallic.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let roughness_u =
+                (self.roughness.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let reflectance_u =
+                (self.reflectance.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let emissive_r_u =
+                (self.emissive.x.clamp(0.0, 1.0) * 255.0).round() as u32;
 
             let packed = (metallic_u << 24)
                 | (roughness_u << 16)
@@ -79,8 +83,10 @@ impl GBufferEntry {
         let d1 = {
             let base_color = self.base_color.clamp(Vec4::ZERO, Vec4::ONE);
 
-            let emissive_g_u = (self.emissive.y.clamp(0.0, 1.0) * 255.0).round() as u32;
-            let emissive_b_u = (self.emissive.z.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let emissive_g_u =
+                (self.emissive.y.clamp(0.0, 1.0) * 255.0).round() as u32;
+            let emissive_b_u =
+                (self.emissive.z.clamp(0.0, 1.0) * 255.0).round() as u32;
 
             let emissive_packed = (emissive_g_u << 8) | emissive_b_u;
             let w = emissive_packed as f32;
