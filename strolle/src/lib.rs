@@ -44,7 +44,6 @@
 //! point-light, a cone-light etc.
 
 #![feature(hash_raw_entry)]
-#![feature(lint_reasons)]
 
 mod buffers;
 mod bvh;

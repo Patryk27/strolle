@@ -10,7 +10,6 @@ use std::ops::Range;
 
 use spirv_std::glam::Vec4;
 
-pub use self::builder::*;
 pub use self::node::*;
 pub use self::nodes::*;
 pub use self::primitive::*;

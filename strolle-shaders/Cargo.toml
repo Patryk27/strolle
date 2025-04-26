@@ -3,6 +3,9 @@ name = "strolle-shaders"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [lib]
 crate-type = ["dylib"]
 
@@ -11,4 +14,4 @@ crate-type = ["dylib"]
 strolle-gpu = { path = "../strolle-gpu" }
 
 # Crates.io
-spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu" }
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu" }

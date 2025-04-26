@@ -3,10 +3,13 @@ name = "strolle-gpu"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
 glam = { version = "0.24", default-features = false, features = ["bytemuck"] }
-spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu" }
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu" }
 
 [dev-dependencies]
 approx = "0.5.1"
