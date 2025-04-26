@@ -4,16 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.12.1" # TODO use default-features = false
-bevy_egui = "0.24"
-log = "0.4.18"
+bevy.workspace = true
+bevy_egui.workspace = true
+log.workspace = true
 strolle = { path = "../strolle", features = ["metrics"] }
-wgpu = "0.17.2"
+wgpu.workspace = true
 
 [dev-dependencies]
-bevy = { version = "0.12.1", features = ["jpeg"] }
-bevy_mod_raycast = "0.16.0"
-bevy_rapier3d = "0.23.0"
-lazy_static = "1.4.0"
-smooth-bevy-cameras = "0.10.0"
-zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
+bevy = { workspace = true, features = ["jpeg"] }
+bevy_mod_raycast.workspace = true
+bevy_rapier3d.workspace = true
+lazy_static.workspace = true
+smooth-bevy-cameras.workspace = true
+zip = { workspace = true, default-features = false, features = ["deflate"] }

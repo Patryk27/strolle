@@ -10,8 +10,5 @@ workspace = true
 crate-type = ["dylib"]
 
 [dependencies]
-# Workspace
+spirv-std.workspace = true
 strolle-gpu = { path = "../strolle-gpu" }
-
-# Crates.io
-spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu" }
