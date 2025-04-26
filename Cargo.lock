@@ -372,7 +372,6 @@ dependencies = [
  "bevy_egui",
  "bevy_mod_raycast",
  "bevy_rapier3d",
- "lazy_static",
  "log",
  "smooth-bevy-cameras",
  "strolle",
