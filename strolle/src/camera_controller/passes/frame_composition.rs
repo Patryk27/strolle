@@ -76,7 +76,11 @@ impl FrameCompositionPass {
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &engine.shaders.frame_composition_vs.0,
-                    entry_point: engine.shaders.frame_composition_vs.1,
+                    entry_point: Some(engine.shaders.frame_composition_vs.1),
+                    compilation_options: wgpu::PipelineCompilationOptions {
+                        zero_initialize_workgroup_memory: false,
+                        ..Default::default()
+                    },
                     buffers: &[],
                 },
                 primitive: wgpu::PrimitiveState::default(),
@@ -84,7 +88,11 @@ impl FrameCompositionPass {
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(wgpu::FragmentState {
                     module: &engine.shaders.frame_composition_fs.0,
-                    entry_point: engine.shaders.frame_composition_fs.1,
+                    entry_point: Some(engine.shaders.frame_composition_fs.1),
+                    compilation_options: wgpu::PipelineCompilationOptions {
+                        zero_initialize_workgroup_memory: false,
+                        ..Default::default()
+                    },
                     targets: &[Some(wgpu::ColorTargetState {
                         format: camera.viewport.format,
                         blend: Some(wgpu::BlendState::REPLACE),
@@ -92,6 +100,7 @@ impl FrameCompositionPass {
                     })],
                 }),
                 multiview: None,
+                cache: None,
             });
 
         Self { bg0, pipeline }
@@ -112,10 +121,12 @@ impl FrameCompositionPass {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Load,
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
 
         let params = gpu::FrameCompositionPassParams {

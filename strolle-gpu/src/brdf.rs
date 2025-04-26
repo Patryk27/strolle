@@ -4,7 +4,7 @@ use glam::{Vec3, Vec4Swizzles};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{F32Ext, GBufferEntry, WhiteNoise};
+use crate::{F32Ext, GBufferEntry, Vec3Ext, WhiteNoise};
 
 #[derive(Clone, Copy)]
 pub struct DiffuseBrdf {
@@ -88,7 +88,7 @@ impl SpecularBrdf {
         let a = gbuffer.clamped_roughness();
         let n = gbuffer.normal;
         let a2 = a.sqr();
-        let (b, t) = n.any_orthonormal_pair();
+        let (b, t) = n.safe_any_orthonormal_pair();
 
         let cos_theta = 0.0f32.max((1.0 - r0) / ((a2 - 1.0) * r0 + 1.0)).sqrt();
         let sin_theta = 0.0f32.max(1.0 - cos_theta * cos_theta).sqrt();

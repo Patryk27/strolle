@@ -2,14 +2,12 @@
   pkgs ? import <nixpkgs> { },
 }:
 
-with pkgs;
-
-mkShell rec {
-  nativeBuildInputs = [
+pkgs.mkShell rec {
+  nativeBuildInputs = with pkgs; [
     pkg-config
   ];
 
-  buildInputs = [
+  buildInputs = with pkgs; [
     alsa-lib
     libxkbcommon
     udev
@@ -21,5 +19,9 @@ mkShell rec {
     xorg.libXrandr
   ];
 
-  LD_LIBRARY_PATH = lib.makeLibraryPath (buildInputs ++ [ stdenv.cc.cc.lib ]);
+  hardeningDisable = [
+    "fortify"
+  ];
+
+  LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (buildInputs ++ [ pkgs.stdenv.cc.cc.lib ]);
 }

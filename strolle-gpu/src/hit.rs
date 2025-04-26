@@ -59,7 +59,7 @@ impl Hit {
         let b;
 
         if roughness == 1.0 {
-            (t, b) = normal.any_orthonormal_pair();
+            (t, b) = normal.safe_any_orthonormal_pair();
         } else {
             let d = dominant_direction(normal, -direction, roughness);
             let r = (-d).reflect(normal);

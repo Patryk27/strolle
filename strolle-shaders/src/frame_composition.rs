@@ -28,6 +28,9 @@ pub fn fs(
     #[spirv(descriptor_set = 0, binding = 6)] ref_colors: TexRgba32,
     frag_color: &mut Vec4,
 ) {
+    *frag_color = vec4(0.1, 0.2, 0.3, 0.5);
+    return;
+
     let screen_pos = pos.xy().as_uvec2();
 
     let gbuffer = GBufferEntry::unpack([

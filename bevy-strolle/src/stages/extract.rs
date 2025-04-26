@@ -1,13 +1,15 @@
 use std::f32::consts::PI;
 
+use bevy::image::{ImageSampler, ImageSamplerDescriptor};
 use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, CameraRenderGraph};
-use bevy::render::texture::{ImageSampler, ImageSamplerDescriptor};
+use bevy::render::sync_world::{RenderEntity, TemporaryRenderEntity};
 use bevy::render::view::RenderLayers;
 use bevy::render::Extract;
 use bevy::utils::HashSet;
 use strolle as st;
 
+use crate::graph::StrolleGraph;
 use crate::state::{
     ExtractedCamera, ExtractedImage, ExtractedImageData, ExtractedImages,
     ExtractedInstance, ExtractedInstances, ExtractedLight, ExtractedLights,
@@ -33,7 +35,8 @@ pub(crate) fn meshes(
             AssetEvent::Removed { id } => {
                 removed.push(*id);
             }
-            AssetEvent::LoadedWithDependencies { .. } => {
+            AssetEvent::LoadedWithDependencies { .. }
+            | AssetEvent::Unused { .. } => {
                 //
             }
         }
@@ -73,7 +76,8 @@ pub(crate) fn materials(
             AssetEvent::Removed { id } => {
                 removed.push(*id);
             }
-            AssetEvent::LoadedWithDependencies { .. } => {
+            AssetEvent::LoadedWithDependencies { .. }
+            | AssetEvent::Unused { .. } => {
                 //
             }
         }
@@ -127,7 +131,8 @@ pub(crate) fn images(
                 removed.push(*id);
                 dynamic_images.remove(id);
             }
-            AssetEvent::LoadedWithDependencies { .. } => {
+            AssetEvent::LoadedWithDependencies { .. }
+            | AssetEvent::Unused { .. } => {
                 //
             }
         }
@@ -194,22 +199,22 @@ pub(crate) fn instances(
         Query<
             (
                 Entity,
-                &Handle<Mesh>,
-                &Handle<StandardMaterial>,
+                &Mesh3d,
+                &MeshMaterial3d<StandardMaterial>,
                 &GlobalTransform,
                 &InheritedVisibility,
                 Option<&RenderLayers>,
             ),
             Or<(
-                Changed<Handle<Mesh>>,
-                Changed<Handle<StandardMaterial>>,
+                Changed<Mesh3d>,
+                Changed<MeshMaterial3d<StandardMaterial>>,
                 Changed<GlobalTransform>,
                 Changed<InheritedVisibility>,
                 Changed<RenderLayers>,
             )>,
         >,
     >,
-    mut removed: Extract<RemovedComponents<Handle<Mesh>>>,
+    mut removed: Extract<RemovedComponents<Mesh3d>>,
 ) {
     let mut removed: Vec<_> = removed.read().collect();
 
@@ -235,7 +240,7 @@ pub(crate) fn instances(
                 //      should probably propagate the layers up to the BVH
                 //      leaves and adjust the raytracer to read those
                 if let Some(layers) = layers {
-                    if *layers != RenderLayers::all() {
+                    if *layers != RenderLayers::default() {
                         // TODO inefficient; we should push only if the object
                         //      was visible before
                         removed.push(handle);
@@ -340,6 +345,7 @@ pub(crate) fn cameras(
     cameras: Extract<
         Query<(
             Entity,
+            &RenderEntity,
             &Camera,
             &CameraRenderGraph,
             &Projection,
@@ -350,24 +356,29 @@ pub(crate) fn cameras(
 ) {
     for (
         entity,
+        rentity,
         camera,
-        camera_render_graph,
+        camera_rg,
         projection,
         transform,
         strolle_camera,
     ) in cameras.iter()
     {
-        if !camera.is_active || **camera_render_graph != crate::graph::NAME {
+        if !camera.is_active || !camera_rg.as_dyn_eq().dyn_eq(&StrolleGraph) {
             continue;
         }
 
         assert!(camera.hdr, "Strolle requires an HDR camera");
 
-        commands.get_or_spawn(entity).insert(ExtractedCamera {
-            transform: transform.compute_matrix(),
-            projection: projection.get_projection_matrix(),
-            mode: strolle_camera.map(|camera| camera.mode),
-        });
+        commands
+            .entity(rentity.id())
+            .insert(ExtractedCamera {
+                entity,
+                transform: transform.compute_matrix(),
+                projection: projection.get_clip_from_view(),
+                mode: strolle_camera.map(|camera| camera.mode),
+            })
+            .insert(TemporaryRenderEntity);
     }
 }
 

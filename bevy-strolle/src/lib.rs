@@ -34,7 +34,7 @@ impl Plugin for StrollePlugin {
         app.add_event::<StrolleEvent>();
         app.insert_resource(StrolleSun::default());
 
-        if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
+        if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.insert_resource(SyncedState::default());
 
             stages::setup(render_app);
@@ -43,11 +43,11 @@ impl Plugin for StrollePlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        let Ok(render_app) = app.get_sub_app_mut(RenderApp) else {
+        let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
 
-        let render_device = render_app.world.resource::<RenderDevice>();
+        let render_device = render_app.world().resource::<RenderDevice>();
         let engine = st::Engine::new(render_device.wgpu_device());
 
         render_app.insert_resource(EngineResource(engine));

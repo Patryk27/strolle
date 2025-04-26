@@ -3,13 +3,13 @@ mod common;
 
 use std::f32::consts::PI;
 
-use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::image::ImageSampler;
 use bevy::math::{uvec2, vec3};
 use bevy::prelude::*;
 use bevy::render::camera::{CameraRenderGraph, RenderTarget};
-use bevy::render::texture::ImageSampler;
 use bevy::window::{CursorGrabMode, PrimaryWindow, WindowResolution};
+use bevy_strolle::graph::StrolleGraph;
 use bevy_strolle::prelude::*;
 use smooth_bevy_cameras::controllers::fps::{
     FpsCameraBundle, FpsCameraController, FpsCameraPlugin,
@@ -63,8 +63,8 @@ fn main() {
 fn setup_window(mut window: Query<&mut Window, With<PrimaryWindow>>) {
     let mut window = window.single_mut();
 
-    window.cursor.visible = false;
-    window.cursor.grab_mode = CursorGrabMode::Locked;
+    window.cursor_options.visible = false;
+    window.cursor_options.grab_mode = CursorGrabMode::Locked;
 }
 
 fn setup_camera(
@@ -103,32 +103,27 @@ fn setup_camera(
 
     let viewport = images.add(viewport);
 
-    commands.spawn(SpriteBundle {
-        texture: viewport.clone(),
-        transform: Transform::from_scale(vec3(
+    commands.spawn((
+        Sprite::from_image(viewport.clone()),
+        Transform::from_scale(vec3(
             window.width() / (VIEWPORT_SIZE.x as f32),
             window.height() / (VIEWPORT_SIZE.y as f32),
             1.0,
         )),
-        ..default()
-    });
+    ));
 
-    commands.spawn(Camera2dBundle {
-        camera: Camera {
+    commands.spawn((
+        Camera2d,
+        Camera {
             order: 1,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
-        camera_2d: Camera2d {
-            clear_color: ClearColorConfig::None,
-        },
-        ..default()
-    });
+    ));
 
     commands
         .spawn(Camera3dBundle {
-            camera_render_graph: CameraRenderGraph::new(
-                bevy_strolle::graph::NAME,
-            ),
+            camera_render_graph: CameraRenderGraph::new(StrolleGraph),
             camera: Camera {
                 order: 0,
                 target: RenderTarget::Image(viewport),
@@ -159,10 +154,7 @@ fn setup_scene(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    commands.spawn(SceneBundle {
-        scene: assets.load("demo/level.glb#Scene0"),
-        ..default()
-    });
+    commands.spawn(SceneRoot(assets.load("demo/level.glb#Scene0")));
 
     // ---
 
@@ -203,18 +195,18 @@ fn setup_scene(
 
         commands
             .spawn(MaterialMeshBundle {
-                mesh: meshes.add(Mesh::from(shape::Torus::default())),
-                material: materials.add(StandardMaterial {
+                mesh: Mesh3d(meshes.add(Mesh::from(Torus::default()))),
+                material: MeshMaterial3d(materials.add(StandardMaterial {
                     base_color: color,
-                    emissive: color * 10.0,
+                    emissive: color.to_linear() * 10.0,
                     ..default()
-                }),
+                })),
                 transform: Transform::from_translation(torus)
                     .with_rotation(Quat::from_rotation_z(1.0))
                     .with_scale(Vec3::splat(0.5)),
                 ..default()
             })
-            .insert(Torus);
+            .insert(TorusObj);
     }
 
     // ---
@@ -261,16 +253,16 @@ fn adjust_materials(
 }
 
 fn handle_materials(
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if keys.just_pressed(KeyCode::T) {
+    if keys.just_pressed(KeyCode::KeyT) {
         for (_, material) in materials.iter_mut() {
             material.base_color_texture = None;
         }
     }
 
-    if keys.just_pressed(KeyCode::M) {
+    if keys.just_pressed(KeyCode::KeyM) {
         for (_, material) in materials.iter_mut() {
             if material.metallic == 0.0 {
                 material.metallic = 1.0;
@@ -291,13 +283,13 @@ struct Flashlight {
 }
 
 fn handle_flashlight(
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     mut flashlight: Query<(&mut Flashlight, &mut SpotLight)>,
     mut lights: Query<&mut PointLight>,
 ) {
     let (mut flashlight, mut flashlight_spot) = flashlight.single_mut();
 
-    if keys.just_pressed(KeyCode::F) {
+    if keys.just_pressed(KeyCode::KeyF) {
         flashlight.enabled = !flashlight.enabled;
 
         if flashlight.enabled {
@@ -330,14 +322,14 @@ fn animate_flashlight(
 // -----------------------------------------------------------------------------
 
 #[derive(Component)]
-struct Torus;
+struct TorusObj;
 
 fn animate_toruses(
     time: Res<Time>,
-    mut toruses: Query<&mut Transform, (With<Torus>, Without<Flashlight>)>,
+    mut toruses: Query<&mut Transform, (With<TorusObj>, Without<Flashlight>)>,
 ) {
     for mut xform in toruses.iter_mut() {
-        xform.rotation = Quat::from_rotation_z(time.elapsed_seconds())
-            * Quat::from_rotation_x(time.elapsed_seconds() + 1.0);
+        xform.rotation = Quat::from_rotation_z(time.elapsed_secs())
+            * Quat::from_rotation_x(time.elapsed_secs() + 1.0);
     }
 }

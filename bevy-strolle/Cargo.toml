@@ -12,7 +12,6 @@ wgpu.workspace = true
 
 [dev-dependencies]
 bevy = { workspace = true, features = ["jpeg"] }
-bevy_mod_raycast.workspace = true
 bevy_rapier3d.workspace = true
 smooth-bevy-cameras.workspace = true
 zip = { workspace = true, default-features = false, features = ["deflate"] }

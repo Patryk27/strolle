@@ -27,6 +27,9 @@ where
 
     /// Adjusts luminance of this color-vector.
     fn with_luma(self, luma: f32) -> Self;
+
+    /// Like [`Vec3::any_orthonormal_pair()`], but wgpu-compatible.
+    fn safe_any_orthonormal_pair(&self) -> (Vec3, Vec3);
 }
 
 impl Vec3Ext for Vec3 {
@@ -59,5 +62,20 @@ impl Vec3Ext for Vec3 {
 
     fn with_luma(self, luma: f32) -> Self {
         self * (luma / self.luma())
+    }
+
+    fn safe_any_orthonormal_pair(&self) -> (Vec3, Vec3) {
+        let sign = 1.0f32.copysign(self.z);
+        let a = -1.0 / (sign + self.z);
+        let b = self.x * self.y * a;
+
+        (
+            Vec3::new(
+                1.0 + sign * self.x * self.x * a,
+                sign * b,
+                -sign * self.x,
+            ),
+            Vec3::new(b, sign + self.y * self.y * a, -self.y),
+        )
     }
 }

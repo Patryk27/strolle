@@ -6,6 +6,7 @@ use bevy::render::mesh::VertexAttributeValues;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::PrimitiveTopology;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::texture::GpuImage;
 use bevy::render::view::ViewTarget;
 use bevy::utils::hashbrown::hash_map::Entry;
 use bevy::utils::HashSet;
@@ -158,7 +159,7 @@ pub(crate) fn materials(
             base_color_texture: mat
                 .base_color_texture
                 .map(|handle| handle.id()),
-            emissive: color_to_vec4(mat.emissive),
+            emissive: mat.emissive.to_vec4(),
             emissive_texture: mat.emissive_texture.map(|handle| handle.id()),
             perceptual_roughness: mat.perceptual_roughness,
             metallic: mat.metallic,
@@ -181,7 +182,7 @@ pub(crate) fn materials(
 
 pub(crate) fn images(
     mut engine: ResMut<EngineResource>,
-    textures: Res<RenderAssets<Image>>,
+    textures: Res<RenderAssets<GpuImage>>,
     mut images: ResMut<ExtractedImages>,
 ) {
     for handle in &images.removed {
@@ -276,20 +277,14 @@ pub(crate) fn cameras(
     device: Res<RenderDevice>,
     mut state: ResMut<SyncedState>,
     mut engine: ResMut<EngineResource>,
-    mut cameras: Query<(
-        Entity,
-        &ViewTarget,
-        &BevyExtractedCamera,
-        &ExtractedCamera,
-    )>,
+    mut cameras: Query<(&ViewTarget, &BevyExtractedCamera, &ExtractedCamera)>,
 ) {
     let device = device.wgpu_device();
     let state = &mut *state;
     let engine = &mut *engine;
     let mut alive_cameras = HashSet::new();
 
-    for (entity, view_target, bevy_ext_camera, ext_camera) in cameras.iter_mut()
-    {
+    for (view_target, bevy_ext_camera, ext_camera) in cameras.iter_mut() {
         let camera = st::Camera {
             mode: ext_camera.mode.unwrap_or_default(),
 
@@ -317,7 +312,7 @@ pub(crate) fn cameras(
             projection: ext_camera.projection,
         };
 
-        match state.cameras.entry(entity) {
+        match state.cameras.entry(ext_camera.entity) {
             Entry::Occupied(entry) => {
                 engine.update_camera(device, entry.into_mut().handle, camera);
             }
@@ -329,7 +324,7 @@ pub(crate) fn cameras(
             }
         }
 
-        alive_cameras.insert(entity);
+        alive_cameras.insert(ext_camera.entity);
     }
 
     // -----

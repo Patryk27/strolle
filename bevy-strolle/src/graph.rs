@@ -1,43 +1,49 @@
-pub const NAME: &str = "strolle";
-
-pub mod node {
-    pub const RENDERING: &str = "strolle_rendering";
-    pub const TONEMAPPING: &str = "strolle_tonemapping";
-    pub const FXAA: &str = "strolle_fxaa";
-    pub const UPSCALING: &str = "strolle_upscaling";
-}
-
 use bevy::core_pipeline::fxaa::FxaaNode;
 use bevy::core_pipeline::tonemapping::TonemappingNode;
 use bevy::core_pipeline::upscaling::UpscalingNode;
 use bevy::prelude::*;
-use bevy::render::render_graph::{RenderGraphApp, ViewNodeRunner};
+use bevy::render::render_graph::{
+    RenderGraphApp, RenderLabel, RenderSubGraph, ViewNodeRunner,
+};
 
 use crate::RenderingNode;
 
-pub(crate) fn setup(render_app: &mut App) {
-    render_app
-        .add_render_sub_graph(NAME)
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderSubGraph)]
+pub struct StrolleGraph;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+pub enum StrolleNode {
+    Rendering,
+    ToneMapping,
+    Fxaa,
+    Upscaling,
+}
+
+pub(crate) fn setup(app: &mut SubApp) {
+    app.add_render_sub_graph(StrolleGraph)
         .add_render_graph_node::<ViewNodeRunner<RenderingNode>>(
-            NAME,
-            node::RENDERING,
+            StrolleGraph,
+            StrolleNode::Rendering,
         )
         .add_render_graph_node::<ViewNodeRunner<TonemappingNode>>(
-            NAME,
-            node::TONEMAPPING,
+            StrolleGraph,
+            StrolleNode::ToneMapping,
         )
         .add_render_graph_node::<ViewNodeRunner<UpscalingNode>>(
-            NAME,
-            node::UPSCALING,
+            StrolleGraph,
+            StrolleNode::Upscaling,
         )
-        .add_render_graph_node::<ViewNodeRunner<FxaaNode>>(NAME, node::FXAA)
+        .add_render_graph_node::<ViewNodeRunner<FxaaNode>>(
+            StrolleGraph,
+            StrolleNode::Fxaa,
+        )
         .add_render_graph_edges(
-            NAME,
-            &[
-                node::RENDERING,
-                node::FXAA,
-                node::TONEMAPPING,
-                node::UPSCALING,
-            ],
+            StrolleGraph,
+            (
+                StrolleNode::Rendering,
+                StrolleNode::Fxaa,
+                StrolleNode::ToneMapping,
+                StrolleNode::Upscaling,
+            ),
         );
 }

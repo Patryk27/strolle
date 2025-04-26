@@ -105,6 +105,7 @@ pub(crate) struct ExtractedLight {
 
 #[derive(Debug, Component)]
 pub(crate) struct ExtractedCamera {
+    pub entity: Entity,
     pub transform: Mat4,
     pub projection: Mat4,
     pub mode: Option<st::CameraMode>,

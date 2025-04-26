@@ -92,6 +92,10 @@ impl CameraController {
     ) where
         P: Params,
     {
+        println!("run");
+        self.passes.frame_composition.run(self, encoder, view);
+        return;
+
         match self.camera.mode {
             CameraMode::BvhHeatmap => {
                 self.passes.bvh_heatmap.run(self, encoder);

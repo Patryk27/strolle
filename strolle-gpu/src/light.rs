@@ -50,7 +50,7 @@ impl Light {
         Self {
             // TODO incorrect
             d0: position.extend(25.0),
-            d1: color.extend(f32::INFINITY),
+            d1: color.extend(1000000.0),
             d2: vec4(
                 f32::from_bits(Self::TYPE_POINT),
                 Default::default(),
@@ -152,7 +152,7 @@ impl Light {
             (1.0 - (angle / self.spot_angle()).powf(3.0)).saturate()
         };
 
-        let f_dist = if self.range() == f32::INFINITY {
+        let f_dist = if self.range() == 1000000.0 {
             1.0
         } else {
             let l2 = l.length_squared();
@@ -219,7 +219,9 @@ impl Light {
         let light_dir = to_light.normalize();
         let light_distance = to_light.length();
         let light_radius = self.radius() / light_distance;
-        let (light_tangent, light_bitangent) = light_dir.any_orthonormal_pair();
+
+        let (light_tangent, light_bitangent) =
+            light_dir.safe_any_orthonormal_pair();
 
         let disk_point = {
             let angle = 2.0 * PI * sample.x;
