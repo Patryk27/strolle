@@ -14,8 +14,8 @@ _without_ dedicated ray-tracing cores.
 Strolle comes integrated with [Bevy](https://bevyengine.org/), but can be also
 used on its own (through `wgpu`).
 
-Status: Experimental, no official release yet (see the demo below, though!).    
-Platforms: Windows, Mac, Linux & WebGPU.
+Status: Abandoned, I've moved on to other things; feel free to fork and/or ping
+me if you're interested in details as to how this engine works.
 
 * [Gallery](#gallery)
 * [Examples](#examples)
